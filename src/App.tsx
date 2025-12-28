@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Rating } from 'ts-fsrs';
 import { Flashcard, type RatingIntervals } from './components/Flashcard';
 import cardsData from './data/cards.json';
@@ -64,6 +64,9 @@ export default function App() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [practiceIndex, setPracticeIndex] = useState(0);
   const [practiceCards, setPracticeCards] = useState<Card[]>([]);
+  const [sessionQueue, setSessionQueue] = useState<SessionCard[]>([]);
+  const [reviewCount, setReviewCount] = useState(0);
+  const [newCount, setNewCount] = useState(0);
 
   const filteredCards = useMemo(() => {
     return allCards.filter((card) => {
@@ -74,35 +77,42 @@ export default function App() {
     });
   }, [caseFilter, genderFilter, numberFilter]);
 
-  const { sessionQueue, reviewCount, newCount } = useMemo(() => {
-    const filters = {
-      case: caseFilter,
-      gender: genderFilter,
-      number: numberFilter,
-    };
-    const { reviewCards, newCards } = getSessionCards(
-      allCards,
-      reviewStore,
-      filters,
-      settings
-    );
-    return {
-      sessionQueue: [...reviewCards, ...newCards],
-      reviewCount: reviewCards.length,
-      newCount: newCards.length,
-    };
-  }, [caseFilter, genderFilter, numberFilter, reviewStore, settings]);
+  const buildSession = useCallback(
+    (store: ReviewDataStore) => {
+      const filters = {
+        case: caseFilter,
+        gender: genderFilter,
+        number: numberFilter,
+      };
+      const { reviewCards, newCards } = getSessionCards(
+        allCards,
+        store,
+        filters,
+        settings
+      );
+      setSessionQueue([...reviewCards, ...newCards]);
+      setReviewCount(reviewCards.length);
+      setNewCount(newCards.length);
+      setLearningQueue([]);
+      setCurrentIndex(0);
+    },
+    [caseFilter, genderFilter, numberFilter, settings]
+  );
+
+  useEffect(() => {
+    buildSession(reviewStore);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const resetSession = useCallback(() => {
-    setLearningQueue([]);
-    setCurrentIndex(0);
-  }, []);
+    buildSession(reviewStore);
+  }, [buildSession, reviewStore]);
 
   const checkForNewCards = useCallback(() => {
-    setReviewStore(loadReviewData());
-    setLearningQueue([]);
-    setCurrentIndex(0);
-  }, []);
+    const freshStore = loadReviewData();
+    setReviewStore(freshStore);
+    buildSession(freshStore);
+  }, [buildSession]);
 
   const togglePracticeMode = useCallback(() => {
     if (!practiceMode) {
@@ -184,10 +194,10 @@ export default function App() {
       )
     ) {
       clearAllData();
-      setReviewStore(loadReviewData());
+      const freshStore = loadReviewData();
+      setReviewStore(freshStore);
       setSettings(loadSettings());
-      setLearningQueue([]);
-      setCurrentIndex(0);
+      buildSession(freshStore);
       setShowSettings(false);
     }
   };
