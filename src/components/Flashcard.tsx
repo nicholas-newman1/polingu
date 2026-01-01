@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Rating } from 'ts-fsrs';
+import { Rating, type Grade } from 'ts-fsrs';
 import type { Card } from '../types';
 
 export interface RatingIntervals {
@@ -13,7 +13,7 @@ interface FlashcardProps {
   card: Card;
   practiceMode?: boolean;
   intervals?: RatingIntervals;
-  onRate?: (rating: Rating) => void;
+  onRate?: (rating: Grade) => void;
   onNext?: () => void;
 }
 

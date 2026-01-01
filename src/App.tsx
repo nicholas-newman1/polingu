@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Rating } from 'ts-fsrs';
+import { Rating, type Grade } from 'ts-fsrs';
 import { Flashcard, type RatingIntervals } from './components/Flashcard';
 import cardsData from './data/cards.json';
 import type {
@@ -158,7 +158,7 @@ export default function App() {
   const isFinished =
     currentIndex >= sessionQueue.length && learningQueue.length === 0;
 
-  const handleRate = async (rating: Rating) => {
+  const handleRate = async (rating: Grade) => {
     if (!currentSessionCard) return;
 
     const updatedReviewData = rateCard(currentSessionCard.reviewData, rating);

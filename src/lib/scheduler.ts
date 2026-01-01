@@ -1,5 +1,19 @@
-import { fsrs, Rating, type Card as FSRSCard, type RecordLogItem } from 'ts-fsrs';
-import type { Card, CardReviewData, ReviewDataStore, Settings, Case, Gender, Number } from '../types';
+import {
+  fsrs,
+  Rating,
+  type Card as FSRSCard,
+  type RecordLogItem,
+  type Grade,
+} from 'ts-fsrs';
+import type {
+  Card,
+  CardReviewData,
+  ReviewDataStore,
+  Settings,
+  Case,
+  Gender,
+  Number,
+} from '../types';
 import { getOrCreateCardReviewData } from './storage';
 
 const f = fsrs();
@@ -71,7 +85,7 @@ export function getSessionCards(
 
 export function rateCard(
   reviewData: CardReviewData,
-  rating: Rating,
+  rating: Grade,
   now: Date = new Date()
 ): CardReviewData {
   const result = f.repeat(reviewData.fsrsCard, now);
@@ -86,7 +100,7 @@ export function rateCard(
 export function getNextIntervals(
   fsrsCard: FSRSCard,
   now: Date = new Date()
-): Record<Rating, string> {
+): Record<Grade, string> {
   const result = f.repeat(fsrsCard, now);
 
   const formatInterval = (card: FSRSCard): string => {
@@ -109,4 +123,3 @@ export function getNextIntervals(
     [Rating.Easy]: formatInterval(result[Rating.Easy].card),
   };
 }
-
