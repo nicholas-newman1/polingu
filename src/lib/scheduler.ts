@@ -83,6 +83,62 @@ export function getSessionCards(
   return { reviewCards, newCards };
 }
 
+export function getPracticeAheadCards(
+  allCards: Card[],
+  reviewStore: ReviewDataStore,
+  filters: Filters,
+  count: number
+): SessionCard[] {
+  const practiceCards: SessionCard[] = [];
+
+  for (const card of allCards) {
+    if (!matchesFilters(card, filters)) continue;
+
+    const reviewData = getOrCreateCardReviewData(card.id, reviewStore);
+    const isNew = reviewData.fsrsCard.state === 0;
+
+    if (isNew) continue;
+
+    const isDueCard = isDue(reviewData.fsrsCard);
+    const reviewedToday = reviewStore.reviewedToday.includes(card.id);
+
+    if (!isDueCard || reviewedToday) {
+      practiceCards.push({ card, reviewData, isNew: false });
+    }
+  }
+
+  practiceCards.sort((a, b) => {
+    const dateA = new Date(a.reviewData.fsrsCard.due).getTime();
+    const dateB = new Date(b.reviewData.fsrsCard.due).getTime();
+    return dateA - dateB;
+  });
+
+  return practiceCards.slice(0, count);
+}
+
+export function getExtraNewCards(
+  allCards: Card[],
+  reviewStore: ReviewDataStore,
+  filters: Filters,
+  count: number
+): SessionCard[] {
+  const newCards: SessionCard[] = [];
+
+  for (const card of allCards) {
+    if (!matchesFilters(card, filters)) continue;
+
+    const reviewData = getOrCreateCardReviewData(card.id, reviewStore);
+    const isNew = reviewData.fsrsCard.state === 0;
+
+    if (isNew && !reviewStore.newCardsToday.includes(card.id)) {
+      newCards.push({ card, reviewData, isNew: true });
+      if (newCards.length >= count) break;
+    }
+  }
+
+  return newCards;
+}
+
 export function rateCard(
   reviewData: CardReviewData,
   rating: Grade,

@@ -21,6 +21,8 @@ import {
 } from './lib/storage';
 import {
   getSessionCards,
+  getPracticeAheadCards,
+  getExtraNewCards,
   rateCard,
   getNextIntervals,
   type SessionCard,
@@ -84,6 +86,9 @@ export default function App() {
   const [reviewCount, setReviewCount] = useState(0);
   const [newCount, setNewCount] = useState(0);
   const [ratingCounter, setRatingCounter] = useState(0);
+  const [practiceAheadCount, setPracticeAheadCount] = useState(10);
+  const [isPracticeAhead, setIsPracticeAhead] = useState(false);
+  const [extraNewCardsCount, setExtraNewCardsCount] = useState(5);
 
   const filteredCards = useMemo(() => {
     return allCards.filter((card) => {
@@ -140,7 +145,48 @@ export default function App() {
     const freshStore = await loadReviewData();
     setReviewStore(freshStore);
     buildSession(freshStore, settings);
+    setIsPracticeAhead(false);
   }, [buildSession, settings]);
+
+  const startPracticeAhead = useCallback(() => {
+    const filters = {
+      case: caseFilter,
+      gender: genderFilter,
+      number: numberFilter,
+    };
+    const aheadCards = getPracticeAheadCards(
+      allCards,
+      reviewStore,
+      filters,
+      practiceAheadCount
+    );
+    setSessionQueue(aheadCards);
+    setReviewCount(aheadCards.length);
+    setNewCount(0);
+    setLearningQueue([]);
+    setCurrentIndex(0);
+    setIsPracticeAhead(true);
+  }, [caseFilter, genderFilter, numberFilter, reviewStore, practiceAheadCount]);
+
+  const startExtraNewCards = useCallback(() => {
+    const filters = {
+      case: caseFilter,
+      gender: genderFilter,
+      number: numberFilter,
+    };
+    const extraCards = getExtraNewCards(
+      allCards,
+      reviewStore,
+      filters,
+      extraNewCardsCount
+    );
+    setSessionQueue(extraCards);
+    setReviewCount(0);
+    setNewCount(extraCards.length);
+    setLearningQueue([]);
+    setCurrentIndex(0);
+    setIsPracticeAhead(false);
+  }, [caseFilter, genderFilter, numberFilter, reviewStore, extraNewCardsCount]);
 
   const togglePracticeMode = useCallback(() => {
     if (!practiceMode) {
@@ -468,6 +514,8 @@ export default function App() {
           ? `Practice Mode · ${practiceCards.length} cards`
           : isFinished
           ? ''
+          : isPracticeAhead
+          ? `Practice Ahead · ${totalRemaining} remaining`
           : `${reviewCount} reviews · ${newCount} new · ${totalRemaining} remaining`}
       </p>
 
@@ -501,10 +549,60 @@ export default function App() {
             </p>
             <button
               onClick={checkForNewCards}
-              className="w-full py-4 bg-slate-700 hover:bg-slate-600 text-white font-semibold rounded-xl transition-colors"
+              className="w-full py-4 bg-slate-700 hover:bg-slate-600 text-white font-semibold rounded-xl transition-colors mb-4"
             >
               Check for new cards
             </button>
+            <div className="border-t border-slate-700 pt-4">
+              <div className="flex items-center gap-3 mb-3">
+                <label className="text-slate-400 text-sm">
+                  Practice ahead:
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={practiceAheadCount}
+                  onChange={(e) =>
+                    setPracticeAheadCount(
+                      Math.max(1, parseInt(e.target.value) || 1)
+                    )
+                  }
+                  className="w-20 bg-slate-700 text-white border border-slate-600 rounded px-2 py-1 text-sm focus:outline-none focus:border-rose-500"
+                />
+                <span className="text-slate-400 text-sm">cards</span>
+              </div>
+              <button
+                onClick={startPracticeAhead}
+                className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl transition-colors"
+              >
+                Practice ahead
+              </button>
+            </div>
+            <div className="border-t border-slate-700 pt-4 mt-4">
+              <div className="flex items-center gap-3 mb-3">
+                <label className="text-slate-400 text-sm">Learn extra:</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="50"
+                  value={extraNewCardsCount}
+                  onChange={(e) =>
+                    setExtraNewCardsCount(
+                      Math.max(1, parseInt(e.target.value) || 1)
+                    )
+                  }
+                  className="w-20 bg-slate-700 text-white border border-slate-600 rounded px-2 py-1 text-sm focus:outline-none focus:border-rose-500"
+                />
+                <span className="text-slate-400 text-sm">new cards</span>
+              </div>
+              <button
+                onClick={startExtraNewCards}
+                className="w-full py-4 bg-amber-600 hover:bg-amber-500 text-white font-semibold rounded-xl transition-colors"
+              >
+                Learn new cards
+              </button>
+            </div>
           </div>
         </div>
       ) : currentSessionCard ? (
