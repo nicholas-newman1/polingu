@@ -35,7 +35,7 @@ export function SignIn() {
 
           <button
             onClick={handleSignIn}
-            className="w-full flex items-center justify-center gap-3 py-4 px-6 bg-white hover:bg-slate-100 text-slate-800 font-medium rounded-xl transition-colors mb-6"
+            className="w-full flex items-center justify-center gap-3 py-4 px-6 bg-white hover:bg-slate-100 text-slate-800 font-medium rounded-xl transition-colors mb-6 cursor-pointer"
           >
             <svg width="20" height="20" viewBox="0 0 24 24">
               <path
