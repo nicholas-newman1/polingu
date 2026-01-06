@@ -8,6 +8,7 @@ import { FilterControls } from './components/FilterControls';
 import { SettingsPanel } from './components/SettingsPanel';
 import { FinishedState } from './components/FinishedState';
 import { EmptyState } from './components/EmptyState';
+import { CheatSheetDrawer } from './components/CheatSheetDrawer';
 import cardsData from './data/cards.json';
 import type {
   Card as CardType,
@@ -73,6 +74,7 @@ export default function App() {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [isLoading, setIsLoading] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
+  const [showCheatSheet, setShowCheatSheet] = useState(false);
   const [practiceMode, setPracticeMode] = useState(false);
 
   const [caseFilter, setCaseFilter] = useState<Case | 'All'>('All');
@@ -372,7 +374,11 @@ export default function App() {
 
   return (
     <PageContainer>
-      <Header user={user} onSignOut={handleSignOut} />
+      <Header
+        user={user}
+        onSignOut={handleSignOut}
+        onOpenCheatSheet={() => setShowCheatSheet(true)}
+      />
 
       <FilterControls
         caseFilter={caseFilter}
@@ -441,6 +447,11 @@ export default function App() {
           />
         ) : null}
       </MainContent>
+
+      <CheatSheetDrawer
+        open={showCheatSheet}
+        onClose={() => setShowCheatSheet(false)}
+      />
     </PageContainer>
   );
 }

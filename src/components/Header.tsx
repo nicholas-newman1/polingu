@@ -1,4 +1,13 @@
-import { Stack, Typography, Chip, Button, styled } from '@mui/material';
+import {
+  Stack,
+  Typography,
+  Chip,
+  Button,
+  IconButton,
+  styled,
+} from '@mui/material';
+import MenuBookIcon from '@mui/icons-material/MenuBook';
+import { Link } from 'react-router-dom';
 import type { User } from 'firebase/auth';
 import { getFirstName } from '../lib/utils';
 
@@ -31,12 +40,21 @@ const GuestChip = styled(Chip)(({ theme }) => ({
   fontWeight: 500,
 }));
 
+const CheatSheetButton = styled(IconButton)(({ theme }) => ({
+  color: theme.palette.text.disabled,
+  '&:hover': {
+    color: theme.palette.text.secondary,
+    backgroundColor: 'rgba(0, 0, 0, 0.04)',
+  },
+}));
+
 interface HeaderProps {
   user: User | null;
   onSignOut: () => void;
+  onOpenCheatSheet: () => void;
 }
 
-export function Header({ user, onSignOut }: HeaderProps) {
+export function Header({ user, onSignOut, onOpenCheatSheet }: HeaderProps) {
   return (
     <Stack
       direction="row"
@@ -52,6 +70,13 @@ export function Header({ user, onSignOut }: HeaderProps) {
       </Stack>
 
       <Stack direction="row" alignItems="center" spacing={1}>
+        <CheatSheetButton
+          size="small"
+          onClick={onOpenCheatSheet}
+          aria-label="Open cheat sheet"
+        >
+          <MenuBookIcon fontSize="small" />
+        </CheatSheetButton>
         {user ? (
           <>
             <UserEmail variant="body2" color="text.disabled">
@@ -62,7 +87,17 @@ export function Header({ user, onSignOut }: HeaderProps) {
             </SignOutButton>
           </>
         ) : (
-          <GuestChip label="Guest mode" size="small" />
+          <>
+            <GuestChip label="Guest mode" size="small" />
+            <Button
+              component={Link}
+              to="/"
+              size="small"
+              sx={{ color: 'text.disabled', textDecoration: 'underline' }}
+            >
+              Sign in
+            </Button>
+          </>
         )}
       </Stack>
     </Stack>
