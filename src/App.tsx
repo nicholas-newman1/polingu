@@ -308,8 +308,8 @@ export default function App() {
     }
 
     setReviewStore(newStore);
-    await saveReviewData(newStore);
     setRatingCounter((c) => c + 1);
+    saveReviewData(newStore);
   };
 
   const handleSettingsChange = async (newCardsPerDay: number) => {
