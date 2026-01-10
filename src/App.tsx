@@ -490,6 +490,7 @@ export default function App() {
               card={currentPracticeCard}
               practiceMode
               onNext={handlePracticeNext}
+              onDailyLimitReached={handleDailyLimitReached}
             />
           ) : (
             <EmptyState message="No cards match your filters" />
@@ -510,6 +511,7 @@ export default function App() {
             card={currentSessionCard.card}
             intervals={intervals}
             onRate={handleRate}
+            onDailyLimitReached={handleDailyLimitReached}
           />
         ) : null}
       </MainContent>

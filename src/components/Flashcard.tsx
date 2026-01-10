@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { Rating, type Grade } from 'ts-fsrs';
 import {
   Box,
@@ -11,6 +11,7 @@ import {
   styled,
 } from '@mui/material';
 import type { Card as FlashCard } from '../types';
+import { renderTappableText } from '../lib/renderTappableText';
 
 export interface RatingIntervals {
   [Rating.Again]: string;
@@ -25,6 +26,7 @@ interface FlashcardProps {
   intervals?: RatingIntervals;
   onRate?: (rating: Grade) => void;
   onNext?: () => void;
+  onDailyLimitReached?: (resetTime: string) => void;
 }
 
 const CardWrapper = styled(Box)({
@@ -65,11 +67,6 @@ const QuestionText = styled(Typography)({
 const AnswerText = styled(Typography)({
   fontWeight: 500,
 });
-
-const HighlightSpan = styled('span')(({ theme }) => ({
-  color: theme.palette.primary.main,
-  fontWeight: 600,
-}));
 
 const MetaChip = styled(Chip)(({ theme }) => ({
   backgroundColor: theme.palette.background.default,
@@ -121,31 +118,21 @@ const IntervalText = styled(Typography)({
   fontFamily: '"JetBrains Mono", monospace',
 });
 
-function highlightWord(text: string, word: string) {
-  const index = text.toLowerCase().indexOf(word.toLowerCase());
-  if (index === -1) {
-    return <>{text}</>;
-  }
-  const before = text.slice(0, index);
-  const match = text.slice(index, index + word.length);
-  const after = text.slice(index + word.length);
-  return (
-    <>
-      {before}
-      <HighlightSpan>{match}</HighlightSpan>
-      {after}
-    </>
-  );
-}
-
 export function Flashcard({
   card,
   practiceMode = false,
   intervals,
   onRate,
   onNext,
+  onDailyLimitReached,
 }: FlashcardProps) {
   const [revealed, setRevealed] = useState(false);
+  const translationCache = useRef<Map<string, string>>(new Map());
+
+  const tappableTextOptions = useMemo(
+    () => ({ translationCache, onDailyLimitReached }),
+    [onDailyLimitReached]
+  );
 
   return (
     <CardWrapper className="animate-fade-up">
@@ -154,7 +141,7 @@ export function Flashcard({
         <StyledCard>
           <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
             <QuestionText variant="h5" color="text.primary">
-              {card.front}
+              {renderTappableText(card.front, tappableTextOptions)}
             </QuestionText>
 
             {revealed && (
@@ -162,7 +149,11 @@ export function Flashcard({
                 <Divider sx={{ my: { xs: 2.5, sm: 3 } }} />
 
                 <AnswerText variant="h4" color="text.primary" sx={{ mb: 2 }}>
-                  {highlightWord(card.back, card.declined)}
+                  {renderTappableText(
+                    card.back,
+                    tappableTextOptions,
+                    card.declined
+                  )}
                 </AnswerText>
 
                 <Stack

@@ -18,6 +18,7 @@ const MAX_CHARS_PER_DAY = 1500;
 interface TranslateRequest {
   text: string;
   targetLang: 'EN' | 'PL';
+  context?: string;
 }
 
 interface TranslateResponse {
@@ -104,7 +105,7 @@ export const translate = onCall<TranslateRequest, Promise<TranslateResponse>>(
     }
 
     const userId = request.auth.uid;
-    const { text, targetLang } = request.data;
+    const { text, targetLang, context } = request.data;
 
     if (!text || typeof text !== 'string') {
       throw new HttpsError('invalid-argument', 'Text is required.');
@@ -152,6 +153,7 @@ export const translate = onCall<TranslateRequest, Promise<TranslateResponse>>(
       body: JSON.stringify({
         text: [text],
         target_lang: targetLang,
+        ...(context && { context }),
       }),
     });
 
