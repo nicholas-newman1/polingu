@@ -12,6 +12,7 @@ import {
   RateLimitMinuteError,
   RateLimitDailyError,
 } from '../lib/translate';
+import { getCachedTranslation, getCacheKey } from '../lib/translationCache';
 
 const TappableWordSpan = styled('span')(({ theme }) => ({
   cursor: 'pointer',
@@ -117,9 +118,11 @@ export function TappableWord({
         return;
       }
 
-      const cached = translationCache.current.get(cleanWord);
-      if (cached) {
-        setTranslation(cached);
+      const cacheKey = getCacheKey(cleanWord, sentenceContext);
+
+      const memoryCached = translationCache.current.get(cacheKey);
+      if (memoryCached) {
+        setTranslation(memoryCached);
         return;
       }
 
@@ -127,8 +130,18 @@ export function TappableWord({
       setTranslation(null);
 
       try {
+        const firestoreCached = await getCachedTranslation(
+          cleanWord,
+          sentenceContext
+        );
+        if (firestoreCached) {
+          translationCache.current.set(cacheKey, firestoreCached);
+          setTranslation(firestoreCached);
+          return;
+        }
+
         const result = await translate(cleanWord, 'EN', sentenceContext);
-        translationCache.current.set(cleanWord, result.translatedText);
+        translationCache.current.set(cacheKey, result.translatedText);
         setTranslation(result.translatedText);
       } catch (err) {
         if (err instanceof RateLimitMinuteError) {

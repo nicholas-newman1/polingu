@@ -1,7 +1,7 @@
 import { setGlobalOptions } from 'firebase-functions';
 import { onCall, HttpsError } from 'firebase-functions/https';
 import { defineSecret } from 'firebase-functions/params';
-import { getFirestore } from 'firebase-admin/firestore';
+import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { initializeApp } from 'firebase-admin/app';
 
 initializeApp();
@@ -94,6 +94,21 @@ function filterRecentRequests(recentRequests: number[]): number[] {
   return recentRequests.filter((ts) => ts > oneMinuteAgo);
 }
 
+function hashContext(context: string): string {
+  let hash = 0;
+  for (let i = 0; i < context.length; i++) {
+    const char = context.charCodeAt(i);
+    hash = (hash << 5) - hash + char;
+    hash = hash & hash;
+  }
+  return Math.abs(hash).toString(36);
+}
+
+function getCacheKey(word: string, context?: string): string {
+  if (!context) return word;
+  return `${word}__${hashContext(context)}`;
+}
+
 export const translate = onCall<TranslateRequest, Promise<TranslateResponse>>(
   { secrets: [deeplApiKey] },
   async (request) => {
@@ -120,6 +135,10 @@ export const translate = onCall<TranslateRequest, Promise<TranslateResponse>>(
         'invalid-argument',
         'Target language must be EN or PL.'
       );
+    }
+
+    if (context && context.length > 1000) {
+      throw new HttpsError('invalid-argument', 'Context too long.');
     }
 
     const rateLimitData = await getRateLimitDoc(userId);
@@ -181,6 +200,15 @@ export const translate = onCall<TranslateRequest, Promise<TranslateResponse>>(
         dailyCharsDate: getUTCDateString(),
         recentRequests: [...filteredRequests, Date.now()],
       });
+
+    const isSingleWord = !text.includes(' ') && text.length <= 50;
+    if (isSingleWord && targetLang === 'EN') {
+      const cacheKey = getCacheKey(text.toLowerCase(), context);
+      await db.collection('wordTranslations').doc(cacheKey).set({
+        translation: translatedText,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+    }
 
     return {
       translatedText,
