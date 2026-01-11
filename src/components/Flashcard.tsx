@@ -130,8 +130,12 @@ export function Flashcard({
   const translationCache = useRef<Map<string, string>>(new Map());
 
   const tappableTextOptions = useMemo(
-    () => ({ translationCache, onDailyLimitReached }),
-    [onDailyLimitReached]
+    () => ({
+      translationCache,
+      onDailyLimitReached,
+      sentenceContext: card.back,
+    }),
+    [onDailyLimitReached, card.back]
   );
 
   return (

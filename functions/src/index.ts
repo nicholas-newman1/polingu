@@ -163,6 +163,8 @@ export const translate = onCall<TranslateRequest, Promise<TranslateResponse>>(
       );
     }
 
+    const sourceLang = targetLang === 'EN' ? 'PL' : 'EN';
+
     const response = await fetch('https://api-free.deepl.com/v2/translate', {
       method: 'POST',
       headers: {
@@ -171,6 +173,7 @@ export const translate = onCall<TranslateRequest, Promise<TranslateResponse>>(
       },
       body: JSON.stringify({
         text: [text],
+        source_lang: sourceLang,
         target_lang: targetLang,
         ...(context && { context }),
       }),
