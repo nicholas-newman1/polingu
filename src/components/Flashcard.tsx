@@ -35,23 +35,14 @@ const CardWrapper = styled(Box)({
   margin: '0 auto',
 });
 
-const CardGlow = styled(Box)({
-  position: 'absolute',
-  inset: -12,
-  background: 'linear-gradient(135deg, #c23a22, #c9a227, #c23a22)',
-  borderRadius: 16,
-  filter: 'blur(24px)',
-  opacity: 0.2,
-});
-
 const StyledCard = styled(Card)(({ theme }) => ({
-  position: 'relative',
   padding: theme.spacing(3),
   minHeight: 420,
   display: 'flex',
   flexDirection: 'column',
   backgroundColor: 'rgba(255,255,255,0.95)',
   backdropFilter: 'blur(8px)',
+  boxShadow: '0 8px 32px rgba(194, 58, 34, 0.4)',
   [theme.breakpoints.up('sm')]: {
     padding: theme.spacing(4),
     minHeight: 460,
@@ -87,10 +78,10 @@ const NextButton = styled(Button)(({ theme }) => ({
 
 const RevealButton = styled(Button)({
   marginTop: 'auto',
-  background: 'linear-gradient(90deg, #c23a22, #a03018)',
+  backgroundColor: '#c23a22',
   boxShadow: '0 4px 14px rgba(194, 58, 34, 0.3)',
   '&:hover': {
-    background: 'linear-gradient(90deg, #a03018, #c23a22)',
+    backgroundColor: '#a03018',
   },
 });
 
@@ -140,127 +131,120 @@ export function Flashcard({
 
   return (
     <CardWrapper className="animate-fade-up">
-      <Box sx={{ position: 'relative' }}>
-        <CardGlow className="card-glow" />
-        <StyledCard>
-          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-            <QuestionText variant="h5" color="text.primary">
-              {renderTappableText(card.front, tappableTextOptions)}
-            </QuestionText>
+      <StyledCard>
+        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <QuestionText variant="h5" color="text.primary">
+            {renderTappableText(card.front, tappableTextOptions)}
+          </QuestionText>
 
-            {revealed && (
-              <Box className="animate-fade-up">
-                <Divider sx={{ my: { xs: 2.5, sm: 3 } }} />
+          {revealed && (
+            <Box className="animate-fade-up">
+              <Divider sx={{ my: { xs: 2.5, sm: 3 } }} />
 
-                <AnswerText variant="h4" color="text.primary" sx={{ mb: 2 }}>
-                  {renderTappableText(
-                    card.back,
-                    tappableTextOptions,
-                    card.declined
-                  )}
-                </AnswerText>
-
-                <Stack
-                  direction="row"
-                  spacing={1}
-                  sx={{ mb: 2, flexWrap: 'wrap', gap: 1 }}
-                >
-                  <MetaChip label={card.case} size="small" />
-                  <MetaChip label={card.gender} size="small" />
-                  <MetaChip label={card.number} size="small" />
-                </Stack>
-
-                {card.hint && (
-                  <HintText
-                    variant="body2"
-                    color="text.disabled"
-                    sx={{ mb: 2 }}
-                  >
-                    💡 {card.hint}
-                  </HintText>
+              <AnswerText variant="h4" color="text.primary" sx={{ mb: 2 }}>
+                {renderTappableText(
+                  card.back,
+                  tappableTextOptions,
+                  card.declined
                 )}
-              </Box>
-            )}
-          </Box>
+              </AnswerText>
 
-          {revealed ? (
-            practiceMode ? (
-              <NextButton
-                fullWidth
-                size="large"
-                variant="contained"
-                onClick={onNext}
+              <Stack
+                direction="row"
+                spacing={1}
+                sx={{ mb: 2, flexWrap: 'wrap', gap: 1 }}
               >
-                Next Card →
-              </NextButton>
-            ) : (
-              <Stack direction="row" spacing={0.5} sx={{ mt: 'auto' }}>
-                <RatingButton
-                  fullWidth
-                  variant="contained"
-                  ratingColor="primary"
-                  onClick={() => onRate?.(Rating.Again)}
-                >
-                  <Typography variant="body2" fontWeight={600}>
-                    Again
-                  </Typography>
-                  <IntervalText variant="caption">
-                    {intervals?.[Rating.Again]}
-                  </IntervalText>
-                </RatingButton>
-                <RatingButton
-                  fullWidth
-                  variant="contained"
-                  ratingColor="warning"
-                  onClick={() => onRate?.(Rating.Hard)}
-                >
-                  <Typography variant="body2" fontWeight={600}>
-                    Hard
-                  </Typography>
-                  <IntervalText variant="caption">
-                    {intervals?.[Rating.Hard]}
-                  </IntervalText>
-                </RatingButton>
-                <RatingButton
-                  fullWidth
-                  variant="contained"
-                  ratingColor="success"
-                  onClick={() => onRate?.(Rating.Good)}
-                >
-                  <Typography variant="body2" fontWeight={600}>
-                    Good
-                  </Typography>
-                  <IntervalText variant="caption">
-                    {intervals?.[Rating.Good]}
-                  </IntervalText>
-                </RatingButton>
-                <RatingButton
-                  fullWidth
-                  variant="contained"
-                  ratingColor="info"
-                  onClick={() => onRate?.(Rating.Easy)}
-                >
-                  <Typography variant="body2" fontWeight={600}>
-                    Easy
-                  </Typography>
-                  <IntervalText variant="caption">
-                    {intervals?.[Rating.Easy]}
-                  </IntervalText>
-                </RatingButton>
+                <MetaChip label={card.case} size="small" />
+                <MetaChip label={card.gender} size="small" />
+                <MetaChip label={card.number} size="small" />
               </Stack>
-            )
-          ) : (
-            <RevealButton
+
+              {card.hint && (
+                <HintText variant="body2" color="text.disabled" sx={{ mb: 2 }}>
+                  💡 {card.hint}
+                </HintText>
+              )}
+            </Box>
+          )}
+        </Box>
+
+        {revealed ? (
+          practiceMode ? (
+            <NextButton
               fullWidth
               size="large"
               variant="contained"
-              onClick={() => setRevealed(true)}
+              onClick={onNext}
             >
-              Reveal Answer
-            </RevealButton>
-          )}
-        </StyledCard>
-      </Box>
+              Next Card →
+            </NextButton>
+          ) : (
+            <Stack direction="row" spacing={0.5} sx={{ mt: 'auto' }}>
+              <RatingButton
+                fullWidth
+                variant="contained"
+                ratingColor="primary"
+                onClick={() => onRate?.(Rating.Again)}
+              >
+                <Typography variant="body2" fontWeight={600}>
+                  Again
+                </Typography>
+                <IntervalText variant="caption">
+                  {intervals?.[Rating.Again]}
+                </IntervalText>
+              </RatingButton>
+              <RatingButton
+                fullWidth
+                variant="contained"
+                ratingColor="warning"
+                onClick={() => onRate?.(Rating.Hard)}
+              >
+                <Typography variant="body2" fontWeight={600}>
+                  Hard
+                </Typography>
+                <IntervalText variant="caption">
+                  {intervals?.[Rating.Hard]}
+                </IntervalText>
+              </RatingButton>
+              <RatingButton
+                fullWidth
+                variant="contained"
+                ratingColor="success"
+                onClick={() => onRate?.(Rating.Good)}
+              >
+                <Typography variant="body2" fontWeight={600}>
+                  Good
+                </Typography>
+                <IntervalText variant="caption">
+                  {intervals?.[Rating.Good]}
+                </IntervalText>
+              </RatingButton>
+              <RatingButton
+                fullWidth
+                variant="contained"
+                ratingColor="info"
+                onClick={() => onRate?.(Rating.Easy)}
+              >
+                <Typography variant="body2" fontWeight={600}>
+                  Easy
+                </Typography>
+                <IntervalText variant="caption">
+                  {intervals?.[Rating.Easy]}
+                </IntervalText>
+              </RatingButton>
+            </Stack>
+          )
+        ) : (
+          <RevealButton
+            fullWidth
+            size="large"
+            variant="contained"
+            onClick={() => setRevealed(true)}
+          >
+            Reveal Answer
+          </RevealButton>
+        )}
+      </StyledCard>
     </CardWrapper>
   );
 }

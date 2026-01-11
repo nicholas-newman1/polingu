@@ -11,6 +11,7 @@ import { EmptyState } from './components/EmptyState';
 import { CheatSheetDrawer } from './components/CheatSheetDrawer';
 import { TranslatorModal } from './components/TranslatorModal';
 import { LimitReachedDialog } from './components/LimitReachedDialog';
+import { BottomMenuBar } from './components/BottomMenuBar';
 import type { TranslationResult } from './lib/translate';
 import cardsData from './data/cards.json';
 import type {
@@ -48,8 +49,10 @@ const PageContainer = styled(Box)(({ theme }) => ({
   display: 'flex',
   flexDirection: 'column',
   padding: theme.spacing(2),
+  paddingBottom: theme.spacing(10),
   [theme.breakpoints.up('sm')]: {
     padding: theme.spacing(3),
+    paddingBottom: theme.spacing(10),
   },
 }));
 
@@ -432,12 +435,7 @@ export default function App() {
 
   return (
     <PageContainer>
-      <Header
-        user={user}
-        onSignOut={handleSignOut}
-        onOpenCheatSheet={() => setShowCheatSheet(true)}
-        onOpenTranslator={handleOpenTranslator}
-      />
+      <Header user={user} onSignOut={handleSignOut} />
 
       <FilterControls
         caseFilter={caseFilter}
@@ -524,6 +522,12 @@ export default function App() {
         open={showLimitReached}
         onClose={() => setShowLimitReached(false)}
         resetTime={limitResetTime}
+      />
+
+      <BottomMenuBar
+        onOpenCheatSheet={() => setShowCheatSheet(true)}
+        onOpenTranslator={handleOpenTranslator}
+        showTranslator={!!user}
       />
     </PageContainer>
   );

@@ -67,7 +67,7 @@ const OptionPaper = styled(Paper)(({ theme }) => ({
 }));
 
 const SmallNumberInput = styled(TextField)({
-  width: 60,
+  width: 72,
   '& input': {
     fontFamily: '"JetBrains Mono", monospace',
     textAlign: 'center',
@@ -125,12 +125,13 @@ export function FinishedState({
                   <SmallNumberInput
                     type="number"
                     size="small"
-                    value={extraNewCardsCount}
+                    value={extraNewCardsCount || ''}
                     onChange={(e) =>
-                      setExtraNewCardsCount(
-                        Math.max(1, parseInt(e.target.value) || 1)
-                      )
+                      setExtraNewCardsCount(parseInt(e.target.value) || 0)
                     }
+                    onBlur={() => {
+                      if (extraNewCardsCount < 1) setExtraNewCardsCount(1);
+                    }}
                     inputProps={{ min: 1, max: 50 }}
                   />
                   <Typography variant="body2" color="text.disabled">
@@ -166,12 +167,13 @@ export function FinishedState({
                   <SmallNumberInput
                     type="number"
                     size="small"
-                    value={practiceAheadCount}
+                    value={practiceAheadCount || ''}
                     onChange={(e) =>
-                      setPracticeAheadCount(
-                        Math.max(1, parseInt(e.target.value) || 1)
-                      )
+                      setPracticeAheadCount(parseInt(e.target.value) || 0)
                     }
+                    onBlur={() => {
+                      if (practiceAheadCount < 1) setPracticeAheadCount(1);
+                    }}
                     inputProps={{ min: 1, max: 100 }}
                   />
                   <Typography variant="body2" color="text.disabled">
