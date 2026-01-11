@@ -541,9 +541,21 @@ export default function App() {
       />
 
       <BottomMenuBar
-        onOpenDeclensionCheatSheet={() => setShowDeclensionCheatSheet(true)}
-        onOpenConsonantsCheatSheet={() => setShowConsonantsCheatSheet(true)}
-        onOpenYiRuleCheatSheet={() => setShowYiRuleCheatSheet(true)}
+        onOpenDeclensionCheatSheet={() => {
+          setShowConsonantsCheatSheet(false);
+          setShowYiRuleCheatSheet(false);
+          setShowDeclensionCheatSheet((prev) => !prev);
+        }}
+        onOpenConsonantsCheatSheet={() => {
+          setShowDeclensionCheatSheet(false);
+          setShowYiRuleCheatSheet(false);
+          setShowConsonantsCheatSheet((prev) => !prev);
+        }}
+        onOpenYiRuleCheatSheet={() => {
+          setShowDeclensionCheatSheet(false);
+          setShowConsonantsCheatSheet(false);
+          setShowYiRuleCheatSheet((prev) => !prev);
+        }}
         onOpenTranslator={handleOpenTranslator}
         showTranslator={!!user}
       />

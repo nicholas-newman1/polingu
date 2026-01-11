@@ -13,9 +13,10 @@ const MenuBarContainer = styled(Box)(({ theme }) => ({
   justifyContent: 'center',
   gap: theme.spacing(3),
   padding: theme.spacing(1.5),
-  backgroundColor: 'rgba(255, 255, 255, 0.9)',
+  backgroundColor: 'rgba(255, 255, 255, 0.95)',
   backdropFilter: 'blur(8px)',
   borderTop: '1px solid rgba(0, 0, 0, 0.08)',
+  zIndex: theme.zIndex.drawer + 1,
 }));
 
 const MenuButton = styled(ButtonBase)(({ theme }) => ({
