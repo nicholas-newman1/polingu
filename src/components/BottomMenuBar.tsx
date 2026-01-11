@@ -3,6 +3,8 @@ import MenuBookIcon from '@mui/icons-material/MenuBook';
 import AbcIcon from '@mui/icons-material/Abc';
 import TranslateIcon from '@mui/icons-material/Translate';
 import SpellcheckIcon from '@mui/icons-material/Spellcheck';
+import { useTranslationContext } from '../hooks/useTranslationContext';
+import { useCheatSheetContext } from '../hooks/useCheatSheetContext';
 
 const MenuBarContainer = styled(Box)(({ theme }) => ({
   position: 'fixed',
@@ -48,24 +50,17 @@ const Label = styled(Typography)({
 });
 
 interface BottomMenuBarProps {
-  onOpenDeclensionCheatSheet: () => void;
-  onOpenConsonantsCheatSheet: () => void;
-  onOpenYiRuleCheatSheet: () => void;
-  onOpenTranslator: () => void;
   showTranslator?: boolean;
 }
 
-export function BottomMenuBar({
-  onOpenDeclensionCheatSheet,
-  onOpenConsonantsCheatSheet,
-  onOpenYiRuleCheatSheet,
-  onOpenTranslator,
-  showTranslator = true,
-}: BottomMenuBarProps) {
+export function BottomMenuBar({ showTranslator = true }: BottomMenuBarProps) {
+  const { openTranslator } = useTranslationContext();
+  const { openSheet } = useCheatSheetContext();
+
   return (
     <MenuBarContainer>
       {showTranslator && (
-        <MenuButton onClick={onOpenTranslator} aria-label="Open translator">
+        <MenuButton onClick={openTranslator} aria-label="Open translator">
           <IconWrapper>
             <TranslateIcon fontSize="small" />
           </IconWrapper>
@@ -73,7 +68,7 @@ export function BottomMenuBar({
         </MenuButton>
       )}
       <MenuButton
-        onClick={onOpenDeclensionCheatSheet}
+        onClick={() => openSheet('declension')}
         aria-label="Open declension cheat sheet"
       >
         <IconWrapper>
@@ -82,7 +77,7 @@ export function BottomMenuBar({
         <Label>Declensions</Label>
       </MenuButton>
       <MenuButton
-        onClick={onOpenConsonantsCheatSheet}
+        onClick={() => openSheet('consonants')}
         aria-label="Open consonants cheat sheet"
       >
         <IconWrapper>
@@ -91,7 +86,7 @@ export function BottomMenuBar({
         <Label>Consonants</Label>
       </MenuButton>
       <MenuButton
-        onClick={onOpenYiRuleCheatSheet}
+        onClick={() => openSheet('yi-rule')}
         aria-label="Open y/i rule cheat sheet"
       >
         <IconWrapper>

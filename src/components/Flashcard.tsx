@@ -12,6 +12,7 @@ import {
 } from '@mui/material';
 import type { Card as FlashCard } from '../types';
 import { renderTappableText } from '../lib/renderTappableText';
+import { useTranslationContext } from '../hooks/useTranslationContext';
 
 export interface RatingIntervals {
   [Rating.Again]: string;
@@ -26,7 +27,6 @@ interface FlashcardProps {
   intervals?: RatingIntervals;
   onRate?: (rating: Grade) => void;
   onNext?: () => void;
-  onDailyLimitReached?: (resetTime: string) => void;
 }
 
 const CardWrapper = styled(Box)({
@@ -115,18 +115,18 @@ export function Flashcard({
   intervals,
   onRate,
   onNext,
-  onDailyLimitReached,
 }: FlashcardProps) {
   const [revealed, setRevealed] = useState(false);
   const translationCache = useRef<Map<string, string>>(new Map());
+  const { handleDailyLimitReached } = useTranslationContext();
 
   const tappableTextOptions = useMemo(
     () => ({
       translationCache,
-      onDailyLimitReached,
+      onDailyLimitReached: handleDailyLimitReached,
       sentenceContext: card.back,
     }),
-    [onDailyLimitReached, card.back]
+    [handleDailyLimitReached, card.back]
   );
 
   return (

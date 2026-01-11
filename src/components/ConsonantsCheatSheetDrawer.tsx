@@ -1,17 +1,16 @@
 import { CheatSheetDrawer } from './CheatSheetDrawer';
 import { ConsonantsCheatSheet } from './ConsonantsCheatSheet';
+import { useCheatSheetContext } from '../hooks/useCheatSheetContext';
 
-interface ConsonantsCheatSheetDrawerProps {
-  open: boolean;
-  onClose: () => void;
-}
+export function ConsonantsCheatSheetDrawer() {
+  const { activeSheet, closeSheet } = useCheatSheetContext();
 
-export function ConsonantsCheatSheetDrawer({
-  open,
-  onClose,
-}: ConsonantsCheatSheetDrawerProps) {
   return (
-    <CheatSheetDrawer open={open} onClose={onClose} title="Consonants Cheat Sheet">
+    <CheatSheetDrawer
+      open={activeSheet === 'consonants'}
+      onClose={closeSheet}
+      title="Consonants Cheat Sheet"
+    >
       <ConsonantsCheatSheet />
     </CheatSheetDrawer>
   );

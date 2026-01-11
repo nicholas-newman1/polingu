@@ -9,7 +9,7 @@ import {
   Avatar,
   styled,
 } from '@mui/material';
-import { useAuth } from '../lib/useAuth';
+import { useAuthContext } from '../hooks/useAuthContext';
 
 const PageContainer = styled(Box)(({ theme }) => ({
   minHeight: '100vh',
@@ -104,7 +104,7 @@ const GoogleIcon = () => (
 );
 
 export function SignIn() {
-  const { signInWithGoogle, user } = useAuth();
+  const { signInWithGoogle, user } = useAuthContext();
   const navigate = useNavigate();
 
   const handleSignIn = async () => {

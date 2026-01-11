@@ -1,19 +1,17 @@
 import { CheatSheetDrawer } from './CheatSheetDrawer';
 import { YiRuleCheatSheet } from './YiRuleCheatSheet';
+import { useCheatSheetContext } from '../hooks/useCheatSheetContext';
 
-interface YiRuleCheatSheetDrawerProps {
-  open: boolean;
-  onClose: () => void;
-}
+export function YiRuleCheatSheetDrawer() {
+  const { activeSheet, closeSheet } = useCheatSheetContext();
 
-export function YiRuleCheatSheetDrawer({
-  open,
-  onClose,
-}: YiRuleCheatSheetDrawerProps) {
   return (
-    <CheatSheetDrawer open={open} onClose={onClose} title="-y/-i Rule">
+    <CheatSheetDrawer
+      open={activeSheet === 'yi-rule'}
+      onClose={closeSheet}
+      title="-y/-i Rule"
+    >
       <YiRuleCheatSheet />
     </CheatSheetDrawer>
   );
 }
-

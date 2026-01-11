@@ -17,8 +17,8 @@ import {
   translate,
   RateLimitMinuteError,
   RateLimitDailyError,
-  type TranslationResult,
 } from '../lib/translate';
+import { useTranslationContext } from '../hooks/useTranslationContext';
 
 const MAX_TEXT_LENGTH = 500;
 
@@ -62,21 +62,15 @@ const DirectionButton = styled(Button)(({ theme }) => ({
   gap: theme.spacing(1),
 }));
 
-interface TranslatorModalProps {
-  open: boolean;
-  onClose: () => void;
-  onDailyLimitReached: (resetTime: string) => void;
-  onTranslationSuccess?: (result: TranslationResult) => void;
-}
-
 type Direction = 'EN_TO_PL' | 'PL_TO_EN';
 
-export function TranslatorModal({
-  open,
-  onClose,
-  onDailyLimitReached,
-  onTranslationSuccess,
-}: TranslatorModalProps) {
+export function TranslatorModal() {
+  const {
+    showTranslator: open,
+    closeTranslator: onClose,
+    handleDailyLimitReached: onDailyLimitReached,
+    handleTranslationSuccess: onTranslationSuccess,
+  } = useTranslationContext();
   const [text, setText] = useState('');
   const [result, setResult] = useState('');
   const [direction, setDirection] = useState<Direction>('EN_TO_PL');

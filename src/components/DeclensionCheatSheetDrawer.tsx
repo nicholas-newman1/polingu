@@ -1,18 +1,17 @@
 import { CheatSheetDrawer } from './CheatSheetDrawer';
 import { DeclensionCheatSheet } from './DeclensionCheatSheet';
 import { allTables } from '../data/declensionPatterns';
+import { useCheatSheetContext } from '../hooks/useCheatSheetContext';
 
-interface DeclensionCheatSheetDrawerProps {
-  open: boolean;
-  onClose: () => void;
-}
+export function DeclensionCheatSheetDrawer() {
+  const { activeSheet, closeSheet } = useCheatSheetContext();
 
-export function DeclensionCheatSheetDrawer({
-  open,
-  onClose,
-}: DeclensionCheatSheetDrawerProps) {
   return (
-    <CheatSheetDrawer open={open} onClose={onClose} title="Declension Cheat Sheet">
+    <CheatSheetDrawer
+      open={activeSheet === 'declension'}
+      onClose={closeSheet}
+      title="Declension Cheat Sheet"
+    >
       <DeclensionCheatSheet tables={allTables} />
     </CheatSheetDrawer>
   );

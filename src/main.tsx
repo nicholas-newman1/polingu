@@ -5,7 +5,9 @@ import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import theme from './lib/theme';
 import './index.css';
-import { AuthProvider } from './lib/auth';
+import { AuthProvider } from './contexts/AuthContext';
+import { TranslationProvider } from './contexts/TranslationContext';
+import { CheatSheetProvider } from './contexts/CheatSheetContext';
 import { SignIn } from './components/SignIn';
 import App from './App';
 
@@ -14,12 +16,16 @@ createRoot(document.getElementById('root')!).render(
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <AuthProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<SignIn />} />
-            <Route path="/app" element={<App />} />
-          </Routes>
-        </BrowserRouter>
+        <TranslationProvider>
+          <CheatSheetProvider>
+            <BrowserRouter>
+              <Routes>
+                <Route path="/" element={<SignIn />} />
+                <Route path="/app" element={<App />} />
+              </Routes>
+            </BrowserRouter>
+          </CheatSheetProvider>
+        </TranslationProvider>
       </AuthProvider>
     </ThemeProvider>
   </StrictMode>
