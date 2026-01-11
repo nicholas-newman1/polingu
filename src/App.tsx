@@ -10,6 +10,7 @@ import { FinishedState } from './components/FinishedState';
 import { EmptyState } from './components/EmptyState';
 import { DeclensionCheatSheetDrawer } from './components/DeclensionCheatSheetDrawer';
 import { ConsonantsCheatSheetDrawer } from './components/ConsonantsCheatSheetDrawer';
+import { YiRuleCheatSheetDrawer } from './components/YiRuleCheatSheetDrawer';
 import { TranslatorModal } from './components/TranslatorModal';
 import { LimitReachedDialog } from './components/LimitReachedDialog';
 import { BottomMenuBar } from './components/BottomMenuBar';
@@ -85,6 +86,7 @@ export default function App() {
     useState(false);
   const [showConsonantsCheatSheet, setShowConsonantsCheatSheet] =
     useState(false);
+  const [showYiRuleCheatSheet, setShowYiRuleCheatSheet] = useState(false);
   const [showTranslator, setShowTranslator] = useState(false);
   const [showLimitReached, setShowLimitReached] = useState(false);
   const [limitResetTime, setLimitResetTime] = useState('');
@@ -520,6 +522,11 @@ export default function App() {
         onClose={() => setShowConsonantsCheatSheet(false)}
       />
 
+      <YiRuleCheatSheetDrawer
+        open={showYiRuleCheatSheet}
+        onClose={() => setShowYiRuleCheatSheet(false)}
+      />
+
       <TranslatorModal
         open={showTranslator}
         onClose={handleCloseTranslator}
@@ -536,6 +543,7 @@ export default function App() {
       <BottomMenuBar
         onOpenDeclensionCheatSheet={() => setShowDeclensionCheatSheet(true)}
         onOpenConsonantsCheatSheet={() => setShowConsonantsCheatSheet(true)}
+        onOpenYiRuleCheatSheet={() => setShowYiRuleCheatSheet(true)}
         onOpenTranslator={handleOpenTranslator}
         showTranslator={!!user}
       />

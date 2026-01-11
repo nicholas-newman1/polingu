@@ -2,6 +2,7 @@ import { Box, ButtonBase, Typography, styled } from '@mui/material';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
 import AbcIcon from '@mui/icons-material/Abc';
 import TranslateIcon from '@mui/icons-material/Translate';
+import SpellcheckIcon from '@mui/icons-material/Spellcheck';
 
 const MenuBarContainer = styled(Box)(({ theme }) => ({
   position: 'fixed',
@@ -48,6 +49,7 @@ const Label = styled(Typography)({
 interface BottomMenuBarProps {
   onOpenDeclensionCheatSheet: () => void;
   onOpenConsonantsCheatSheet: () => void;
+  onOpenYiRuleCheatSheet: () => void;
   onOpenTranslator: () => void;
   showTranslator?: boolean;
 }
@@ -55,6 +57,7 @@ interface BottomMenuBarProps {
 export function BottomMenuBar({
   onOpenDeclensionCheatSheet,
   onOpenConsonantsCheatSheet,
+  onOpenYiRuleCheatSheet,
   onOpenTranslator,
   showTranslator = true,
 }: BottomMenuBarProps) {
@@ -85,6 +88,15 @@ export function BottomMenuBar({
           <AbcIcon fontSize="small" />
         </IconWrapper>
         <Label>Consonants</Label>
+      </MenuButton>
+      <MenuButton
+        onClick={onOpenYiRuleCheatSheet}
+        aria-label="Open y/i rule cheat sheet"
+      >
+        <IconWrapper>
+          <SpellcheckIcon fontSize="small" />
+        </IconWrapper>
+        <Label>-y/-i Rule</Label>
       </MenuButton>
     </MenuBarContainer>
   );
