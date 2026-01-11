@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -7,6 +7,7 @@ import {
   styled,
   IconButton,
   Collapse,
+  CircularProgress,
 } from '@mui/material';
 import {
   KeyboardArrowLeft,
@@ -15,17 +16,11 @@ import {
   ExpandMore,
   ExpandLess,
 } from '@mui/icons-material';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '../../lib/firebase';
 import { AnnotatedWord } from './AnnotatedWord';
-import sentenceData from '../../data/sentenceBank.json';
-import type {
-  Sentence,
-  CEFRLevel,
-  SentenceBank,
-  TagCategory,
-} from '../../types/sentences';
+import type { Sentence, CEFRLevel, TagCategory } from '../../types/sentences';
 import { TAG_CATEGORIES } from '../../types/sentences';
-
-const bank = sentenceData as SentenceBank;
 
 const LEVEL_COLORS: Record<CEFRLevel, string> = {
   A1: '#22c55e',
@@ -127,12 +122,33 @@ export function SentenceTranslation() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [sentences, setSentences] = useState<Sentence[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const availableTags = useMemo(() => getAvailableTags(bank.sentences), []);
+  useEffect(() => {
+    async function fetchSentences() {
+      setLoading(true);
+      try {
+        const q = query(
+          collection(db, 'sentences'),
+          where('level', 'in', selectedLevels)
+        );
+        const snapshot = await getDocs(q);
+        const fetched = snapshot.docs.map((doc) => doc.data() as Sentence);
+        setSentences(fetched);
+      } catch (err) {
+        console.error('Failed to fetch sentences:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchSentences();
+  }, [selectedLevels]);
+
+  const availableTags = useMemo(() => getAvailableTags(sentences), [sentences]);
 
   const filteredSentences = useMemo(() => {
-    return bank.sentences.filter((s) => {
-      if (!selectedLevels.includes(s.level)) return false;
+    return sentences.filter((s) => {
       if (
         selectedTags.length > 0 &&
         !s.tags.some((t) => selectedTags.includes(t))
@@ -141,7 +157,7 @@ export function SentenceTranslation() {
       }
       return true;
     });
-  }, [selectedLevels, selectedTags]);
+  }, [sentences, selectedTags]);
 
   const currentSentence = filteredSentences[currentIndex];
 
@@ -208,6 +224,37 @@ export function SentenceTranslation() {
 
     return result;
   };
+
+  if (loading) {
+    return (
+      <Container>
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            flexWrap: 'wrap',
+          }}
+        >
+          {ALL_LEVELS.map((level) => (
+            <LevelChip
+              key={level}
+              level={level}
+              label={level}
+              active={selectedLevels.includes(level)}
+              onClick={() => toggleLevel(level)}
+              sx={{ cursor: 'pointer' }}
+            />
+          ))}
+        </Box>
+        <Card>
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+            <CircularProgress />
+          </Box>
+        </Card>
+      </Container>
+    );
+  }
 
   if (filteredSentences.length === 0) {
     return (

@@ -21,6 +21,11 @@ service cloud.firestore {
     match /wordTranslations/{word} {
       allow read: if request.auth != null;
     }
+
+    // Sentences - public read access (writes done via CLI only)
+    match /sentences/{sentenceId} {
+      allow read: if true;
+    }
   }
 }
 

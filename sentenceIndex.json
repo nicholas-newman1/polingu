@@ -1,0 +1,266 @@
+[
+  {
+    "id": "a1_001",
+    "polish": "Mam na imię Anna.",
+    "level": "A1",
+    "tags": [
+      "introduction",
+      "basics"
+    ]
+  },
+  {
+    "id": "a1_002",
+    "polish": "Gdzie jest dworzec?",
+    "level": "A1",
+    "tags": [
+      "travel",
+      "questions"
+    ]
+  },
+  {
+    "id": "a1_003",
+    "polish": "Chcę kawę, proszę.",
+    "level": "A1",
+    "tags": [
+      "food",
+      "restaurant",
+      "basics"
+    ]
+  },
+  {
+    "id": "a1_004",
+    "polish": "To jest mój brat.",
+    "level": "A1",
+    "tags": [
+      "family",
+      "basics"
+    ]
+  },
+  {
+    "id": "a1_005",
+    "polish": "Mieszkam w Warszawie.",
+    "level": "A1",
+    "tags": [
+      "location",
+      "basics"
+    ]
+  },
+  {
+    "id": "a1_006",
+    "polish": "Nie rozumiem.",
+    "level": "A1",
+    "tags": [
+      "basics",
+      "communication"
+    ]
+  },
+  {
+    "id": "a1_007",
+    "polish": "Ile to kosztuje?",
+    "level": "A1",
+    "tags": [
+      "shopping",
+      "questions"
+    ]
+  },
+  {
+    "id": "a1_008",
+    "polish": "Lubię polskie jedzenie.",
+    "level": "A1",
+    "tags": [
+      "food",
+      "preferences"
+    ]
+  },
+  {
+    "id": "a2_001",
+    "polish": "Wczoraj byłem u lekarza.",
+    "level": "A2",
+    "tags": [
+      "health",
+      "past tense"
+    ]
+  },
+  {
+    "id": "a2_002",
+    "polish": "Muszę kupić bilety na pociąg.",
+    "level": "A2",
+    "tags": [
+      "travel",
+      "obligation"
+    ]
+  },
+  {
+    "id": "a2_003",
+    "polish": "Czy możesz mi pomóc?",
+    "level": "A2",
+    "tags": [
+      "questions",
+      "requests"
+    ]
+  },
+  {
+    "id": "a2_004",
+    "polish": "Spotkałem się z przyjacielem w parku.",
+    "level": "A2",
+    "tags": [
+      "social",
+      "past tense"
+    ]
+  },
+  {
+    "id": "a2_005",
+    "polish": "Wolę herbatę niż kawę.",
+    "level": "A2",
+    "tags": [
+      "preferences",
+      "food"
+    ]
+  },
+  {
+    "id": "a2_006",
+    "polish": "Uczę się polskiego od roku.",
+    "level": "A2",
+    "tags": [
+      "learning",
+      "time"
+    ]
+  },
+  {
+    "id": "a2_007",
+    "polish": "Zadzwonię do ciebie wieczorem.",
+    "level": "A2",
+    "tags": [
+      "communication",
+      "future"
+    ]
+  },
+  {
+    "id": "b1_001",
+    "polish": "Gdybym miał więcej czasu, pojechałbym do Polski.",
+    "level": "B1",
+    "tags": [
+      "conditional",
+      "travel"
+    ]
+  },
+  {
+    "id": "b1_002",
+    "polish": "Nie wiedziałem, że jesteś chory.",
+    "level": "B1",
+    "tags": [
+      "past tense",
+      "subordinate clauses"
+    ]
+  },
+  {
+    "id": "b1_003",
+    "polish": "Mówi się, że ta restauracja jest najlepsza w mieście.",
+    "level": "B1",
+    "tags": [
+      "impersonal",
+      "opinions"
+    ]
+  },
+  {
+    "id": "b1_004",
+    "polish": "Zastanawiałem się, czy powinienem tam pójść.",
+    "level": "B1",
+    "tags": [
+      "reflection",
+      "modal verbs"
+    ]
+  },
+  {
+    "id": "b1_005",
+    "polish": "Kiedy przyjechałem, ona już wyszła.",
+    "level": "B1",
+    "tags": [
+      "past tense",
+      "sequence of events"
+    ]
+  },
+  {
+    "id": "b1_006",
+    "polish": "Poprosiłem go, żeby przyszedł wcześniej.",
+    "level": "B1",
+    "tags": [
+      "requests",
+      "subjunctive"
+    ]
+  },
+  {
+    "id": "b2_001",
+    "polish": "Mimo że pogoda była okropna, postanowiliśmy wyruszyć w góry.",
+    "level": "B2",
+    "tags": [
+      "concession",
+      "formal"
+    ]
+  },
+  {
+    "id": "b2_002",
+    "polish": "Okazało się, że informacje, które otrzymaliśmy, były nieprawdziwe.",
+    "level": "B2",
+    "tags": [
+      "relative clauses",
+      "formal"
+    ]
+  },
+  {
+    "id": "b2_003",
+    "polish": "Im dłużej czekam, tym bardziej się denerwuję.",
+    "level": "B2",
+    "tags": [
+      "comparative",
+      "correlative"
+    ]
+  },
+  {
+    "id": "b2_004",
+    "polish": "Zanim podejmiesz decyzję, powinieneś przemyśleć wszystkie konsekwencje.",
+    "level": "B2",
+    "tags": [
+      "advice",
+      "temporal clauses"
+    ]
+  },
+  {
+    "id": "b2_005",
+    "polish": "Byłbym wdzięczny, gdybyś mógł mi to wyjaśnić.",
+    "level": "B2",
+    "tags": [
+      "conditional",
+      "polite requests"
+    ]
+  },
+  {
+    "id": "c1_001",
+    "polish": "Należałoby się zastanowić, czy nasze podejście nie wymaga gruntownej rewizji.",
+    "level": "C1",
+    "tags": [
+      "formal",
+      "impersonal",
+      "business"
+    ]
+  },
+  {
+    "id": "c1_002",
+    "polish": "Z punktu widzenia efektywności, to rozwiązanie pozostawia wiele do życzenia.",
+    "level": "C1",
+    "tags": [
+      "formal",
+      "criticism",
+      "business"
+    ]
+  },
+  {
+    "id": "c1_003",
+    "polish": "Nie sposób przewidzieć, jak sytuacja rozwinie się w najbliższych miesiącach.",
+    "level": "C1",
+    "tags": [
+      "formal",
+      "predictions"
+    ]
+  }
+]

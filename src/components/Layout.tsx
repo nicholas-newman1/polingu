@@ -9,7 +9,6 @@ import {
   ListItemIcon,
   ListItemText,
   IconButton,
-  Divider,
   Typography,
   styled,
   useMediaQuery,
@@ -27,11 +26,11 @@ import { useAuthContext } from '../hooks/useAuthContext';
 
 const DRAWER_WIDTH = 260;
 
-const PageContainer = styled(Box)(({ theme }) => ({
+const PageContainer = styled(Box)({
   minHeight: '100vh',
   display: 'flex',
   flexDirection: 'column',
-}));
+});
 
 const MainArea = styled(Box)(({ theme }) => ({
   flex: 1,
