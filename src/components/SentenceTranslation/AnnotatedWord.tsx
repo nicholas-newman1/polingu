@@ -41,11 +41,13 @@ interface AnnotatedWordProps {
 
 export function AnnotatedWord({ annotation }: AnnotatedWordProps) {
   const [anchorEl, setAnchorEl] = useState<HTMLSpanElement | null>(null);
+  const [isHovering, setIsHovering] = useState(false);
+  const [isClicked, setIsClicked] = useState(false);
   const popperRef = useRef<HTMLDivElement>(null);
-  const open = Boolean(anchorEl);
+  const open = isHovering || isClicked;
 
   useEffect(() => {
-    if (!open) return;
+    if (!isClicked) return;
 
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
@@ -55,25 +57,37 @@ export function AnnotatedWord({ annotation }: AnnotatedWordProps) {
         anchorEl &&
         !anchorEl.contains(target)
       ) {
-        setAnchorEl(null);
+        setIsClicked(false);
       }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [open, anchorEl]);
+  }, [isClicked, anchorEl]);
 
   const handleClick = (event: React.MouseEvent<HTMLSpanElement>) => {
-    if (anchorEl) {
-      setAnchorEl(null);
-    } else {
-      setAnchorEl(event.currentTarget);
-    }
+    setAnchorEl(event.currentTarget);
+    setIsClicked((prev) => !prev);
+  };
+
+  const handleMouseEnter = (event: React.MouseEvent<HTMLSpanElement>) => {
+    setAnchorEl(event.currentTarget);
+    setIsHovering(true);
+  };
+
+  const handleMouseLeave = () => {
+    setIsHovering(false);
   };
 
   return (
     <>
-      <WordSpan onClick={handleClick}>{annotation.word}</WordSpan>
+      <WordSpan
+        onClick={handleClick}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      >
+        {annotation.word}
+      </WordSpan>
       <Popper
         open={open}
         anchorEl={anchorEl}

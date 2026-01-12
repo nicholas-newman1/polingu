@@ -8,11 +8,11 @@ import {
   IconButton,
   Collapse,
   CircularProgress,
+  Switch,
 } from '@mui/material';
 import {
   KeyboardArrowLeft,
   KeyboardArrowRight,
-  Shuffle,
   ExpandMore,
   ExpandLess,
 } from '@mui/icons-material';
@@ -45,6 +45,12 @@ const Card = styled(Box)(({ theme }) => ({
   borderRadius: theme.spacing(2),
   padding: theme.spacing(3),
   boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
+  minHeight: 380,
+  display: 'flex',
+  flexDirection: 'column',
+  [theme.breakpoints.up('sm')]: {
+    minHeight: 420,
+  },
 }));
 
 const LevelChip = styled(Chip, {
@@ -104,6 +110,14 @@ const CategoryLabel = styled(Typography)(({ theme }) => ({
   marginBottom: theme.spacing(0.5),
 }));
 
+const NextButton = styled(Button)(({ theme }) => ({
+  marginTop: 'auto',
+  backgroundColor: theme.palette.text.primary,
+  '&:hover': {
+    backgroundColor: theme.palette.text.secondary,
+  },
+}));
+
 const ALL_LEVELS: CEFRLevel[] = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 const TAG_CATEGORY_ORDER: TagCategory[] = ['topics', 'grammar', 'style'];
 
@@ -122,6 +136,7 @@ export function SentenceTranslation() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [shuffleMode, setShuffleMode] = useState(false);
   const [sentences, setSentences] = useState<Sentence[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -182,22 +197,28 @@ export function SentenceTranslation() {
   }, []);
 
   const goNext = useCallback(() => {
-    setCurrentIndex((prev) => (prev + 1) % filteredSentences.length);
+    if (shuffleMode) {
+      setCurrentIndex(Math.floor(Math.random() * filteredSentences.length));
+    } else {
+      setCurrentIndex((prev) => (prev + 1) % filteredSentences.length);
+    }
     setShowAnswer(false);
-  }, [filteredSentences.length]);
+  }, [filteredSentences.length, shuffleMode]);
 
   const goPrev = useCallback(() => {
-    setCurrentIndex((prev) =>
-      prev === 0 ? filteredSentences.length - 1 : prev - 1
-    );
+    if (shuffleMode) {
+      setCurrentIndex(Math.floor(Math.random() * filteredSentences.length));
+    } else {
+      setCurrentIndex((prev) =>
+        prev === 0 ? filteredSentences.length - 1 : prev - 1
+      );
+    }
     setShowAnswer(false);
-  }, [filteredSentences.length]);
+  }, [filteredSentences.length, shuffleMode]);
 
-  const shuffleSentence = useCallback(() => {
-    const newIndex = Math.floor(Math.random() * filteredSentences.length);
-    setCurrentIndex(newIndex);
-    setShowAnswer(false);
-  }, [filteredSentences.length]);
+  const toggleShuffle = useCallback(() => {
+    setShuffleMode((prev) => !prev);
+  }, []);
 
   const handleRevealAnswer = useCallback(() => {
     setShowAnswer(true);
@@ -320,21 +341,42 @@ export function SentenceTranslation() {
   return (
     <Container>
       <Box
-        sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+          flexWrap: 'wrap',
+          justifyContent: 'space-between',
+        }}
       >
-        {ALL_LEVELS.map((level) => (
-          <LevelChip
-            key={level}
-            level={level}
-            label={level}
-            active={selectedLevels.includes(level)}
-            onClick={() => toggleLevel(level)}
-            sx={{ cursor: 'pointer' }}
-          />
-        ))}
-        <IconButton size="small" onClick={() => setShowFilters(!showFilters)}>
-          {showFilters ? <ExpandLess /> : <ExpandMore />}
-        </IconButton>
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            flexWrap: 'wrap',
+          }}
+        >
+          {ALL_LEVELS.map((level) => (
+            <LevelChip
+              key={level}
+              level={level}
+              label={level}
+              active={selectedLevels.includes(level)}
+              onClick={() => toggleLevel(level)}
+              sx={{ cursor: 'pointer' }}
+            />
+          ))}
+          <IconButton size="small" onClick={() => setShowFilters(!showFilters)}>
+            {showFilters ? <ExpandLess /> : <ExpandMore />}
+          </IconButton>
+        </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          <Typography variant="caption" color="text.secondary">
+            Shuffle
+          </Typography>
+          <Switch size="small" checked={shuffleMode} onChange={toggleShuffle} />
+        </Box>
       </Box>
 
       <Collapse in={showFilters}>
@@ -363,52 +405,69 @@ export function SentenceTranslation() {
       </Collapse>
 
       <Card>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-          <LevelChip
-            level={currentSentence.level}
-            label={currentSentence.level}
-            size="small"
-          />
-          <Typography variant="caption" color="text.secondary">
-            {currentIndex + 1} / {filteredSentences.length}
-          </Typography>
-        </Box>
+        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+            <LevelChip
+              level={currentSentence.level}
+              label={currentSentence.level}
+              size="small"
+            />
+            <Typography variant="caption" color="text.secondary">
+              {currentIndex + 1} / {filteredSentences.length}
+            </Typography>
+          </Box>
 
-        <SentenceText>
-          {renderSentenceWithTappableWords(currentSentence)}
-        </SentenceText>
+          <SentenceText>
+            {renderSentenceWithTappableWords(currentSentence)}
+          </SentenceText>
 
-        <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mb: 2 }}>
-          {currentSentence.tags.map((tag) => (
-            <TagChip key={tag} label={tag} size="small" />
-          ))}
+          {showAnswer && (
+            <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mb: 2 }}>
+              {currentSentence.tags.map((tag) => (
+                <TagChip key={tag} label={tag} size="small" />
+              ))}
+            </Box>
+          )}
+
+          {showAnswer && (
+            <Box
+              sx={{
+                p: 2,
+                borderRadius: 1,
+                backgroundColor: 'action.hover',
+              }}
+            >
+              <Typography variant="body1" fontWeight={500}>
+                {currentSentence.english}
+              </Typography>
+            </Box>
+          )}
         </Box>
 
         {!showAnswer ? (
-          <Button variant="contained" fullWidth onClick={handleRevealAnswer}>
+          <Button
+            variant="contained"
+            fullWidth
+            size="large"
+            onClick={handleRevealAnswer}
+          >
             Reveal Answer
           </Button>
         ) : (
-          <Box
-            sx={{
-              p: 2,
-              borderRadius: 1,
-              backgroundColor: 'action.hover',
-            }}
+          <NextButton
+            fullWidth
+            size="large"
+            variant="contained"
+            onClick={goNext}
           >
-            <Typography variant="body1" fontWeight={500}>
-              {currentSentence.english}
-            </Typography>
-          </Box>
+            Next →
+          </NextButton>
         )}
       </Card>
 
       <NavigationBox>
         <IconButton onClick={goPrev} size="large">
           <KeyboardArrowLeft />
-        </IconButton>
-        <IconButton onClick={shuffleSentence}>
-          <Shuffle />
         </IconButton>
         <IconButton onClick={goNext} size="large">
           <KeyboardArrowRight />
