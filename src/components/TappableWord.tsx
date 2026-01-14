@@ -12,7 +12,8 @@ import {
   RateLimitMinuteError,
   RateLimitDailyError,
 } from '../lib/translate';
-import { getCachedTranslation, getCacheKey } from '../lib/translationCache';
+import getCachedTranslation from '../lib/translationCache/getCachedTranslation';
+import getCacheKey from '../lib/translationCache/getCacheKey';
 
 const TappableWordSpan = styled('span')(({ theme }) => ({
   cursor: 'pointer',

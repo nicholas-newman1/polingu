@@ -26,24 +26,20 @@ import type {
   VocabularySettings,
   VocabularyDirection,
 } from '../types/vocabulary';
-import {
-  loadVocabularyReviewData,
-  saveVocabularyReviewData,
-  loadVocabularySettings,
-  saveVocabularySettings,
-  getOrCreateVocabularyCardReviewData,
-  clearVocabularyData,
-} from '../lib/storage';
-import {
-  getVocabularySessionCards,
-  getVocabularyPracticeAheadCards,
-  getVocabularyExtraNewCards,
-  rateVocabularyCard,
-  getVocabularyNextIntervals,
-  type VocabularySessionCard,
-} from '../lib/vocabularyScheduler';
+import loadVocabularyReviewData from '../lib/storage/loadVocabularyReviewData';
+import saveVocabularyReviewData from '../lib/storage/saveVocabularyReviewData';
+import loadVocabularySettings from '../lib/storage/loadVocabularySettings';
+import saveVocabularySettings from '../lib/storage/saveVocabularySettings';
+import getOrCreateVocabularyCardReviewData from '../lib/storage/getOrCreateVocabularyCardReviewData';
+import clearVocabularyData from '../lib/storage/clearVocabularyData';
+import getVocabularySessionCards from '../lib/vocabularyScheduler/getVocabularySessionCards';
+import getVocabularyPracticeAheadCards from '../lib/vocabularyScheduler/getVocabularyPracticeAheadCards';
+import getVocabularyExtraNewCards from '../lib/vocabularyScheduler/getVocabularyExtraNewCards';
+import rateVocabularyCard from '../lib/vocabularyScheduler/rateVocabularyCard';
+import getVocabularyNextIntervals from '../lib/fsrsUtils/getNextIntervals';
+import type { VocabularySessionCard } from '../lib/vocabularyScheduler/types';
 import { useAuthContext } from '../hooks/useAuthContext';
-import { shuffleArray } from '../lib/utils';
+import shuffleArray from '../lib/utils/shuffleArray';
 
 const allWords: VocabularyWord[] = vocabularyData as VocabularyWord[];
 

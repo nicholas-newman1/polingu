@@ -14,7 +14,7 @@ import {
 import { Person } from '@mui/icons-material';
 import { Link } from 'react-router-dom';
 import type { User } from 'firebase/auth';
-import { getFirstName } from '../lib/utils';
+import getFirstName from '../lib/utils/getFirstName';
 
 const BrandingSection = styled(Box)(({ theme }) => ({
   display: 'flex',

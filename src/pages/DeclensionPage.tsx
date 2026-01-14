@@ -15,25 +15,22 @@ import type {
   ReviewDataStore,
   Settings,
 } from '../types';
-import {
-  loadReviewData,
-  saveReviewData,
-  loadSettings,
-  saveSettings,
-  getOrCreateCardReviewData,
-  clearAllData,
-} from '../lib/storage';
-import {
-  getSessionCards,
-  getPracticeAheadCards,
-  getExtraNewCards,
-  rateCard,
-  getNextIntervals,
-  type SessionCard,
-} from '../lib/scheduler';
+import loadReviewData from '../lib/storage/loadReviewData';
+import saveReviewData from '../lib/storage/saveReviewData';
+import loadSettings from '../lib/storage/loadSettings';
+import saveSettings from '../lib/storage/saveSettings';
+import getOrCreateCardReviewData from '../lib/storage/getOrCreateCardReviewData';
+import clearAllData from '../lib/storage/clearAllData';
+import getSessionCards from '../lib/declensionScheduler/getSessionCards';
+import getPracticeAheadCards from '../lib/declensionScheduler/getPracticeAheadCards';
+import getExtraNewCards from '../lib/declensionScheduler/getExtraNewCards';
+import rateCard from '../lib/fsrsUtils/rateCard';
+import getNextIntervals from '../lib/fsrsUtils/getNextIntervals';
+import type { SessionCard } from '../lib/declensionScheduler/types';
 import { useAuthContext } from '../hooks/useAuthContext';
 import { DEFAULT_SETTINGS } from '../constants';
-import { getDefaultReviewStore, shuffleArray } from '../lib/utils';
+import getDefaultReviewStore from '../lib/utils/getDefaultReviewStore';
+import shuffleArray from '../lib/utils/shuffleArray';
 
 const allCards: CardType[] = cardsData as CardType[];
 
@@ -416,4 +413,3 @@ export function DeclensionPage() {
     </>
   );
 }
-
