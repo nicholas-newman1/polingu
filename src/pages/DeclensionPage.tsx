@@ -362,7 +362,7 @@ export function DeclensionPage() {
 
       {showSettings && !practiceMode && (
         <SettingsPanel
-          settings={settings}
+          newCardsPerDay={settings.newCardsPerDay}
           user={user}
           onSettingsChange={handleSettingsChange}
           onResetAllData={handleResetAllData}

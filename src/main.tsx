@@ -12,6 +12,7 @@ import { SignIn } from './components/SignIn';
 import { Layout } from './components/Layout';
 import { DeclensionPage } from './pages/DeclensionPage';
 import { SentencesPage } from './pages/SentencesPage';
+import { VocabularyPage } from './pages/VocabularyPage';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -26,6 +27,7 @@ createRoot(document.getElementById('root')!).render(
                 <Route path="/app" element={<Layout />}>
                   <Route index element={<DeclensionPage />} />
                   <Route path="sentences" element={<SentencesPage />} />
+                  <Route path="vocabulary" element={<VocabularyPage />} />
                 </Route>
               </Routes>
             </BrowserRouter>

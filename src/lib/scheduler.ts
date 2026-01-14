@@ -1,24 +1,15 @@
-import {
-  fsrs,
-  Rating,
-  type Card as FSRSCard,
-  type RecordLogItem,
-  type Grade,
-} from 'ts-fsrs';
-import type {
-  Card,
-  CardReviewData,
-  ReviewDataStore,
-  Settings,
-  Case,
-  Gender,
-  Number,
-} from '../types';
+import type { Card, CardReviewData, ReviewDataStore, Settings } from '../types';
 import { getOrCreateCardReviewData } from './storage';
+import {
+  Rating,
+  isDue,
+  sortByDueDate,
+  getNextIntervals,
+  rateCard,
+} from './fsrsUtils';
+import type { Case, Gender, Number } from '../types';
 
-const f = fsrs();
-
-export { Rating };
+export { Rating, getNextIntervals };
 
 export interface Filters {
   case: Case | 'All';
@@ -30,11 +21,6 @@ export interface SessionCard {
   card: Card;
   reviewData: CardReviewData;
   isNew: boolean;
-}
-
-function isDue(fsrsCard: FSRSCard): boolean {
-  if (fsrsCard.state === 0) return false;
-  return new Date(fsrsCard.due) <= new Date();
 }
 
 function matchesFilters(card: Card, filters: Filters): boolean {
@@ -74,11 +60,7 @@ export function getSessionCards(
     }
   }
 
-  reviewCards.sort((a, b) => {
-    const dateA = new Date(a.reviewData.fsrsCard.due).getTime();
-    const dateB = new Date(b.reviewData.fsrsCard.due).getTime();
-    return dateA - dateB;
-  });
+  reviewCards.sort(sortByDueDate);
 
   return { reviewCards, newCards };
 }
@@ -107,11 +89,7 @@ export function getPracticeAheadCards(
     }
   }
 
-  practiceCards.sort((a, b) => {
-    const dateA = new Date(a.reviewData.fsrsCard.due).getTime();
-    const dateB = new Date(b.reviewData.fsrsCard.due).getTime();
-    return dateA - dateB;
-  });
+  practiceCards.sort(sortByDueDate);
 
   return practiceCards.slice(0, count);
 }
@@ -139,43 +117,4 @@ export function getExtraNewCards(
   return newCards;
 }
 
-export function rateCard(
-  reviewData: CardReviewData,
-  rating: Grade,
-  now: Date = new Date()
-): CardReviewData {
-  const result = f.repeat(reviewData.fsrsCard, now);
-  const item: RecordLogItem = result[rating];
-  return {
-    ...reviewData,
-    fsrsCard: item.card,
-    log: item.log,
-  };
-}
-
-export function getNextIntervals(
-  fsrsCard: FSRSCard,
-  now: Date = new Date()
-): Record<Grade, string> {
-  const result = f.repeat(fsrsCard, now);
-
-  const formatInterval = (card: FSRSCard): string => {
-    const due = new Date(card.due);
-    const diffMs = due.getTime() - now.getTime();
-    const diffMins = Math.round(diffMs / 60000);
-    const diffHours = Math.round(diffMs / 3600000);
-    const diffDays = Math.round(diffMs / 86400000);
-
-    if (diffMins < 1) return '<1m';
-    if (diffMins < 60) return `${diffMins}m`;
-    if (diffHours < 24) return `${diffHours}h`;
-    return `${diffDays}d`;
-  };
-
-  return {
-    [Rating.Again]: formatInterval(result[Rating.Again].card),
-    [Rating.Hard]: formatInterval(result[Rating.Hard].card),
-    [Rating.Good]: formatInterval(result[Rating.Good].card),
-    [Rating.Easy]: formatInterval(result[Rating.Easy].card),
-  };
-}
+export { rateCard };

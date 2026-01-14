@@ -14,7 +14,7 @@ import {
   useMediaQuery,
   useTheme,
 } from '@mui/material';
-import { Menu, School, Translate, Close } from '@mui/icons-material';
+import { Menu, School, Translate, Close, Abc } from '@mui/icons-material';
 import { Header } from './Header';
 import { DeclensionCheatSheetDrawer } from './DeclensionCheatSheetDrawer';
 import { ConsonantsCheatSheetDrawer } from './ConsonantsCheatSheetDrawer';
@@ -88,30 +88,95 @@ const DrawerHeader = styled(Box)(({ theme }) => ({
   borderBottom: `1px solid ${theme.palette.divider}`,
 }));
 
-const NavItem = styled(ListItemButton)<{ active?: boolean }>(({ theme, active }) => ({
-  borderRadius: theme.spacing(1),
-  margin: theme.spacing(0.5, 1),
-  backgroundColor: active ? theme.palette.action.selected : 'transparent',
-  '&:hover': {
-    backgroundColor: active ? theme.palette.action.selected : theme.palette.action.hover,
+const StyledNavItem = styled(ListItemButton)<{ active?: boolean }>(
+  ({ theme, active }) => ({
+    borderRadius: theme.spacing(1),
+    margin: theme.spacing(0.5, 1),
+    backgroundColor: active ? theme.palette.action.selected : 'transparent',
+    '&:hover': {
+      backgroundColor: active
+        ? theme.palette.action.selected
+        : theme.palette.action.hover,
+    },
+  })
+);
+
+interface NavItemProps {
+  path: string;
+  icon: React.ReactNode;
+  label: string;
+  description: string;
+  active: boolean;
+  onNavigate: (path: string) => void;
+}
+
+function NavItem({
+  path,
+  icon,
+  label,
+  description,
+  active,
+  onNavigate,
+}: NavItemProps) {
+  return (
+    <ListItem disablePadding>
+      <StyledNavItem active={active} onClick={() => onNavigate(path)}>
+        <ListItemIcon sx={{ minWidth: 40 }}>{icon}</ListItemIcon>
+        <ListItemText
+          primary={label}
+          secondary={description}
+          slotProps={{ primary: { fontWeight: active ? 600 : 400 } }}
+        />
+      </StyledNavItem>
+    </ListItem>
+  );
+}
+
+const NAV_ITEMS = [
+  {
+    path: '/app',
+    icon: School,
+    label: 'Declension',
+    description: 'Practice noun declensions',
+    exact: true,
   },
-}));
+  {
+    path: '/app/vocabulary',
+    icon: Abc,
+    label: 'Vocabulary',
+    description: 'Top 1000 Polish words',
+  },
+  {
+    path: '/app/sentences',
+    icon: Translate,
+    label: 'Sentences',
+    description: 'Translate full sentences',
+  },
+];
 
 function DrawerContent({
-  isActive,
+  currentPath,
   onNavigate,
   onClose,
   showCloseButton,
 }: {
-  isActive: (path: string) => boolean;
+  currentPath: string;
   onNavigate: (path: string) => void;
   onClose: () => void;
   showCloseButton: boolean;
 }) {
+  const isActive = (path: string, exact?: boolean) => {
+    if (exact) return currentPath === path;
+    return currentPath.startsWith(path);
+  };
+
   return (
     <>
       <DrawerHeader>
-        <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Typography
+          variant="h6"
+          sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+        >
           🇵🇱 Polish
         </Typography>
         {showCloseButton && (
@@ -122,41 +187,20 @@ function DrawerContent({
       </DrawerHeader>
 
       <List sx={{ pt: 2 }}>
-        <ListItem disablePadding>
-          <NavItem
-            active={isActive('/app') && !isActive('/app/sentences')}
-            onClick={() => onNavigate('/app')}
-          >
-            <ListItemIcon sx={{ minWidth: 40 }}>
-              <School color={isActive('/app') && !isActive('/app/sentences') ? 'primary' : 'inherit'} />
-            </ListItemIcon>
-            <ListItemText
-              primary="Declension"
-              secondary="Practice noun declensions"
-              primaryTypographyProps={{
-                fontWeight: isActive('/app') && !isActive('/app/sentences') ? 600 : 400,
-              }}
+        {NAV_ITEMS.map((item) => {
+          const active = isActive(item.path, item.exact);
+          return (
+            <NavItem
+              key={item.path}
+              path={item.path}
+              icon={<item.icon color={active ? 'primary' : 'inherit'} />}
+              label={item.label}
+              description={item.description}
+              active={active}
+              onNavigate={onNavigate}
             />
-          </NavItem>
-        </ListItem>
-
-        <ListItem disablePadding>
-          <NavItem
-            active={isActive('/app/sentences')}
-            onClick={() => onNavigate('/app/sentences')}
-          >
-            <ListItemIcon sx={{ minWidth: 40 }}>
-              <Translate color={isActive('/app/sentences') ? 'primary' : 'inherit'} />
-            </ListItemIcon>
-            <ListItemText
-              primary="Sentences"
-              secondary="Translate full sentences"
-              primaryTypographyProps={{
-                fontWeight: isActive('/app/sentences') ? 600 : 400,
-              }}
-            />
-          </NavItem>
-        </ListItem>
+          );
+        })}
       </List>
     </>
   );
@@ -180,13 +224,6 @@ export function Layout() {
     setMobileDrawerOpen(false);
   };
 
-  const isActive = (path: string) => {
-    if (path === '/app') {
-      return location.pathname === '/app';
-    }
-    return location.pathname.startsWith(path);
-  };
-
   return (
     <PageContainer>
       {isDesktop ? (
@@ -202,7 +239,7 @@ export function Layout() {
           }}
         >
           <DrawerContent
-            isActive={isActive}
+            currentPath={location.pathname}
             onNavigate={handleNavigation}
             onClose={() => {}}
             showCloseButton={false}
@@ -221,7 +258,7 @@ export function Layout() {
           }}
         >
           <DrawerContent
-            isActive={isActive}
+            currentPath={location.pathname}
             onNavigate={handleNavigation}
             onClose={() => setMobileDrawerOpen(false)}
             showCloseButton={true}
@@ -254,4 +291,3 @@ export function Layout() {
     </PageContainer>
   );
 }
-

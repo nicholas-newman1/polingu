@@ -8,7 +8,6 @@ import {
   styled,
 } from '@mui/material';
 import type { User } from 'firebase/auth';
-import type { Settings } from '../types';
 
 const SettingsCard = styled(Card)(({ theme }) => ({
   padding: theme.spacing(2),
@@ -39,17 +38,19 @@ const ResetButton = styled(Button)(({ theme }) => ({
 }));
 
 interface SettingsPanelProps {
-  settings: Settings;
+  newCardsPerDay: number;
   user: User | null;
   onSettingsChange: (newCardsPerDay: number) => void;
   onResetAllData: () => void;
+  resetButtonLabel?: string;
 }
 
 export function SettingsPanel({
-  settings,
+  newCardsPerDay,
   user,
   onSettingsChange,
   onResetAllData,
+  resetButtonLabel = 'Reset All Progress',
 }: SettingsPanelProps) {
   return (
     <SettingsCard className="animate-fade-up">
@@ -69,7 +70,7 @@ export function SettingsPanel({
         <NumberInput
           type="number"
           size="small"
-          value={settings.newCardsPerDay}
+          value={newCardsPerDay}
           onChange={(e) =>
             onSettingsChange(Math.max(1, parseInt(e.target.value) || 1))
           }
@@ -81,7 +82,7 @@ export function SettingsPanel({
         <>
           <Divider sx={{ my: 2 }} />
           <ResetButton fullWidth variant="contained" onClick={onResetAllData}>
-            Reset All Progress
+            {resetButtonLabel}
           </ResetButton>
         </>
       )}
