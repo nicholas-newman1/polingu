@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Box, Popper, Paper, Typography, styled } from '@mui/material';
-import type { WordAnnotation } from '../../types/sentences';
+import type { WordAnnotation } from '../types/sentences';
 
 const WordSpan = styled('span')(({ theme }) => ({
   cursor: 'pointer',
@@ -37,9 +37,15 @@ const PopoverContent = styled(Box)(({ theme }) => ({
 
 interface AnnotatedWordProps {
   annotation: WordAnnotation;
+  displayWord?: string;
+  mode?: 'pl-to-en' | 'en-to-pl';
 }
 
-export function AnnotatedWord({ annotation }: AnnotatedWordProps) {
+export function AnnotatedWord({
+  annotation,
+  displayWord,
+  mode = 'pl-to-en',
+}: AnnotatedWordProps) {
   const [anchorEl, setAnchorEl] = useState<HTMLSpanElement | null>(null);
   const [isHovering, setIsHovering] = useState(false);
   const [isClicked, setIsClicked] = useState(false);
@@ -79,6 +85,8 @@ export function AnnotatedWord({ annotation }: AnnotatedWordProps) {
     setIsHovering(false);
   };
 
+  const wordToDisplay = displayWord ?? annotation.word;
+
   return (
     <>
       <WordSpan
@@ -86,7 +94,7 @@ export function AnnotatedWord({ annotation }: AnnotatedWordProps) {
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
-        {annotation.word}
+        {wordToDisplay}
       </WordSpan>
       <Popper
         open={open}
@@ -96,16 +104,47 @@ export function AnnotatedWord({ annotation }: AnnotatedWordProps) {
       >
         <TooltipPaper ref={popperRef} elevation={8}>
           <PopoverContent>
-            <Typography variant="body2" fontWeight={600} sx={{ mb: 0.5 }}>
-              {annotation.english}
-            </Typography>
-            <Typography variant="caption" sx={{ color: '#a3a3a3', display: 'block' }}>
-              {annotation.lemma !== annotation.word.toLowerCase() && (
-                <span style={{ fontStyle: 'italic' }}>{annotation.lemma}</span>
-              )}
-              {annotation.lemma !== annotation.word.toLowerCase() && annotation.grammar && ' · '}
-              {annotation.grammar}
-            </Typography>
+            {mode === 'pl-to-en' ? (
+              <>
+                <Typography variant="body2" fontWeight={600} sx={{ mb: 0.5 }}>
+                  {annotation.english}
+                </Typography>
+                <Typography
+                  variant="caption"
+                  sx={{ color: '#a3a3a3', display: 'block' }}
+                >
+                  {annotation.lemma !== annotation.word.toLowerCase() && (
+                    <span style={{ fontStyle: 'italic' }}>
+                      {annotation.lemma}
+                    </span>
+                  )}
+                  {annotation.lemma !== annotation.word.toLowerCase() &&
+                    annotation.grammar &&
+                    ' · '}
+                  {annotation.grammar}
+                </Typography>
+              </>
+            ) : (
+              <>
+                <Typography variant="body2" fontWeight={600} sx={{ mb: 0.5 }}>
+                  {annotation.word}
+                </Typography>
+                <Typography
+                  variant="caption"
+                  sx={{ color: '#a3a3a3', display: 'block' }}
+                >
+                  {annotation.lemma !== annotation.word.toLowerCase() && (
+                    <span style={{ fontStyle: 'italic' }}>
+                      {annotation.lemma}
+                    </span>
+                  )}
+                  {annotation.lemma !== annotation.word.toLowerCase() &&
+                    annotation.grammar &&
+                    ' · '}
+                  {annotation.grammar}
+                </Typography>
+              </>
+            )}
             {annotation.notes && (
               <Typography
                 variant="caption"
@@ -120,4 +159,3 @@ export function AnnotatedWord({ annotation }: AnnotatedWordProps) {
     </>
   );
 }
-

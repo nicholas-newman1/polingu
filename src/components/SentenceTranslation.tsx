@@ -17,11 +17,11 @@ import {
   ExpandLess,
 } from '@mui/icons-material';
 import { collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '../../lib/firebase';
+import { db } from '../lib/firebase';
 import { AnnotatedWord } from './AnnotatedWord';
-import { DirectionToggle, type TranslationDirection } from '../DirectionToggle';
-import type { Sentence, CEFRLevel, TagCategory } from '../../types/sentences';
-import { TAG_CATEGORIES } from '../../types/sentences';
+import { DirectionToggle, type TranslationDirection } from './DirectionToggle';
+import type { Sentence, CEFRLevel, TagCategory } from '../types/sentences';
+import { TAG_CATEGORIES } from '../types/sentences';
 
 const LEVEL_COLORS: Record<CEFRLevel, string> = {
   A1: '#22c55e',
@@ -226,7 +226,7 @@ export function SentenceTranslation() {
     setShowAnswer(true);
   }, []);
 
-  const renderSentenceWithTappableWords = (sentence: Sentence) => {
+  const renderPolishSentenceWithTappableWords = (sentence: Sentence) => {
     const polishText = sentence.polish;
     const words = sentence.words;
     const result: React.ReactNode[] = [];
@@ -246,6 +246,53 @@ export function SentenceTranslation() {
     }
 
     return result;
+  };
+
+  const renderEnglishSentenceWithTappableWords = (sentence: Sentence) => {
+    const englishText = sentence.english;
+    const words = sentence.words;
+
+    const wordPattern = /[\w']+|[^\w\s]+|\s+/g;
+    const tokens = englishText.match(wordPattern) || [];
+
+    const annotationMap = new Map<
+      string,
+      { annotation: (typeof words)[0]; used: boolean }[]
+    >();
+    words.forEach((wordAnnotation) => {
+      const englishWords = wordAnnotation.english.toLowerCase().split(/[\s/]+/);
+      englishWords.forEach((engWord) => {
+        const normalized = engWord.replace(/[^\w']/g, '');
+        if (normalized) {
+          if (!annotationMap.has(normalized)) {
+            annotationMap.set(normalized, []);
+          }
+          annotationMap
+            .get(normalized)!
+            .push({ annotation: wordAnnotation, used: false });
+        }
+      });
+    });
+
+    return tokens.map((token, idx) => {
+      const normalized = token.toLowerCase().replace(/[^\w']/g, '');
+      const entries = annotationMap.get(normalized);
+      if (entries) {
+        const unusedEntry = entries.find((e) => !e.used);
+        if (unusedEntry) {
+          unusedEntry.used = true;
+          return (
+            <AnnotatedWord
+              key={idx}
+              annotation={unusedEntry.annotation}
+              displayWord={token}
+              mode="en-to-pl"
+            />
+          );
+        }
+      }
+      return <span key={idx}>{token}</span>;
+    });
   };
 
   if (loading) {
@@ -433,8 +480,8 @@ export function SentenceTranslation() {
 
           <SentenceText>
             {direction === 'en-to-pl'
-              ? currentSentence.english
-              : renderSentenceWithTappableWords(currentSentence)}
+              ? renderEnglishSentenceWithTappableWords(currentSentence)
+              : renderPolishSentenceWithTappableWords(currentSentence)}
           </SentenceText>
 
           {showAnswer && (
@@ -455,7 +502,7 @@ export function SentenceTranslation() {
             >
               {direction === 'en-to-pl' ? (
                 <Typography variant="body1" fontWeight={500}>
-                  {renderSentenceWithTappableWords(currentSentence)}
+                  {renderPolishSentenceWithTappableWords(currentSentence)}
                 </Typography>
               ) : (
                 <Typography variant="body1" fontWeight={500}>
