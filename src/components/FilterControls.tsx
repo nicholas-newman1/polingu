@@ -5,15 +5,15 @@ import {
   Button,
   Collapse,
   FormControl,
-  IconButton,
   InputLabel,
   MenuItem,
   Select,
   Stack,
 } from '@mui/material';
 import { styled } from '../lib/styled';
-import SettingsIcon from '@mui/icons-material/Settings';
 import FilterListIcon from '@mui/icons-material/FilterList';
+import { PracticeModeButton } from './PracticeModeButton';
+import { SettingsButton } from './SettingsButton';
 import type { Case, Gender, Number } from '../types';
 import { CASES, GENDERS, NUMBERS } from '../constants';
 
@@ -29,11 +29,11 @@ const FilterSelect = styled(Select)(({ theme }) => ({
   backgroundColor: theme.palette.background.paper,
 }));
 
-interface ModeButtonProps {
+interface FilterButtonProps {
   $active: boolean;
 }
 
-const ModeButton = styled(Button)<ModeButtonProps>(({ theme, $active }) => ({
+const FilterButton = styled(Button)<FilterButtonProps>(({ theme, $active }) => ({
   minWidth: 100,
   ...($active
     ? {
@@ -46,30 +46,6 @@ const ModeButton = styled(Button)<ModeButtonProps>(({ theme, $active }) => ({
         backgroundColor: theme.palette.background.paper,
       }),
 }));
-
-interface IconButtonStyledProps {
-  $active: boolean;
-}
-
-const IconButtonStyled = styled(IconButton)<IconButtonStyledProps>(
-  ({ theme, $active }) => ({
-    width: 40,
-    height: 40,
-    backgroundColor: $active
-      ? theme.palette.text.primary
-      : theme.palette.background.paper,
-    color: $active
-      ? theme.palette.background.paper
-      : theme.palette.text.disabled,
-    border: '1px solid',
-    borderColor: $active ? theme.palette.text.primary : theme.palette.divider,
-    '&:hover': {
-      backgroundColor: $active
-        ? theme.palette.text.secondary
-        : theme.palette.background.default,
-    },
-  })
-);
 
 interface FilterControlsProps {
   caseFilter: Case | 'All';
@@ -110,31 +86,19 @@ export function FilterControls({
           color="primary"
           invisible={activeFilterCount === 0}
         >
-          <ModeButton
+          <FilterButton
             variant={showFilters ? 'contained' : 'outlined'}
             onClick={() => setShowFilters(!showFilters)}
             $active={showFilters}
             startIcon={<FilterListIcon />}
           >
             Filters
-          </ModeButton>
+          </FilterButton>
         </Badge>
 
-        <ModeButton
-          variant={practiceMode ? 'contained' : 'outlined'}
-          onClick={onTogglePractice}
-          $active={practiceMode}
-        >
-          {practiceMode ? '✓ Practice' : 'Practice'}
-        </ModeButton>
+        <PracticeModeButton active={practiceMode} onClick={onTogglePractice} />
 
-        <IconButtonStyled
-          onClick={onToggleSettings}
-          size="small"
-          $active={showSettings}
-        >
-          <SettingsIcon fontSize="small" />
-        </IconButtonStyled>
+        <SettingsButton active={showSettings} onClick={onToggleSettings} />
       </Stack>
 
       <Collapse in={showFilters}>

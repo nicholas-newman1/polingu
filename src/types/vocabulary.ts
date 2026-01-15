@@ -23,7 +23,9 @@ export interface VocabularyWord {
   notes?: string;
 }
 
-export type VocabularyDirection = 'pl-en' | 'en-pl';
+import type { TranslationDirection } from '../components/DirectionToggle';
+
+export type VocabularyDirection = TranslationDirection;
 
 export interface VocabularyCardReviewData {
   wordId: number;

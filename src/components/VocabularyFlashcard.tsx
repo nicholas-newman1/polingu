@@ -130,7 +130,7 @@ export function VocabularyFlashcard({
 }: VocabularyFlashcardProps) {
   const [revealed, setRevealed] = useState(false);
 
-  const isPolishToEnglish = direction === 'pl-en';
+  const isPolishToEnglish = direction === 'pl-to-en';
   const questionWord = isPolishToEnglish ? word.polish : word.english;
   const answerWord = isPolishToEnglish ? word.english : word.polish;
   const directionLabel = isPolishToEnglish ? 'Polish → English' : 'English → Polish';

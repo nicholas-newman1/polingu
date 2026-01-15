@@ -32,7 +32,7 @@ export function getDefaultVocabularyReviewStore(): VocabularyReviewDataStore {
 }
 
 export function getVocabularyDocPath(direction: VocabularyDirection): string {
-  return direction === 'pl-en'
+  return direction === 'pl-to-en'
     ? 'vocabularyReviewData-pl-en'
     : 'vocabularyReviewData-en-pl';
 }

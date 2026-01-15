@@ -20,11 +20,13 @@ export function DirectionToggle({
   onToggle,
   size = 'small',
 }: DirectionToggleProps) {
+  const englishFirst = direction === 'en-to-pl';
+
   return (
     <StyledButton variant="outlined" size={size} onClick={onToggle}>
-      {direction === 'en-to-pl' ? 'EN' : 'PL'}
+      {englishFirst ? 'EN' : 'PL'}
       <SwapHorizIcon sx={{ fontSize: size === 'small' ? 18 : 22 }} />
-      {direction === 'en-to-pl' ? 'PL' : 'EN'}
+      {englishFirst ? 'PL' : 'EN'}
     </StyledButton>
   );
 }

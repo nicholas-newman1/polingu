@@ -1,17 +1,10 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Rating, type Grade } from 'ts-fsrs';
-import {
-  Box,
-  CircularProgress,
-  Typography,
-  ToggleButton,
-  ToggleButtonGroup,
-  Stack,
-  Button,
-  IconButton,
-} from '@mui/material';
+import { Box, CircularProgress, Typography, Stack } from '@mui/material';
 import { styled } from '../lib/styled';
-import { Settings as SettingsIcon } from '@mui/icons-material';
+import { PracticeModeButton } from '../components/PracticeModeButton';
+import { SettingsButton } from '../components/SettingsButton';
+import { DirectionToggle } from '../components/DirectionToggle';
 import {
   VocabularyFlashcard,
   type RatingIntervals,
@@ -45,7 +38,7 @@ const allWords: VocabularyWord[] = vocabularyData as VocabularyWord[];
 
 const DEFAULT_VOCABULARY_SETTINGS: VocabularySettings = {
   newCardsPerDay: 10,
-  direction: 'pl-en',
+  direction: 'pl-to-en',
 };
 
 function getDefaultVocabularyReviewStore(): VocabularyReviewDataStore {
@@ -78,38 +71,6 @@ const ControlsRow = styled(Stack)(({ theme }) => ({
   gap: theme.spacing(1),
 }));
 
-const DirectionToggle = styled(ToggleButtonGroup)(({ theme }) => ({
-  '& .MuiToggleButton-root': {
-    padding: theme.spacing(0.75, 2),
-    fontSize: '0.875rem',
-    textTransform: 'none',
-    '&.Mui-selected': {
-      backgroundColor: theme.palette.primary.main,
-      color: theme.palette.primary.contrastText,
-      '&:hover': {
-        backgroundColor: theme.palette.primary.dark,
-      },
-    },
-  },
-}));
-
-const PracticeModeButton = styled(Button)<{ $active?: boolean }>(
-  ({ theme, $active }) => ({
-    textTransform: 'none',
-    backgroundColor: $active ? theme.palette.warning.main : 'transparent',
-    color: $active
-      ? theme.palette.warning.contrastText
-      : theme.palette.text.secondary,
-    border: `1px solid ${
-      $active ? theme.palette.warning.main : theme.palette.divider
-    }`,
-    '&:hover': {
-      backgroundColor: $active
-        ? theme.palette.warning.dark
-        : theme.palette.action.hover,
-    },
-  })
-);
 
 export function VocabularyPage() {
   const { user } = useAuthContext();
@@ -173,31 +134,26 @@ export function VocabularyPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  const handleDirectionChange = useCallback(
-    async (
-      _: React.MouseEvent<HTMLElement>,
-      newDirection: VocabularyDirection | null
-    ) => {
-      if (newDirection === null || newDirection === settings.direction) return;
+  const handleDirectionToggle = useCallback(async () => {
+    const newDirection: VocabularyDirection =
+      settings.direction === 'pl-to-en' ? 'en-to-pl' : 'pl-to-en';
 
-      setIsLoading(true);
-      const newSettings = { ...settings, direction: newDirection };
-      directionRef.current = newDirection;
-      setSettings(newSettings);
-      await saveVocabularySettings(newSettings);
+    setIsLoading(true);
+    const newSettings = { ...settings, direction: newDirection };
+    directionRef.current = newDirection;
+    setSettings(newSettings);
+    await saveVocabularySettings(newSettings);
 
-      const newReviewStore = await loadVocabularyReviewData(newDirection);
-      setReviewStore(newReviewStore);
-      buildSession(newReviewStore, newSettings);
+    const newReviewStore = await loadVocabularyReviewData(newDirection);
+    setReviewStore(newReviewStore);
+    buildSession(newReviewStore, newSettings);
 
-      if (practiceMode) {
-        setPracticeCards(shuffleArray([...allWords]));
-        setPracticeIndex(0);
-      }
-      setIsLoading(false);
-    },
-    [settings, buildSession, practiceMode]
-  );
+    if (practiceMode) {
+      setPracticeCards(shuffleArray([...allWords]));
+      setPracticeIndex(0);
+    }
+    setIsLoading(false);
+  }, [settings, buildSession, practiceMode]);
 
   const startPracticeAhead = useCallback(() => {
     const aheadCards = getVocabularyPracticeAheadCards(
@@ -349,40 +305,18 @@ export function VocabularyPage() {
 
   return (
     <>
-      <ControlsRow
-        direction="row"
-        alignItems="center"
-        justifyContent="space-between"
-      >
-        <Stack direction="row" spacing={1} alignItems="center">
-          <DirectionToggle
-            value={settings.direction}
-            exclusive
-            onChange={handleDirectionChange}
-            size="small"
-          >
-            <ToggleButton value="pl-en">PL → EN</ToggleButton>
-            <ToggleButton value="en-pl">EN → PL</ToggleButton>
-          </DirectionToggle>
+      <ControlsRow direction="row" alignItems="center">
+        <DirectionToggle
+          direction={settings.direction}
+          onToggle={handleDirectionToggle}
+        />
 
-          <PracticeModeButton
-            $active={practiceMode}
-            onClick={togglePracticeMode}
-            size="small"
-          >
-            Practice
-          </PracticeModeButton>
-        </Stack>
+        <PracticeModeButton active={practiceMode} onClick={togglePracticeMode} />
 
-        <IconButton
+        <SettingsButton
+          active={showSettings}
           onClick={() => setShowSettings(!showSettings)}
-          size="small"
-          sx={{
-            backgroundColor: showSettings ? 'action.selected' : 'transparent',
-          }}
-        >
-          <SettingsIcon />
-        </IconButton>
+        />
       </ControlsRow>
 
       {showSettings && !practiceMode && (
@@ -392,7 +326,7 @@ export function VocabularyPage() {
           onSettingsChange={handleSettingsChange}
           onResetAllData={handleResetAllData}
           resetButtonLabel={`Reset ${
-            settings.direction === 'pl-en' ? 'PL→EN' : 'EN→PL'
+            settings.direction === 'pl-to-en' ? 'PL→EN' : 'EN→PL'
           } Progress`}
         />
       )}

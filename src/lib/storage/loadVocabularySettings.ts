@@ -5,7 +5,7 @@ import { getUserId } from './helpers';
 
 const DEFAULT_VOCABULARY_SETTINGS: VocabularySettings = {
   newCardsPerDay: 10,
-  direction: 'pl-en',
+  direction: 'pl-to-en',
 };
 
 export default async function loadVocabularySettings(): Promise<VocabularySettings> {
@@ -26,4 +26,3 @@ export default async function loadVocabularySettings(): Promise<VocabularySettin
   }
   return DEFAULT_VOCABULARY_SETTINGS;
 }
-
