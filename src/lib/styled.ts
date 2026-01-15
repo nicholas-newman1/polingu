@@ -1,5 +1,4 @@
 import { styled as muiStyled } from '@mui/material/styles';
-import type { CreateStyledComponent } from '@mui/system';
 
 type StyledComponent = typeof muiStyled;
 
@@ -14,4 +13,3 @@ export const styled: StyledComponent = ((
     ...options,
   });
 }) as StyledComponent;
-
