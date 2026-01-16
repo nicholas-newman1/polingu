@@ -24,7 +24,7 @@ import { LimitReachedDialog } from './LimitReachedDialog';
 import { BottomMenuBar } from './BottomMenuBar';
 import { useAuthContext } from '../hooks/useAuthContext';
 
-const DRAWER_WIDTH = 260;
+export const DRAWER_WIDTH = 260;
 
 const PageContainer = styled(Box)({
   minHeight: '100vh',

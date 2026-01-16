@@ -132,7 +132,7 @@ export function Header({ user, onSignOut }: HeaderProps) {
             <GuestChip label="Guest mode" size="small" />
             <Button
               component={Link}
-              to="/"
+              to="/login"
               size="small"
               sx={{ color: 'text.disabled', textDecoration: 'underline' }}
             >
