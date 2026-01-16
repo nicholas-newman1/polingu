@@ -1,6 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import theme from './lib/theme';
@@ -11,6 +11,7 @@ import { CheatSheetProvider } from './contexts/CheatSheetContext';
 import { AuthGate } from './components/AuthGate';
 import { SignIn } from './components/SignIn';
 import { Layout } from './components/Layout';
+import { DashboardPage } from './pages/DashboardPage';
 import { DeclensionPage } from './pages/DeclensionPage';
 import { SentencesPage } from './pages/SentencesPage';
 import { VocabularyPage } from './pages/VocabularyPage';
@@ -25,12 +26,17 @@ createRoot(document.getElementById('root')!).render(
             <CheatSheetProvider>
               <BrowserRouter>
                 <Routes>
-                  <Route path="/" element={<SignIn />} />
-                  <Route path="/app" element={<Layout />}>
-                    <Route index element={<DeclensionPage />} />
-                    <Route path="sentences" element={<SentencesPage />} />
-                    <Route path="vocabulary" element={<VocabularyPage />} />
+                  <Route path="/login" element={<SignIn />} />
+                  <Route element={<Layout />}>
+                    <Route path="/dashboard" element={<DashboardPage />} />
+                    <Route path="/declension" element={<DeclensionPage />} />
+                    <Route path="/vocabulary" element={<VocabularyPage />} />
+                    <Route path="/sentences" element={<SentencesPage />} />
                   </Route>
+                  <Route
+                    path="*"
+                    element={<Navigate to="/dashboard" replace />}
+                  />
                 </Routes>
               </BrowserRouter>
             </CheatSheetProvider>

@@ -110,12 +110,12 @@ export function SignIn() {
 
   const handleSignIn = async () => {
     await signInWithGoogle();
-    navigate('/app');
+    navigate('/dashboard');
   };
 
   useEffect(() => {
     if (user) {
-      navigate('/app');
+      navigate('/dashboard');
     }
   }, [user, navigate]);
 
@@ -169,7 +169,7 @@ export function SignIn() {
 
             <Button
               component={Link}
-              to="/app"
+              to="/dashboard"
               fullWidth
               size="large"
               variant="contained"

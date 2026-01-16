@@ -14,7 +14,7 @@ import {
   useTheme,
 } from '@mui/material';
 import { styled } from '../lib/styled';
-import { Menu, School, Translate, Close, Abc } from '@mui/icons-material';
+import { Menu, School, Translate, Close, Abc, Home } from '@mui/icons-material';
 import { Header } from './Header';
 import { DeclensionCheatSheetDrawer } from './DeclensionCheatSheetDrawer';
 import { ConsonantsCheatSheetDrawer } from './ConsonantsCheatSheetDrawer';
@@ -134,20 +134,25 @@ function NavItem({
 
 const NAV_ITEMS = [
   {
-    path: '/app',
+    path: '/dashboard',
+    icon: Home,
+    label: 'Dashboard',
+    description: 'Home',
+  },
+  {
+    path: '/declension',
     icon: School,
     label: 'Declension',
     description: 'Practice noun declensions',
-    exact: true,
   },
   {
-    path: '/app/vocabulary',
+    path: '/vocabulary',
     icon: Abc,
     label: 'Vocabulary',
     description: 'Top 1000 Polish words',
   },
   {
-    path: '/app/sentences',
+    path: '/sentences',
     icon: Translate,
     label: 'Sentences',
     description: 'Translate full sentences',
@@ -165,10 +170,7 @@ function DrawerContent({
   onClose: () => void;
   showCloseButton: boolean;
 }) {
-  const isActive = (path: string, exact?: boolean) => {
-    if (exact) return currentPath === path;
-    return currentPath.startsWith(path);
-  };
+  const isActive = (path: string) => currentPath === path;
 
   return (
     <>
@@ -188,7 +190,7 @@ function DrawerContent({
 
       <List sx={{ pt: 2 }}>
         {NAV_ITEMS.map((item) => {
-          const active = isActive(item.path, item.exact);
+          const active = isActive(item.path);
           return (
             <NavItem
               key={item.path}
@@ -216,7 +218,7 @@ export function Layout() {
 
   const handleSignOut = async () => {
     await signOut();
-    navigate('/');
+    navigate('/login');
   };
 
   const handleNavigation = (path: string) => {
