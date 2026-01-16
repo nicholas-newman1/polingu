@@ -45,6 +45,11 @@ service cloud.firestore {
     match /sentences/{sentenceId} {
       allow read: if true;
     }
+
+    // Vocabulary - public read access (writes done via CLI only)
+    match /vocabulary/{wordId} {
+      allow read: if true;
+    }
   }
 }
 

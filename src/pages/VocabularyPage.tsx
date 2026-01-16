@@ -7,8 +7,10 @@ import {
   Stack,
   IconButton,
 } from '@mui/material';
+import { collection, getDocs } from 'firebase/firestore';
 import AddIcon from '@mui/icons-material/Add';
 import { styled } from '../lib/styled';
+import { db } from '../lib/firebase';
 import { PracticeModeButton } from '../components/PracticeModeButton';
 import { SettingsButton } from '../components/SettingsButton';
 import { DirectionToggle } from '../components/DirectionToggle';
@@ -20,7 +22,6 @@ import { FinishedState } from '../components/FinishedState';
 import { EmptyState } from '../components/EmptyState';
 import { SettingsPanel } from '../components/SettingsPanel';
 import { AddVocabularyModal } from '../components/AddVocabularyModal';
-import vocabularyData from '../data/vocabulary.json';
 import type {
   VocabularyWord,
   VocabularyReviewDataStore,
@@ -49,8 +50,6 @@ import { useOptimistic } from '../hooks/useOptimistic';
 import { useSnackbar } from '../hooks/useSnackbar';
 import shuffleArray from '../lib/utils/shuffleArray';
 import { includesWordId } from '../lib/storage/helpers';
-
-const systemWords: VocabularyWord[] = vocabularyData as VocabularyWord[];
 
 const DEFAULT_VOCABULARY_SETTINGS: VocabularySettings = {
   newCardsPerDay: 10,
@@ -100,6 +99,7 @@ const AddButton = styled(IconButton)(({ theme }) => ({
 export function VocabularyPage() {
   const { user } = useAuthContext();
   const { showSnackbar } = useSnackbar();
+  const [systemWords, setSystemWords] = useState<VocabularyWord[]>([]);
   const [reviewStore, setReviewStore] = useState<VocabularyReviewDataStore>(
     getDefaultVocabularyReviewStore
   );
@@ -142,7 +142,7 @@ export function VocabularyPage() {
 
   const allWords = useMemo<VocabularyWord[]>(
     () => [...customWords, ...systemWords],
-    [customWords]
+    [customWords, systemWords]
   );
 
   const buildSession = useCallback(
@@ -169,10 +169,16 @@ export function VocabularyPage() {
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
-      const [loadedSettings, loadedCustomWords] = await Promise.all([
-        loadVocabularySettings(),
-        loadCustomVocabulary(),
-      ]);
+      const [loadedSettings, loadedCustomWords, vocabularySnapshot] =
+        await Promise.all([
+          loadVocabularySettings(),
+          loadCustomVocabulary(),
+          getDocs(collection(db, 'vocabulary')),
+        ]);
+      const loadedSystemWords = vocabularySnapshot.docs.map(
+        (doc) => doc.data() as VocabularyWord
+      );
+      setSystemWords(loadedSystemWords);
       const loadedReviewData = await loadVocabularyReviewData(
         loadedSettings.direction
       );
@@ -180,7 +186,7 @@ export function VocabularyPage() {
       setSettings(loadedSettings);
       setCustomWordsBase(loadedCustomWords);
       setReviewStore(loadedReviewData);
-      const mergedWords = [...loadedCustomWords, ...systemWords];
+      const mergedWords = [...loadedCustomWords, ...loadedSystemWords];
       buildSession(mergedWords, loadedReviewData, loadedSettings);
       setIsLoading(false);
     };
