@@ -14,13 +14,27 @@ export type PartOfSpeech =
 
 export type NounGender = 'masculine' | 'feminine' | 'neuter';
 
+export type VocabularyWordId = number | string;
+
 export interface VocabularyWord {
-  id: number;
+  id: VocabularyWordId;
   polish: string;
   english: string;
-  partOfSpeech: PartOfSpeech;
+  partOfSpeech?: PartOfSpeech;
   gender?: NounGender;
   notes?: string;
+  isCustom?: boolean;
+}
+
+export interface CustomVocabularyWord {
+  id: string;
+  polish: string;
+  english: string;
+  partOfSpeech?: PartOfSpeech;
+  gender?: NounGender;
+  notes?: string;
+  isCustom: true;
+  createdAt: number;
 }
 
 import type { TranslationDirection } from '../components/DirectionToggle';
@@ -28,15 +42,15 @@ import type { TranslationDirection } from '../components/DirectionToggle';
 export type VocabularyDirection = TranslationDirection;
 
 export interface VocabularyCardReviewData {
-  wordId: number;
+  wordId: VocabularyWordId;
   fsrsCard: FSRSCard;
   log?: ReviewLog;
 }
 
 export interface VocabularyReviewDataStore {
-  cards: Record<number, VocabularyCardReviewData>;
-  reviewedToday: number[];
-  newCardsToday: number[];
+  cards: Record<string, VocabularyCardReviewData>;
+  reviewedToday: VocabularyWordId[];
+  newCardsToday: VocabularyWordId[];
   lastReviewDate: string;
 }
 

@@ -6,9 +6,12 @@ import {
   Card,
   Chip,
   Divider,
+  IconButton,
   Stack,
   Typography,
 } from '@mui/material';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
 import { styled } from '../lib/styled';
 import type { VocabularyWord, VocabularyDirection } from '../types/vocabulary';
 import { alpha } from '../lib/theme';
@@ -27,6 +30,8 @@ interface VocabularyFlashcardProps {
   intervals?: RatingIntervals;
   onRate?: (rating: Grade) => void;
   onNext?: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }
 
 const CardWrapper = styled(Box)({
@@ -116,6 +121,35 @@ const IntervalText = styled(Typography)({
   fontFamily: '"JetBrains Mono", monospace',
 });
 
+const CardHeader = styled(Box)({
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+});
+
+const ActionButtons = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  gap: theme.spacing(0.5),
+  marginTop: theme.spacing(-1),
+  marginRight: theme.spacing(-1),
+}));
+
+const ActionButton = styled(IconButton)(({ theme }) => ({
+  color: theme.palette.text.disabled,
+  padding: theme.spacing(0.75),
+  '&:hover': {
+    color: theme.palette.text.secondary,
+    backgroundColor: alpha(theme.palette.text.primary, 0.05),
+  },
+}));
+
+const DeleteButton = styled(ActionButton)(({ theme }) => ({
+  '&:hover': {
+    color: theme.palette.error.main,
+    backgroundColor: alpha(theme.palette.error.main, 0.1),
+  },
+}));
+
 function formatPartOfSpeech(pos: string): string {
   return pos.charAt(0).toUpperCase() + pos.slice(1);
 }
@@ -127,6 +161,8 @@ export function VocabularyFlashcard({
   intervals,
   onRate,
   onNext,
+  onEdit,
+  onDelete,
 }: VocabularyFlashcardProps) {
   const [revealed, setRevealed] = useState(false);
 
@@ -134,12 +170,25 @@ export function VocabularyFlashcard({
   const questionWord = isPolishToEnglish ? word.polish : word.english;
   const answerWord = isPolishToEnglish ? word.english : word.polish;
   const directionLabel = isPolishToEnglish ? 'Polish → English' : 'English → Polish';
+  const isCustomWord = word.isCustom === true;
 
   return (
     <CardWrapper className="animate-fade-up">
       <StyledCard>
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-          <DirectionLabel>{directionLabel}</DirectionLabel>
+          <CardHeader>
+            <DirectionLabel>{directionLabel}</DirectionLabel>
+            {isCustomWord && (
+              <ActionButtons>
+                <ActionButton onClick={onEdit} size="small" aria-label="edit">
+                  <EditIcon fontSize="small" />
+                </ActionButton>
+                <DeleteButton onClick={onDelete} size="small" aria-label="delete">
+                  <DeleteIcon fontSize="small" />
+                </DeleteButton>
+              </ActionButtons>
+            )}
+          </CardHeader>
           
           <QuestionText variant="h4" color="text.primary" sx={{ mb: 2 }}>
             {questionWord}
@@ -158,11 +207,15 @@ export function VocabularyFlashcard({
                 spacing={1}
                 sx={{ mb: 2, flexWrap: 'wrap', gap: 1 }}
               >
-                <MetaChip label={formatPartOfSpeech(word.partOfSpeech)} size="small" />
+                {word.partOfSpeech && (
+                  <MetaChip label={formatPartOfSpeech(word.partOfSpeech)} size="small" />
+                )}
                 {word.gender && (
                   <MetaChip label={word.gender} size="small" />
                 )}
-                <MetaChip label={`#${word.id}`} size="small" variant="outlined" />
+                {isCustomWord && (
+                  <MetaChip label="Custom" size="small" color="primary" />
+                )}
               </Stack>
 
               {word.notes && (

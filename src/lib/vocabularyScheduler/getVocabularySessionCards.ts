@@ -4,6 +4,7 @@ import type {
   VocabularySettings,
 } from '../../types/vocabulary';
 import getOrCreateVocabularyCardReviewData from '../storage/getOrCreateVocabularyCardReviewData';
+import { includesWordId } from '../storage/helpers';
 import isDue from '../fsrsUtils/isDue';
 import sortByDueDate from '../fsrsUtils/sortByDueDate';
 import type { VocabularySessionCard } from './types';
@@ -13,8 +14,10 @@ export default function getVocabularySessionCards(
   reviewStore: VocabularyReviewDataStore,
   settings: VocabularySettings
 ): { reviewCards: VocabularySessionCard[]; newCards: VocabularySessionCard[] } {
-  const reviewCards: VocabularySessionCard[] = [];
-  const newCards: VocabularySessionCard[] = [];
+  const customReviewCards: VocabularySessionCard[] = [];
+  const customNewCards: VocabularySessionCard[] = [];
+  const systemReviewCards: VocabularySessionCard[] = [];
+  const systemNewCards: VocabularySessionCard[] = [];
   const remainingNewCardsToday =
     settings.newCardsPerDay - reviewStore.newCardsToday.length;
 
@@ -24,23 +27,30 @@ export default function getVocabularySessionCards(
       reviewStore
     );
     const isNew = reviewData.fsrsCard.state === 0;
+    const isCustom = word.isCustom === true;
+    const targetNewCards = isCustom ? customNewCards : systemNewCards;
+    const targetReviewCards = isCustom ? customReviewCards : systemReviewCards;
 
     if (isNew) {
       if (
-        !reviewStore.newCardsToday.includes(word.id) &&
-        newCards.length < remainingNewCardsToday
+        !includesWordId(reviewStore.newCardsToday, word.id) &&
+        (customNewCards.length + systemNewCards.length) < remainingNewCardsToday
       ) {
-        newCards.push({ word, reviewData, isNew: true });
+        targetNewCards.push({ word, reviewData, isNew: true });
       }
     } else if (isDue(reviewData.fsrsCard)) {
-      if (!reviewStore.reviewedToday.includes(word.id)) {
-        reviewCards.push({ word, reviewData, isNew: false });
+      if (!includesWordId(reviewStore.reviewedToday, word.id)) {
+        targetReviewCards.push({ word, reviewData, isNew: false });
       }
     }
   }
 
-  reviewCards.sort(sortByDueDate);
+  customReviewCards.sort(sortByDueDate);
+  systemReviewCards.sort(sortByDueDate);
 
-  return { reviewCards, newCards };
+  return {
+    reviewCards: [...customReviewCards, ...systemReviewCards],
+    newCards: [...customNewCards, ...systemNewCards],
+  };
 }
 

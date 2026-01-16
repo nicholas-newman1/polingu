@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Rating, type Grade } from 'ts-fsrs';
-import { Box, CircularProgress, Typography, Stack } from '@mui/material';
+import { Box, CircularProgress, Typography, Stack, IconButton } from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
 import { styled } from '../lib/styled';
 import { PracticeModeButton } from '../components/PracticeModeButton';
 import { SettingsButton } from '../components/SettingsButton';
@@ -12,12 +13,14 @@ import {
 import { FinishedState } from '../components/FinishedState';
 import { EmptyState } from '../components/EmptyState';
 import { SettingsPanel } from '../components/SettingsPanel';
+import { AddVocabularyModal } from '../components/AddVocabularyModal';
 import vocabularyData from '../data/vocabulary.json';
 import type {
   VocabularyWord,
   VocabularyReviewDataStore,
   VocabularySettings,
   VocabularyDirection,
+  CustomVocabularyWord,
 } from '../types/vocabulary';
 import loadVocabularyReviewData from '../lib/storage/loadVocabularyReviewData';
 import saveVocabularyReviewData from '../lib/storage/saveVocabularyReviewData';
@@ -25,6 +28,12 @@ import loadVocabularySettings from '../lib/storage/loadVocabularySettings';
 import saveVocabularySettings from '../lib/storage/saveVocabularySettings';
 import getOrCreateVocabularyCardReviewData from '../lib/storage/getOrCreateVocabularyCardReviewData';
 import clearVocabularyData from '../lib/storage/clearVocabularyData';
+import {
+  loadCustomVocabulary,
+  addCustomWord,
+  updateCustomWord,
+  deleteCustomWord,
+} from '../lib/storage/customVocabulary';
 import getVocabularySessionCards from '../lib/vocabularyScheduler/getVocabularySessionCards';
 import getVocabularyPracticeAheadCards from '../lib/vocabularyScheduler/getVocabularyPracticeAheadCards';
 import getVocabularyExtraNewCards from '../lib/vocabularyScheduler/getVocabularyExtraNewCards';
@@ -33,8 +42,9 @@ import getVocabularyNextIntervals from '../lib/fsrsUtils/getNextIntervals';
 import type { VocabularySessionCard } from '../lib/vocabularyScheduler/types';
 import { useAuthContext } from '../hooks/useAuthContext';
 import shuffleArray from '../lib/utils/shuffleArray';
+import { includesWordId } from '../lib/storage/helpers';
 
-const allWords: VocabularyWord[] = vocabularyData as VocabularyWord[];
+const systemWords: VocabularyWord[] = vocabularyData as VocabularyWord[];
 
 const DEFAULT_VOCABULARY_SETTINGS: VocabularySettings = {
   newCardsPerDay: 10,
@@ -71,6 +81,16 @@ const ControlsRow = styled(Stack)(({ theme }) => ({
   gap: theme.spacing(1),
 }));
 
+const AddButton = styled(IconButton)(({ theme }) => ({
+  backgroundColor: theme.palette.background.paper,
+  border: `1px solid ${theme.palette.divider}`,
+  borderRadius: theme.spacing(1),
+  padding: theme.spacing(1),
+  '&:hover': {
+    backgroundColor: theme.palette.action.hover,
+  },
+}));
+
 
 export function VocabularyPage() {
   const { user } = useAuthContext();
@@ -98,12 +118,25 @@ export function VocabularyPage() {
   const [isPracticeAhead, setIsPracticeAhead] = useState(false);
   const [extraNewCardsCount, setExtraNewCardsCount] = useState(5);
 
+  const [customWords, setCustomWords] = useState<CustomVocabularyWord[]>([]);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editingWord, setEditingWord] = useState<CustomVocabularyWord | null>(null);
+
   const directionRef = useRef(settings.direction);
 
+  const allWords = useMemo<VocabularyWord[]>(
+    () => [...customWords, ...systemWords],
+    [customWords]
+  );
+
   const buildSession = useCallback(
-    (store: VocabularyReviewDataStore, currentSettings: VocabularySettings) => {
+    (
+      words: VocabularyWord[],
+      store: VocabularyReviewDataStore,
+      currentSettings: VocabularySettings
+    ) => {
       const { reviewCards, newCards } = getVocabularySessionCards(
-        allWords,
+        words,
         store,
         currentSettings
       );
@@ -120,14 +153,19 @@ export function VocabularyPage() {
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
-      const loadedSettings = await loadVocabularySettings();
+      const [loadedSettings, loadedCustomWords] = await Promise.all([
+        loadVocabularySettings(),
+        loadCustomVocabulary(),
+      ]);
       const loadedReviewData = await loadVocabularyReviewData(
         loadedSettings.direction
       );
       directionRef.current = loadedSettings.direction;
       setSettings(loadedSettings);
+      setCustomWords(loadedCustomWords);
       setReviewStore(loadedReviewData);
-      buildSession(loadedReviewData, loadedSettings);
+      const mergedWords = [...loadedCustomWords, ...systemWords];
+      buildSession(mergedWords, loadedReviewData, loadedSettings);
       setIsLoading(false);
     };
     loadData();
@@ -146,14 +184,14 @@ export function VocabularyPage() {
 
     const newReviewStore = await loadVocabularyReviewData(newDirection);
     setReviewStore(newReviewStore);
-    buildSession(newReviewStore, newSettings);
+    buildSession(allWords, newReviewStore, newSettings);
 
     if (practiceMode) {
       setPracticeCards(shuffleArray([...allWords]));
       setPracticeIndex(0);
     }
     setIsLoading(false);
-  }, [settings, buildSession, practiceMode]);
+  }, [settings, buildSession, practiceMode, allWords]);
 
   const startPracticeAhead = useCallback(() => {
     const aheadCards = getVocabularyPracticeAheadCards(
@@ -167,7 +205,7 @@ export function VocabularyPage() {
     setLearningQueue([]);
     setCurrentIndex(0);
     setIsPracticeAhead(true);
-  }, [reviewStore, practiceAheadCount]);
+  }, [allWords, reviewStore, practiceAheadCount]);
 
   const startExtraNewCards = useCallback(() => {
     const extraCards = getVocabularyExtraNewCards(
@@ -181,7 +219,7 @@ export function VocabularyPage() {
     setLearningQueue([]);
     setCurrentIndex(0);
     setIsPracticeAhead(false);
-  }, [reviewStore, extraNewCardsCount]);
+  }, [allWords, reviewStore, extraNewCardsCount]);
 
   const togglePracticeMode = useCallback(() => {
     if (!practiceMode) {
@@ -189,7 +227,7 @@ export function VocabularyPage() {
       setPracticeIndex(0);
     }
     setPracticeMode(!practiceMode);
-  }, [practiceMode]);
+  }, [practiceMode, allWords]);
 
   const handlePracticeNext = useCallback(() => {
     setPracticeIndex((prev) => (prev + 1) % practiceCards.length);
@@ -203,6 +241,7 @@ export function VocabularyPage() {
     if (!currentSessionCard) return;
 
     const wordId = currentSessionCard.word.id;
+    const wordIdKey = String(wordId);
     const updatedReviewData = rateVocabularyCard(
       currentSessionCard.reviewData,
       rating
@@ -210,9 +249,9 @@ export function VocabularyPage() {
 
     const newStore = { ...reviewStore };
     newStore.cards = { ...newStore.cards };
-    newStore.cards[wordId] = updatedReviewData;
+    newStore.cards[wordIdKey] = updatedReviewData;
 
-    if (currentSessionCard.isNew && !newStore.newCardsToday.includes(wordId)) {
+    if (currentSessionCard.isNew && !includesWordId(newStore.newCardsToday, wordId)) {
       newStore.newCardsToday = [...newStore.newCardsToday, wordId];
     }
 
@@ -230,7 +269,7 @@ export function VocabularyPage() {
         setLearningQueue([...updated.slice(1), updated[0]]);
       }
     } else {
-      if (!newStore.reviewedToday.includes(wordId)) {
+      if (!includesWordId(newStore.reviewedToday, wordId)) {
         newStore.reviewedToday = [...newStore.reviewedToday, wordId];
       }
 
@@ -250,7 +289,76 @@ export function VocabularyPage() {
     const newSettings = { ...settings, newCardsPerDay };
     setSettings(newSettings);
     await saveVocabularySettings(newSettings);
-    buildSession(reviewStore, newSettings);
+    buildSession(allWords, reviewStore, newSettings);
+  };
+
+  const handleAddWord = async (
+    wordData: Omit<CustomVocabularyWord, 'id' | 'isCustom' | 'createdAt'>
+  ) => {
+    const newWord = await addCustomWord(wordData);
+    const newCustomWords = [...customWords, newWord];
+    setCustomWords(newCustomWords);
+    const mergedWords = [...newCustomWords, ...systemWords];
+    buildSession(mergedWords, reviewStore, settings);
+  };
+
+  const handleEditWord = async (
+    wordData: Omit<CustomVocabularyWord, 'id' | 'isCustom' | 'createdAt'>
+  ) => {
+    if (!editingWord) return;
+    await updateCustomWord(editingWord.id, wordData);
+    const newCustomWords = customWords.map((w) =>
+      w.id === editingWord.id ? { ...w, ...wordData } : w
+    );
+    setCustomWords(newCustomWords);
+    setEditingWord(null);
+
+    setSessionQueue((prev) =>
+      prev.map((card) =>
+        card.word.id === editingWord.id
+          ? { ...card, word: { ...card.word, ...wordData } }
+          : card
+      )
+    );
+    setLearningQueue((prev) =>
+      prev.map((card) =>
+        card.word.id === editingWord.id
+          ? { ...card, word: { ...card.word, ...wordData } }
+          : card
+      )
+    );
+    setPracticeCards((prev) =>
+      prev.map((word) =>
+        word.id === editingWord.id ? { ...word, ...wordData } : word
+      )
+    );
+  };
+
+  const handleDeleteWord = async () => {
+    if (!currentSessionCard?.word.isCustom) return;
+    const wordId = currentSessionCard.word.id as string;
+    
+    if (!window.confirm('Are you sure you want to delete this custom word?')) {
+      return;
+    }
+
+    await deleteCustomWord(wordId);
+    const newCustomWords = customWords.filter((w) => w.id !== wordId);
+    setCustomWords(newCustomWords);
+
+    if (currentIndex < sessionQueue.length) {
+      setSessionQueue((prev) => prev.filter((card) => card.word.id !== wordId));
+    } else {
+      setLearningQueue((prev) => prev.filter((card) => card.word.id !== wordId));
+    }
+    setPracticeCards((prev) => prev.filter((word) => word.id !== wordId));
+  };
+
+  const handleOpenEditModal = () => {
+    if (currentSessionCard?.word.isCustom) {
+      setEditingWord(currentSessionCard.word as CustomVocabularyWord);
+      setShowAddModal(true);
+    }
   };
 
   const handleResetAllData = async () => {
@@ -262,7 +370,7 @@ export function VocabularyPage() {
       await clearVocabularyData(settings.direction);
       const freshStore = await loadVocabularyReviewData(settings.direction);
       setReviewStore(freshStore);
-      buildSession(freshStore, settings);
+      buildSession(allWords, freshStore, settings);
       setShowSettings(false);
     }
   };
@@ -317,6 +425,12 @@ export function VocabularyPage() {
           active={showSettings}
           onClick={() => setShowSettings(!showSettings)}
         />
+
+        {user && (
+          <AddButton onClick={() => setShowAddModal(true)} aria-label="add word">
+            <AddIcon />
+          </AddButton>
+        )}
       </ControlsRow>
 
       {showSettings && !practiceMode && (
@@ -374,9 +488,21 @@ export function VocabularyPage() {
             direction={settings.direction}
             intervals={intervals}
             onRate={handleRate}
+            onEdit={handleOpenEditModal}
+            onDelete={handleDeleteWord}
           />
         ) : null}
       </MainContent>
+
+      <AddVocabularyModal
+        open={showAddModal}
+        onClose={() => {
+          setShowAddModal(false);
+          setEditingWord(null);
+        }}
+        onSave={editingWord ? handleEditWord : handleAddWord}
+        editWord={editingWord}
+      />
     </>
   );
 }

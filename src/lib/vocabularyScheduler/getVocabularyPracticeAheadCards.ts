@@ -3,6 +3,7 @@ import type {
   VocabularyReviewDataStore,
 } from '../../types/vocabulary';
 import getOrCreateVocabularyCardReviewData from '../storage/getOrCreateVocabularyCardReviewData';
+import { includesWordId } from '../storage/helpers';
 import isDue from '../fsrsUtils/isDue';
 import sortByDueDate from '../fsrsUtils/sortByDueDate';
 import type { VocabularySessionCard } from './types';
@@ -24,7 +25,7 @@ export default function getVocabularyPracticeAheadCards(
     if (isNew) continue;
 
     const isDueCard = isDue(reviewData.fsrsCard);
-    const reviewedToday = reviewStore.reviewedToday.includes(word.id);
+    const reviewedToday = includesWordId(reviewStore.reviewedToday, word.id);
 
     if (!isDueCard || reviewedToday) {
       practiceCards.push({ word, reviewData, isNew: false });

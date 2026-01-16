@@ -35,7 +35,7 @@ export default async function loadVocabularyReviewData(
         parsed.lastReviewDate = today;
       }
       Object.keys(parsed.cards).forEach((key) => {
-        const card = parsed.cards[parseInt(key)];
+        const card = parsed.cards[key];
         if (card.fsrsCard.due) {
           card.fsrsCard.due = new Date(card.fsrsCard.due);
         }

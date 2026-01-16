@@ -3,10 +3,19 @@ import type { ReviewDataStore } from '../../types';
 import type {
   VocabularyReviewDataStore,
   VocabularyDirection,
+  VocabularyWordId,
 } from '../../types/vocabulary';
 
 export function getTodayString(): string {
   return new Date().toISOString().split('T')[0];
+}
+
+export function includesWordId(
+  array: VocabularyWordId[],
+  id: VocabularyWordId
+): boolean {
+  const idStr = String(id);
+  return array.some((item) => String(item) === idStr);
 }
 
 export function getUserId(): string | null {

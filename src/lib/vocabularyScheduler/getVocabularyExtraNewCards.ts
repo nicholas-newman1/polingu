@@ -3,6 +3,7 @@ import type {
   VocabularyReviewDataStore,
 } from '../../types/vocabulary';
 import getOrCreateVocabularyCardReviewData from '../storage/getOrCreateVocabularyCardReviewData';
+import { includesWordId } from '../storage/helpers';
 import type { VocabularySessionCard } from './types';
 
 export default function getVocabularyExtraNewCards(
@@ -19,7 +20,7 @@ export default function getVocabularyExtraNewCards(
     );
     const isNew = reviewData.fsrsCard.state === 0;
 
-    if (isNew && !reviewStore.newCardsToday.includes(word.id)) {
+    if (isNew && !includesWordId(reviewStore.newCardsToday, word.id)) {
       newCards.push({ word, reviewData, isNew: true });
       if (newCards.length >= count) break;
     }
@@ -27,4 +28,3 @@ export default function getVocabularyExtraNewCards(
 
   return newCards;
 }
-
