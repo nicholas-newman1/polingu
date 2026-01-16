@@ -1,4 +1,4 @@
-import { useForm, Controller, useFieldArray } from 'react-hook-form';
+import { useForm, Controller, useFieldArray, useWatch } from 'react-hook-form';
 import {
   Dialog,
   DialogTitle,
@@ -137,7 +137,6 @@ export function AddVocabularyModal({
     control,
     handleSubmit,
     reset,
-    watch,
     setValue,
     formState: { isValid },
   } = useForm<FormData>({
@@ -150,7 +149,7 @@ export function AddVocabularyModal({
     name: 'examples',
   });
 
-  const partOfSpeech = watch('partOfSpeech');
+  const partOfSpeech = useWatch({ control, name: 'partOfSpeech' });
   const showGenderField =
     partOfSpeech === 'noun' || partOfSpeech === 'proper noun';
 
@@ -167,10 +166,10 @@ export function AddVocabularyModal({
     onSave({
       polish: data.polish.trim(),
       english: data.english.trim(),
-      ...(data.partOfSpeech && { partOfSpeech: data.partOfSpeech }),
-      ...(showGenderField && data.gender && { gender: data.gender }),
-      ...(data.notes.trim() && { notes: data.notes.trim() }),
-      ...(validExamples.length > 0 && { examples: validExamples }),
+      partOfSpeech: data.partOfSpeech || undefined,
+      gender: showGenderField && data.gender ? data.gender : undefined,
+      notes: data.notes.trim() || undefined,
+      examples: validExamples.length > 0 ? validExamples : undefined,
     });
     handleClose();
   };

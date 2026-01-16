@@ -390,9 +390,19 @@ export function VocabularyPage() {
 
     const wordId = editingWord.id;
 
+    const mergeWordData = <T extends VocabularyWord>(w: T): T => ({
+      ...w,
+      polish: wordData.polish,
+      english: wordData.english,
+      partOfSpeech: wordData.partOfSpeech,
+      gender: wordData.gender,
+      notes: wordData.notes,
+      examples: wordData.examples,
+    });
+
     if (editingSystemWord) {
       const newSystemWords = systemWords.map((w) =>
-        w.id === wordId ? { ...w, ...wordData } : w
+        w.id === wordId ? mergeWordData(w) : w
       );
       setEditingWord(null);
       setEditingSystemWord(false);
@@ -403,7 +413,7 @@ export function VocabularyPage() {
       });
     } else {
       const newCustomWords = customWords.map((w) =>
-        w.id === wordId ? { ...w, ...wordData } : w
+        w.id === wordId ? mergeWordData(w) : w
       );
       setEditingWord(null);
 
