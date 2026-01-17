@@ -1,37 +1,40 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Rating, type Grade } from 'ts-fsrs';
 import { Box, CircularProgress, Typography, styled } from '@mui/material';
-import { Flashcard, type RatingIntervals } from '../components/Flashcard';
-import { FilterControls } from '../components/FilterControls';
+import {
+  DeclensionFlashcard,
+  type DeclensionRatingIntervals,
+} from '../components/DeclensionFlashcard';
+import { DeclensionFilterControls } from '../components/DeclensionFilterControls';
 import { SettingsPanel } from '../components/SettingsPanel';
 import { FinishedState } from '../components/FinishedState';
 import { EmptyState } from '../components/EmptyState';
 import { EditDeclensionModal } from '../components/EditDeclensionModal';
 import type {
-  Card as CardType,
+  DeclensionCard,
   CustomDeclensionCard,
   Case,
   Gender,
   Number,
-  ReviewDataStore,
-  Settings,
+  DeclensionReviewDataStore,
+  DeclensionSettings,
 } from '../types';
 import { updateDeclensionCard } from '../lib/storage/systemDeclension';
 import { saveCustomDeclension } from '../lib/storage/customDeclension';
-import { includesCardId } from '../lib/storage/helpers';
+import { includesDeclensionCardId } from '../lib/storage/helpers';
 import { generateCustomId } from '../types/customItems';
-import getOrCreateCardReviewData from '../lib/storage/getOrCreateCardReviewData';
-import getSessionCards from '../lib/declensionScheduler/getSessionCards';
-import getPracticeAheadCards from '../lib/declensionScheduler/getPracticeAheadCards';
-import getExtraNewCards from '../lib/declensionScheduler/getExtraNewCards';
+import getOrCreateDeclensionCardReviewData from '../lib/storage/getOrCreateDeclensionCardReviewData';
+import getDeclensionSessionCards from '../lib/declensionScheduler/getSessionCards';
+import getDeclensionPracticeAheadCards from '../lib/declensionScheduler/getPracticeAheadCards';
+import getDeclensionExtraNewCards from '../lib/declensionScheduler/getExtraNewCards';
 import rateCard from '../lib/fsrsUtils/rateCard';
 import getNextIntervals from '../lib/fsrsUtils/getNextIntervals';
-import type { SessionCard } from '../lib/declensionScheduler/types';
+import type { DeclensionSessionCard } from '../lib/declensionScheduler/types';
 import { useAuthContext } from '../hooks/useAuthContext';
 import { useReviewData } from '../hooks/useReviewData';
 import { useOptimistic } from '../hooks/useOptimistic';
 import { useSnackbar } from '../hooks/useSnackbar';
-import { DEFAULT_SETTINGS } from '../constants';
+import { DEFAULT_DECLENSION_SETTINGS } from '../constants';
 import shuffleArray from '../lib/utils/shuffleArray';
 
 const LoadingContainer = styled(Box)({
@@ -87,18 +90,20 @@ export function DeclensionPage() {
   const [showSettings, setShowSettings] = useState(false);
   const [practiceMode, setPracticeMode] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [editingCard, setEditingCard] = useState<CardType | null>(null);
+  const [editingCard, setEditingCard] = useState<DeclensionCard | null>(null);
   const [isCreatingNew, setIsCreatingNew] = useState(false);
 
   const [caseFilter, setCaseFilter] = useState<Case | 'All'>('All');
   const [genderFilter, setGenderFilter] = useState<Gender | 'All'>('All');
   const [numberFilter, setNumberFilter] = useState<Number | 'All'>('All');
 
-  const [learningQueue, setLearningQueue] = useState<SessionCard[]>([]);
+  const [learningQueue, setLearningQueue] = useState<DeclensionSessionCard[]>(
+    []
+  );
   const [currentIndex, setCurrentIndex] = useState(0);
   const [practiceIndex, setPracticeIndex] = useState(0);
-  const [practiceCards, setPracticeCards] = useState<CardType[]>([]);
-  const [sessionQueue, setSessionQueue] = useState<SessionCard[]>([]);
+  const [practiceCards, setPracticeCards] = useState<DeclensionCard[]>([]);
+  const [sessionQueue, setSessionQueue] = useState<DeclensionSessionCard[]>([]);
   const [reviewCount, setReviewCount] = useState(0);
   const [newCount, setNewCount] = useState(0);
   const [ratingCounter, setRatingCounter] = useState(0);
@@ -118,13 +123,13 @@ export function DeclensionPage() {
   }, [allDeclensionCards, caseFilter, genderFilter, numberFilter]);
 
   const buildSession = useCallback(
-    (store: ReviewDataStore, currentSettings: Settings) => {
+    (store: DeclensionReviewDataStore, currentSettings: DeclensionSettings) => {
       const filters = {
         case: caseFilter,
         gender: genderFilter,
         number: numberFilter,
       };
-      const { reviewCards, newCards } = getSessionCards(
+      const { reviewCards, newCards } = getDeclensionSessionCards(
         allDeclensionCards,
         store,
         filters,
@@ -169,7 +174,7 @@ export function DeclensionPage() {
       gender: genderFilter,
       number: numberFilter,
     };
-    const aheadCards = getPracticeAheadCards(
+    const aheadCards = getDeclensionPracticeAheadCards(
       allDeclensionCards,
       reviewStore,
       filters,
@@ -196,7 +201,7 @@ export function DeclensionPage() {
       gender: genderFilter,
       number: numberFilter,
     };
-    const extraCards = getExtraNewCards(
+    const extraCards = getDeclensionExtraNewCards(
       allDeclensionCards,
       reviewStore,
       filters,
@@ -297,7 +302,10 @@ export function DeclensionPage() {
 
     if (
       currentSessionCard.isNew &&
-      !includesCardId(newStore.newCardsToday, currentSessionCard.card.id)
+      !includesDeclensionCardId(
+        newStore.newCardsToday,
+        currentSessionCard.card.id
+      )
     ) {
       newStore.newCardsToday = [
         ...newStore.newCardsToday,
@@ -319,7 +327,12 @@ export function DeclensionPage() {
         setLearningQueue([...updated.slice(1), updated[0]]);
       }
     } else {
-      if (!includesCardId(newStore.reviewedToday, currentSessionCard.card.id)) {
+      if (
+        !includesDeclensionCardId(
+          newStore.reviewedToday,
+          currentSessionCard.card.id
+        )
+      ) {
         newStore.reviewedToday = [
           ...newStore.reviewedToday,
           currentSessionCard.card.id,
@@ -349,7 +362,7 @@ export function DeclensionPage() {
       )
     ) {
       await clearDeclensionData();
-      buildSession(reviewStore, DEFAULT_SETTINGS);
+      buildSession(reviewStore, DEFAULT_DECLENSION_SETTINGS);
       setShowSettings(false);
     }
   };
@@ -368,8 +381,8 @@ export function DeclensionPage() {
   }, []);
 
   const updateCardInQueues = (
-    cardId: CardType['id'],
-    updatedCard: CardType
+    cardId: DeclensionCard['id'],
+    updatedCard: DeclensionCard
   ) => {
     setSessionQueue((prev) =>
       prev.map((item) =>
@@ -386,14 +399,14 @@ export function DeclensionPage() {
     );
   };
 
-  const removeCardFromQueues = (cardId: CardType['id']) => {
+  const removeCardFromQueues = (cardId: DeclensionCard['id']) => {
     setSessionQueue((prev) => prev.filter((item) => item.card.id !== cardId));
     setLearningQueue((prev) => prev.filter((item) => item.card.id !== cardId));
     setPracticeCards((prev) => prev.filter((card) => card.id !== cardId));
   };
 
   const handleSaveCard = useCallback(
-    (cardData: Omit<CardType, 'id' | 'isCustom'>) => {
+    (cardData: Omit<DeclensionCard, 'id' | 'isCustom'>) => {
       if (isCreatingNew) {
         const newCard: CustomDeclensionCard = {
           ...cardData,
@@ -476,7 +489,7 @@ export function DeclensionPage() {
     setContextCustomDeclensionCards,
   ]);
 
-  const intervals: RatingIntervals = useMemo(() => {
+  const intervals: DeclensionRatingIntervals = useMemo(() => {
     if (!currentSessionCard) {
       return {
         [Rating.Again]: '',
@@ -486,8 +499,10 @@ export function DeclensionPage() {
       };
     }
     const allIntervals = getNextIntervals(
-      getOrCreateCardReviewData(currentSessionCard.card.id, reviewStore)
-        .fsrsCard
+      getOrCreateDeclensionCardReviewData(
+        currentSessionCard.card.id,
+        reviewStore
+      ).fsrsCard
     );
     return {
       [Rating.Again]: allIntervals[Rating.Again],
@@ -514,7 +529,7 @@ export function DeclensionPage() {
 
   return (
     <>
-      <FilterControls
+      <DeclensionFilterControls
         caseFilter={caseFilter}
         genderFilter={genderFilter}
         numberFilter={numberFilter}
@@ -554,7 +569,7 @@ export function DeclensionPage() {
 
         {practiceMode ? (
           currentPracticeCard ? (
-            <Flashcard
+            <DeclensionFlashcard
               key={`practice-${currentPracticeCard.id}-${practiceIndex}`}
               card={currentPracticeCard}
               practiceMode
@@ -573,7 +588,7 @@ export function DeclensionPage() {
             onLearnExtra={startExtraNewCards}
           />
         ) : currentSessionCard ? (
-          <Flashcard
+          <DeclensionFlashcard
             key={`${currentSessionCard.card.id}-${ratingCounter}`}
             card={currentSessionCard.card}
             intervals={intervals}

@@ -1,14 +1,14 @@
-import type { Card, CardReviewData, Case, Gender, Number } from '../../types';
+import type { DeclensionCard, DeclensionCardReviewData, Case, Gender, Number } from '../../types';
 
-export interface Filters {
+export interface DeclensionFilters {
   case: Case | 'All';
   gender: Gender | 'All';
   number: Number | 'All';
 }
 
-export interface SessionCard {
-  card: Card;
-  reviewData: CardReviewData;
+export interface DeclensionSessionCard {
+  card: DeclensionCard;
+  reviewData: DeclensionCardReviewData;
   isNew: boolean;
 }
 

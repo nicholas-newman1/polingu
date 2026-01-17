@@ -49,7 +49,7 @@ const FilterButton = styled(Button)<FilterButtonProps>(({ theme, $active }) => (
       }),
 }));
 
-interface FilterControlsProps {
+interface DeclensionFilterControlsProps {
   caseFilter: Case | 'All';
   genderFilter: Gender | 'All';
   numberFilter: Number | 'All';
@@ -63,7 +63,7 @@ interface FilterControlsProps {
   onAddCard?: () => void;
 }
 
-export function FilterControls({
+export function DeclensionFilterControls({
   caseFilter,
   genderFilter,
   numberFilter,
@@ -75,7 +75,7 @@ export function FilterControls({
   onTogglePractice,
   onToggleSettings,
   onAddCard,
-}: FilterControlsProps) {
+}: DeclensionFilterControlsProps) {
   const [showFilters, setShowFilters] = useState(false);
 
   const activeFilterCount = [caseFilter, genderFilter, numberFilter].filter(
@@ -163,3 +163,4 @@ export function FilterControls({
     </Box>
   );
 }
+

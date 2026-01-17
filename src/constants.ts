@@ -1,4 +1,4 @@
-import type { Case, Gender, Number, Settings } from './types';
+import type { Case, Gender, Number, DeclensionSettings } from './types';
 
 export const CASES: Case[] = [
   'Nominative',
@@ -14,4 +14,4 @@ export const GENDERS: Gender[] = ['Masculine', 'Feminine', 'Neuter', 'Pronoun'];
 
 export const NUMBERS: Number[] = ['Singular', 'Plural'];
 
-export const DEFAULT_SETTINGS: Settings = { newCardsPerDay: 10 };
+export const DEFAULT_DECLENSION_SETTINGS: DeclensionSettings = { newCardsPerDay: 10 };

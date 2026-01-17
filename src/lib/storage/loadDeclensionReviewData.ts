@@ -1,17 +1,17 @@
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import type { ReviewDataStore } from '../../types';
-import { getUserId, getTodayString, getDefaultReviewStore } from './helpers';
+import type { DeclensionReviewDataStore } from '../../types';
+import { getUserId, getTodayString, getDefaultDeclensionReviewStore } from './helpers';
 
-export default async function loadReviewData(): Promise<ReviewDataStore> {
+export default async function loadDeclensionReviewData(): Promise<DeclensionReviewDataStore> {
   const userId = getUserId();
-  if (!userId) return getDefaultReviewStore();
+  if (!userId) return getDefaultDeclensionReviewStore();
 
   try {
     const docRef = doc(db, 'users', userId, 'data', 'reviewData');
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
-      const parsed = docSnap.data() as ReviewDataStore;
+      const parsed = docSnap.data() as DeclensionReviewDataStore;
       const today = getTodayString();
       if (parsed.lastReviewDate !== today) {
         parsed.reviewedToday = [];
@@ -30,8 +30,8 @@ export default async function loadReviewData(): Promise<ReviewDataStore> {
       return parsed;
     }
   } catch (e) {
-    console.error('Failed to load review data:', e);
+    console.error('Failed to load declension review data:', e);
   }
-  return getDefaultReviewStore();
+  return getDefaultDeclensionReviewStore();
 }
 

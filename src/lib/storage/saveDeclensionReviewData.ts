@@ -1,10 +1,10 @@
 import { doc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import type { ReviewDataStore } from '../../types';
+import type { DeclensionReviewDataStore } from '../../types';
 import { getUserId } from './helpers';
 
-export default async function saveReviewData(
-  data: ReviewDataStore
+export default async function saveDeclensionReviewData(
+  data: DeclensionReviewDataStore
 ): Promise<void> {
   const userId = getUserId();
   if (!userId) return;
@@ -35,7 +35,7 @@ export default async function saveReviewData(
     };
     await setDoc(docRef, serializable);
   } catch (e) {
-    console.error('Failed to save review data:', e);
+    console.error('Failed to save declension review data:', e);
   }
 }
 

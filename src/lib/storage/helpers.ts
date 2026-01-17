@@ -1,5 +1,5 @@
 import { auth } from '../firebase';
-import type { ReviewDataStore, CardId } from '../../types';
+import type { DeclensionReviewDataStore, DeclensionCardId } from '../../types';
 import type {
   VocabularyReviewDataStore,
   VocabularyDirection,
@@ -18,7 +18,7 @@ export function includesWordId(
   return array.some((item) => String(item) === idStr);
 }
 
-export function includesCardId(array: CardId[], id: CardId): boolean {
+export function includesDeclensionCardId(array: DeclensionCardId[], id: DeclensionCardId): boolean {
   const idStr = String(id);
   return array.some((item) => String(item) === idStr);
 }
@@ -27,7 +27,7 @@ export function getUserId(): string | null {
   return auth.currentUser?.uid ?? null;
 }
 
-export function getDefaultReviewStore(): ReviewDataStore {
+export function getDefaultDeclensionReviewStore(): DeclensionReviewDataStore {
   return {
     cards: {},
     reviewedToday: [],

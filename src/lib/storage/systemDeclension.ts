@@ -1,10 +1,10 @@
 import { doc, updateDoc, deleteField } from 'firebase/firestore';
 import { db } from '../firebase';
-import type { Card } from '../../types';
+import type { DeclensionCard } from '../../types';
 
 export async function updateDeclensionCard(
   cardId: number,
-  updates: Partial<Omit<Card, 'id'>>
+  updates: Partial<Omit<DeclensionCard, 'id'>>
 ): Promise<void> {
   const docRef = doc(db, 'declensionCards', String(cardId));
 

@@ -1,30 +1,30 @@
-import type { Card, ReviewDataStore } from '../../types';
-import getOrCreateCardReviewData from '../storage/getOrCreateCardReviewData';
-import { includesCardId } from '../storage/helpers';
+import type { DeclensionCard, DeclensionReviewDataStore } from '../../types';
+import getOrCreateDeclensionCardReviewData from '../storage/getOrCreateDeclensionCardReviewData';
+import { includesDeclensionCardId } from '../storage/helpers';
 import isDue from '../fsrsUtils/isDue';
 import sortByDueDate from '../fsrsUtils/sortByDueDate';
-import type { Filters, SessionCard } from './types';
-import matchesFilters from './matchesFilters';
+import type { DeclensionFilters, DeclensionSessionCard } from './types';
+import matchesDeclensionFilters from './matchesFilters';
 
-export default function getPracticeAheadCards(
-  allCards: Card[],
-  reviewStore: ReviewDataStore,
-  filters: Filters,
+export default function getDeclensionPracticeAheadCards(
+  allCards: DeclensionCard[],
+  reviewStore: DeclensionReviewDataStore,
+  filters: DeclensionFilters,
   count: number
-): SessionCard[] {
-  const customPracticeCards: SessionCard[] = [];
-  const systemPracticeCards: SessionCard[] = [];
+): DeclensionSessionCard[] {
+  const customPracticeCards: DeclensionSessionCard[] = [];
+  const systemPracticeCards: DeclensionSessionCard[] = [];
 
   for (const card of allCards) {
-    if (!matchesFilters(card, filters)) continue;
+    if (!matchesDeclensionFilters(card, filters)) continue;
 
-    const reviewData = getOrCreateCardReviewData(card.id, reviewStore);
+    const reviewData = getOrCreateDeclensionCardReviewData(card.id, reviewStore);
     const isNew = reviewData.fsrsCard.state === 0;
 
     if (isNew) continue;
 
     const isDueCard = isDue(reviewData.fsrsCard);
-    const reviewedToday = includesCardId(reviewStore.reviewedToday, card.id);
+    const reviewedToday = includesDeclensionCardId(reviewStore.reviewedToday, card.id);
 
     if (!isDueCard || reviewedToday) {
       const targetCards = card.isCustom

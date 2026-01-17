@@ -14,10 +14,10 @@ export type Gender = 'Masculine' | 'Feminine' | 'Neuter' | 'Pronoun';
 
 export type Number = 'Singular' | 'Plural';
 
-export type CardId = number | string;
+export type DeclensionCardId = number | string;
 
-export interface Card {
-  id: CardId;
+export interface DeclensionCard {
+  id: DeclensionCardId;
   front: string;
   back: string;
   declined: string;
@@ -38,19 +38,19 @@ export interface CustomDeclensionCard extends CustomItemBase {
   hint?: string;
 }
 
-export interface CardReviewData {
-  cardId: CardId;
+export interface DeclensionCardReviewData {
+  cardId: DeclensionCardId;
   fsrsCard: FSRSCard;
   log?: ReviewLog;
 }
 
-export interface Settings {
+export interface DeclensionSettings {
   newCardsPerDay: number;
 }
 
-export interface ReviewDataStore {
-  cards: Record<CardId, CardReviewData>;
-  reviewedToday: CardId[];
-  newCardsToday: CardId[];
+export interface DeclensionReviewDataStore {
+  cards: Record<DeclensionCardId, DeclensionCardReviewData>;
+  reviewedToday: DeclensionCardId[];
+  newCardsToday: DeclensionCardId[];
   lastReviewDate: string;
 }

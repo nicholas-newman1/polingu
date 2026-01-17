@@ -12,22 +12,22 @@ import {
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import { styled } from '../lib/styled';
-import type { Card as FlashCard } from '../types';
+import type { DeclensionCard } from '../types';
 import { renderTappableText } from '../lib/renderTappableText';
 import { useTranslationContext } from '../hooks/useTranslationContext';
 import { alpha } from '../lib/theme';
 
-export interface RatingIntervals {
+export interface DeclensionRatingIntervals {
   [Rating.Again]: string;
   [Rating.Hard]: string;
   [Rating.Good]: string;
   [Rating.Easy]: string;
 }
 
-interface FlashcardProps {
-  card: FlashCard;
+interface DeclensionFlashcardProps {
+  card: DeclensionCard;
   practiceMode?: boolean;
-  intervals?: RatingIntervals;
+  intervals?: DeclensionRatingIntervals;
   canEdit?: boolean;
   onRate?: (rating: Grade) => void;
   onNext?: () => void;
@@ -138,7 +138,7 @@ const ActionButton = styled(IconButton)(({ theme }) => ({
   },
 }));
 
-export function Flashcard({
+export function DeclensionFlashcard({
   card,
   practiceMode = false,
   intervals,
@@ -146,7 +146,7 @@ export function Flashcard({
   onRate,
   onNext,
   onEdit,
-}: FlashcardProps) {
+}: DeclensionFlashcardProps) {
   const [revealed, setRevealed] = useState(false);
   const translationCache = useRef<Map<string, string>>(new Map());
   const { handleDailyLimitReached } = useTranslationContext();
@@ -289,3 +289,4 @@ export function Flashcard({
     </CardWrapper>
   );
 }
+

@@ -9,10 +9,10 @@ import {
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import type {
-  Card,
+  DeclensionCard,
   CustomDeclensionCard,
-  ReviewDataStore,
-  Settings,
+  DeclensionReviewDataStore,
+  DeclensionSettings,
 } from '../types';
 import type {
   VocabularyWord,
@@ -21,28 +21,28 @@ import type {
   VocabularyDirection,
   CustomVocabularyWord,
 } from '../types/vocabulary';
-import loadReviewData from '../lib/storage/loadReviewData';
-import loadSettings from '../lib/storage/loadSettings';
-import saveReviewData from '../lib/storage/saveReviewData';
-import saveSettings from '../lib/storage/saveSettings';
+import loadDeclensionReviewData from '../lib/storage/loadDeclensionReviewData';
+import loadDeclensionSettings from '../lib/storage/loadDeclensionSettings';
+import saveDeclensionReviewData from '../lib/storage/saveDeclensionReviewData';
+import saveDeclensionSettings from '../lib/storage/saveDeclensionSettings';
 import loadVocabularyReviewData from '../lib/storage/loadVocabularyReviewData';
 import loadVocabularySettings from '../lib/storage/loadVocabularySettings';
 import saveVocabularyReviewData from '../lib/storage/saveVocabularyReviewData';
 import saveVocabularySettings from '../lib/storage/saveVocabularySettings';
 import { loadCustomVocabulary } from '../lib/storage/customVocabulary';
 import { loadCustomDeclension } from '../lib/storage/customDeclension';
-import clearAllData from '../lib/storage/clearAllData';
+import clearDeclensionData from '../lib/storage/clearDeclensionData';
 import clearVocabularyData from '../lib/storage/clearVocabularyData';
-import getOrCreateCardReviewData from '../lib/storage/getOrCreateCardReviewData';
+import getOrCreateDeclensionCardReviewData from '../lib/storage/getOrCreateDeclensionCardReviewData';
 import getOrCreateVocabularyCardReviewData from '../lib/storage/getOrCreateVocabularyCardReviewData';
 import isDue from '../lib/fsrsUtils/isDue';
 import {
   getUserId,
-  getDefaultReviewStore,
+  getDefaultDeclensionReviewStore,
   getDefaultVocabularyReviewStore,
-  includesCardId,
+  includesDeclensionCardId,
 } from '../lib/storage/helpers';
-import { DEFAULT_SETTINGS } from '../constants';
+import { DEFAULT_DECLENSION_SETTINGS } from '../constants';
 
 const DEFAULT_VOCABULARY_SETTINGS: VocabularySettings = {
   newCardsPerDay: 10,
@@ -57,16 +57,18 @@ export interface ReviewCounts {
 export interface ReviewDataContextType {
   loading: boolean;
 
-  declensionCards: Card[];
+  declensionCards: DeclensionCard[];
   customDeclensionCards: CustomDeclensionCard[];
-  systemDeclensionCards: Card[];
-  declensionReviewStore: ReviewDataStore;
-  declensionSettings: Settings;
-  updateDeclensionReviewStore: (store: ReviewDataStore) => Promise<void>;
-  updateDeclensionSettings: (settings: Settings) => Promise<void>;
+  systemDeclensionCards: DeclensionCard[];
+  declensionReviewStore: DeclensionReviewDataStore;
+  declensionSettings: DeclensionSettings;
+  updateDeclensionReviewStore: (
+    store: DeclensionReviewDataStore
+  ) => Promise<void>;
+  updateDeclensionSettings: (settings: DeclensionSettings) => Promise<void>;
   clearDeclensionData: () => Promise<void>;
   setCustomDeclensionCards: (cards: CustomDeclensionCard[]) => void;
-  setSystemDeclensionCards: (cards: Card[]) => void;
+  setSystemDeclensionCards: (cards: DeclensionCard[]) => void;
 
   vocabularyReviewStores: Record<
     VocabularyDirection,
@@ -95,9 +97,9 @@ export const ReviewDataContext = createContext<ReviewDataContextType | null>(
 );
 
 function computeDeclensionDueCount(
-  cards: Card[],
-  reviewStore: ReviewDataStore,
-  settings: Settings
+  cards: DeclensionCard[],
+  reviewStore: DeclensionReviewDataStore,
+  settings: DeclensionSettings
 ): number {
   let dueReviews = 0;
   let newCards = 0;
@@ -105,24 +107,27 @@ function computeDeclensionDueCount(
     settings.newCardsPerDay - reviewStore.newCardsToday.length;
 
   for (const card of cards) {
-    const reviewData = getOrCreateCardReviewData(card.id, reviewStore);
+    const reviewData = getOrCreateDeclensionCardReviewData(
+      card.id,
+      reviewStore
+    );
     const state = reviewData.fsrsCard.state;
     const isNew = state === 0;
     const isLearning = state === 1 || state === 3;
 
     if (isNew) {
       if (
-        !includesCardId(reviewStore.newCardsToday, card.id) &&
+        !includesDeclensionCardId(reviewStore.newCardsToday, card.id) &&
         newCards < remainingNewCardsToday
       ) {
         newCards++;
       }
     } else if (isLearning) {
-      if (!includesCardId(reviewStore.reviewedToday, card.id)) {
+      if (!includesDeclensionCardId(reviewStore.reviewedToday, card.id)) {
         dueReviews++;
       }
     } else if (isDue(reviewData.fsrsCard)) {
-      if (!includesCardId(reviewStore.reviewedToday, card.id)) {
+      if (!includesDeclensionCardId(reviewStore.reviewedToday, card.id)) {
         dueReviews++;
       }
     }
@@ -183,15 +188,15 @@ export function ReviewDataProvider({ children }: { children: ReactNode }) {
   const [customDeclensionCards, setCustomDeclensionCards] = useState<
     CustomDeclensionCard[]
   >([]);
-  const [systemDeclensionCards, setSystemDeclensionCards] = useState<Card[]>(
-    []
-  );
+  const [systemDeclensionCards, setSystemDeclensionCards] = useState<
+    DeclensionCard[]
+  >([]);
   const [declensionReviewStore, setDeclensionReviewStore] =
-    useState<ReviewDataStore>(getDefaultReviewStore);
+    useState<DeclensionReviewDataStore>(getDefaultDeclensionReviewStore);
   const [declensionSettings, setDeclensionSettings] =
-    useState<Settings>(DEFAULT_SETTINGS);
+    useState<DeclensionSettings>(DEFAULT_DECLENSION_SETTINGS);
 
-  const declensionCards = useMemo<Card[]>(
+  const declensionCards = useMemo<DeclensionCard[]>(
     () => [...customDeclensionCards, ...systemDeclensionCards],
     [customDeclensionCards, systemDeclensionCards]
   );
@@ -266,8 +271,8 @@ export function ReviewDataProvider({ children }: { children: ReactNode }) {
       vocabularySnapshot,
       declensionCardsSnapshot,
     ] = await Promise.all([
-      loadSettings(),
-      loadReviewData(),
+      loadDeclensionSettings(),
+      loadDeclensionReviewData(),
       loadVocabularySettings(),
       loadCustomVocabulary(),
       loadCustomDeclension(),
@@ -280,7 +285,7 @@ export function ReviewDataProvider({ children }: { children: ReactNode }) {
     );
 
     const loadedSystemDeclensionCards = declensionCardsSnapshot.docs.map(
-      (doc) => doc.data() as Card
+      (doc) => doc.data() as DeclensionCard
     );
 
     const [plToEnStore, enToPlStore] = await Promise.all([
@@ -309,23 +314,26 @@ export function ReviewDataProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const updateDeclensionReviewStore = useCallback(
-    async (store: ReviewDataStore) => {
+    async (store: DeclensionReviewDataStore) => {
       setDeclensionReviewStore(store);
-      await saveReviewData(store);
+      await saveDeclensionReviewData(store);
     },
     []
   );
 
-  const updateDeclensionSettings = useCallback(async (settings: Settings) => {
-    setDeclensionSettings(settings);
-    await saveSettings(settings);
-  }, []);
+  const updateDeclensionSettings = useCallback(
+    async (settings: DeclensionSettings) => {
+      setDeclensionSettings(settings);
+      await saveDeclensionSettings(settings);
+    },
+    []
+  );
 
   const clearDeclensionDataFn = useCallback(async () => {
-    await clearAllData();
-    const freshStore = getDefaultReviewStore();
+    await clearDeclensionData();
+    const freshStore = getDefaultDeclensionReviewStore();
     setDeclensionReviewStore(freshStore);
-    setDeclensionSettings(DEFAULT_SETTINGS);
+    setDeclensionSettings(DEFAULT_DECLENSION_SETTINGS);
   }, []);
 
   const updateVocabularyReviewStore = useCallback(

@@ -16,7 +16,7 @@ import {
 import CloseIcon from '@mui/icons-material/Close';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { styled } from '../lib/styled';
-import type { Card, Case, Gender, Number } from '../types';
+import type { DeclensionCard, Case, Gender, Number } from '../types';
 
 const CASES: Case[] = [
   'Nominative',
@@ -79,13 +79,13 @@ interface FormData {
 interface EditDeclensionModalProps {
   open: boolean;
   onClose: () => void;
-  onSave: (data: Omit<Card, 'id' | 'isCustom'>) => void;
+  onSave: (data: Omit<DeclensionCard, 'id' | 'isCustom'>) => void;
   onDelete?: () => void;
-  card: Card | null;
+  card: DeclensionCard | null;
   isCreating?: boolean;
 }
 
-const getDefaultValues = (card: Card | null): FormData => ({
+const getDefaultValues = (card: DeclensionCard | null): FormData => ({
   front: card?.front || '',
   back: card?.back || '',
   declined: card?.declined || '',
