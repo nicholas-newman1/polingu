@@ -21,7 +21,9 @@ export default function getSessionCards(
 
   for (const card of allCards) {
     const reviewData = getOrCreateCardReviewData(card.id, reviewStore);
-    const isNew = reviewData.fsrsCard.state === 0;
+    const state = reviewData.fsrsCard.state;
+    const isNew = state === 0;
+    const isLearning = state === 1 || state === 3;
     const isCustom = card.isCustom === true;
     const targetNewCards = isCustom ? customNewCards : systemNewCards;
     const targetReviewCards = isCustom ? customReviewCards : systemReviewCards;
@@ -33,6 +35,10 @@ export default function getSessionCards(
         customNewCards.length + systemNewCards.length < remainingNewCardsToday
       ) {
         targetNewCards.push({ card, reviewData, isNew: true });
+      }
+    } else if (isLearning) {
+      if (!includesCardId(reviewStore.reviewedToday, card.id)) {
+        targetReviewCards.push({ card, reviewData, isNew: false });
       }
     } else if (isDue(reviewData.fsrsCard)) {
       if (!includesCardId(reviewStore.reviewedToday, card.id)) {

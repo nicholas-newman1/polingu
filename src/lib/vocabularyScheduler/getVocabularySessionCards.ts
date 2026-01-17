@@ -26,7 +26,9 @@ export default function getVocabularySessionCards(
       word.id,
       reviewStore
     );
-    const isNew = reviewData.fsrsCard.state === 0;
+    const state = reviewData.fsrsCard.state;
+    const isNew = state === 0;
+    const isLearning = state === 1 || state === 3;
     const isCustom = word.isCustom === true;
     const targetNewCards = isCustom ? customNewCards : systemNewCards;
     const targetReviewCards = isCustom ? customReviewCards : systemReviewCards;
@@ -37,6 +39,10 @@ export default function getVocabularySessionCards(
         (customNewCards.length + systemNewCards.length) < remainingNewCardsToday
       ) {
         targetNewCards.push({ word, reviewData, isNew: true });
+      }
+    } else if (isLearning) {
+      if (!includesWordId(reviewStore.reviewedToday, word.id)) {
+        targetReviewCards.push({ word, reviewData, isNew: false });
       }
     } else if (isDue(reviewData.fsrsCard)) {
       if (!includesWordId(reviewStore.reviewedToday, word.id)) {

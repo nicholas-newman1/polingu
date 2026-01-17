@@ -106,7 +106,9 @@ function computeDeclensionDueCount(
 
   for (const card of cards) {
     const reviewData = getOrCreateCardReviewData(card.id, reviewStore);
-    const isNew = reviewData.fsrsCard.state === 0;
+    const state = reviewData.fsrsCard.state;
+    const isNew = state === 0;
+    const isLearning = state === 1 || state === 3;
 
     if (isNew) {
       if (
@@ -114,6 +116,10 @@ function computeDeclensionDueCount(
         newCards < remainingNewCardsToday
       ) {
         newCards++;
+      }
+    } else if (isLearning) {
+      if (!includesCardId(reviewStore.reviewedToday, card.id)) {
+        dueReviews++;
       }
     } else if (isDue(reviewData.fsrsCard)) {
       if (!includesCardId(reviewStore.reviewedToday, card.id)) {
@@ -140,7 +146,9 @@ function computeVocabularyDueCount(
       word.id,
       reviewStore
     );
-    const isNew = reviewData.fsrsCard.state === 0;
+    const state = reviewData.fsrsCard.state;
+    const isNew = state === 0;
+    const isLearning = state === 1 || state === 3;
 
     if (isNew) {
       const isAlreadyNew = reviewStore.newCardsToday.some(
@@ -148,6 +156,13 @@ function computeVocabularyDueCount(
       );
       if (!isAlreadyNew && newCards < remainingNewCardsToday) {
         newCards++;
+      }
+    } else if (isLearning) {
+      const isAlreadyReviewed = reviewStore.reviewedToday.some(
+        (id) => String(id) === String(word.id)
+      );
+      if (!isAlreadyReviewed) {
+        dueReviews++;
       }
     } else if (isDue(reviewData.fsrsCard)) {
       const isAlreadyReviewed = reviewStore.reviewedToday.some(
