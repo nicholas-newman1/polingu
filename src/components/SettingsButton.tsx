@@ -21,7 +21,7 @@ const StyledIconButton = styled(IconButton)<StyledButtonProps>(
     '&:hover': {
       backgroundColor: $active
         ? theme.palette.text.secondary
-        : theme.palette.background.default,
+        : theme.palette.action.hover,
     },
   })
 );

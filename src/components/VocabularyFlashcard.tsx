@@ -60,6 +60,18 @@ const DirectionLabel = styled(Typography)(({ theme }) => ({
   fontSize: '0.75rem',
   textTransform: 'uppercase',
   letterSpacing: '0.1em',
+}));
+
+const CustomLabel = styled(Typography)(({ theme }) => ({
+  color: theme.palette.primary.main,
+  fontSize: '0.75rem',
+  textTransform: 'uppercase',
+  letterSpacing: '0.1em',
+}));
+
+const HeaderLabels = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  gap: theme.spacing(1.5),
   marginBottom: theme.spacing(1),
 }));
 
@@ -180,7 +192,10 @@ export function VocabularyFlashcard({
       <StyledCard>
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
           <CardHeader>
-            <DirectionLabel>{directionLabel}</DirectionLabel>
+            <HeaderLabels>
+              <DirectionLabel>{directionLabel}</DirectionLabel>
+              {isCustomWord && <CustomLabel>Custom</CustomLabel>}
+            </HeaderLabels>
             {canEditOrDelete && (
               <ActionButtons>
                 <ActionButton onClick={onEdit} size="small" aria-label="edit">
@@ -235,9 +250,6 @@ export function VocabularyFlashcard({
                 )}
                 {word.gender && (
                   <MetaChip label={word.gender} size="small" />
-                )}
-                {isCustomWord && (
-                  <MetaChip label="Custom" size="small" color="primary" />
                 )}
               </Stack>
 

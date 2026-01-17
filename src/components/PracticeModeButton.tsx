@@ -18,6 +18,7 @@ const StyledButton = styled(Button)<StyledButtonProps>(({ theme, $active }) => (
         borderColor: theme.palette.divider,
         color: theme.palette.text.secondary,
         backgroundColor: theme.palette.background.paper,
+        '&:hover': { backgroundColor: theme.palette.action.hover },
       }),
 }));
 

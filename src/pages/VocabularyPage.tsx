@@ -1,14 +1,8 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Rating, type Grade } from 'ts-fsrs';
-import {
-  Box,
-  CircularProgress,
-  Typography,
-  Stack,
-  IconButton,
-} from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
+import { Box, CircularProgress, Typography, Stack } from '@mui/material';
 import { styled } from '../lib/styled';
+import { AddButton } from '../components/AddButton';
 import { PracticeModeButton } from '../components/PracticeModeButton';
 import { SettingsButton } from '../components/SettingsButton';
 import { DirectionToggle } from '../components/DirectionToggle';
@@ -59,16 +53,6 @@ const ControlsRow = styled(Stack)(({ theme }) => ({
   marginBottom: theme.spacing(3),
   flexWrap: 'wrap',
   gap: theme.spacing(1),
-}));
-
-const AddButton = styled(IconButton)(({ theme }) => ({
-  backgroundColor: theme.palette.background.paper,
-  border: `1px solid ${theme.palette.divider}`,
-  borderRadius: theme.spacing(1),
-  padding: theme.spacing(1),
-  '&:hover': {
-    backgroundColor: theme.palette.action.hover,
-  },
 }));
 
 export function VocabularyPage() {
@@ -514,9 +498,7 @@ export function VocabularyPage() {
             onClick={() => setShowAddModal(true)}
             aria-label="add word"
             disabled={isLoading}
-          >
-            <AddIcon />
-          </AddButton>
+          />
         )}
       </ControlsRow>
 

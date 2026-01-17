@@ -12,7 +12,7 @@ import {
 } from '@mui/material';
 import { styled } from '../lib/styled';
 import FilterListIcon from '@mui/icons-material/FilterList';
-import AddIcon from '@mui/icons-material/Add';
+import { AddButton } from './AddButton';
 import { PracticeModeButton } from './PracticeModeButton';
 import { SettingsButton } from './SettingsButton';
 import type { Case, Gender, Number } from '../types';
@@ -45,20 +45,8 @@ const FilterButton = styled(Button)<FilterButtonProps>(({ theme, $active }) => (
         borderColor: theme.palette.divider,
         color: theme.palette.text.secondary,
         backgroundColor: theme.palette.background.paper,
+        '&:hover': { backgroundColor: theme.palette.action.hover },
       }),
-}));
-
-const AddButton = styled(Button)(({ theme }) => ({
-  minWidth: 40,
-  padding: theme.spacing(0.75),
-  borderColor: theme.palette.divider,
-  color: theme.palette.text.secondary,
-  backgroundColor: theme.palette.background.paper,
-  '&:hover': {
-    backgroundColor: theme.palette.action.hover,
-    borderColor: theme.palette.primary.main,
-    color: theme.palette.primary.main,
-  },
 }));
 
 interface FilterControlsProps {
@@ -117,13 +105,7 @@ export function FilterControls({
         <SettingsButton active={showSettings} onClick={onToggleSettings} />
 
         {onAddCard && (
-          <AddButton
-            variant="outlined"
-            onClick={onAddCard}
-            aria-label="Add custom card"
-          >
-            <AddIcon />
-          </AddButton>
+          <AddButton onClick={onAddCard} aria-label="Add custom card" />
         )}
       </Stack>
 

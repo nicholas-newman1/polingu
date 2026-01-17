@@ -1,5 +1,6 @@
-import { Button, styled } from '@mui/material';
+import { Button } from '@mui/material';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
+import { styled } from '../lib/styled';
 
 export type TranslationDirection = 'en-to-pl' | 'pl-to-en';
 
@@ -7,6 +8,12 @@ const StyledButton = styled(Button)(({ theme }) => ({
   textTransform: 'none',
   fontWeight: 500,
   gap: theme.spacing(1),
+  borderColor: theme.palette.divider,
+  color: theme.palette.text.secondary,
+  backgroundColor: theme.palette.background.paper,
+  '&:hover': {
+    backgroundColor: theme.palette.action.hover,
+  },
 }));
 
 interface DirectionToggleProps {

@@ -116,9 +116,16 @@ const IntervalText = styled(Typography)({
 
 const CardHeader = styled(Box)({
   display: 'flex',
-  justifyContent: 'flex-end',
+  justifyContent: 'space-between',
   alignItems: 'flex-start',
 });
+
+const CustomLabel = styled(Typography)(({ theme }) => ({
+  color: theme.palette.primary.main,
+  fontSize: '0.75rem',
+  textTransform: 'uppercase',
+  letterSpacing: '0.1em',
+}));
 
 const ActionButton = styled(IconButton)(({ theme }) => ({
   color: theme.palette.text.disabled,
@@ -157,11 +164,14 @@ export function Flashcard({
     <CardWrapper className="animate-fade-up">
       <StyledCard>
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-          {canEdit && (
+          {(card.isCustom || canEdit) && (
             <CardHeader>
-              <ActionButton onClick={onEdit} size="small" aria-label="edit">
-                <EditIcon fontSize="small" />
-              </ActionButton>
+              {card.isCustom ? <CustomLabel>Custom</CustomLabel> : <Box />}
+              {canEdit && (
+                <ActionButton onClick={onEdit} size="small" aria-label="edit">
+                  <EditIcon fontSize="small" />
+                </ActionButton>
+              )}
             </CardHeader>
           )}
           <QuestionText variant="h5" color="text.primary">

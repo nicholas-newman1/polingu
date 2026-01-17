@@ -54,7 +54,6 @@ export function DeclensionPage() {
   const { showSnackbar } = useSnackbar();
   const {
     loading: contextLoading,
-    declensionCards,
     customDeclensionCards: contextCustomDeclensionCards,
     systemDeclensionCards: contextSystemDeclensionCards,
     declensionReviewStore: reviewStore,
@@ -106,6 +105,7 @@ export function DeclensionPage() {
   const [practiceAheadCount, setPracticeAheadCount] = useState(10);
   const [isPracticeAhead, setIsPracticeAhead] = useState(false);
   const [extraNewCardsCount, setExtraNewCardsCount] = useState(5);
+  const [sessionReady, setSessionReady] = useState(false);
   const sessionBuiltRef = useRef(false);
 
   const filteredCards = useMemo(() => {
@@ -140,13 +140,24 @@ export function DeclensionPage() {
   );
 
   useEffect(() => {
-    if (!contextLoading && !sessionBuiltRef.current) {
+    if (
+      !contextLoading &&
+      !sessionBuiltRef.current &&
+      allDeclensionCards.length > 0
+    ) {
       sessionBuiltRef.current = true;
       queueMicrotask(() => {
         buildSession(reviewStore, settings);
+        setSessionReady(true);
       });
     }
-  }, [contextLoading, buildSession, reviewStore, settings]);
+  }, [
+    contextLoading,
+    buildSession,
+    reviewStore,
+    settings,
+    allDeclensionCards.length,
+  ]);
 
   const resetSession = useCallback(() => {
     buildSession(reviewStore, settings);
@@ -170,7 +181,14 @@ export function DeclensionPage() {
     setLearningQueue([]);
     setCurrentIndex(0);
     setIsPracticeAhead(true);
-  }, [allDeclensionCards, caseFilter, genderFilter, numberFilter, reviewStore, practiceAheadCount]);
+  }, [
+    allDeclensionCards,
+    caseFilter,
+    genderFilter,
+    numberFilter,
+    reviewStore,
+    practiceAheadCount,
+  ]);
 
   const startExtraNewCards = useCallback(() => {
     const filters = {
@@ -190,7 +208,14 @@ export function DeclensionPage() {
     setLearningQueue([]);
     setCurrentIndex(0);
     setIsPracticeAhead(false);
-  }, [allDeclensionCards, caseFilter, genderFilter, numberFilter, reviewStore, extraNewCardsCount]);
+  }, [
+    allDeclensionCards,
+    caseFilter,
+    genderFilter,
+    numberFilter,
+    reviewStore,
+    extraNewCardsCount,
+  ]);
 
   const handleFilterChange = useCallback(
     (
@@ -342,7 +367,10 @@ export function DeclensionPage() {
     setShowEditModal(true);
   }, []);
 
-  const updateCardInQueues = (cardId: CardType['id'], updatedCard: CardType) => {
+  const updateCardInQueues = (
+    cardId: CardType['id'],
+    updatedCard: CardType
+  ) => {
     setSessionQueue((prev) =>
       prev.map((item) =>
         item.card.id === cardId ? { ...item, card: updatedCard } : item
@@ -387,9 +415,7 @@ export function DeclensionPage() {
 
         if (isCustomCard) {
           const newCustomCards = customDeclensionCards.map((card) =>
-            card.id === editingCard.id
-              ? { ...card, ...cardData }
-              : card
+            card.id === editingCard.id ? { ...card, ...cardData } : card
           );
 
           updateCardInQueues(editingCard.id, updatedCard);
@@ -476,10 +502,9 @@ export function DeclensionPage() {
 
   const currentPracticeCard = practiceCards[practiceIndex];
 
-  const canEditCurrentCard =
-    currentSessionCard?.card.isCustom || isAdmin;
+  const canEditCurrentCard = currentSessionCard?.card.isCustom || isAdmin;
 
-  if (contextLoading) {
+  if (contextLoading || !sessionReady) {
     return (
       <LoadingContainer>
         <CircularProgress sx={{ color: 'text.disabled' }} />

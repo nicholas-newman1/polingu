@@ -119,6 +119,7 @@ export function EditDeclensionModal({
   };
 
   const onSubmit = (data: FormData) => {
+    const trimmedHint = data.hint.trim();
     onSave({
       front: data.front.trim(),
       back: data.back.trim(),
@@ -126,7 +127,7 @@ export function EditDeclensionModal({
       case: data.case,
       gender: data.gender,
       number: data.number,
-      hint: data.hint.trim() || undefined,
+      ...(trimmedHint && { hint: trimmedHint }),
     });
     handleClose();
   };
