@@ -153,7 +153,11 @@ export function TranslatorModal() {
   };
 
   return (
-    <StyledDialog open={open} onClose={handleClose} $keyboardOpen={keyboardOpen}>
+    <StyledDialog
+      open={open}
+      onClose={handleClose}
+      $keyboardOpen={keyboardOpen}
+    >
       <Header>
         <DialogTitle sx={{ p: 0, fontWeight: 500 }}>Translator</DialogTitle>
         <IconButton onClick={handleClose} size="small" aria-label="close">
