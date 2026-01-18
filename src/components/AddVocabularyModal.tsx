@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { useForm, Controller, useFieldArray, useWatch } from 'react-hook-form';
 import {
   Dialog,
@@ -153,6 +154,8 @@ export function AddVocabularyModal({
   const showGenderField =
     partOfSpeech === 'noun' || partOfSpeech === 'proper noun';
 
+  const newExamplePolishRef = useRef<HTMLInputElement>(null);
+
   const handleClose = () => {
     reset(getDefaultValues(null));
     onClose();
@@ -176,6 +179,9 @@ export function AddVocabularyModal({
 
   const handleAddExample = () => {
     append({ polish: '', english: '' });
+    setTimeout(() => {
+      newExamplePolishRef.current?.focus();
+    }, 0);
   };
 
   return (
@@ -188,177 +194,181 @@ export function AddVocabularyModal({
           <CloseIcon />
         </IconButton>
       </Header>
-      <Content>
-        <Controller
-          name="polish"
-          control={control}
-          rules={{ required: true, validate: (v) => v.trim().length > 0 }}
-          render={({ field }) => (
-            <TextField
-              {...field}
-              label="Polish"
-              fullWidth
-              autoFocus
-              required
-              placeholder="e.g., kot"
-            />
-          )}
-        />
-
-        <Controller
-          name="english"
-          control={control}
-          rules={{ required: true, validate: (v) => v.trim().length > 0 }}
-          render={({ field }) => (
-            <TextField
-              {...field}
-              label="English"
-              fullWidth
-              required
-              placeholder="e.g., cat"
-            />
-          )}
-        />
-
-        <Controller
-          name="partOfSpeech"
-          control={control}
-          render={({ field }) => (
-            <FormControl fullWidth>
-              <InputLabel>Part of Speech (optional)</InputLabel>
-              <Select
-                {...field}
-                onChange={(e) => {
-                  field.onChange(e);
-                  if (
-                    e.target.value !== 'noun' &&
-                    e.target.value !== 'proper noun'
-                  ) {
-                    setValue('gender', '');
-                  }
-                }}
-                label="Part of Speech (optional)"
-              >
-                <MenuItem value="">
-                  <em>None</em>
-                </MenuItem>
-                {PARTS_OF_SPEECH.map((pos) => (
-                  <MenuItem key={pos} value={pos}>
-                    {pos.charAt(0).toUpperCase() + pos.slice(1)}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          )}
-        />
-
-        {showGenderField && (
+      <form onSubmit={handleSubmit(onSubmit)}>
+        <Content>
           <Controller
-            name="gender"
+            name="polish"
+            control={control}
+            rules={{ required: true, validate: (v) => v.trim().length > 0 }}
+            render={({ field }) => (
+              <TextField
+                {...field}
+                label="Polish"
+                fullWidth
+                autoFocus
+                required
+                placeholder="e.g., kot"
+              />
+            )}
+          />
+
+          <Controller
+            name="english"
+            control={control}
+            rules={{ required: true, validate: (v) => v.trim().length > 0 }}
+            render={({ field }) => (
+              <TextField
+                {...field}
+                label="English"
+                fullWidth
+                required
+                placeholder="e.g., cat"
+              />
+            )}
+          />
+
+          <Controller
+            name="partOfSpeech"
             control={control}
             render={({ field }) => (
               <FormControl fullWidth>
-                <InputLabel>Gender (optional)</InputLabel>
-                <Select {...field} label="Gender (optional)">
+                <InputLabel>Part of Speech (optional)</InputLabel>
+                <Select
+                  {...field}
+                  onChange={(e) => {
+                    field.onChange(e);
+                    if (
+                      e.target.value !== 'noun' &&
+                      e.target.value !== 'proper noun'
+                    ) {
+                      setValue('gender', '');
+                    }
+                  }}
+                  label="Part of Speech (optional)"
+                >
                   <MenuItem value="">
                     <em>None</em>
                   </MenuItem>
-                  {GENDERS.map((g) => (
-                    <MenuItem key={g} value={g}>
-                      {g.charAt(0).toUpperCase() + g.slice(1)}
+                  {PARTS_OF_SPEECH.map((pos) => (
+                    <MenuItem key={pos} value={pos}>
+                      {pos.charAt(0).toUpperCase() + pos.slice(1)}
                     </MenuItem>
                   ))}
                 </Select>
               </FormControl>
             )}
           />
-        )}
 
-        <Controller
-          name="notes"
-          control={control}
-          render={({ field }) => (
-            <TextField
-              {...field}
-              label="Notes (optional)"
-              fullWidth
-              multiline
-              rows={2}
-              placeholder="Any additional notes..."
+          {showGenderField && (
+            <Controller
+              name="gender"
+              control={control}
+              render={({ field }) => (
+                <FormControl fullWidth>
+                  <InputLabel>Gender (optional)</InputLabel>
+                  <Select {...field} label="Gender (optional)">
+                    <MenuItem value="">
+                      <em>None</em>
+                    </MenuItem>
+                    {GENDERS.map((g) => (
+                      <MenuItem key={g} value={g}>
+                        {g.charAt(0).toUpperCase() + g.slice(1)}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              )}
             />
           )}
-        />
 
-        <ExamplesSection>
-          <Typography variant="body2" color="text.secondary">
-            Example Sentences (optional)
-          </Typography>
-
-          {fields.map((field, index) => (
-            <ExamplePair key={field.id}>
-              <ExampleHeader>
-                <Typography variant="caption" color="text.disabled">
-                  Example {index + 1}
-                </Typography>
-                <IconButton
-                  size="small"
-                  onClick={() => remove(index)}
-                  aria-label="remove example"
-                  sx={{ color: 'text.disabled' }}
-                >
-                  <DeleteOutlineIcon fontSize="small" />
-                </IconButton>
-              </ExampleHeader>
-              <Controller
-                name={`examples.${index}.polish`}
-                control={control}
-                render={({ field }) => (
-                  <TextField
-                    {...field}
-                    label="Polish"
-                    size="small"
-                    fullWidth
-                    placeholder="e.g., Mam czarnego kota."
-                  />
-                )}
+          <Controller
+            name="notes"
+            control={control}
+            render={({ field }) => (
+              <TextField
+                {...field}
+                label="Notes (optional)"
+                fullWidth
+                multiline
+                rows={2}
+                placeholder="Any additional notes..."
               />
-              <Controller
-                name={`examples.${index}.english`}
-                control={control}
-                render={({ field }) => (
-                  <TextField
-                    {...field}
-                    label="English"
-                    size="small"
-                    fullWidth
-                    placeholder="e.g., I have a black cat."
-                  />
-                )}
-              />
-            </ExamplePair>
-          ))}
+            )}
+          />
 
-          <AddExampleButton
-            size="small"
-            startIcon={<AddIcon />}
-            onClick={handleAddExample}
-          >
-            Add example sentence
-          </AddExampleButton>
-        </ExamplesSection>
-      </Content>
-      <Actions>
-        <Button onClick={handleClose} color="inherit">
-          Cancel
-        </Button>
-        <Button
-          onClick={handleSubmit(onSubmit)}
-          variant="contained"
-          disabled={!isValid}
-        >
-          {editWord ? 'Save Changes' : 'Add Word'}
-        </Button>
-      </Actions>
+          <ExamplesSection>
+            <Typography variant="body2" color="text.secondary">
+              Example Sentences (optional)
+            </Typography>
+
+            {fields.map((field, index) => (
+              <ExamplePair key={field.id}>
+                <ExampleHeader>
+                  <Typography variant="caption" color="text.disabled">
+                    Example {index + 1}
+                  </Typography>
+                  <IconButton
+                    size="small"
+                    onClick={() => remove(index)}
+                    aria-label="remove example"
+                    sx={{ color: 'text.disabled' }}
+                  >
+                    <DeleteOutlineIcon fontSize="small" />
+                  </IconButton>
+                </ExampleHeader>
+                <Controller
+                  name={`examples.${index}.polish`}
+                  control={control}
+                  render={({ field }) => (
+                    <TextField
+                      {...field}
+                      inputRef={
+                        index === fields.length - 1
+                          ? newExamplePolishRef
+                          : undefined
+                      }
+                      label="Polish"
+                      size="small"
+                      fullWidth
+                      placeholder="e.g., Mam czarnego kota."
+                    />
+                  )}
+                />
+                <Controller
+                  name={`examples.${index}.english`}
+                  control={control}
+                  render={({ field }) => (
+                    <TextField
+                      {...field}
+                      label="English"
+                      size="small"
+                      fullWidth
+                      placeholder="e.g., I have a black cat."
+                    />
+                  )}
+                />
+              </ExamplePair>
+            ))}
+
+            <AddExampleButton
+              size="small"
+              startIcon={<AddIcon />}
+              onClick={handleAddExample}
+              type="button"
+            >
+              Add example sentence
+            </AddExampleButton>
+          </ExamplesSection>
+        </Content>
+        <Actions>
+          <Button onClick={handleClose} color="inherit" type="button">
+            Cancel
+          </Button>
+          <Button type="submit" variant="contained" disabled={!isValid}>
+            {editWord ? 'Save Changes' : 'Add Word'}
+          </Button>
+        </Actions>
+      </form>
     </StyledDialog>
   );
 }
