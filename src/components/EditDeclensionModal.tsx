@@ -16,6 +16,7 @@ import {
 import CloseIcon from '@mui/icons-material/Close';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { styled } from '../lib/styled';
+import { useBackClose } from '../hooks/useBackClose';
 import type { DeclensionCard, Case, Gender, Number } from '../types';
 
 const CASES: Case[] = [
@@ -117,6 +118,8 @@ export function EditDeclensionModal({
     reset(getDefaultValues(null));
     onClose();
   };
+
+  useBackClose(open, handleClose);
 
   const onSubmit = (data: FormData) => {
     const trimmedHint = data.hint.trim();

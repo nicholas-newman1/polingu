@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -15,8 +15,17 @@ import {
   useTheme,
 } from '@mui/material';
 import { styled } from '../lib/styled';
-import { Menu, School, Translate, Close, Abc, Home, Check } from '@mui/icons-material';
+import {
+  Menu,
+  School,
+  Translate,
+  Close,
+  Abc,
+  Home,
+  Check,
+} from '@mui/icons-material';
 import { useReviewData } from '../hooks/useReviewData';
+import { useBackClose } from '../hooks/useBackClose';
 import type { ReviewCounts } from '../contexts/ReviewDataContext';
 import { alpha } from '../lib/theme';
 import { Header } from './Header';
@@ -158,7 +167,12 @@ function NavItem({
         />
         {hasBadge &&
           (loading ? (
-            <Skeleton variant="rounded" width={24} height={24} sx={{ borderRadius: 12 }} />
+            <Skeleton
+              variant="rounded"
+              width={24}
+              height={24}
+              sx={{ borderRadius: 12 }}
+            />
           ) : (
             <ReviewBadge $complete={isComplete}>
               {isComplete ? <Check sx={{ fontSize: 16 }} /> : reviewCount}
@@ -270,6 +284,9 @@ export function Layout() {
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const theme = useTheme();
   const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
+
+  const closeMobileDrawer = useCallback(() => setMobileDrawerOpen(false), []);
+  useBackClose(mobileDrawerOpen, closeMobileDrawer);
 
   const handleSignOut = async () => {
     await signOut();

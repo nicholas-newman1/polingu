@@ -17,6 +17,7 @@ import {
   RateLimitDailyError,
 } from '../lib/translate';
 import { useTranslationContext } from '../hooks/useTranslationContext';
+import { useBackClose } from '../hooks/useBackClose';
 import { DirectionToggle, type TranslationDirection } from './DirectionToggle';
 
 const MAX_TEXT_LENGTH = 500;
@@ -82,6 +83,8 @@ export function TranslatorModal() {
     setError(null);
     onClose();
   }, [onClose]);
+
+  useBackClose(open, handleClose);
 
   useEffect(() => {
     if (!open) return;

@@ -11,6 +11,7 @@ import {
 import BlockIcon from '@mui/icons-material/Block';
 import { useState, useEffect } from 'react';
 import { useTranslationContext } from '../hooks/useTranslationContext';
+import { useBackClose } from '../hooks/useBackClose';
 
 const StyledDialog = styled(Dialog)(({ theme }) => ({
   '& .MuiDialog-paper': {
@@ -56,6 +57,8 @@ export function LimitReachedDialog() {
     limitResetTime: resetTime,
   } = useTranslationContext();
   const [timeRemaining, setTimeRemaining] = useState(() => formatTimeRemaining(resetTime));
+
+  useBackClose(open, onClose);
 
   useEffect(() => {
     if (!open) return;

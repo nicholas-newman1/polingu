@@ -29,6 +29,7 @@ import { alpha } from '../lib/theme';
 import { translate } from '../lib/translate';
 import { generateExample, type GeneratedExample } from '../lib/generateExample';
 import { useAuthContext } from '../hooks/useAuthContext';
+import { useBackClose } from '../hooks/useBackClose';
 import type {
   CustomVocabularyWord,
   VocabularyWord,
@@ -323,7 +324,7 @@ export function AddVocabularyModal({
     setAiContext('');
   }, [generatedExamples, selectedExampleIndexes, append]);
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     reset(getDefaultValues(null));
     translationTimeouts.current.forEach((timeout) => clearTimeout(timeout));
     translationTimeouts.current.clear();
@@ -336,7 +337,9 @@ export function AddVocabularyModal({
     setGenerateError(null);
     setIsGenerating(false);
     onClose();
-  };
+  }, [onClose, reset]);
+
+  useBackClose(open, handleClose);
 
   const onSubmit = (data: FormData) => {
     const validExamples = data.examples.filter(
