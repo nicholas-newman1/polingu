@@ -21,7 +21,7 @@ const MenuBarContainer = styled(Box)(({ theme }) => ({
   backgroundColor: alpha(theme.palette.background.paper, 0.95),
   backdropFilter: 'blur(8px)',
   borderTop: `1px solid ${theme.palette.divider}`,
-  zIndex: theme.zIndex.drawer + 1,
+  // zIndex: theme.zIndex.drawer + 1,
   [theme.breakpoints.up('md')]: {
     left: DRAWER_WIDTH,
   },
@@ -35,7 +35,9 @@ const MenuButton = styled(ButtonBase)<{ $disabled?: boolean }>(
     gap: theme.spacing(0.5),
     padding: theme.spacing(1),
     borderRadius: theme.spacing(1),
-    color: $disabled ? theme.palette.text.disabled : theme.palette.text.secondary,
+    color: $disabled
+      ? theme.palette.text.disabled
+      : theme.palette.text.secondary,
     cursor: $disabled ? 'default' : 'pointer',
     '&:hover': $disabled
       ? {}
@@ -59,8 +61,8 @@ const IconWrapper = styled(Box)<{ $isActive?: boolean; $disabled?: boolean }>(
     color: $disabled
       ? theme.palette.text.disabled
       : $isActive
-        ? theme.palette.primary.main
-        : 'inherit',
+      ? theme.palette.primary.main
+      : 'inherit',
     opacity: $disabled ? 0.6 : 1,
   })
 );
