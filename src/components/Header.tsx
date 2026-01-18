@@ -18,6 +18,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import type { User } from 'firebase/auth';
 import getFirstName from '../lib/utils/getFirstName';
 import { alpha } from '../lib/theme';
+import { SITE_NAME } from '../constants';
+import { SiteLogo } from './SiteLogo';
 
 const BrandingSection = styled(Box)(({ theme }) => ({
   display: 'flex',
@@ -94,9 +96,9 @@ export function Header({ user, onSignOut }: HeaderProps) {
       justifyContent="space-between"
     >
       <BrandingSection>
-        <Typography variant="h6">🇵🇱</Typography>
+        <SiteLogo size={28} />
         <HeaderTitle variant="h6" color="text.primary">
-          Polish
+          {SITE_NAME}
         </HeaderTitle>
       </BrandingSection>
 

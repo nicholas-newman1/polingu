@@ -6,6 +6,8 @@ import { alpha } from '../lib/theme';
 import { useReviewData } from '../hooks/useReviewData';
 import { ReviewCountBadge } from '../components/ReviewCountBadge';
 import type { ReviewCounts } from '../contexts/ReviewDataContext';
+import { SITE_NAME } from '../constants';
+import { SiteLogo } from '../components/SiteLogo';
 
 type ColorKey = 'primary' | 'info' | 'success';
 
@@ -137,8 +139,12 @@ export function DashboardPage() {
   return (
     <PageContainer>
       <Header>
-        <Title variant="h3" color="text.primary" sx={{ mb: 1 }}>
-          🇵🇱 Polish Practice
+        <Title
+          variant="h3"
+          color="text.primary"
+          sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 1.5, justifyContent: 'center' }}
+        >
+          <SiteLogo size={40} /> {SITE_NAME}
         </Title>
         <Typography variant="body1" color="text.secondary">
           Choose what you'd like to practice today

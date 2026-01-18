@@ -36,6 +36,8 @@ import { TranslatorModal } from './TranslatorModal';
 import { LimitReachedDialog } from './LimitReachedDialog';
 import { BottomMenuBar } from './BottomMenuBar';
 import { useAuthContext } from '../hooks/useAuthContext';
+import { SITE_NAME } from '../constants';
+import { SiteLogo } from './SiteLogo';
 
 export const DRAWER_WIDTH = 260;
 
@@ -242,7 +244,7 @@ function DrawerContent({
           variant="h6"
           sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
         >
-          🇵🇱 Polish
+          <SiteLogo size={28} /> {SITE_NAME}
         </Typography>
         {showCloseButton && (
           <IconButton onClick={onClose} size="small">

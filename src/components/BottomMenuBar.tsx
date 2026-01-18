@@ -21,7 +21,6 @@ const MenuBarContainer = styled(Box)(({ theme }) => ({
   backgroundColor: alpha(theme.palette.background.paper, 0.95),
   backdropFilter: 'blur(8px)',
   borderTop: `1px solid ${theme.palette.divider}`,
-  // zIndex: theme.zIndex.drawer + 1,
   [theme.breakpoints.up('md')]: {
     left: DRAWER_WIDTH,
   },

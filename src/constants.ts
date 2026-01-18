@@ -1,5 +1,9 @@
 import type { Case, Gender, Number, DeclensionSettings } from './types';
 
+// Site branding - change these values to rename the site
+export const SITE_NAME = 'Polingu';
+export const SITE_TAGLINE = 'Master Polish with spaced repetition';
+
 export const CASES: Case[] = [
   'Nominative',
   'Genitive',

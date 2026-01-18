@@ -11,6 +11,8 @@ import {
 } from '@mui/material';
 import { useAuthContext } from '../hooks/useAuthContext';
 import { alpha } from '../lib/theme';
+import { SITE_NAME, SITE_TAGLINE } from '../constants';
+import { SiteLogo } from './SiteLogo';
 
 const PageContainer = styled(Box)(({ theme }) => ({
   minHeight: '100vh',
@@ -129,10 +131,12 @@ export function SignIn() {
         <Box sx={{ position: 'relative' }}>
           <CardGlow className="card-glow" />
           <StyledCard>
-            <LogoAvatar>🇵🇱</LogoAvatar>
+            <LogoAvatar>
+              <SiteLogo size={48} />
+            </LogoAvatar>
 
             <Title variant="h4" color="text.primary" sx={{ mb: 1 }}>
-              Polish Declension
+              {SITE_NAME}
             </Title>
 
             <Typography
@@ -140,15 +144,7 @@ export function SignIn() {
               color="text.disabled"
               sx={{ mb: { xs: 4, sm: 5 } }}
             >
-              Master noun & pronoun endings
-              <br />
-              <Typography
-                component="span"
-                variant="body2"
-                color="text.secondary"
-              >
-                with spaced repetition
-              </Typography>
+              {SITE_TAGLINE}
             </Typography>
 
             <GoogleButton
