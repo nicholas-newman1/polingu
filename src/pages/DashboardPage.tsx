@@ -1,11 +1,12 @@
 import { useNavigate } from 'react-router-dom';
-import { Box, Typography, ButtonBase, useTheme } from '@mui/material';
+import { Box, Typography, useTheme } from '@mui/material';
 import { School, Abc, Translate } from '@mui/icons-material';
 import { styled } from '../lib/styled';
-import { alpha } from '../lib/theme';
 import { useReviewData } from '../hooks/useReviewData';
+import { useProgressStats } from '../hooks/useProgressStats';
+import { FeatureCard } from '../components/FeatureCard';
+import { ProgressStats } from '../components/ProgressStats';
 import { ReviewCountBadge } from '../components/ReviewCountBadge';
-import type { ReviewCounts } from '../contexts/ReviewDataContext';
 import { SITE_NAME } from '../constants';
 import { SiteLogo } from '../components/SiteLogo';
 
@@ -39,61 +40,7 @@ const CardsGrid = styled(Box)(({ theme }) => ({
   maxWidth: 960,
 }));
 
-const FeatureCard = styled(ButtonBase)<{ $color: string }>(
-  ({ theme, $color }) => ({
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-    padding: theme.spacing(3),
-    borderRadius: 16,
-    backgroundColor: theme.palette.background.paper,
-    border: `1px solid ${theme.palette.divider}`,
-    textAlign: 'left',
-    transition: 'all 0.2s ease',
-    position: 'relative',
-    overflow: 'hidden',
-    '&::before': {
-      content: '""',
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      height: 4,
-      background: $color,
-    },
-    '&:hover': {
-      transform: 'translateY(-4px)',
-      boxShadow: `0 12px 32px ${alpha($color, 0.2)}`,
-      borderColor: alpha($color, 0.3),
-    },
-    '&:active': {
-      transform: 'translateY(-2px)',
-    },
-  })
-);
-
-const IconWrapper = styled(Box)<{ $color: string }>(({ theme, $color }) => ({
-  width: 56,
-  height: 56,
-  borderRadius: 12,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  backgroundColor: alpha($color, 0.1),
-  color: $color,
-  marginBottom: theme.spacing(2),
-}));
-
-const FeatureTitle = styled(Typography)(({ theme }) => ({
-  fontWeight: 600,
-  marginBottom: theme.spacing(0.5),
-  color: theme.palette.text.primary,
-}));
-
-const FeatureDescription = styled(Typography)(({ theme }) => ({
-  color: theme.palette.text.secondary,
-  lineHeight: 1.5,
-}));
+type StatsKey = 'declension' | 'vocabulary';
 
 const FEATURES: Array<{
   path: string;
@@ -101,7 +48,7 @@ const FEATURES: Array<{
   title: string;
   description: string;
   colorKey: ColorKey;
-  reviewCountKey?: keyof ReviewCounts;
+  statsKey?: StatsKey;
 }> = [
   {
     path: '/declension',
@@ -110,7 +57,7 @@ const FEATURES: Array<{
     description:
       'Practice noun and pronoun declensions with spaced repetition flashcards',
     colorKey: 'primary',
-    reviewCountKey: 'declension',
+    statsKey: 'declension',
   },
   {
     path: '/vocabulary',
@@ -119,7 +66,7 @@ const FEATURES: Array<{
     description:
       'Learn the top 1000 most common Polish words with example sentences',
     colorKey: 'info',
-    reviewCountKey: 'vocabulary',
+    statsKey: 'vocabulary',
   },
   {
     path: '/sentences',
@@ -134,7 +81,8 @@ const FEATURES: Array<{
 export function DashboardPage() {
   const navigate = useNavigate();
   const theme = useTheme();
-  const { counts, loading } = useReviewData();
+  const { loading } = useReviewData();
+  const progressStats = useProgressStats();
 
   return (
     <PageContainer>
@@ -142,7 +90,13 @@ export function DashboardPage() {
         <Title
           variant="h3"
           color="text.primary"
-          sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 1.5, justifyContent: 'center' }}
+          sx={{
+            mb: 1,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1.5,
+            justifyContent: 'center',
+          }}
         >
           <SiteLogo size={40} /> {SITE_NAME}
         </Title>
@@ -154,27 +108,32 @@ export function DashboardPage() {
       <CardsGrid>
         {FEATURES.map((feature) => {
           const color = theme.palette[feature.colorKey].main;
-          const reviewCount = feature.reviewCountKey
-            ? counts[feature.reviewCountKey]
+          const stats = feature.statsKey
+            ? progressStats[feature.statsKey]
             : undefined;
+
           return (
             <FeatureCard
               key={feature.path}
-              $color={color}
+              color={color}
+              icon={<feature.icon sx={{ fontSize: 28 }} />}
+              title={feature.title}
+              description={feature.description}
+              badge={
+                stats ? (
+                  <ReviewCountBadge count={stats.due} loading={loading} />
+                ) : undefined
+              }
               onClick={() => navigate(feature.path)}
             >
-              {feature.reviewCountKey && (
-                <Box sx={{ position: 'absolute', top: 16, right: 16 }}>
-                  <ReviewCountBadge count={reviewCount} loading={loading} />
-                </Box>
+              {stats && (
+                <ProgressStats
+                  learned={stats.learned}
+                  total={stats.total}
+                  color={color}
+                  layout="inline"
+                />
               )}
-              <IconWrapper $color={color}>
-                <feature.icon sx={{ fontSize: 28 }} />
-              </IconWrapper>
-              <FeatureTitle variant="h6">{feature.title}</FeatureTitle>
-              <FeatureDescription variant="body2">
-                {feature.description}
-              </FeatureDescription>
             </FeatureCard>
           );
         })}

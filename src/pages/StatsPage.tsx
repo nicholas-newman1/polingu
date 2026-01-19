@@ -1,9 +1,9 @@
-import { useMemo } from 'react';
 import { Box, Typography, Skeleton, useTheme } from '@mui/material';
 import { School, Abc } from '@mui/icons-material';
 import { styled } from '../lib/styled';
 import { alpha } from '../lib/theme';
 import { useReviewData } from '../hooks/useReviewData';
+import { useProgressStats } from '../hooks/useProgressStats';
 
 const PageContainer = styled(Box)(({ theme }) => ({
   flex: 1,
@@ -113,80 +113,28 @@ export function StatsPage() {
   const theme = useTheme();
   const {
     loading,
-    vocabularyWords,
     systemWords,
     customWords,
-    vocabularyReviewStores,
-    declensionCards,
     systemDeclensionCards,
     customDeclensionCards,
-    declensionReviewStore,
   } = useReviewData();
+  const progressStats = useProgressStats();
 
-  const vocabularyStats = useMemo<CategoryStats>(() => {
-    const plToEnCards = vocabularyReviewStores['pl-to-en'].cards;
-    const enToPlCards = vocabularyReviewStores['en-to-pl'].cards;
+  const vocabularyStats: CategoryStats = {
+    total: progressStats.vocabulary.total,
+    system: systemWords.length,
+    custom: customWords.length,
+    studied: progressStats.vocabulary.learned,
+    mastered: progressStats.vocabulary.mastered,
+  };
 
-    const studiedIds = new Set<string>();
-    const masteredIds = new Set<string>();
-
-    Object.entries(plToEnCards).forEach(([id, data]) => {
-      if (data.fsrsCard.state > 0) {
-        studiedIds.add(id);
-        if (data.fsrsCard.state === 2) {
-          masteredIds.add(id);
-        }
-      }
-    });
-
-    Object.entries(enToPlCards).forEach(([id, data]) => {
-      if (data.fsrsCard.state > 0) {
-        studiedIds.add(id);
-        if (data.fsrsCard.state === 2 && masteredIds.has(id)) {
-          // Keep mastered only if mastered in both directions
-        } else if (data.fsrsCard.state !== 2) {
-          masteredIds.delete(id);
-        }
-      }
-    });
-
-    return {
-      total: vocabularyWords.length,
-      system: systemWords.length,
-      custom: customWords.length,
-      studied: studiedIds.size,
-      mastered: masteredIds.size,
-    };
-  }, [vocabularyWords, systemWords, customWords, vocabularyReviewStores]);
-
-  const declensionStats = useMemo<CategoryStats>(() => {
-    const cards = declensionReviewStore.cards;
-
-    let studied = 0;
-    let mastered = 0;
-
-    Object.values(cards).forEach((data) => {
-      if (data.fsrsCard.state > 0) {
-        studied++;
-        if (data.fsrsCard.state === 2) {
-          mastered++;
-        }
-      }
-    });
-
-    return {
-      total: declensionCards.length,
-      system: systemDeclensionCards.length,
-      custom: customDeclensionCards.length,
-      studied,
-      mastered,
-    };
-  }, [
-    declensionCards,
-    systemDeclensionCards,
-    customDeclensionCards,
-    declensionReviewStore,
-  ]);
+  const declensionStats: CategoryStats = {
+    total: progressStats.declension.total,
+    system: systemDeclensionCards.length,
+    custom: customDeclensionCards.length,
+    studied: progressStats.declension.learned,
+    mastered: progressStats.declension.mastered,
+  };
 
   const formatBreakdown = (system: number, custom: number) => {
     if (custom === 0) return `${system} system`;

@@ -1,15 +1,22 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Rating, type Grade } from 'ts-fsrs';
-import { Box, CircularProgress, Typography, Stack } from '@mui/material';
+import {
+  Box,
+  CircularProgress,
+  Typography,
+  Stack,
+  IconButton,
+} from '@mui/material';
+import { ArrowBack } from '@mui/icons-material';
 import { styled } from '../lib/styled';
 import { AddButton } from '../components/AddButton';
 import { PracticeModeButton } from '../components/PracticeModeButton';
 import { SettingsButton } from '../components/SettingsButton';
-import { DirectionToggle } from '../components/DirectionToggle';
 import {
   VocabularyFlashcard,
   type RatingIntervals,
 } from '../components/VocabularyFlashcard';
+import { VocabularyModeSelector } from '../components/VocabularyModeSelector';
 import { FinishedState } from '../components/FinishedState';
 import { EmptyState } from '../components/EmptyState';
 import { ReviewCountBadge } from '../components/ReviewCountBadge';
@@ -36,9 +43,11 @@ import rateVocabularyCard from '../lib/vocabularyScheduler/rateVocabularyCard';
 import getVocabularyNextIntervals from '../lib/fsrsUtils/getNextIntervals';
 import type { VocabularySessionCard } from '../lib/vocabularyScheduler/types';
 import { useAuthContext } from '../hooks/useAuthContext';
+import { useBackClose } from '../hooks/useBackClose';
 import { useOptimistic } from '../hooks/useOptimistic';
 import { useSnackbar } from '../hooks/useSnackbar';
 import { useReviewData } from '../hooks/useReviewData';
+import { useProgressStats } from '../hooks/useProgressStats';
 import shuffleArray from '../lib/utils/shuffleArray';
 import { includesWordId } from '../lib/storage/helpers';
 
@@ -54,6 +63,21 @@ const ControlsRow = styled(Stack)(({ theme }) => ({
   marginBottom: theme.spacing(3),
   flexWrap: 'wrap',
   gap: theme.spacing(1),
+}));
+
+const BackButton = styled(IconButton)(({ theme }) => ({
+  color: theme.palette.text.secondary,
+  '&:hover': {
+    backgroundColor: theme.palette.action.hover,
+  },
+}));
+
+const ModeIndicator = styled(Typography)(({ theme }) => ({
+  fontWeight: 500,
+  color: theme.palette.text.primary,
+  display: 'flex',
+  alignItems: 'center',
+  gap: theme.spacing(0.5),
 }));
 
 export function VocabularyPage() {
@@ -86,6 +110,7 @@ export function VocabularyPage() {
     }
   );
 
+  const [modeSelected, setModeSelected] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [practiceMode, setPracticeMode] = useState(false);
   const [isDirectionChanging, setIsDirectionChanging] = useState(false);
@@ -151,31 +176,50 @@ export function VocabularyPage() {
     }
   }, [contextLoading, buildSession, vocabularyWords, reviewStore, settings]);
 
-  const handleDirectionToggle = useCallback(async () => {
-    const newDirection: VocabularyDirection =
-      settings.direction === 'pl-to-en' ? 'en-to-pl' : 'pl-to-en';
+  const progressStats = useProgressStats();
+  const modeStats = {
+    'pl-to-en': {
+      dueCount: progressStats.vocabularyByDirection['pl-to-en'].due,
+      learnedCount: progressStats.vocabularyByDirection['pl-to-en'].learned,
+      totalCount: progressStats.vocabularyByDirection['pl-to-en'].total,
+    },
+    'en-to-pl': {
+      dueCount: progressStats.vocabularyByDirection['en-to-pl'].due,
+      learnedCount: progressStats.vocabularyByDirection['en-to-pl'].learned,
+      totalCount: progressStats.vocabularyByDirection['en-to-pl'].total,
+    },
+  };
 
-    setIsDirectionChanging(true);
-    const newSettings = { ...settings, direction: newDirection };
-    directionRef.current = newDirection;
-    await updateVocabularySettings(newSettings);
+  const handleSelectMode = useCallback(
+    async (direction: VocabularyDirection) => {
+      if (direction !== settings.direction) {
+        setIsDirectionChanging(true);
+        const newSettings = { ...settings, direction };
+        directionRef.current = direction;
+        await updateVocabularySettings(newSettings);
 
-    const newReviewStore = vocabularyReviewStores[newDirection];
-    buildSession(allWords, newReviewStore, newSettings);
+        const newReviewStore = vocabularyReviewStores[direction];
+        buildSession(allWords, newReviewStore, newSettings);
+        setIsDirectionChanging(false);
+      }
+      setModeSelected(true);
+    },
+    [
+      settings,
+      updateVocabularySettings,
+      vocabularyReviewStores,
+      allWords,
+      buildSession,
+    ]
+  );
 
-    if (practiceMode) {
-      setPracticeCards(shuffleArray([...allWords]));
-      setPracticeIndex(0);
-    }
-    setIsDirectionChanging(false);
-  }, [
-    settings,
-    buildSession,
-    practiceMode,
-    allWords,
-    updateVocabularySettings,
-    vocabularyReviewStores,
-  ]);
+  const handleBackToModeSelector = useCallback(() => {
+    setModeSelected(false);
+    setPracticeMode(false);
+    setShowSettings(false);
+  }, []);
+
+  useBackClose(modeSelected, handleBackToModeSelector);
 
   const startPracticeAhead = useCallback(() => {
     const aheadCards = getVocabularyPracticeAheadCards(
@@ -473,14 +517,29 @@ export function VocabularyPage() {
 
   const isLoading = contextLoading || isDirectionChanging;
 
+  const currentModeName =
+    settings.direction === 'pl-to-en' ? 'Recognition' : 'Production';
+
+  if (!modeSelected) {
+    return (
+      <VocabularyModeSelector
+        stats={modeStats}
+        loading={contextLoading || isDirectionChanging}
+        onSelectMode={handleSelectMode}
+      />
+    );
+  }
+
   return (
     <>
       <ControlsRow direction="row" alignItems="center">
-        <DirectionToggle
-          direction={settings.direction}
-          onToggle={handleDirectionToggle}
-          disabled={isLoading}
-        />
+        <BackButton onClick={handleBackToModeSelector} size="small">
+          <ArrowBack fontSize="small" />
+        </BackButton>
+
+        <ModeIndicator variant="body2">{currentModeName}</ModeIndicator>
+
+        <Box sx={{ flex: 1 }} />
 
         <PracticeModeButton
           active={practiceMode}
@@ -523,17 +582,26 @@ export function VocabularyPage() {
             <Typography
               variant="body2"
               color="text.disabled"
-              sx={{ mb: { xs: 3, sm: 4 }, textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}
+              sx={{
+                mb: { xs: 3, sm: 4 },
+                textAlign: 'center',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 1,
+              }}
             >
               {practiceMode ? (
                 `Practice Mode · ${practiceCards.length} words`
               ) : isFinished ? null : isPracticeAhead ? (
                 <>
-                  Practice Ahead · <ReviewCountBadge count={totalRemaining} /> remaining
+                  Practice Ahead · <ReviewCountBadge count={totalRemaining} />{' '}
+                  remaining
                 </>
               ) : (
                 <>
-                  {reviewCount} reviews · {newCount} new · <ReviewCountBadge count={totalRemaining} /> remaining
+                  {reviewCount} reviews · {newCount} new ·{' '}
+                  <ReviewCountBadge count={totalRemaining} /> remaining
                 </>
               )}
             </Typography>
