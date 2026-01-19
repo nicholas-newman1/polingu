@@ -13,30 +13,16 @@ import {
   Divider,
   styled,
 } from '@mui/material';
-import { Person, LibraryBooks, BarChart } from '@mui/icons-material';
+import { Person, LibraryBooks, BarChart, ArrowBack } from '@mui/icons-material';
 import { Link, useNavigate } from 'react-router-dom';
 import type { User } from 'firebase/auth';
 import getFirstName from '../lib/utils/getFirstName';
 import { alpha } from '../lib/theme';
-import { SITE_NAME } from '../constants';
-import { SiteLogo } from './SiteLogo';
 
-const BrandingSection = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  alignItems: 'center',
-  gap: theme.spacing(1),
-  [theme.breakpoints.up('md')]: {
-    display: 'none',
-  },
-}));
-
-const HeaderTitle = styled(Typography)(({ theme }) => ({
-  fontWeight: 500,
-  display: 'none',
-  [theme.breakpoints.up('sm')]: {
-    display: 'block',
-  },
-}));
+const PageTitle = styled(Typography)({
+  fontWeight: 600,
+  fontSize: '1.1rem',
+});
 
 const GuestChip = styled(Chip)(({ theme }) => ({
   backgroundColor: alpha(theme.palette.warning.main, 0.1),
@@ -51,12 +37,22 @@ const UserIconButton = styled(IconButton)(({ theme }) => ({
   },
 }));
 
+const BackButton = styled(IconButton)(({ theme }) => ({
+  marginRight: theme.spacing(1),
+  backgroundColor: theme.palette.action.hover,
+  '&:hover': {
+    backgroundColor: theme.palette.action.selected,
+  },
+}));
+
 interface HeaderProps {
   user: User | null;
   onSignOut: () => void;
+  pageTitle?: string;
+  backPath?: string;
 }
 
-export function Header({ user, onSignOut }: HeaderProps) {
+export function Header({ user, onSignOut, pageTitle, backPath }: HeaderProps) {
   const navigate = useNavigate();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const menuOpen = Boolean(anchorEl);
@@ -94,13 +90,20 @@ export function Header({ user, onSignOut }: HeaderProps) {
       direction="row"
       alignItems="center"
       justifyContent="space-between"
+      sx={{ width: '100%' }}
     >
-      <BrandingSection>
-        <SiteLogo size={28} />
-        <HeaderTitle variant="h6" color="text.primary">
-          {SITE_NAME}
-        </HeaderTitle>
-      </BrandingSection>
+      <Stack direction="row" alignItems="center">
+        {backPath && (
+          <BackButton size="small" onClick={() => navigate(backPath)}>
+            <ArrowBack fontSize="small" />
+          </BackButton>
+        )}
+        {pageTitle && (
+          <PageTitle variant="h6" color="text.primary">
+            {pageTitle}
+          </PageTitle>
+        )}
+      </Stack>
 
       <Stack direction="row" alignItems="center" spacing={1}>
         {user ? (

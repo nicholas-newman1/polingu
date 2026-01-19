@@ -1,13 +1,7 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Rating, type Grade } from 'ts-fsrs';
-import {
-  Box,
-  CircularProgress,
-  Typography,
-  Stack,
-  IconButton,
-} from '@mui/material';
-import { ArrowBack } from '@mui/icons-material';
+import { Box, CircularProgress, Typography, Stack } from '@mui/material';
 import { styled } from '../lib/styled';
 import { AddButton } from '../components/AddButton';
 import { PracticeModeButton } from '../components/PracticeModeButton';
@@ -43,7 +37,6 @@ import rateVocabularyCard from '../lib/vocabularyScheduler/rateVocabularyCard';
 import getVocabularyNextIntervals from '../lib/fsrsUtils/getNextIntervals';
 import type { VocabularySessionCard } from '../lib/vocabularyScheduler/types';
 import { useAuthContext } from '../hooks/useAuthContext';
-import { useBackClose } from '../hooks/useBackClose';
 import { useOptimistic } from '../hooks/useOptimistic';
 import { useSnackbar } from '../hooks/useSnackbar';
 import { useReviewData } from '../hooks/useReviewData';
@@ -65,22 +58,12 @@ const ControlsRow = styled(Stack)(({ theme }) => ({
   gap: theme.spacing(1),
 }));
 
-const BackButton = styled(IconButton)(({ theme }) => ({
-  color: theme.palette.text.secondary,
-  '&:hover': {
-    backgroundColor: theme.palette.action.hover,
-  },
-}));
+interface VocabularyPageProps {
+  mode?: VocabularyDirection;
+}
 
-const ModeIndicator = styled(Typography)(({ theme }) => ({
-  fontWeight: 500,
-  color: theme.palette.text.primary,
-  display: 'flex',
-  alignItems: 'center',
-  gap: theme.spacing(0.5),
-}));
-
-export function VocabularyPage() {
+export function VocabularyPage({ mode }: VocabularyPageProps) {
+  const navigate = useNavigate();
   const { user, isAdmin } = useAuthContext();
   const { showSnackbar } = useSnackbar();
   const {
@@ -110,7 +93,6 @@ export function VocabularyPage() {
     }
   );
 
-  const [modeSelected, setModeSelected] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [practiceMode, setPracticeMode] = useState(false);
   const [isDirectionChanging, setIsDirectionChanging] = useState(false);
@@ -191,35 +173,38 @@ export function VocabularyPage() {
   };
 
   const handleSelectMode = useCallback(
-    async (direction: VocabularyDirection) => {
-      if (direction !== settings.direction) {
+    (direction: VocabularyDirection) => {
+      const route = direction === 'pl-to-en' ? 'recognition' : 'production';
+      navigate(`/vocabulary/${route}`);
+    },
+    [navigate]
+  );
+
+  useEffect(() => {
+    if (!mode || contextLoading) return;
+
+    const syncDirection = async () => {
+      if (mode !== settings.direction) {
         setIsDirectionChanging(true);
-        const newSettings = { ...settings, direction };
-        directionRef.current = direction;
+        const newSettings = { ...settings, direction: mode };
+        directionRef.current = mode;
         await updateVocabularySettings(newSettings);
 
-        const newReviewStore = vocabularyReviewStores[direction];
+        const newReviewStore = vocabularyReviewStores[mode];
         buildSession(allWords, newReviewStore, newSettings);
         setIsDirectionChanging(false);
       }
-      setModeSelected(true);
-    },
-    [
-      settings,
-      updateVocabularySettings,
-      vocabularyReviewStores,
-      allWords,
-      buildSession,
-    ]
-  );
-
-  const handleBackToModeSelector = useCallback(() => {
-    setModeSelected(false);
-    setPracticeMode(false);
-    setShowSettings(false);
-  }, []);
-
-  useBackClose(modeSelected, handleBackToModeSelector);
+    };
+    syncDirection();
+  }, [
+    mode,
+    contextLoading,
+    settings,
+    updateVocabularySettings,
+    vocabularyReviewStores,
+    allWords,
+    buildSession,
+  ]);
 
   const startPracticeAhead = useCallback(() => {
     const aheadCards = getVocabularyPracticeAheadCards(
@@ -517,10 +502,7 @@ export function VocabularyPage() {
 
   const isLoading = contextLoading || isDirectionChanging;
 
-  const currentModeName =
-    settings.direction === 'pl-to-en' ? 'Recognition' : 'Production';
-
-  if (!modeSelected) {
+  if (!mode) {
     return (
       <VocabularyModeSelector
         stats={modeStats}
@@ -533,14 +515,6 @@ export function VocabularyPage() {
   return (
     <>
       <ControlsRow direction="row" alignItems="center">
-        <BackButton onClick={handleBackToModeSelector} size="small">
-          <ArrowBack fontSize="small" />
-        </BackButton>
-
-        <ModeIndicator variant="body2">{currentModeName}</ModeIndicator>
-
-        <Box sx={{ flex: 1 }} />
-
         <PracticeModeButton
           active={practiceMode}
           onClick={togglePracticeMode}

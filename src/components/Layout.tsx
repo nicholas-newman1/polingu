@@ -220,6 +220,23 @@ const NAV_ITEMS: Array<{
   },
 ];
 
+const PAGE_TITLES: Record<string, string> = {
+  '/dashboard': 'Dashboard',
+  '/declension': 'Declension',
+  '/vocabulary': 'Vocabulary',
+  '/vocabulary/recognition': 'Recognition',
+  '/vocabulary/production': 'Production',
+  '/sentences': 'Sentences',
+  '/my-vocabulary': 'My Vocabulary',
+  '/my-declensions': 'My Declensions',
+  '/stats': 'Statistics',
+};
+
+const BACK_ROUTES: Record<string, string> = {
+  '/vocabulary/recognition': '/vocabulary',
+  '/vocabulary/production': '/vocabulary',
+};
+
 function DrawerContent({
   currentPath,
   onNavigate,
@@ -351,8 +368,13 @@ export function Layout() {
           <MenuButton onClick={() => setMobileDrawerOpen(true)} size="small">
             <Menu />
           </MenuButton>
-          <Box sx={{ flex: { xs: 1, md: 'none' } }}>
-            <Header user={user} onSignOut={handleSignOut} />
+          <Box sx={{ flex: 1 }}>
+            <Header
+              user={user}
+              onSignOut={handleSignOut}
+              pageTitle={PAGE_TITLES[location.pathname]}
+              backPath={BACK_ROUTES[location.pathname]}
+            />
           </Box>
         </HeaderRow>
 

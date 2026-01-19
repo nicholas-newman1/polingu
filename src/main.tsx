@@ -41,10 +41,17 @@ createRoot(document.getElementById('root')!).render(
                           path="/declension"
                           element={<DeclensionPage />}
                         />
-                        <Route
-                          path="/vocabulary"
-                          element={<VocabularyPage />}
-                        />
+                        <Route path="/vocabulary">
+                          <Route index element={<VocabularyPage />} />
+                          <Route
+                            path="recognition"
+                            element={<VocabularyPage mode="pl-to-en" />}
+                          />
+                          <Route
+                            path="production"
+                            element={<VocabularyPage mode="en-to-pl" />}
+                          />
+                        </Route>
                         <Route path="/sentences" element={<SentencesPage />} />
                         <Route
                           path="/my-vocabulary"
