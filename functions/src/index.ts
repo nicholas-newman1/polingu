@@ -97,6 +97,14 @@ function filterRecentRequests(recentRequests: number[]): number[] {
   return recentRequests.filter((ts) => ts > oneMinuteAgo);
 }
 
+function cleanTextForCacheKey(text: string): string {
+  return text
+    .split(/\s+/)
+    .map((word) => word.replace(/[.,!?;:"""''()]/g, '').toLowerCase())
+    .filter(Boolean)
+    .join(' ');
+}
+
 export const translate = onCall<TranslateRequest, Promise<TranslateResponse>>(
   { secrets: [deeplApiKey] },
   async (request) => {
@@ -197,12 +205,15 @@ export const translate = onCall<TranslateRequest, Promise<TranslateResponse>>(
       typeof declensionCardId === 'number' &&
       targetLang === 'EN'
     ) {
-      const cardRef = db
-        .collection('declensionCards')
-        .doc(String(declensionCardId));
-      await cardRef.update({
-        [`translations.${text.toLowerCase()}`]: translatedText,
-      });
+      const cacheKey = cleanTextForCacheKey(text);
+      if (cacheKey) {
+        const cardRef = db
+          .collection('declensionCards')
+          .doc(String(declensionCardId));
+        await cardRef.update({
+          [`translations.${cacheKey}`]: translatedText,
+        });
+      }
     }
 
     return {
