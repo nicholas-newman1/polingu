@@ -1,7 +1,7 @@
 import { setGlobalOptions } from 'firebase-functions';
 import { onCall, HttpsError } from 'firebase-functions/https';
 import { defineSecret } from 'firebase-functions/params';
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { getFirestore } from 'firebase-admin/firestore';
 import { initializeApp } from 'firebase-admin/app';
 import OpenAI from 'openai';
 
@@ -21,6 +21,7 @@ interface TranslateRequest {
   text: string;
   targetLang: 'EN' | 'PL';
   context?: string;
+  declensionCardId?: number;
 }
 
 interface TranslateResponse {
@@ -96,21 +97,6 @@ function filterRecentRequests(recentRequests: number[]): number[] {
   return recentRequests.filter((ts) => ts > oneMinuteAgo);
 }
 
-function hashContext(context: string): string {
-  let hash = 0;
-  for (let i = 0; i < context.length; i++) {
-    const char = context.charCodeAt(i);
-    hash = (hash << 5) - hash + char;
-    hash = hash & hash;
-  }
-  return Math.abs(hash).toString(36);
-}
-
-function getCacheKey(word: string, context?: string): string {
-  if (!context) return word;
-  return `${word}__${hashContext(context)}`;
-}
-
 export const translate = onCall<TranslateRequest, Promise<TranslateResponse>>(
   { secrets: [deeplApiKey] },
   async (request) => {
@@ -122,7 +108,7 @@ export const translate = onCall<TranslateRequest, Promise<TranslateResponse>>(
     }
 
     const userId = request.auth.uid;
-    const { text, targetLang, context } = request.data;
+    const { text, targetLang, context, declensionCardId } = request.data;
 
     if (!text || typeof text !== 'string') {
       throw new HttpsError('invalid-argument', 'Text is required.');
@@ -206,12 +192,16 @@ export const translate = onCall<TranslateRequest, Promise<TranslateResponse>>(
         recentRequests: [...filteredRequests, Date.now()],
       });
 
-    const isSingleWord = !text.includes(' ') && text.length <= 50;
-    if (isSingleWord && targetLang === 'EN') {
-      const cacheKey = getCacheKey(text.toLowerCase(), context);
-      await db.collection('wordTranslations').doc(cacheKey).set({
-        translation: translatedText,
-        createdAt: FieldValue.serverTimestamp(),
+    if (
+      declensionCardId &&
+      typeof declensionCardId === 'number' &&
+      targetLang === 'EN'
+    ) {
+      const cardRef = db
+        .collection('declensionCards')
+        .doc(String(declensionCardId));
+      await cardRef.update({
+        [`translations.${text.toLowerCase()}`]: translatedText,
       });
     }
 

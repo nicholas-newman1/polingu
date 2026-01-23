@@ -20,7 +20,10 @@ import type {
   DeclensionReviewDataStore,
   DeclensionSettings,
 } from '../types';
-import { updateDeclensionCard } from '../lib/storage/systemDeclension';
+import {
+  updateDeclensionCard,
+  updateDeclensionCardTranslation,
+} from '../lib/storage/systemDeclension';
 import { saveCustomDeclension } from '../lib/storage/customDeclension';
 import { includesDeclensionCardId } from '../lib/storage/helpers';
 import { generateCustomId } from '../types/customItems';
@@ -116,8 +119,10 @@ export function DeclensionPage() {
 
   const filteredCards = useMemo(() => {
     return allDeclensionCards.filter((card) => {
-      if (caseFilter.length > 0 && !caseFilter.includes(card.case)) return false;
-      if (genderFilter.length > 0 && !genderFilter.includes(card.gender)) return false;
+      if (caseFilter.length > 0 && !caseFilter.includes(card.case))
+        return false;
+      if (genderFilter.length > 0 && !genderFilter.includes(card.gender))
+        return false;
       if (numberFilter !== 'All' && card.number !== numberFilter) return false;
       return true;
     });
@@ -233,9 +238,15 @@ export function DeclensionPage() {
         setPracticeCards(
           shuffleArray(
             allDeclensionCards.filter((card) => {
-              if (newCaseFilter.length > 0 && !newCaseFilter.includes(card.case))
+              if (
+                newCaseFilter.length > 0 &&
+                !newCaseFilter.includes(card.case)
+              )
                 return false;
-              if (newGenderFilter.length > 0 && !newGenderFilter.includes(card.gender))
+              if (
+                newGenderFilter.length > 0 &&
+                !newGenderFilter.includes(card.gender)
+              )
                 return false;
               if (newNumberFilter !== 'All' && card.number !== newNumberFilter)
                 return false;
@@ -490,6 +501,51 @@ export function DeclensionPage() {
     setContextCustomDeclensionCards,
   ]);
 
+  const handleUpdateTranslation = useCallback(
+    async (cardId: DeclensionCard['id'], word: string, translation: string) => {
+      const card = allDeclensionCards.find((c) => c.id === cardId);
+      if (!card) return;
+
+      const updatedTranslations = { ...card.translations, [word]: translation };
+      const updatedCard = { ...card, translations: updatedTranslations };
+
+      updateCardInQueues(cardId, updatedCard);
+
+      if (card.isCustom) {
+        const newCustomCards = customDeclensionCards.map((c) =>
+          c.id === cardId ? { ...c, translations: updatedTranslations } : c
+        );
+
+        applyOptimisticCustomCards(newCustomCards, async () => {
+          await saveCustomDeclension(newCustomCards);
+          setContextCustomDeclensionCards(newCustomCards);
+        });
+      } else {
+        const newSystemCards = systemDeclensionCards.map((c) =>
+          c.id === cardId ? updatedCard : c
+        );
+
+        applyOptimisticSystemCards(newSystemCards, async () => {
+          await updateDeclensionCardTranslation(
+            cardId as number,
+            word,
+            translation
+          );
+          setContextSystemDeclensionCards(newSystemCards);
+        });
+      }
+    },
+    [
+      allDeclensionCards,
+      customDeclensionCards,
+      systemDeclensionCards,
+      applyOptimisticCustomCards,
+      applyOptimisticSystemCards,
+      setContextCustomDeclensionCards,
+      setContextSystemDeclensionCards,
+    ]
+  );
+
   const intervals: DeclensionRatingIntervals = useMemo(() => {
     if (!currentSessionCard) {
       return {
@@ -557,17 +613,26 @@ export function DeclensionPage() {
         <Typography
           variant="body2"
           color="text.disabled"
-          sx={{ mb: { xs: 3, sm: 4 }, textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}
+          sx={{
+            mb: { xs: 3, sm: 4 },
+            textAlign: 'center',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 1,
+          }}
         >
           {practiceMode ? (
             `Practice Mode · ${practiceCards.length} cards`
           ) : isFinished ? null : isPracticeAhead ? (
             <>
-              Practice Ahead · <ReviewCountBadge count={totalRemaining} /> remaining
+              Practice Ahead · <ReviewCountBadge count={totalRemaining} />{' '}
+              remaining
             </>
           ) : (
             <>
-              {reviewCount} reviews · {newCount} new · <ReviewCountBadge count={totalRemaining} /> remaining
+              {reviewCount} reviews · {newCount} new ·{' '}
+              <ReviewCountBadge count={totalRemaining} /> remaining
             </>
           )}
         </Typography>
@@ -580,6 +645,16 @@ export function DeclensionPage() {
               practiceMode
               isAdmin={isAdmin}
               onNext={handlePracticeNext}
+              onUpdateTranslation={
+                isAdmin
+                  ? (word, translation) =>
+                      handleUpdateTranslation(
+                        currentPracticeCard.id,
+                        word,
+                        translation
+                      )
+                  : undefined
+              }
             />
           ) : (
             <EmptyState message="No cards match your filters" />
@@ -602,6 +677,16 @@ export function DeclensionPage() {
             isAdmin={isAdmin}
             onRate={handleRate}
             onEdit={handleOpenEditModal}
+            onUpdateTranslation={
+              isAdmin
+                ? (word, translation) =>
+                    handleUpdateTranslation(
+                      currentSessionCard.card.id,
+                      word,
+                      translation
+                    )
+                : undefined
+            }
           />
         ) : null}
       </MainContent>

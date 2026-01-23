@@ -1,8 +1,10 @@
 import { TappableWord } from '../components/TappableWord';
 
 interface RenderTappableTextOptions {
-  translationCache: React.MutableRefObject<Map<string, string>>;
+  translations?: Record<string, string>;
+  declensionCardId?: number;
   onDailyLimitReached?: (resetTime: string) => void;
+  onUpdateTranslation?: (word: string, translation: string) => void;
   sentenceContext: string;
   isAdmin?: boolean;
 }
@@ -12,8 +14,14 @@ export function renderTappableText(
   options: RenderTappableTextOptions,
   highlightedWord?: string
 ) {
-  const { translationCache, onDailyLimitReached, sentenceContext, isAdmin } =
-    options;
+  const {
+    translations,
+    declensionCardId,
+    onDailyLimitReached,
+    onUpdateTranslation,
+    sentenceContext,
+    isAdmin,
+  } = options;
   const tokens = text.split(/(\s+)/);
 
   return tokens.map((token, index) => {
@@ -32,8 +40,10 @@ export function renderTappableText(
         word={token}
         sentenceContext={sentenceContext}
         isHighlighted={isHighlighted}
-        translationCache={translationCache}
+        translations={translations}
+        declensionCardId={declensionCardId}
         onDailyLimitReached={onDailyLimitReached}
+        onUpdateTranslation={onUpdateTranslation}
         isAdmin={isAdmin}
       />
     );

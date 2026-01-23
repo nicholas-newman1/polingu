@@ -10,3 +10,14 @@ export async function updateDeclensionCard(
   const docRef = doc(db, 'declensionCards', String(cardId));
   await updateDoc(docRef, undefinedToDeleteField(updates));
 }
+
+export async function updateDeclensionCardTranslation(
+  cardId: number,
+  word: string,
+  translation: string
+): Promise<void> {
+  const docRef = doc(db, 'declensionCards', String(cardId));
+  await updateDoc(docRef, {
+    [`translations.${word}`]: translation,
+  });
+}

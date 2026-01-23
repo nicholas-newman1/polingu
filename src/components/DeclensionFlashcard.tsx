@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { Rating, type Grade } from 'ts-fsrs';
 import {
   Box,
@@ -33,6 +33,7 @@ interface DeclensionFlashcardProps {
   onRate?: (rating: Grade) => void;
   onNext?: () => void;
   onEdit?: () => void;
+  onUpdateTranslation?: (word: string, translation: string) => void;
 }
 
 const CardWrapper = styled(Box)({
@@ -148,19 +149,30 @@ export function DeclensionFlashcard({
   onRate,
   onNext,
   onEdit,
+  onUpdateTranslation,
 }: DeclensionFlashcardProps) {
   const [revealed, setRevealed] = useState(false);
-  const translationCache = useRef<Map<string, string>>(new Map());
   const { handleDailyLimitReached } = useTranslationContext();
+
+  const declensionCardId = typeof card.id === 'number' ? card.id : undefined;
 
   const tappableTextOptions = useMemo(
     () => ({
-      translationCache,
+      translations: card.translations,
+      declensionCardId,
       onDailyLimitReached: handleDailyLimitReached,
+      onUpdateTranslation,
       sentenceContext: card.back,
       isAdmin,
     }),
-    [handleDailyLimitReached, card.back, isAdmin]
+    [
+      handleDailyLimitReached,
+      card.back,
+      card.translations,
+      declensionCardId,
+      onUpdateTranslation,
+      isAdmin,
+    ]
   );
 
   return (
@@ -292,4 +304,3 @@ export function DeclensionFlashcard({
     </CardWrapper>
   );
 }
-

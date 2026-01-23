@@ -7,6 +7,7 @@ interface TranslateRequest {
   text: string;
   targetLang: 'EN' | 'PL';
   context?: string;
+  declensionCardId?: number;
 }
 
 interface TranslateResponse {
@@ -53,10 +54,11 @@ const translateFn = httpsCallable<TranslateRequest, TranslateResponse>(
 export async function translate(
   text: string,
   targetLang: 'EN' | 'PL',
-  context?: string
+  context?: string,
+  declensionCardId?: number
 ): Promise<TranslationResult> {
   try {
-    const result = await translateFn({ text, targetLang, context });
+    const result = await translateFn({ text, targetLang, context, declensionCardId });
     return {
       translatedText: result.data.translatedText,
       charsUsedToday: result.data.charsUsedToday,

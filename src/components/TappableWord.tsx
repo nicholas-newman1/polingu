@@ -18,9 +18,6 @@ import {
   RateLimitMinuteError,
   RateLimitDailyError,
 } from '../lib/translate';
-import getCachedTranslation from '../lib/translationCache/getCachedTranslation';
-import getCacheKey from '../lib/translationCache/getCacheKey';
-import updateCachedTranslation from '../lib/translationCache/updateCachedTranslation';
 
 const TappableWordSpan = styled('span')(({ theme }) => ({
   cursor: 'pointer',
@@ -111,8 +108,10 @@ export interface TappableWordProps {
   word: string;
   sentenceContext?: string;
   isHighlighted?: boolean;
-  translationCache: React.MutableRefObject<Map<string, string>>;
+  translations?: Record<string, string>;
+  declensionCardId?: number;
   onDailyLimitReached?: (resetTime: string) => void;
+  onUpdateTranslation?: (word: string, translation: string) => void;
   isAdmin?: boolean;
 }
 
@@ -120,8 +119,10 @@ export function TappableWord({
   word,
   sentenceContext,
   isHighlighted,
-  translationCache,
+  translations,
+  declensionCardId,
   onDailyLimitReached,
+  onUpdateTranslation,
   isAdmin = false,
 }: TappableWordProps) {
   const [anchorEl, setAnchorEl] = useState<HTMLSpanElement | null>(null);
@@ -183,9 +184,7 @@ export function TappableWord({
 
     setIsSaving(true);
     try {
-      await updateCachedTranslation(cleanWord, editValue.trim(), sentenceContext);
-      const cacheKey = getCacheKey(cleanWord, sentenceContext);
-      translationCache.current.set(cacheKey, editValue.trim());
+      await onUpdateTranslation?.(cleanWord, editValue.trim());
       setTranslation(editValue.trim());
       setIsEditing(false);
     } catch {
@@ -221,11 +220,9 @@ export function TappableWord({
         return;
       }
 
-      const cacheKey = getCacheKey(cleanWord, sentenceContext);
-
-      const memoryCached = translationCache.current.get(cacheKey);
-      if (memoryCached) {
-        setTranslation(memoryCached);
+      const cachedTranslation = translations?.[cleanWord];
+      if (cachedTranslation) {
+        setTranslation(cachedTranslation);
         return;
       }
 
@@ -233,18 +230,12 @@ export function TappableWord({
       setTranslation(null);
 
       try {
-        const firestoreCached = await getCachedTranslation(
+        const result = await translate(
           cleanWord,
-          sentenceContext
+          'EN',
+          sentenceContext,
+          declensionCardId
         );
-        if (firestoreCached) {
-          translationCache.current.set(cacheKey, firestoreCached);
-          setTranslation(firestoreCached);
-          return;
-        }
-
-        const result = await translate(cleanWord, 'EN', sentenceContext);
-        translationCache.current.set(cacheKey, result.translatedText);
         setTranslation(result.translatedText);
       } catch (err) {
         if (err instanceof RateLimitMinuteError) {
@@ -259,7 +250,14 @@ export function TappableWord({
         setLoading(false);
       }
     },
-    [anchorEl, cleanWord, sentenceContext, translationCache, onDailyLimitReached]
+    [
+      anchorEl,
+      cleanWord,
+      sentenceContext,
+      translations,
+      declensionCardId,
+      onDailyLimitReached,
+    ]
   );
 
   const WordComponent = isHighlighted ? HighlightedWordSpan : TappableWordSpan;

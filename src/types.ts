@@ -26,6 +26,7 @@ export interface DeclensionCard {
   number: Number;
   hint?: string;
   isCustom?: boolean;
+  translations?: Record<string, string>;
 }
 
 export interface CustomDeclensionCard extends CustomItemBase {
@@ -36,6 +37,7 @@ export interface CustomDeclensionCard extends CustomItemBase {
   gender: Gender;
   number: Number;
   hint?: string;
+  translations?: Record<string, string>;
 }
 
 export interface DeclensionCardReviewData {
