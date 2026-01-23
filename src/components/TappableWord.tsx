@@ -132,13 +132,15 @@ export function TappableWord({
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isHovering, setIsHovering] = useState(false);
+  const [isClicked, setIsClicked] = useState(false);
   const popperRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const open = Boolean(anchorEl);
+  const open = isHovering || isClicked;
 
   useEffect(() => {
-    if (!open) return;
+    if (!isClicked) return;
 
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
@@ -148,14 +150,14 @@ export function TappableWord({
         anchorEl &&
         !anchorEl.contains(target)
       ) {
-        setAnchorEl(null);
+        setIsClicked(false);
         setIsEditing(false);
       }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [open, anchorEl]);
+  }, [isClicked, anchorEl]);
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -165,6 +167,51 @@ export function TappableWord({
   }, [isEditing]);
 
   const cleanWord = word.replace(/[.,!?;:"""''()]/g, '').toLowerCase();
+
+  const fetchTranslation = useCallback(async () => {
+    if (!cleanWord) return;
+
+    const cachedTranslation = translations?.[cleanWord];
+    if (cachedTranslation) {
+      setTranslation(cachedTranslation);
+      return;
+    }
+
+    if (translation || loading) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const result = await translate(
+        cleanWord,
+        'EN',
+        sentenceContext,
+        declensionCardId
+      );
+      setTranslation(result.translatedText);
+    } catch (err) {
+      if (err instanceof RateLimitMinuteError) {
+        setError('Too many requests');
+      } else if (err instanceof RateLimitDailyError) {
+        setIsHovering(false);
+        setIsClicked(false);
+        onDailyLimitReached?.(err.resetTime);
+      } else {
+        setError('Translation failed');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [
+    cleanWord,
+    sentenceContext,
+    translations,
+    declensionCardId,
+    onDailyLimitReached,
+    translation,
+    loading,
+  ]);
 
   const handleStartEdit = () => {
     setEditValue(translation || '');
@@ -203,68 +250,43 @@ export function TappableWord({
   };
 
   const handleClick = useCallback(
-    async (event: React.MouseEvent<HTMLSpanElement>) => {
-      const target = event.currentTarget;
-
-      if (anchorEl) {
-        setAnchorEl(null);
+    (event: React.MouseEvent<HTMLSpanElement>) => {
+      setAnchorEl(event.currentTarget);
+      if (isClicked) {
+        setIsClicked(false);
         setIsEditing(false);
-        return;
-      }
-
-      setAnchorEl(target);
-      setError(null);
-
-      if (!cleanWord) {
-        setAnchorEl(null);
-        return;
-      }
-
-      const cachedTranslation = translations?.[cleanWord];
-      if (cachedTranslation) {
-        setTranslation(cachedTranslation);
-        return;
-      }
-
-      setLoading(true);
-      setTranslation(null);
-
-      try {
-        const result = await translate(
-          cleanWord,
-          'EN',
-          sentenceContext,
-          declensionCardId
-        );
-        setTranslation(result.translatedText);
-      } catch (err) {
-        if (err instanceof RateLimitMinuteError) {
-          setError('Too many requests');
-        } else if (err instanceof RateLimitDailyError) {
-          setAnchorEl(null);
-          onDailyLimitReached?.(err.resetTime);
-        } else {
-          setError('Translation failed');
-        }
-      } finally {
-        setLoading(false);
+      } else {
+        setIsClicked(true);
+        fetchTranslation();
       }
     },
-    [
-      anchorEl,
-      cleanWord,
-      sentenceContext,
-      translations,
-      declensionCardId,
-      onDailyLimitReached,
-    ]
+    [isClicked, fetchTranslation]
   );
+
+  const handleMouseEnter = useCallback(
+    (event: React.MouseEvent<HTMLSpanElement>) => {
+      setAnchorEl(event.currentTarget);
+      setIsHovering(true);
+      fetchTranslation();
+    },
+    [fetchTranslation]
+  );
+
+  const handleMouseLeave = useCallback(() => {
+    setIsHovering(false);
+  }, []);
 
   const WordComponent = isHighlighted ? HighlightedWordSpan : TappableWordSpan;
 
   return (
     <>
-      <WordComponent onClick={handleClick}>{word}</WordComponent>
+      <WordComponent
+        onClick={handleClick}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      >
+        {word}
+      </WordComponent>
       <Popper
         open={open}
         anchorEl={anchorEl}
