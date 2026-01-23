@@ -139,9 +139,16 @@ export function TranslatableWord({
     setIsClicked,
     handleMouseEnter: baseHandleMouseEnter,
     handleMouseLeave,
+    close,
   } = useTooltipInteraction({
     onClose: () => setIsEditing(false),
   });
+
+  useEffect(() => {
+    if (isDragging) {
+      close();
+    }
+  }, [isDragging, close]);
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
