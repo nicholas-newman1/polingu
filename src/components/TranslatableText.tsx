@@ -17,12 +17,26 @@ const TextContainer = styled(Box)({
 
 interface PhraseTooltipProps {
   sentenceContext?: string;
+  translations?: Record<string, string>;
+  declensionCardId?: number;
   onDailyLimitReached?: (resetTime: string) => void;
+  onUpdateTranslation?: (phrase: string, translation: string) => void;
+}
+
+function cleanPhrase(phrase: string): string {
+  return phrase
+    .split(/\s+/)
+    .map((word) => word.replace(/[.,!?;:"""''()]/g, '').toLowerCase())
+    .filter(Boolean)
+    .join(' ');
 }
 
 function PhraseTooltip({
   sentenceContext,
+  translations,
+  declensionCardId,
   onDailyLimitReached,
+  onUpdateTranslation,
 }: PhraseTooltipProps) {
   const context = useTranslatableText();
   const [translation, setTranslation] = useState<string | null>(null);
@@ -41,12 +55,25 @@ function PhraseTooltip({
       return;
     }
 
+    const cacheKey = cleanPhrase(selectedPhrase);
+    const cachedTranslation = translations?.[cacheKey];
+    if (cachedTranslation) {
+      setTranslation(cachedTranslation);
+      return;
+    }
+
     const fetchTranslation = async () => {
       setLoading(true);
       setError(null);
       try {
-        const result = await translate(selectedPhrase, 'EN', sentenceContext);
+        const result = await translate(
+          selectedPhrase,
+          'EN',
+          sentenceContext,
+          declensionCardId
+        );
         setTranslation(result.translatedText);
+        onUpdateTranslation?.(cacheKey, result.translatedText);
       } catch (err) {
         if (err instanceof RateLimitMinuteError) {
           setError('Too many requests');
@@ -65,7 +92,10 @@ function PhraseTooltip({
   }, [
     selectedPhrase,
     sentenceContext,
+    translations,
+    declensionCardId,
     onDailyLimitReached,
+    onUpdateTranslation,
     closePhraseTooltip,
   ]);
 
@@ -150,20 +180,29 @@ function TranslatableTextInner({ children }: TranslatableTextInnerProps) {
 export interface TranslatableTextProps {
   children: React.ReactNode;
   sentenceContext?: string;
+  translations?: Record<string, string>;
+  declensionCardId?: number;
   onDailyLimitReached?: (resetTime: string) => void;
+  onUpdateTranslation?: (phrase: string, translation: string) => void;
 }
 
 export function TranslatableText({
   children,
   sentenceContext,
+  translations,
+  declensionCardId,
   onDailyLimitReached,
+  onUpdateTranslation,
 }: TranslatableTextProps) {
   return (
     <TranslatableTextProvider>
       <TranslatableTextInner>{children}</TranslatableTextInner>
       <PhraseTooltip
         sentenceContext={sentenceContext}
+        translations={translations}
+        declensionCardId={declensionCardId}
         onDailyLimitReached={onDailyLimitReached}
+        onUpdateTranslation={onUpdateTranslation}
       />
     </TranslatableTextProvider>
   );

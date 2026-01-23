@@ -57,7 +57,10 @@ export function renderTappableText(
   return (
     <TranslatableText
       sentenceContext={sentenceContext}
+      translations={translations}
+      declensionCardId={declensionCardId}
       onDailyLimitReached={onDailyLimitReached}
+      onUpdateTranslation={onUpdateTranslation}
     >
       {elements}
     </TranslatableText>
