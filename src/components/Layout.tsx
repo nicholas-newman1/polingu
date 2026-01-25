@@ -24,6 +24,7 @@ import {
   Abc,
   Home,
   Check,
+  AutoAwesome,
 } from '@mui/icons-material';
 import { useReviewData } from '../hooks/useReviewData';
 import { useBackClose } from '../hooks/useBackClose';
@@ -192,6 +193,7 @@ const NAV_ITEMS: Array<{
   label: string;
   description: string;
   reviewCountKey?: keyof ReviewCounts;
+  adminOnly?: boolean;
 }> = [
   {
     path: '/dashboard',
@@ -220,6 +222,13 @@ const NAV_ITEMS: Array<{
     description: 'Translate full sentences',
     reviewCountKey: 'sentences',
   },
+  {
+    path: '/admin/generator',
+    icon: AutoAwesome,
+    label: 'Generator',
+    description: 'AI sentence generator',
+    adminOnly: true,
+  },
 ];
 
 const PAGE_TITLES: Record<string, string> = {
@@ -234,6 +243,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/my-vocabulary': 'My Vocabulary',
   '/my-declensions': 'My Declensions',
   '/stats': 'Statistics',
+  '/admin/generator': 'Sentence Generator',
 };
 
 const BACK_ROUTES: Record<string, string> = {
@@ -250,6 +260,7 @@ function DrawerContent({
   showCloseButton,
   reviewCounts,
   loading,
+  isAdmin,
 }: {
   currentPath: string;
   onNavigate: (path: string) => void;
@@ -257,8 +268,10 @@ function DrawerContent({
   showCloseButton: boolean;
   reviewCounts: ReviewCounts;
   loading: boolean;
+  isAdmin: boolean;
 }) {
   const isActive = (path: string) => currentPath === path;
+  const visibleItems = NAV_ITEMS.filter((item) => !item.adminOnly || isAdmin);
 
   return (
     <>
@@ -277,7 +290,7 @@ function DrawerContent({
       </DrawerHeader>
 
       <List sx={{ pt: 2 }}>
-        {NAV_ITEMS.map((item) => {
+        {visibleItems.map((item) => {
           const active = isActive(item.path);
           const reviewCount = item.reviewCountKey
             ? reviewCounts[item.reviewCountKey]
@@ -302,7 +315,7 @@ function DrawerContent({
 }
 
 export function Layout() {
-  const { user, signOut } = useAuthContext();
+  const { user, signOut, isAdmin } = useAuthContext();
   const { counts, loading: countsLoading } = useReviewData();
   const location = useLocation();
   const navigate = useNavigate();
@@ -344,6 +357,7 @@ export function Layout() {
             showCloseButton={false}
             reviewCounts={counts}
             loading={countsLoading}
+            isAdmin={isAdmin}
           />
         </Drawer>
       ) : (
@@ -368,6 +382,7 @@ export function Layout() {
             showCloseButton={true}
             reviewCounts={counts}
             loading={countsLoading}
+            isAdmin={isAdmin}
           />
         </SwipeableDrawer>
       )}

@@ -56,15 +56,19 @@ const StyledCard = styled(Card)(({ theme }) => ({
   },
 }));
 
-const QuestionText = styled(Typography)({
+const QuestionText = styled(Box)(({ theme }) => ({
   fontWeight: 300,
   lineHeight: 1.5,
   flex: 1,
-});
+  ...theme.typography.h5,
+  color: theme.palette.text.primary,
+}));
 
-const AnswerText = styled(Typography)({
+const AnswerText = styled(Box)(({ theme }) => ({
   fontWeight: 500,
-});
+  ...theme.typography.h4,
+  color: theme.palette.text.primary,
+}));
 
 const MetaChip = styled(Chip)(({ theme }) => ({
   backgroundColor: theme.palette.background.default,
@@ -189,7 +193,7 @@ export function DeclensionFlashcard({
               )}
             </CardHeader>
           )}
-          <QuestionText variant="h5" color="text.primary">
+          <QuestionText>
             {renderTappableText(card.front, tappableTextOptions)}
           </QuestionText>
 
@@ -197,7 +201,7 @@ export function DeclensionFlashcard({
             <Box className="animate-fade-up">
               <Divider sx={{ my: { xs: 2.5, sm: 3 } }} />
 
-              <AnswerText variant="h4" color="text.primary" sx={{ mb: 2 }}>
+              <AnswerText sx={{ mb: 2 }}>
                 {renderTappableText(
                   card.back,
                   tappableTextOptions,

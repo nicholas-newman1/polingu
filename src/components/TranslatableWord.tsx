@@ -93,6 +93,7 @@ export interface TranslatableWordProps {
   isHighlighted?: boolean;
   translations?: Record<string, string>;
   declensionCardId?: number;
+  sentenceId?: string;
   onDailyLimitReached?: (resetTime: string) => void;
   onUpdateTranslation?: (word: string, translation: string) => void;
   isAdmin?: boolean;
@@ -105,6 +106,7 @@ export function TranslatableWord({
   isHighlighted,
   translations,
   declensionCardId,
+  sentenceId,
   onDailyLimitReached,
   onUpdateTranslation,
   isAdmin = false,
@@ -178,7 +180,8 @@ export function TranslatableWord({
         cleanWord,
         'EN',
         sentenceContext,
-        declensionCardId
+        declensionCardId,
+        sentenceId
       );
       setTranslation(result.translatedText);
     } catch (err) {
@@ -198,6 +201,7 @@ export function TranslatableWord({
     sentenceContext,
     translations,
     declensionCardId,
+    sentenceId,
     onDailyLimitReached,
     translation,
     loading,

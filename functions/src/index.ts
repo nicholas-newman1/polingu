@@ -17,11 +17,25 @@ const MAX_TEXT_LENGTH = 500;
 const MAX_REQUESTS_PER_MINUTE = 30;
 const MAX_CHARS_PER_DAY = 1500;
 
+function stripMarkdownCodeFences(content: string): string {
+  let result = content.trim();
+  if (result.startsWith('```json')) {
+    result = result.slice(7);
+  } else if (result.startsWith('```')) {
+    result = result.slice(3);
+  }
+  if (result.endsWith('```')) {
+    result = result.slice(0, -3);
+  }
+  return result.trim();
+}
+
 interface TranslateRequest {
   text: string;
   targetLang: 'EN' | 'PL';
   context?: string;
   declensionCardId?: number;
+  sentenceId?: string;
 }
 
 interface TranslateResponse {
@@ -116,7 +130,7 @@ export const translate = onCall<TranslateRequest, Promise<TranslateResponse>>(
     }
 
     const userId = request.auth.uid;
-    const { text, targetLang, context, declensionCardId } = request.data;
+    const { text, targetLang, context, declensionCardId, sentenceId } = request.data;
 
     if (!text || typeof text !== 'string') {
       throw new HttpsError('invalid-argument', 'Text is required.');
@@ -211,6 +225,16 @@ export const translate = onCall<TranslateRequest, Promise<TranslateResponse>>(
           .collection('declensionCards')
           .doc(String(declensionCardId));
         await cardRef.update({
+          [`translations.${cacheKey}`]: translatedText,
+        });
+      }
+    }
+
+    if (sentenceId && typeof sentenceId === 'string' && targetLang === 'EN') {
+      const cacheKey = cleanTextForCacheKey(text);
+      if (cacheKey) {
+        const sentenceRef = db.collection('sentences').doc(sentenceId);
+        await sentenceRef.update({
           [`translations.${cacheKey}`]: translatedText,
         });
       }
@@ -325,7 +349,8 @@ The "meaning" field is optional - only include it when distinguishing between di
   }
 
   try {
-    const parsed = JSON.parse(content) as GenerateExampleResponse;
+    const cleaned = stripMarkdownCodeFences(content);
+    const parsed = JSON.parse(cleaned) as GenerateExampleResponse;
     if (
       !parsed.examples ||
       !Array.isArray(parsed.examples) ||
@@ -337,6 +362,249 @@ The "meaning" field is optional - only include it when distinguishing between di
       if (!ex.polish || !ex.english) {
         throw new Error('Invalid example structure');
       }
+    }
+    return parsed;
+  } catch {
+    console.error('Failed to parse AI response:', content);
+    throw new HttpsError('internal', 'Failed to parse AI response.');
+  }
+});
+
+type CEFRLevel = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
+
+interface GeneratedSentence {
+  polish: string;
+  english: string;
+  level: CEFRLevel;
+  tags: string[];
+}
+
+interface GenerateSentencesRequest {
+  level: CEFRLevel;
+  tags: string[];
+  count: number;
+  guidance?: string;
+}
+
+interface GenerateSentencesResponse {
+  sentences: GeneratedSentence[];
+}
+
+const SENTENCE_SYSTEM_PROMPT = `You are a Polish language expert creating sentences for a language learning app.
+
+Your task: Generate natural Polish sentences with their English translations.
+
+REQUIREMENTS:
+1. Generate sentences appropriate for the specified CEFR level
+2. Use natural, everyday Polish that native speakers would actually say
+3. Provide accurate English translations
+
+Respond with ONLY valid JSON (no markdown):
+{ "sentences": [{ "polish": "...", "english": "...", "level": "...", "tags": [...] }, ...] }`;
+
+export const generateSentences = onCall<
+  GenerateSentencesRequest,
+  Promise<GenerateSentencesResponse>
+>({ secrets: [openaiApiKey] }, async (request) => {
+  if (!request.auth?.token.admin) {
+    throw new HttpsError('permission-denied', 'Admin access required.');
+  }
+
+  const { level, tags, count, guidance } = request.data;
+
+  if (!level || !['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].includes(level)) {
+    throw new HttpsError('invalid-argument', 'Valid CEFR level required.');
+  }
+
+  if (!Array.isArray(tags)) {
+    throw new HttpsError('invalid-argument', 'Tags must be an array.');
+  }
+
+  const apiKey = openaiApiKey.value();
+  if (!apiKey) {
+    throw new HttpsError(
+      'failed-precondition',
+      'AI service is not configured.'
+    );
+  }
+
+  const openai = new OpenAI({ apiKey });
+
+  const variationSeed = Math.random().toString(36).slice(2, 10);
+  const userPrompt = [
+    `Generate ${count} Polish sentence(s) at CEFR level ${level}.`,
+    tags.length > 0 ? `Topics/themes to include: ${tags.join(', ')}` : '',
+    guidance ? `Additional guidance: ${guidance}` : '',
+    `[variation: ${variationSeed}]`,
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  const completion = await openai.chat.completions.create({
+    model: 'gpt-4o',
+    messages: [
+      { role: 'system', content: SENTENCE_SYSTEM_PROMPT },
+      { role: 'user', content: userPrompt },
+    ],
+    temperature: 0.8,
+    max_tokens: 2000,
+  });
+
+  const content = completion.choices[0]?.message?.content;
+  if (!content) {
+    throw new HttpsError('internal', 'No response from AI.');
+  }
+
+  try {
+    const cleaned = stripMarkdownCodeFences(content);
+    const parsed = JSON.parse(cleaned) as GenerateSentencesResponse;
+    if (!parsed.sentences || !Array.isArray(parsed.sentences)) {
+      throw new Error('Invalid response structure');
+    }
+
+    for (const sentence of parsed.sentences) {
+      if (!sentence.polish || !sentence.english) {
+        throw new Error('Invalid sentence structure');
+      }
+      sentence.level = level;
+      sentence.tags = tags;
+    }
+
+    return parsed;
+  } catch {
+    console.error('Failed to parse AI response:', content);
+    throw new HttpsError('internal', 'Failed to parse AI response.');
+  }
+});
+
+interface CurriculumDiscoveryRequest {
+  mode: 'grammar' | 'topics' | 'polish-specific' | 'freeform';
+  level?: CEFRLevel;
+  freeformQuestion?: string;
+  existingTags: {
+    topics: string[];
+    grammar: string[];
+    style: string[];
+  };
+}
+
+interface CurriculumSuggestion {
+  tag: string;
+  category: 'topics' | 'grammar' | 'style';
+  priority: 'high' | 'medium' | 'low';
+  explanation: string;
+  exampleConcepts: string[];
+  relevantLevels: CEFRLevel[];
+}
+
+interface CurriculumDiscoveryResponse {
+  suggestions: CurriculumSuggestion[];
+}
+
+const CURRICULUM_SYSTEM_PROMPT = `You are a Polish language curriculum expert helping design a comprehensive learning app.
+
+Your task: Identify MISSING grammar concepts, topics, or themes that should be added to the curriculum.
+
+The app teaches Polish through sentences with word-by-word annotations. Each sentence is tagged with:
+- Topics (e.g., food, travel, health)
+- Grammar concepts (e.g., conditional, past tense, subjunctive)
+- Style (e.g., formal, informal, advice)
+
+POLISH-SPECIFIC CONCEPTS TO CONSIDER:
+1. Verbal aspect (perfective vs imperfective) - FUNDAMENTAL to Polish
+2. Verb prefixes and their meanings (na-, za-, wy-, przy-, po-, etc.)
+3. Motion verbs (determinate/indeterminate: iść/chodzić, jechać/jeździć)
+4. Reflexive verbs (się constructions)
+5. Impersonal constructions (trzeba, można, wolno)
+6. Numeral declension (complex agreement patterns)
+7. Diminutives and augmentatives
+8. Participles (present active, past passive, etc.)
+9. Verbal nouns (-nie/-cie endings)
+10. Case usage after specific verbs/prepositions
+
+When suggesting new tags:
+- Explain WHY this concept is important for learners
+- Specify which CEFR levels need this concept
+- Give concrete examples of what sentences would cover
+
+Respond with ONLY valid JSON (no markdown):
+{ "suggestions": [{ "tag": "...", "category": "grammar|topics|style", "priority": "high|medium|low", "explanation": "...", "exampleConcepts": [...], "relevantLevels": [...] }, ...] }`;
+
+export const discoverCurriculum = onCall<
+  CurriculumDiscoveryRequest,
+  Promise<CurriculumDiscoveryResponse>
+>({ secrets: [openaiApiKey] }, async (request) => {
+  if (!request.auth?.token.admin) {
+    throw new HttpsError('permission-denied', 'Admin access required.');
+  }
+
+  const { mode, level, freeformQuestion, existingTags } = request.data;
+
+  if (!existingTags) {
+    throw new HttpsError('invalid-argument', 'Existing tags required.');
+  }
+
+  const apiKey = openaiApiKey.value();
+  if (!apiKey) {
+    throw new HttpsError(
+      'failed-precondition',
+      'AI service is not configured.'
+    );
+  }
+
+  const openai = new OpenAI({ apiKey });
+
+  let userPrompt: string;
+
+  if (mode === 'freeform' && freeformQuestion) {
+    userPrompt = `Question: ${freeformQuestion}
+
+Current curriculum tags:
+- Topics: ${existingTags.topics.join(', ') || 'none'}
+- Grammar: ${existingTags.grammar.join(', ') || 'none'}
+- Style: ${existingTags.style.join(', ') || 'none'}
+
+Based on the question, suggest new tags that should be added to the curriculum.`;
+  } else {
+    const modeDescriptions: Record<string, string> = {
+      grammar: 'What Polish GRAMMAR concepts are missing from this curriculum?',
+      topics: 'What everyday TOPICS or situations should be added?',
+      'polish-specific':
+        'What POLISH-SPECIFIC linguistic features (aspect, motion verbs, etc.) are missing?',
+    };
+
+    userPrompt = `${modeDescriptions[mode] || modeDescriptions.grammar}
+
+${level ? `Focus on CEFR level: ${level}` : 'Consider all CEFR levels.'}
+
+Current curriculum tags:
+- Topics: ${existingTags.topics.join(', ') || 'none'}
+- Grammar: ${existingTags.grammar.join(', ') || 'none'}
+- Style: ${existingTags.style.join(', ') || 'none'}
+
+Suggest 3-5 high-value additions that are currently MISSING.`;
+  }
+
+  const completion = await openai.chat.completions.create({
+    model: 'gpt-4o',
+    messages: [
+      { role: 'system', content: CURRICULUM_SYSTEM_PROMPT },
+      { role: 'user', content: userPrompt },
+    ],
+    temperature: 0.7,
+    max_tokens: 2000,
+  });
+
+  const content = completion.choices[0]?.message?.content;
+  if (!content) {
+    throw new HttpsError('internal', 'No response from AI.');
+  }
+
+  try {
+    const cleaned = stripMarkdownCodeFences(content);
+    const parsed = JSON.parse(cleaned) as CurriculumDiscoveryResponse;
+    if (!parsed.suggestions || !Array.isArray(parsed.suggestions)) {
+      throw new Error('Invalid response structure');
     }
     return parsed;
   } catch {

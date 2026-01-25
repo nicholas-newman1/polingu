@@ -1,4 +1,5 @@
 import { db } from './firebase-admin.js';
+import { FieldValue } from 'firebase-admin/firestore';
 import { readFileSync, writeFileSync, existsSync, unlinkSync } from 'fs';
 import { resolve, basename } from 'path';
 import type { DeclensionCard, DeclensionCardIndex } from './types.js';
@@ -107,7 +108,7 @@ async function importCards(filePath: string) {
 
     for (const card of chunk) {
       const docRef = db.collection('declensionCards').doc(String(card.id));
-      batch.set(docRef, card);
+      batch.set(docRef, { ...card, createdAt: FieldValue.serverTimestamp() });
     }
 
     await batch.commit();

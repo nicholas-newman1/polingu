@@ -8,6 +8,7 @@ interface TranslateRequest {
   targetLang: 'EN' | 'PL';
   context?: string;
   declensionCardId?: number;
+  sentenceId?: string;
 }
 
 interface TranslateResponse {
@@ -55,10 +56,11 @@ export async function translate(
   text: string,
   targetLang: 'EN' | 'PL',
   context?: string,
-  declensionCardId?: number
+  declensionCardId?: number,
+  sentenceId?: string
 ): Promise<TranslationResult> {
   try {
-    const result = await translateFn({ text, targetLang, context, declensionCardId });
+    const result = await translateFn({ text, targetLang, context, declensionCardId, sentenceId });
     return {
       translatedText: result.data.translatedText,
       charsUsedToday: result.data.charsUsedToday,

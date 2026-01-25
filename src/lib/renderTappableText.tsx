@@ -4,6 +4,7 @@ import { TranslatableText } from '../components/TranslatableText';
 interface RenderTappableTextOptions {
   translations?: Record<string, string>;
   declensionCardId?: number;
+  sentenceId?: string;
   onDailyLimitReached?: (resetTime: string) => void;
   onUpdateTranslation?: (word: string, translation: string) => void;
   sentenceContext: string;
@@ -18,6 +19,7 @@ export function renderTappableText(
   const {
     translations,
     declensionCardId,
+    sentenceId,
     onDailyLimitReached,
     onUpdateTranslation,
     sentenceContext,
@@ -47,6 +49,7 @@ export function renderTappableText(
         isHighlighted={isHighlighted}
         translations={translations}
         declensionCardId={declensionCardId}
+        sentenceId={sentenceId}
         onDailyLimitReached={onDailyLimitReached}
         onUpdateTranslation={onUpdateTranslation}
         isAdmin={isAdmin}
@@ -59,6 +62,7 @@ export function renderTappableText(
       sentenceContext={sentenceContext}
       translations={translations}
       declensionCardId={declensionCardId}
+      sentenceId={sentenceId}
       onDailyLimitReached={onDailyLimitReached}
       onUpdateTranslation={onUpdateTranslation}
     >

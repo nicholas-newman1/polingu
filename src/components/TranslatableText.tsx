@@ -19,6 +19,7 @@ interface PhraseTooltipProps {
   sentenceContext?: string;
   translations?: Record<string, string>;
   declensionCardId?: number;
+  sentenceId?: string;
   onDailyLimitReached?: (resetTime: string) => void;
   onUpdateTranslation?: (phrase: string, translation: string) => void;
 }
@@ -35,6 +36,7 @@ function PhraseTooltip({
   sentenceContext,
   translations,
   declensionCardId,
+  sentenceId,
   onDailyLimitReached,
   onUpdateTranslation,
 }: PhraseTooltipProps) {
@@ -70,7 +72,8 @@ function PhraseTooltip({
           selectedPhrase,
           'EN',
           sentenceContext,
-          declensionCardId
+          declensionCardId,
+          sentenceId
         );
         setTranslation(result.translatedText);
         onUpdateTranslation?.(cacheKey, result.translatedText);
@@ -94,6 +97,7 @@ function PhraseTooltip({
     sentenceContext,
     translations,
     declensionCardId,
+    sentenceId,
     onDailyLimitReached,
     onUpdateTranslation,
     closePhraseTooltip,
@@ -182,6 +186,7 @@ export interface TranslatableTextProps {
   sentenceContext?: string;
   translations?: Record<string, string>;
   declensionCardId?: number;
+  sentenceId?: string;
   onDailyLimitReached?: (resetTime: string) => void;
   onUpdateTranslation?: (phrase: string, translation: string) => void;
 }
@@ -191,6 +196,7 @@ export function TranslatableText({
   sentenceContext,
   translations,
   declensionCardId,
+  sentenceId,
   onDailyLimitReached,
   onUpdateTranslation,
 }: TranslatableTextProps) {
@@ -201,6 +207,7 @@ export function TranslatableText({
         sentenceContext={sentenceContext}
         translations={translations}
         declensionCardId={declensionCardId}
+        sentenceId={sentenceId}
         onDailyLimitReached={onDailyLimitReached}
         onUpdateTranslation={onUpdateTranslation}
       />

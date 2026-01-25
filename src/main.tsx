@@ -21,6 +21,7 @@ import { VocabularyPage } from './pages/VocabularyPage';
 import { CustomVocabularyPage } from './pages/CustomVocabularyPage';
 import { CustomDeclensionPage } from './pages/CustomDeclensionPage';
 import { StatsPage } from './pages/StatsPage';
+import { SentenceGeneratorPage } from './pages/SentenceGeneratorPage';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -72,6 +73,10 @@ createRoot(document.getElementById('root')!).render(
                           element={<CustomDeclensionPage />}
                         />
                         <Route path="/stats" element={<StatsPage />} />
+                        <Route
+                          path="/admin/generator"
+                          element={<SentenceGeneratorPage />}
+                        />
                       </Route>
                       <Route
                         path="*"

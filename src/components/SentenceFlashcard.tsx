@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Rating, type Grade } from 'ts-fsrs';
 import { Box, Button, Chip, Divider, IconButton, Stack, Typography } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { styled } from '../lib/styled';
-import { AnnotatedWord } from './AnnotatedWord';
+import { renderTappableText } from '../lib/renderTappableText';
 import type { Sentence, SentenceDirection, CEFRLevel } from '../types/sentences';
 import { alpha } from '../lib/theme';
 
@@ -21,10 +21,13 @@ interface SentenceFlashcardProps {
   practiceMode?: boolean;
   intervals?: RatingIntervals;
   canEdit?: boolean;
+  isAdmin?: boolean;
   onRate?: (rating: Grade) => void;
   onNext?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
+  onDailyLimitReached?: (resetTime: string) => void;
+  onUpdateTranslation?: (word: string, translation: string) => void;
 }
 
 const CardWrapper = styled(Box)({
@@ -70,19 +73,21 @@ const TagChip = styled(Chip)(({ theme }) => ({
   color: theme.palette.text.secondary,
 }));
 
-const SentenceText = styled(Typography)(({ theme }) => ({
+const SentenceText = styled(Box)(({ theme }) => ({
   fontSize: '1.35rem',
   lineHeight: 1.6,
   fontWeight: 400,
+  color: theme.palette.text.primary,
   [theme.breakpoints.down('sm')]: {
     fontSize: '1.15rem',
   },
 }));
 
-const AnswerText = styled(Typography)(({ theme }) => ({
+const AnswerText = styled(Box)(({ theme }) => ({
   fontSize: '1.25rem',
   lineHeight: 1.5,
   fontWeight: 500,
+  color: theme.palette.text.primary,
   [theme.breakpoints.down('sm')]: {
     fontSize: '1.1rem',
   },
@@ -158,85 +163,19 @@ const DeleteButton = styled(ActionButton)(({ theme }) => ({
   },
 }));
 
-function renderPolishSentenceWithTappableWords(sentence: Sentence) {
-  const polishText = sentence.polish;
-  const words = sentence.words;
-  const result: React.ReactNode[] = [];
-
-  let lastIndex = 0;
-  words.forEach((wordAnnotation, idx) => {
-    const wordIndex = polishText.indexOf(wordAnnotation.word, lastIndex);
-    if (wordIndex > lastIndex) {
-      result.push(polishText.slice(lastIndex, wordIndex));
-    }
-    result.push(<AnnotatedWord key={idx} annotation={wordAnnotation} />);
-    lastIndex = wordIndex + wordAnnotation.word.length;
-  });
-
-  if (lastIndex < polishText.length) {
-    result.push(polishText.slice(lastIndex));
-  }
-
-  return result;
-}
-
-function renderEnglishSentenceWithTappableWords(sentence: Sentence) {
-  const englishText = sentence.english;
-  const words = sentence.words;
-
-  const wordPattern = /[\w']+|[^\w\s]+|\s+/g;
-  const tokens = englishText.match(wordPattern) || [];
-
-  const annotationMap = new Map<
-    string,
-    { annotation: (typeof words)[0]; used: boolean }[]
-  >();
-  words.forEach((wordAnnotation) => {
-    const englishWords = wordAnnotation.english.toLowerCase().split(/[\s/]+/);
-    englishWords.forEach((engWord) => {
-      const normalized = engWord.replace(/[^\w']/g, '');
-      if (normalized) {
-        if (!annotationMap.has(normalized)) {
-          annotationMap.set(normalized, []);
-        }
-        annotationMap
-          .get(normalized)!
-          .push({ annotation: wordAnnotation, used: false });
-      }
-    });
-  });
-
-  return tokens.map((token, idx) => {
-    const normalized = token.toLowerCase().replace(/[^\w']/g, '');
-    const entries = annotationMap.get(normalized);
-    if (entries) {
-      const unusedEntry = entries.find((e) => !e.used);
-      if (unusedEntry) {
-        unusedEntry.used = true;
-        return (
-          <AnnotatedWord
-            key={idx}
-            annotation={unusedEntry.annotation}
-            displayWord={token}
-            mode="en-to-pl"
-          />
-        );
-      }
-    }
-    return <span key={idx}>{token}</span>;
-  });
-}
-
 export function SentenceFlashcard({
   sentence,
   direction,
   practiceMode = false,
   intervals,
   canEdit = false,
+  isAdmin = false,
   onRate,
   onNext,
   onEdit,
   onDelete,
+  onDailyLimitReached,
+  onUpdateTranslation,
 }: SentenceFlashcardProps) {
   const [revealed, setRevealed] = useState(false);
 
@@ -245,13 +184,32 @@ export function SentenceFlashcard({
     ? 'Polish → English'
     : 'English → Polish';
 
+  const tappableTextOptions = useMemo(
+    () => ({
+      translations: sentence.translations,
+      sentenceId: sentence.id,
+      onDailyLimitReached,
+      onUpdateTranslation,
+      sentenceContext: sentence.polish,
+      isAdmin,
+    }),
+    [
+      sentence.translations,
+      sentence.id,
+      sentence.polish,
+      onDailyLimitReached,
+      onUpdateTranslation,
+      isAdmin,
+    ]
+  );
+
   const questionContent = isPolishToEnglish
-    ? renderPolishSentenceWithTappableWords(sentence)
-    : renderEnglishSentenceWithTappableWords(sentence);
+    ? renderTappableText(sentence.polish, tappableTextOptions)
+    : sentence.english;
 
   const answerContent = isPolishToEnglish
     ? sentence.english
-    : renderPolishSentenceWithTappableWords(sentence);
+    : renderTappableText(sentence.polish, tappableTextOptions);
 
   const handleDelete = () => {
     if (window.confirm('Are you sure you want to delete this sentence?')) {
@@ -287,7 +245,7 @@ export function SentenceFlashcard({
             <LevelChip $level={sentence.level} label={sentence.level} />
           </Box>
 
-          <SentenceText color="text.primary" sx={{ mb: 2 }}>
+          <SentenceText sx={{ mb: 2 }}>
             {questionContent}
           </SentenceText>
 
@@ -295,7 +253,7 @@ export function SentenceFlashcard({
             <Box className="animate-fade-up">
               <Divider sx={{ my: { xs: 2, sm: 2.5 } }} />
 
-              <AnswerText color="text.primary" sx={{ mb: 2 }}>
+              <AnswerText sx={{ mb: 2 }}>
                 {answerContent}
               </AnswerText>
 

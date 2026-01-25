@@ -1,4 +1,4 @@
-import { useForm, Controller, useFieldArray } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import {
   Dialog,
   DialogTitle,
@@ -12,17 +12,14 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  Typography,
-  Divider,
   Stack,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
-import DeleteIcon from '@mui/icons-material/Delete';
-import AddIcon from '@mui/icons-material/Add';
 import { styled } from '../lib/styled';
 import { useBackClose } from '../hooks/useBackClose';
-import type { Sentence, CEFRLevel, WordAnnotation } from '../types/sentences';
-import { ALL_LEVELS, TAG_CATEGORIES } from '../types/sentences';
+import { useReviewData } from '../hooks/useReviewData';
+import type { Sentence, CEFRLevel } from '../types/sentences';
+import { ALL_LEVELS } from '../types/sentences';
 
 const StyledDialog = styled(Dialog)(({ theme }) => ({
   '& .MuiDialog-paper': {
@@ -59,33 +56,11 @@ const RightActions = styled(Box)({
   gap: 8,
 });
 
-const WordCard = styled(Box)(({ theme }) => ({
-  padding: theme.spacing(2),
-  backgroundColor: theme.palette.action.hover,
-  borderRadius: theme.spacing(1),
-  display: 'flex',
-  flexDirection: 'column',
-  gap: theme.spacing(1.5),
-}));
-
-const WordHeader = styled(Box)({
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-});
-
-const ALL_TAGS = [
-  ...TAG_CATEGORIES.topics.tags,
-  ...TAG_CATEGORIES.grammar.tags,
-  ...TAG_CATEGORIES.style.tags,
-];
-
 interface FormData {
   polish: string;
   english: string;
   level: CEFRLevel;
   tags: string[];
-  words: WordAnnotation[];
 }
 
 interface EditSentenceModalProps {
@@ -100,7 +75,6 @@ const getDefaultValues = (sentence: Sentence | null): FormData => ({
   english: sentence?.english || '',
   level: sentence?.level || 'A1',
   tags: sentence?.tags || [],
-  words: sentence?.words || [],
 });
 
 export function EditSentenceModal({
@@ -109,6 +83,13 @@ export function EditSentenceModal({
   onSave,
   sentence,
 }: EditSentenceModalProps) {
+  const { sentenceTags } = useReviewData();
+  const allTags = [
+    ...sentenceTags.topics,
+    ...sentenceTags.grammar,
+    ...sentenceTags.style,
+  ];
+
   const {
     control,
     handleSubmit,
@@ -119,11 +100,6 @@ export function EditSentenceModal({
     mode: 'onChange',
   });
 
-  const { fields, append, remove } = useFieldArray({
-    control,
-    name: 'words',
-  });
-
   const handleClose = () => {
     reset(getDefaultValues(null));
     onClose();
@@ -132,33 +108,13 @@ export function EditSentenceModal({
   useBackClose(open, handleClose);
 
   const onSubmit = (data: FormData) => {
-    const cleanedWords = data.words.map((w) => {
-      const word: WordAnnotation = {
-        word: w.word.trim(),
-        lemma: w.lemma.trim(),
-        english: w.english.trim(),
-      };
-      if (w.grammar?.trim()) {
-        word.grammar = w.grammar.trim();
-      }
-      if (w.notes?.trim()) {
-        word.notes = w.notes.trim();
-      }
-      return word;
-    });
-
     onSave({
       polish: data.polish.trim(),
       english: data.english.trim(),
       level: data.level,
       tags: data.tags,
-      words: cleanedWords,
     });
     handleClose();
-  };
-
-  const handleAddWord = () => {
-    append({ word: '', lemma: '', english: '', grammar: '', notes: '' });
   };
 
   return (
@@ -234,7 +190,7 @@ export function EditSentenceModal({
                   multiple
                   renderValue={(selected) => (selected as string[]).join(', ')}
                 >
-                  {ALL_TAGS.map((tag) => (
+                  {allTags.map((tag) => (
                     <MenuItem key={tag} value={tag}>
                       {tag}
                     </MenuItem>
@@ -244,113 +200,6 @@ export function EditSentenceModal({
             )}
           />
         </Stack>
-
-        <Divider sx={{ my: 1 }} />
-
-        <Box
-          sx={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}
-        >
-          <Typography variant="subtitle1" fontWeight={500}>
-            Word Annotations
-          </Typography>
-          <Button size="small" startIcon={<AddIcon />} onClick={handleAddWord}>
-            Add Word
-          </Button>
-        </Box>
-
-        {fields.map((field, index) => (
-          <WordCard key={field.id}>
-            <WordHeader>
-              <Typography variant="body2" color="text.secondary">
-                Word {index + 1}
-              </Typography>
-              <IconButton
-                size="small"
-                onClick={() => remove(index)}
-                aria-label="remove word"
-              >
-                <DeleteIcon fontSize="small" />
-              </IconButton>
-            </WordHeader>
-
-            <Stack direction="row" spacing={1}>
-              <Controller
-                name={`words.${index}.word`}
-                control={control}
-                rules={{ required: true }}
-                render={({ field }) => (
-                  <TextField
-                    {...field}
-                    label="Word"
-                    size="small"
-                    fullWidth
-                    required
-                  />
-                )}
-              />
-              <Controller
-                name={`words.${index}.lemma`}
-                control={control}
-                rules={{ required: true }}
-                render={({ field }) => (
-                  <TextField
-                    {...field}
-                    label="Lemma"
-                    size="small"
-                    fullWidth
-                    required
-                  />
-                )}
-              />
-            </Stack>
-
-            <Controller
-              name={`words.${index}.english`}
-              control={control}
-              rules={{ required: true }}
-              render={({ field }) => (
-                <TextField
-                  {...field}
-                  label="English"
-                  size="small"
-                  fullWidth
-                  required
-                />
-              )}
-            />
-
-            <Stack direction="row" spacing={1}>
-              <Controller
-                name={`words.${index}.grammar`}
-                control={control}
-                render={({ field }) => (
-                  <TextField
-                    {...field}
-                    label="Grammar (optional)"
-                    size="small"
-                    fullWidth
-                  />
-                )}
-              />
-              <Controller
-                name={`words.${index}.notes`}
-                control={control}
-                render={({ field }) => (
-                  <TextField
-                    {...field}
-                    label="Notes (optional)"
-                    size="small"
-                    fullWidth
-                  />
-                )}
-              />
-            </Stack>
-          </WordCard>
-        ))}
       </Content>
       <Actions>
         <Box />

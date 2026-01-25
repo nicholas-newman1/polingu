@@ -18,10 +18,12 @@ import {
 } from '@mui/icons-material';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { AnnotatedWord } from './AnnotatedWord';
+import { renderTappableText } from '../lib/renderTappableText';
 import { DirectionToggle, type TranslationDirection } from './DirectionToggle';
+import { useReviewData } from '../hooks/useReviewData';
+import { useTranslationContext } from '../hooks/useTranslationContext';
 import type { Sentence, CEFRLevel, TagCategory } from '../types/sentences';
-import { TAG_CATEGORIES } from '../types/sentences';
+import { TAG_CATEGORY_NAMES } from '../types/sentences';
 import { alpha } from '../lib/theme';
 
 const Container = styled(Box)(({ theme }) => ({
@@ -62,7 +64,7 @@ const LevelChip = styled(Chip)<{ $level: CEFRLevel; $active?: boolean }>(
   })
 );
 
-const SentenceText = styled(Typography)(({ theme }) => ({
+const SentenceText = styled(Box)(({ theme }) => ({
   fontSize: '1.5rem',
   lineHeight: 1.6,
   marginBottom: theme.spacing(2),
@@ -125,6 +127,8 @@ function getAvailableTags(sentences: Sentence[]): Set<string> {
 }
 
 export function SentenceTranslation() {
+  const { sentenceTags } = useReviewData();
+  const { handleDailyLimitReached } = useTranslationContext();
   const [selectedLevels, setSelectedLevels] = useState<CEFRLevel[]>([
     'A1',
     'A2',
@@ -222,74 +226,17 @@ export function SentenceTranslation() {
     setShowAnswer(true);
   }, []);
 
-  const renderPolishSentenceWithTappableWords = (sentence: Sentence) => {
-    const polishText = sentence.polish;
-    const words = sentence.words;
-    const result: React.ReactNode[] = [];
-
-    let lastIndex = 0;
-    words.forEach((wordAnnotation, idx) => {
-      const wordIndex = polishText.indexOf(wordAnnotation.word, lastIndex);
-      if (wordIndex > lastIndex) {
-        result.push(polishText.slice(lastIndex, wordIndex));
-      }
-      result.push(<AnnotatedWord key={idx} annotation={wordAnnotation} />);
-      lastIndex = wordIndex + wordAnnotation.word.length;
-    });
-
-    if (lastIndex < polishText.length) {
-      result.push(polishText.slice(lastIndex));
-    }
-
-    return result;
-  };
-
-  const renderEnglishSentenceWithTappableWords = (sentence: Sentence) => {
-    const englishText = sentence.english;
-    const words = sentence.words;
-
-    const wordPattern = /[\w']+|[^\w\s]+|\s+/g;
-    const tokens = englishText.match(wordPattern) || [];
-
-    const annotationMap = new Map<
-      string,
-      { annotation: (typeof words)[0]; used: boolean }[]
-    >();
-    words.forEach((wordAnnotation) => {
-      const englishWords = wordAnnotation.english.toLowerCase().split(/[\s/]+/);
-      englishWords.forEach((engWord) => {
-        const normalized = engWord.replace(/[^\w']/g, '');
-        if (normalized) {
-          if (!annotationMap.has(normalized)) {
-            annotationMap.set(normalized, []);
-          }
-          annotationMap
-            .get(normalized)!
-            .push({ annotation: wordAnnotation, used: false });
-        }
+  const renderPolishWithTranslation = useCallback(
+    (sentence: Sentence) => {
+      return renderTappableText(sentence.polish, {
+        translations: sentence.translations,
+        sentenceId: sentence.id,
+        onDailyLimitReached: handleDailyLimitReached,
+        sentenceContext: sentence.polish,
       });
-    });
-
-    return tokens.map((token, idx) => {
-      const normalized = token.toLowerCase().replace(/[^\w']/g, '');
-      const entries = annotationMap.get(normalized);
-      if (entries) {
-        const unusedEntry = entries.find((e) => !e.used);
-        if (unusedEntry) {
-          unusedEntry.used = true;
-          return (
-            <AnnotatedWord
-              key={idx}
-              annotation={unusedEntry.annotation}
-              displayWord={token}
-              mode="en-to-pl"
-            />
-          );
-        }
-      }
-      return <span key={idx}>{token}</span>;
-    });
-  };
+    },
+    [handleDailyLimitReached]
+  );
 
   if (loading) {
     return (
@@ -350,13 +297,13 @@ export function SentenceTranslation() {
 
         <Collapse in={showFilters}>
           {TAG_CATEGORY_ORDER.map((category) => {
-            const categoryTags = TAG_CATEGORIES[category].tags.filter((tag) =>
+            const categoryTags = sentenceTags[category].filter((tag) =>
               availableTags.has(tag)
             );
             if (categoryTags.length === 0) return null;
             return (
               <CategorySection key={category}>
-                <CategoryLabel>{TAG_CATEGORIES[category].name}</CategoryLabel>
+                <CategoryLabel>{TAG_CATEGORY_NAMES[category]}</CategoryLabel>
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                   {categoryTags.map((tag) => (
                     <TagChip
@@ -438,13 +385,13 @@ export function SentenceTranslation() {
 
       <Collapse in={showFilters}>
         {TAG_CATEGORY_ORDER.map((category) => {
-          const categoryTags = TAG_CATEGORIES[category].tags.filter((tag) =>
+          const categoryTags = sentenceTags[category].filter((tag) =>
             availableTags.has(tag)
           );
           if (categoryTags.length === 0) return null;
           return (
             <CategorySection key={category}>
-              <CategoryLabel>{TAG_CATEGORIES[category].name}</CategoryLabel>
+              <CategoryLabel>{TAG_CATEGORY_NAMES[category]}</CategoryLabel>
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                 {categoryTags.map((tag) => (
                   <TagChip
@@ -476,8 +423,8 @@ export function SentenceTranslation() {
 
           <SentenceText>
             {direction === 'en-to-pl'
-              ? renderEnglishSentenceWithTappableWords(currentSentence)
-              : renderPolishSentenceWithTappableWords(currentSentence)}
+              ? currentSentence.english
+              : renderPolishWithTranslation(currentSentence)}
           </SentenceText>
 
           {showAnswer && (
@@ -497,9 +444,9 @@ export function SentenceTranslation() {
               }}
             >
               {direction === 'en-to-pl' ? (
-                <Typography variant="body1" fontWeight={500}>
-                  {renderPolishSentenceWithTappableWords(currentSentence)}
-                </Typography>
+                <Box sx={{ fontWeight: 500 }}>
+                  {renderPolishWithTranslation(currentSentence)}
+                </Box>
               ) : (
                 <Typography variant="body1" fontWeight={500}>
                   {currentSentence.english}

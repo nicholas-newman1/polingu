@@ -1,4 +1,4 @@
-import { deleteField, FieldValue } from 'firebase/firestore';
+import { deleteField, FieldValue, serverTimestamp } from 'firebase/firestore';
 
 /**
  * Firestore doesn't support `undefined` values. These utilities handle this:
@@ -38,4 +38,15 @@ export function undefinedToDeleteField<T extends Record<string, unknown>>(
     result[key] = value === undefined ? deleteField() : value;
   }
   return result;
+}
+
+/**
+ * Adds createdAt server timestamp to an object for new document creation.
+ * The timestamp is set by the Firestore server, ensuring consistency.
+ */
+export function withCreatedAt<T extends object>(obj: T): T & { createdAt: FieldValue } {
+  return {
+    ...obj,
+    createdAt: serverTimestamp(),
+  };
 }

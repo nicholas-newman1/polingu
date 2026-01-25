@@ -11,11 +11,7 @@
     "declension:import": "tsx scripts/declension-import.ts",
     "declension:sync": "tsx scripts/declension-sync.ts",
     "declension:export": "tsx scripts/declension-export.ts",
-    "declension:review": "tsx scripts/declension-review.ts",
-    "sentences:import": "tsx scripts/sentences-import.ts",
-    "sentences:sync": "tsx scripts/sentences-sync.ts",
-    "sentences:export": "tsx scripts/sentences-export.ts",
-    "sentences:review": "tsx scripts/sentences-review.ts"
+    "declension:review": "tsx scripts/declension-review.ts"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

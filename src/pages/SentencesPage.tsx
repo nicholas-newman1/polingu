@@ -34,7 +34,8 @@ import { useReviewData } from '../hooks/useReviewData';
 import { useProgressStats } from '../hooks/useProgressStats';
 import { useOptimistic } from '../hooks/useOptimistic';
 import { useSnackbar } from '../hooks/useSnackbar';
-import { updateSentence, deleteSentence } from '../lib/storage/systemSentences';
+import { useTranslationContext } from '../hooks/useTranslationContext';
+import { updateSentence, deleteSentence, updateSentenceTranslation } from '../lib/storage/systemSentences';
 import shuffleArray from '../lib/utils/shuffleArray';
 import { includesSentenceId } from '../lib/storage/helpers';
 
@@ -60,6 +61,7 @@ export function SentencesPage({ mode }: SentencesPageProps) {
   const navigate = useNavigate();
   const { user, isAdmin } = useAuthContext();
   const { showSnackbar } = useSnackbar();
+  const { handleDailyLimitReached } = useTranslationContext();
   const {
     loading: contextLoading,
     sentenceReviewStores,
@@ -393,6 +395,28 @@ export function SentencesPage({ mode }: SentencesPageProps) {
     setContextSentences,
   ]);
 
+  const handleUpdateTranslation = useCallback(
+    async (sentenceId: string, word: string, translation: string) => {
+      const sentence = sentences.find((s) => s.id === sentenceId);
+      if (!sentence) return;
+
+      const updatedTranslations = { ...sentence.translations, [word]: translation };
+      const updatedSentence = { ...sentence, translations: updatedTranslations };
+
+      updateSentenceInQueues(sentenceId, updatedSentence);
+
+      const newSentences = sentences.map((s) =>
+        s.id === sentenceId ? updatedSentence : s
+      );
+
+      applyOptimisticSentences(newSentences, async () => {
+        await updateSentenceTranslation(sentenceId, word, translation);
+        setContextSentences(newSentences);
+      });
+    },
+    [sentences, applyOptimisticSentences, setContextSentences]
+  );
+
   const intervals: RatingIntervals = useMemo(() => {
     if (!currentSessionCard) {
       return {
@@ -503,7 +527,19 @@ export function SentencesPage({ mode }: SentencesPageProps) {
                   sentence={currentPracticeSentence}
                   direction={currentDirection}
                   practiceMode
+                  isAdmin={isAdmin}
                   onNext={handlePracticeNext}
+                  onDailyLimitReached={handleDailyLimitReached}
+                  onUpdateTranslation={
+                    isAdmin
+                      ? (word, translation) =>
+                          handleUpdateTranslation(
+                            currentPracticeSentence.id,
+                            word,
+                            translation
+                          )
+                      : undefined
+                  }
                 />
               ) : (
                 <EmptyState message="No sentences available" />
@@ -524,9 +560,21 @@ export function SentencesPage({ mode }: SentencesPageProps) {
                 direction={currentDirection}
                 intervals={intervals}
                 canEdit={isAdmin}
+                isAdmin={isAdmin}
                 onRate={handleRate}
                 onEdit={handleOpenEditModal}
                 onDelete={handleDeleteSentence}
+                onDailyLimitReached={handleDailyLimitReached}
+                onUpdateTranslation={
+                  isAdmin
+                    ? (word, translation) =>
+                        handleUpdateTranslation(
+                          currentSessionCard.sentence.id,
+                          word,
+                          translation
+                        )
+                    : undefined
+                }
               />
             ) : null}
           </>
