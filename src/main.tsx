@@ -21,7 +21,7 @@ import { VocabularyPage } from './pages/VocabularyPage';
 import { CustomVocabularyPage } from './pages/CustomVocabularyPage';
 import { CustomDeclensionPage } from './pages/CustomDeclensionPage';
 import { StatsPage } from './pages/StatsPage';
-import { SentenceGeneratorPage } from './pages/SentenceGeneratorPage';
+import { SentenceGeneratorPage } from './pages/SentenceGenerator';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
