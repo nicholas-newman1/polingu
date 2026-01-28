@@ -2,15 +2,13 @@ import { useState, useEffect } from 'react';
 import { TextField } from '@mui/material';
 import { styled } from '../lib/styled';
 
-const StyledTextField = styled(TextField)<{ $width?: number }>(
-  ({ $width = 80 }) => ({
-    width: $width,
-    '& input': {
-      fontFamily: '"JetBrains Mono", monospace',
-      textAlign: 'center',
-    },
-  })
-);
+const StyledTextField = styled(TextField)<{ $width?: number }>(({ $width = 80 }) => ({
+  width: $width,
+  '& input': {
+    fontFamily: '"JetBrains Mono", monospace',
+    textAlign: 'center',
+  },
+}));
 
 interface NumberInputProps {
   value: number;
@@ -20,13 +18,7 @@ interface NumberInputProps {
   width?: number;
 }
 
-export function NumberInput({
-  value,
-  onChange,
-  min = 1,
-  max,
-  width,
-}: NumberInputProps) {
+export function NumberInput({ value, onChange, min = 1, max, width }: NumberInputProps) {
   const [inputValue, setInputValue] = useState(String(value));
 
   useEffect(() => {

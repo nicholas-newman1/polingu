@@ -28,12 +28,7 @@ interface CheatSheetDrawerProps {
   children: ReactNode;
 }
 
-export function CheatSheetDrawer({
-  open,
-  onClose,
-  title,
-  children,
-}: CheatSheetDrawerProps) {
+export function CheatSheetDrawer({ open, onClose, title, children }: CheatSheetDrawerProps) {
   useBackClose(open, onClose);
 
   return (

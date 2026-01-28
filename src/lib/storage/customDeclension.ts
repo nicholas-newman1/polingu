@@ -8,4 +8,3 @@ export const saveCustomDeclension = storage.save;
 export const addCustomDeclensionCard = storage.add;
 export const updateCustomDeclensionCard = storage.update;
 export const deleteCustomDeclensionCard = storage.delete;
-

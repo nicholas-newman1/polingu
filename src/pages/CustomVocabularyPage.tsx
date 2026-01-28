@@ -17,15 +17,8 @@ import SearchIcon from '@mui/icons-material/Search';
 import { styled } from '../lib/styled';
 import { alpha } from '../lib/theme';
 import { AddVocabularyModal } from '../components/AddVocabularyModal';
-import {
-  loadCustomVocabulary,
-  saveCustomVocabulary,
-} from '../lib/storage/customVocabulary';
-import type {
-  CustomVocabularyWord,
-  PartOfSpeech,
-  NounGender,
-} from '../types/vocabulary';
+import { loadCustomVocabulary, saveCustomVocabulary } from '../lib/storage/customVocabulary';
+import type { CustomVocabularyWord, PartOfSpeech, NounGender } from '../types/vocabulary';
 import { useAuthContext } from '../hooks/useAuthContext';
 import { useOptimistic } from '../hooks/useOptimistic';
 import { useSnackbar } from '../hooks/useSnackbar';
@@ -77,19 +70,12 @@ export function CustomVocabularyPage() {
   const { user } = useAuthContext();
   const { showSnackbar } = useSnackbar();
   const [isLoading, setIsLoading] = useState(true);
-  const [customWordsBase, setCustomWordsBase] = useState<
-    CustomVocabularyWord[]
-  >([]);
-  const [customWords, applyOptimisticCustomWords] = useOptimistic(
-    customWordsBase,
-    {
-      onError: () => showSnackbar('Failed to save. Please try again.', 'error'),
-    }
-  );
+  const [customWordsBase, setCustomWordsBase] = useState<CustomVocabularyWord[]>([]);
+  const [customWords, applyOptimisticCustomWords] = useOptimistic(customWordsBase, {
+    onError: () => showSnackbar('Failed to save. Please try again.', 'error'),
+  });
   const [showAddModal, setShowAddModal] = useState(false);
-  const [editingWord, setEditingWord] = useState<CustomVocabularyWord | null>(
-    null
-  );
+  const [editingWord, setEditingWord] = useState<CustomVocabularyWord | null>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [posFilter, setPosFilter] = useState<PartOfSpeech | ''>('');
@@ -107,9 +93,7 @@ export function CustomVocabularyPage() {
     loadData();
   }, [user]);
 
-  const handleAddWord = (
-    wordData: Omit<CustomVocabularyWord, 'id' | 'isCustom' | 'createdAt'>
-  ) => {
+  const handleAddWord = (wordData: Omit<CustomVocabularyWord, 'id' | 'isCustom' | 'createdAt'>) => {
     const newWord: CustomVocabularyWord = {
       ...wordData,
       id: `custom_${Date.now()}`,
@@ -197,9 +181,7 @@ export function CustomVocabularyPage() {
           comparison = a.english.localeCompare(b.english);
           break;
         case 'partOfSpeech':
-          comparison = (a.partOfSpeech || '').localeCompare(
-            b.partOfSpeech || ''
-          );
+          comparison = (a.partOfSpeech || '').localeCompare(b.partOfSpeech || '');
           break;
         case 'gender':
           comparison = (a.gender || '').localeCompare(b.gender || '');
@@ -212,14 +194,7 @@ export function CustomVocabularyPage() {
     });
 
     return result;
-  }, [
-    customWords,
-    searchQuery,
-    posFilter,
-    genderFilter,
-    sortField,
-    sortDirection,
-  ]);
+  }, [customWords, searchQuery, posFilter, genderFilter, sortField, sortDirection]);
 
   if (isLoading) {
     return <CustomItemLoadingState />;
@@ -264,9 +239,7 @@ export function CustomVocabularyPage() {
               <InputLabel>Part of Speech</InputLabel>
               <Select
                 value={posFilter}
-                onChange={(e) =>
-                  setPosFilter(e.target.value as PartOfSpeech | '')
-                }
+                onChange={(e) => setPosFilter(e.target.value as PartOfSpeech | '')}
                 label="Part of Speech"
               >
                 <MenuItem value="">
@@ -283,9 +256,7 @@ export function CustomVocabularyPage() {
               <InputLabel>Gender</InputLabel>
               <Select
                 value={genderFilter}
-                onChange={(e) =>
-                  setGenderFilter(e.target.value as NounGender | '')
-                }
+                onChange={(e) => setGenderFilter(e.target.value as NounGender | '')}
                 label="Gender"
               >
                 <MenuItem value="">
@@ -322,9 +293,7 @@ export function CustomVocabularyPage() {
                   <TableCell>
                     <TableSortLabel
                       active={sortField === 'english'}
-                      direction={
-                        sortField === 'english' ? sortDirection : 'asc'
-                      }
+                      direction={sortField === 'english' ? sortDirection : 'asc'}
                       onClick={() => handleSort('english')}
                     >
                       English
@@ -333,9 +302,7 @@ export function CustomVocabularyPage() {
                   <TableCell>
                     <TableSortLabel
                       active={sortField === 'partOfSpeech'}
-                      direction={
-                        sortField === 'partOfSpeech' ? sortDirection : 'asc'
-                      }
+                      direction={sortField === 'partOfSpeech' ? sortDirection : 'asc'}
                       onClick={() => handleSort('partOfSpeech')}
                     >
                       Type
@@ -354,9 +321,7 @@ export function CustomVocabularyPage() {
                   <TableCell>
                     <TableSortLabel
                       active={sortField === 'createdAt'}
-                      direction={
-                        sortField === 'createdAt' ? sortDirection : 'asc'
-                      }
+                      direction={sortField === 'createdAt' ? sortDirection : 'asc'}
                       onClick={() => handleSort('createdAt')}
                     >
                       Added
@@ -380,25 +345,15 @@ export function CustomVocabularyPage() {
                     </TableCell>
                     <TableCell>{word.english}</TableCell>
                     <TableCell>
-                      {word.partOfSpeech && (
-                        <MetaChip label={word.partOfSpeech} size="small" />
-                      )}
+                      {word.partOfSpeech && <MetaChip label={word.partOfSpeech} size="small" />}
                     </TableCell>
                     <TableCell>
                       {word.gender && (
-                        <GenderChip
-                          $gender={word.gender}
-                          label={word.gender}
-                          size="small"
-                        />
+                        <GenderChip $gender={word.gender} label={word.gender} size="small" />
                       )}
                     </TableCell>
                     <TableCell>
-                      {word.notes && (
-                        <SecondaryCell title={word.notes}>
-                          {word.notes}
-                        </SecondaryCell>
-                      )}
+                      {word.notes && <SecondaryCell title={word.notes}>{word.notes}</SecondaryCell>}
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2" color="text.secondary">
@@ -410,9 +365,7 @@ export function CustomVocabularyPage() {
                 {filteredAndSortedWords.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
-                      <Typography color="text.secondary">
-                        No words match your filters
-                      </Typography>
+                      <Typography color="text.secondary">No words match your filters</Typography>
                     </TableCell>
                   </TableRow>
                 )}

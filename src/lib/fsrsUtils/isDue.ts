@@ -4,4 +4,3 @@ export default function isDue(fsrsCard: FSRSCard): boolean {
   if (fsrsCard.state === 0) return false;
   return new Date(fsrsCard.due) <= new Date();
 }
-

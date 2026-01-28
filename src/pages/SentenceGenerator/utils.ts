@@ -33,7 +33,12 @@ export interface CoverageStats {
 
 export function computeCoverageStats(sentences: Sentence[]): CoverageStats {
   const byLevel: Record<CEFRLevel, number> = {
-    A1: 0, A2: 0, B1: 0, B2: 0, C1: 0, C2: 0,
+    A1: 0,
+    A2: 0,
+    B1: 0,
+    B2: 0,
+    C1: 0,
+    C2: 0,
   };
   const byTag: Record<string, number> = {};
 
@@ -46,4 +51,3 @@ export function computeCoverageStats(sentences: Sentence[]): CoverageStats {
 
   return { byLevel, byTag };
 }
-

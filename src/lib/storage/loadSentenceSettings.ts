@@ -19,9 +19,7 @@ const DEFAULT_SENTENCE_SETTINGS: SentenceSettings = {
 };
 
 function getSentenceSettingsDocPath(direction: SentenceDirection): string {
-  return direction === 'pl-to-en'
-    ? 'sentenceSettings-pl-en'
-    : 'sentenceSettings-en-pl';
+  return direction === 'pl-to-en' ? 'sentenceSettings-pl-en' : 'sentenceSettings-en-pl';
 }
 
 export async function loadSentenceDirectionSettings(
@@ -31,13 +29,7 @@ export async function loadSentenceDirectionSettings(
   if (!userId) return DEFAULT_DIRECTION_SETTINGS;
 
   try {
-    const docRef = doc(
-      db,
-      'users',
-      userId,
-      'data',
-      getSentenceSettingsDocPath(direction)
-    );
+    const docRef = doc(db, 'users', userId, 'data', getSentenceSettingsDocPath(direction));
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
       return {

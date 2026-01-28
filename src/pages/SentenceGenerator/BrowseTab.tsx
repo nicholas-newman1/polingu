@@ -1,13 +1,5 @@
 import { useState, useMemo, useCallback, useRef, memo } from 'react';
-import {
-  TextField,
-  Box,
-  Button,
-  Typography,
-  Chip,
-  Stack,
-  IconButton,
-} from '@mui/material';
+import { TextField, Box, Button, Typography, Chip, Stack, IconButton } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import type { Timestamp } from 'firebase/firestore';
@@ -53,9 +45,7 @@ export const BrowseTab = memo(function BrowseTab({
     if (debouncedSearch.trim()) {
       const search = debouncedSearch.toLowerCase();
       result = result.filter(
-        (s) =>
-          s.polish.toLowerCase().includes(search) ||
-          s.english.toLowerCase().includes(search)
+        (s) => s.polish.toLowerCase().includes(search) || s.english.toLowerCase().includes(search)
       );
     }
     if (browseDateFrom) {
@@ -73,12 +63,14 @@ export const BrowseTab = memo(function BrowseTab({
       });
     }
     return [...result].sort((a, b) => {
-      const aTime = a.createdAt && typeof (a.createdAt as Timestamp).toMillis === 'function'
-        ? (a.createdAt as Timestamp).toMillis()
-        : 0;
-      const bTime = b.createdAt && typeof (b.createdAt as Timestamp).toMillis === 'function'
-        ? (b.createdAt as Timestamp).toMillis()
-        : 0;
+      const aTime =
+        a.createdAt && typeof (a.createdAt as Timestamp).toMillis === 'function'
+          ? (a.createdAt as Timestamp).toMillis()
+          : 0;
+      const bTime =
+        b.createdAt && typeof (b.createdAt as Timestamp).toMillis === 'function'
+          ? (b.createdAt as Timestamp).toMillis()
+          : 0;
       return bTime - aTime;
     });
   }, [levelFilteredSentences, browseTag, debouncedSearch, browseDateFrom, browseDateTo]);
@@ -90,17 +82,20 @@ export const BrowseTab = memo(function BrowseTab({
     overscan: 5,
   });
 
-  const handleDeleteSentence = useCallback(async (sentenceId: string) => {
-    if (!window.confirm('Delete this sentence?')) return;
-    try {
-      await deleteSentence(sentenceId);
-      setSentences(sentences.filter((s) => s.id !== sentenceId));
-      showSnackbar('Sentence deleted', 'success');
-    } catch (e) {
-      console.error('Delete failed:', e);
-      showSnackbar('Failed to delete sentence', 'error');
-    }
-  }, [sentences, setSentences, showSnackbar]);
+  const handleDeleteSentence = useCallback(
+    async (sentenceId: string) => {
+      if (!window.confirm('Delete this sentence?')) return;
+      try {
+        await deleteSentence(sentenceId);
+        setSentences(sentences.filter((s) => s.id !== sentenceId));
+        showSnackbar('Sentence deleted', 'success');
+      } catch (e) {
+        console.error('Delete failed:', e);
+        showSnackbar('Failed to delete sentence', 'error');
+      }
+    },
+    [sentences, setSentences, showSnackbar]
+  );
 
   const handleClearDates = useCallback(() => {
     setBrowseDateFrom('');
@@ -193,10 +188,7 @@ export const BrowseTab = memo(function BrowseTab({
         Showing {filteredSentences.length} of {sentences.length} sentences
       </Typography>
 
-      <Box
-        ref={parentRef}
-        sx={{ height: 500, overflow: 'auto' }}
-      >
+      <Box ref={parentRef} sx={{ height: 500, overflow: 'auto' }}>
         <Box
           sx={{
             height: virtualizer.getTotalSize(),
@@ -236,7 +228,12 @@ export const BrowseTab = memo(function BrowseTab({
                       {sentence.english}
                     </Typography>
                     <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', alignItems: 'center' }}>
-                      <Chip label={sentence.level} size="small" color="primary" variant="outlined" />
+                      <Chip
+                        label={sentence.level}
+                        size="small"
+                        color="primary"
+                        variant="outlined"
+                      />
                       {sentence.tags.map((tag) => (
                         <Chip key={tag} label={tag} size="small" variant="outlined" />
                       ))}
@@ -268,4 +265,3 @@ export const BrowseTab = memo(function BrowseTab({
     </Stack>
   );
 });
-

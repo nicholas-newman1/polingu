@@ -1,5 +1,9 @@
 import { createEmptyCard } from 'ts-fsrs';
-import type { DeclensionReviewDataStore, DeclensionCardReviewData, DeclensionCardId } from '../../types';
+import type {
+  DeclensionReviewDataStore,
+  DeclensionCardReviewData,
+  DeclensionCardId,
+} from '../../types';
 
 export default function getOrCreateDeclensionCardReviewData(
   cardId: DeclensionCardId,
@@ -13,4 +17,3 @@ export default function getOrCreateDeclensionCardReviewData(
     fsrsCard: createEmptyCard(),
   };
 }
-

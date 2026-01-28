@@ -36,4 +36,3 @@ export function CustomItemPageHeader({
     </HeaderSection>
   );
 }
-

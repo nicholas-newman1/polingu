@@ -179,10 +179,10 @@ const ConsonantChip = styled(Box)<{ $hasExamples: boolean; $tier: number }>(
       $tier === 1
         ? alpha(theme.palette.common.white, 0.25)
         : $tier === 2
-        ? alpha(theme.palette.common.white, 0.18)
-        : $tier === 3
-        ? alpha(theme.palette.common.white, 0.12)
-        : alpha(theme.palette.common.white, 0.08),
+          ? alpha(theme.palette.common.white, 0.18)
+          : $tier === 3
+            ? alpha(theme.palette.common.white, 0.12)
+            : alpha(theme.palette.common.white, 0.08),
     color: $tier <= 2 ? theme.palette.common.white : alpha(theme.palette.common.white, 0.7),
     fontFamily: '"JetBrains Mono", monospace',
     fontWeight: $tier === 1 ? 600 : 500,
@@ -240,13 +240,7 @@ const NoExamplesText = styled(Typography)({
   opacity: 0.8,
 });
 
-function ConsonantWithTooltip({
-  consonant,
-  tier,
-}: {
-  consonant: string;
-  tier: number;
-}) {
+function ConsonantWithTooltip({ consonant, tier }: { consonant: string; tier: number }) {
   const examples = CONSONANT_EXAMPLES[consonant] || [];
   const hasExamples = examples.length > 0;
 
@@ -267,9 +261,7 @@ function ConsonantWithTooltip({
   ) : (
     <TooltipContent>
       <TooltipTitle>{consonant} → -i</TooltipTitle>
-      <NoExamplesText>
-        No common modern nouns with clean -i plural
-      </NoExamplesText>
+      <NoExamplesText>No common modern nouns with clean -i plural</NoExamplesText>
     </TooltipContent>
   );
 
@@ -317,13 +309,9 @@ export function YiRuleCheatSheet() {
       >
         The -y / -i Ending Rule
       </Typography>
-      <Typography
-        variant="body2"
-        color="text.secondary"
-        sx={{ mb: 3, textAlign: 'center' }}
-      >
-        When a declension ending is -y/i, choose based on the stem's final
-        consonant. Tap a letter for examples.
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 3, textAlign: 'center' }}>
+        When a declension ending is -y/i, choose based on the stem's final consonant. Tap a letter
+        for examples.
       </Typography>
 
       <RuleCard $variant="i">
@@ -340,11 +328,7 @@ export function YiRuleCheatSheet() {
             </TierHeader>
             <ConsonantGrid>
               {tier.consonants.map((consonant) => (
-                <ConsonantWithTooltip
-                  key={consonant}
-                  consonant={consonant}
-                  tier={tierIndex + 1}
-                />
+                <ConsonantWithTooltip key={consonant} consonant={consonant} tier={tierIndex + 1} />
               ))}
             </ConsonantGrid>
           </TierSection>
@@ -356,9 +340,7 @@ export function YiRuleCheatSheet() {
           <EndingBadge>-y</EndingBadge>
           <RuleLabel>Use in all other cases</RuleLabel>
         </RuleHeader>
-        <OtherwiseText>
-          When the stem ends with any consonant not listed above
-        </OtherwiseText>
+        <OtherwiseText>When the stem ends with any consonant not listed above</OtherwiseText>
       </RuleCard>
     </Container>
   );

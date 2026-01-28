@@ -26,9 +26,7 @@ interface ReviewCountBadgeProps {
 
 export function ReviewCountBadge({ count, loading }: ReviewCountBadgeProps) {
   if (loading) {
-    return (
-      <Skeleton variant="rounded" width={24} height={24} sx={{ borderRadius: 12 }} />
-    );
+    return <Skeleton variant="rounded" width={24} height={24} sx={{ borderRadius: 12 }} />;
   }
 
   if (count === undefined) {
@@ -38,9 +36,6 @@ export function ReviewCountBadge({ count, loading }: ReviewCountBadgeProps) {
   const isComplete = count === 0;
 
   return (
-    <Badge $complete={isComplete}>
-      {isComplete ? <Check sx={{ fontSize: 16 }} /> : count}
-    </Badge>
+    <Badge $complete={isComplete}>{isComplete ? <Check sx={{ fontSize: 16 }} /> : count}</Badge>
   );
 }
-

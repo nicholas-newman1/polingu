@@ -86,11 +86,7 @@ export function EditSentenceModal({
   isCreating = false,
 }: EditSentenceModalProps) {
   const { sentenceTags } = useReviewData();
-  const allTags = [
-    ...sentenceTags.topics,
-    ...sentenceTags.grammar,
-    ...sentenceTags.style,
-  ];
+  const allTags = [...sentenceTags.topics, ...sentenceTags.grammar, ...sentenceTags.style];
 
   const {
     control,
@@ -135,15 +131,7 @@ export function EditSentenceModal({
           control={control}
           rules={{ required: true, validate: (v) => v.trim().length > 0 }}
           render={({ field }) => (
-            <TextField
-              {...field}
-              label="Polish"
-              fullWidth
-              autoFocus
-              required
-              multiline
-              rows={2}
-            />
+            <TextField {...field} label="Polish" fullWidth autoFocus required multiline rows={2} />
           )}
         />
 
@@ -152,14 +140,7 @@ export function EditSentenceModal({
           control={control}
           rules={{ required: true, validate: (v) => v.trim().length > 0 }}
           render={({ field }) => (
-            <TextField
-              {...field}
-              label="English"
-              fullWidth
-              required
-              multiline
-              rows={2}
-            />
+            <TextField {...field} label="English" fullWidth required multiline rows={2} />
           )}
         />
 
@@ -211,11 +192,7 @@ export function EditSentenceModal({
           <Button onClick={handleClose} color="inherit">
             Cancel
           </Button>
-          <Button
-            onClick={handleSubmit(onSubmit)}
-            variant="contained"
-            disabled={!isValid}
-          >
+          <Button onClick={handleSubmit(onSubmit)} variant="contained" disabled={!isValid}>
             {isCreating ? 'Add Sentence' : 'Save Changes'}
           </Button>
         </RightActions>

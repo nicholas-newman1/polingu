@@ -11,9 +11,7 @@ export async function updateSystemVocabularyWord(
   await updateDoc(docRef, undefinedToDeleteField(updates));
 }
 
-export async function deleteSystemVocabularyWord(
-  wordId: number
-): Promise<void> {
+export async function deleteSystemVocabularyWord(wordId: number): Promise<void> {
   const docRef = doc(db, 'vocabulary', String(wordId));
   await deleteDoc(docRef);
 }

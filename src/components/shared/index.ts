@@ -7,4 +7,3 @@ export {
   TooltipContentRich,
   WordTooltipPopper,
 } from './WordTooltip';
-

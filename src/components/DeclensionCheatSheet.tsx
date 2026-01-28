@@ -1,18 +1,8 @@
 import { useState } from 'react';
-import {
-  Box,
-  Typography,
-  Tooltip,
-  Popover,
-  useMediaQuery,
-  useTheme,
-} from '@mui/material';
+import { Box, Typography, Tooltip, Popover, useMediaQuery, useTheme } from '@mui/material';
 import { styled } from '../lib/styled';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import type {
-  DeclensionTable,
-  DeclensionEnding,
-} from '../data/declensionPatterns';
+import type { DeclensionTable, DeclensionEnding } from '../data/declensionPatterns';
 import { alpha } from '../lib/theme';
 
 const TableContainer = styled(Box)<{
@@ -65,20 +55,19 @@ const EndingsContainer = styled(Box)({
 });
 
 const EndingWrapper = styled(Box)<{ $clickable?: boolean }>(({ $clickable }) => ({
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    padding: '4px 8px',
-    cursor: $clickable ? 'pointer' : 'default',
-    '&:hover .ending-text': $clickable
-      ? {
-          textDecoration: 'underline',
-          textDecorationStyle: 'dotted',
-        }
-      : {},
-  })
-);
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  flex: 1,
+  padding: '4px 8px',
+  cursor: $clickable ? 'pointer' : 'default',
+  '&:hover .ending-text': $clickable
+    ? {
+        textDecoration: 'underline',
+        textDecorationStyle: 'dotted',
+      }
+    : {},
+}));
 
 const EndingInner = styled(Box)({
   position: 'relative',
@@ -95,23 +84,22 @@ const EndingText = styled(Typography)(({ theme }) => ({
 }));
 
 const FootnoteBadge = styled(Box)<{ $clickable?: boolean }>(({ theme, $clickable }) => ({
-    position: 'absolute',
-    top: -2,
-    right: -14,
-    width: 16,
-    height: 16,
-    borderRadius: '50%',
-    backgroundColor: alpha(theme.palette.common.white, 0.25),
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    color: theme.palette.common.white,
-    cursor: $clickable ? 'pointer' : 'default',
-    '& svg': {
-      fontSize: 12,
-    },
-  })
-);
+  position: 'absolute',
+  top: -2,
+  right: -14,
+  width: 16,
+  height: 16,
+  borderRadius: '50%',
+  backgroundColor: alpha(theme.palette.common.white, 0.25),
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  color: theme.palette.common.white,
+  cursor: $clickable ? 'pointer' : 'default',
+  '& svg': {
+    fontSize: 12,
+  },
+}));
 
 const OrDivider = styled(Typography)(({ theme }) => ({
   color: alpha(theme.palette.common.white, 0.7),
@@ -132,12 +120,7 @@ interface EndingItemProps {
   gender: 'masculine' | 'feminine' | 'neuter';
 }
 
-function EndingItem({
-  ending,
-  isMobile,
-  tableFootnotes,
-  gender,
-}: EndingItemProps) {
+function EndingItem({ ending, isMobile, tableFootnotes, gender }: EndingItemProps) {
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
 
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
@@ -278,9 +261,7 @@ export function DeclensionCheatSheetTable({ table }: CheatSheetTableProps) {
               {row.endings.flatMap((ending, endingIndex) => {
                 const items = [];
                 if (endingIndex > 0) {
-                  items.push(
-                    <OrDivider key={`or-${endingIndex}`}>or</OrDivider>
-                  );
+                  items.push(<OrDivider key={`or-${endingIndex}`}>or</OrDivider>);
                 }
                 items.push(
                   <EndingItem
@@ -332,10 +313,7 @@ export function DeclensionCheatSheet({ tables }: DeclensionCheatSheetProps) {
             }}
           >
             {singularTables.map((table) => (
-              <DeclensionCheatSheetTable
-                key={`${table.gender}-${table.number}`}
-                table={table}
-              />
+              <DeclensionCheatSheetTable key={`${table.gender}-${table.number}`} table={table} />
             ))}
           </Box>
         </Box>
@@ -362,10 +340,7 @@ export function DeclensionCheatSheet({ tables }: DeclensionCheatSheetProps) {
             }}
           >
             {pluralTables.map((table) => (
-              <DeclensionCheatSheetTable
-                key={`${table.gender}-${table.number}`}
-                table={table}
-              />
+              <DeclensionCheatSheetTable key={`${table.gender}-${table.number}`} table={table} />
             ))}
           </Box>
         </Box>

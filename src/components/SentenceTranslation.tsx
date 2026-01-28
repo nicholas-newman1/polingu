@@ -10,12 +10,7 @@ import {
   Switch,
 } from '@mui/material';
 import { styled } from '../lib/styled';
-import {
-  KeyboardArrowLeft,
-  KeyboardArrowRight,
-  ExpandMore,
-  ExpandLess,
-} from '@mui/icons-material';
+import { KeyboardArrowLeft, KeyboardArrowRight, ExpandMore, ExpandLess } from '@mui/icons-material';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { renderTappableText } from '../lib/renderTappableText';
@@ -50,16 +45,12 @@ const Card = styled(Box)(({ theme }) => ({
 
 const LevelChip = styled(Chip)<{ $level: CEFRLevel; $active?: boolean }>(
   ({ theme, $level, $active = true }) => ({
-    backgroundColor: $active
-      ? theme.palette.levels[$level]
-      : theme.palette.neutral.main,
+    backgroundColor: $active ? theme.palette.levels[$level] : theme.palette.neutral.main,
     color: theme.palette.common.white,
     fontWeight: 600,
     fontSize: '0.75rem',
     '&:hover': {
-      backgroundColor: $active
-        ? theme.palette.levels[$level]
-        : theme.palette.neutral.dark,
+      backgroundColor: $active ? theme.palette.levels[$level] : theme.palette.neutral.dark,
     },
   })
 );
@@ -80,21 +71,15 @@ const NavigationBox = styled(Box)({
   gap: 8,
 });
 
-const TagChip = styled(Chip)<{ $selected?: boolean }>(
-  ({ theme, $selected }) => ({
-    height: 24,
-    fontSize: '0.7rem',
-    backgroundColor: $selected
-      ? theme.palette.primary.main
-      : theme.palette.action.hover,
-    color: $selected ? theme.palette.common.white : theme.palette.text.primary,
-    '&:hover': {
-      backgroundColor: $selected
-        ? theme.palette.primary.dark
-        : theme.palette.action.selected,
-    },
-  })
-);
+const TagChip = styled(Chip)<{ $selected?: boolean }>(({ theme, $selected }) => ({
+  height: 24,
+  fontSize: '0.7rem',
+  backgroundColor: $selected ? theme.palette.primary.main : theme.palette.action.hover,
+  color: $selected ? theme.palette.common.white : theme.palette.text.primary,
+  '&:hover': {
+    backgroundColor: $selected ? theme.palette.primary.dark : theme.palette.action.selected,
+  },
+}));
 
 const CategorySection = styled(Box)(({ theme }) => ({
   marginBottom: theme.spacing(1.5),
@@ -129,10 +114,7 @@ function getAvailableTags(sentences: Sentence[]): Set<string> {
 export function SentenceTranslation() {
   const { sentenceTags } = useReviewData();
   const { handleDailyLimitReached } = useTranslationContext();
-  const [selectedLevels, setSelectedLevels] = useState<CEFRLevel[]>([
-    'A1',
-    'A2',
-  ]);
+  const [selectedLevels, setSelectedLevels] = useState<CEFRLevel[]>(['A1', 'A2']);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
@@ -146,10 +128,7 @@ export function SentenceTranslation() {
     async function fetchSentences() {
       setLoading(true);
       try {
-        const q = query(
-          collection(db, 'sentences'),
-          where('level', 'in', selectedLevels)
-        );
+        const q = query(collection(db, 'sentences'), where('level', 'in', selectedLevels));
         const snapshot = await getDocs(q);
         const fetched = snapshot.docs.map((doc) => doc.data() as Sentence);
         setSentences(fetched);
@@ -166,10 +145,7 @@ export function SentenceTranslation() {
 
   const filteredSentences = useMemo(() => {
     return sentences.filter((s) => {
-      if (
-        selectedTags.length > 0 &&
-        !s.tags.some((t) => selectedTags.includes(t))
-      ) {
+      if (selectedTags.length > 0 && !s.tags.some((t) => selectedTags.includes(t))) {
         return false;
       }
       return true;
@@ -211,9 +187,7 @@ export function SentenceTranslation() {
     if (shuffleMode) {
       setCurrentIndex(Math.floor(Math.random() * filteredSentences.length));
     } else {
-      setCurrentIndex((prev) =>
-        prev === 0 ? filteredSentences.length - 1 : prev - 1
-      );
+      setCurrentIndex((prev) => (prev === 0 ? filteredSentences.length - 1 : prev - 1));
     }
     setShowAnswer(false);
   }, [filteredSentences.length, shuffleMode]);
@@ -297,9 +271,7 @@ export function SentenceTranslation() {
 
         <Collapse in={showFilters}>
           {TAG_CATEGORY_ORDER.map((category) => {
-            const categoryTags = sentenceTags[category].filter((tag) =>
-              availableTags.has(tag)
-            );
+            const categoryTags = sentenceTags[category].filter((tag) => availableTags.has(tag));
             if (categoryTags.length === 0) return null;
             return (
               <CategorySection key={category}>
@@ -322,8 +294,7 @@ export function SentenceTranslation() {
 
         <Card>
           <Typography color="text.secondary" textAlign="center">
-            No sentences match your filters. Try selecting different levels or
-            tags.
+            No sentences match your filters. Try selecting different levels or tags.
           </Typography>
         </Card>
       </Container>
@@ -366,28 +337,20 @@ export function SentenceTranslation() {
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <DirectionToggle
             direction={direction}
-            onToggle={() =>
-              setDirection((d) => (d === 'en-to-pl' ? 'pl-to-en' : 'en-to-pl'))
-            }
+            onToggle={() => setDirection((d) => (d === 'en-to-pl' ? 'pl-to-en' : 'en-to-pl'))}
           />
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
             <Typography variant="caption" color="text.secondary">
               Shuffle
             </Typography>
-            <Switch
-              size="small"
-              checked={shuffleMode}
-              onChange={toggleShuffle}
-            />
+            <Switch size="small" checked={shuffleMode} onChange={toggleShuffle} />
           </Box>
         </Box>
       </Box>
 
       <Collapse in={showFilters}>
         {TAG_CATEGORY_ORDER.map((category) => {
-          const categoryTags = sentenceTags[category].filter((tag) =>
-            availableTags.has(tag)
-          );
+          const categoryTags = sentenceTags[category].filter((tag) => availableTags.has(tag));
           if (categoryTags.length === 0) return null;
           return (
             <CategorySection key={category}>
@@ -411,11 +374,7 @@ export function SentenceTranslation() {
       <Card>
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-            <LevelChip
-              $level={currentSentence.level}
-              label={currentSentence.level}
-              size="small"
-            />
+            <LevelChip $level={currentSentence.level} label={currentSentence.level} size="small" />
             <Typography variant="caption" color="text.secondary">
               {currentIndex + 1} / {filteredSentences.length}
             </Typography>
@@ -444,9 +403,7 @@ export function SentenceTranslation() {
               }}
             >
               {direction === 'en-to-pl' ? (
-                <Box sx={{ fontWeight: 500 }}>
-                  {renderPolishWithTranslation(currentSentence)}
-                </Box>
+                <Box sx={{ fontWeight: 500 }}>{renderPolishWithTranslation(currentSentence)}</Box>
               ) : (
                 <Typography variant="body1" fontWeight={500}>
                   {currentSentence.english}
@@ -457,21 +414,11 @@ export function SentenceTranslation() {
         </Box>
 
         {!showAnswer ? (
-          <Button
-            variant="contained"
-            fullWidth
-            size="large"
-            onClick={handleRevealAnswer}
-          >
+          <Button variant="contained" fullWidth size="large" onClick={handleRevealAnswer}>
             Reveal Answer
           </Button>
         ) : (
-          <NextButton
-            fullWidth
-            size="large"
-            variant="contained"
-            onClick={goNext}
-          >
+          <NextButton fullWidth size="large" variant="contained" onClick={goNext}>
             Next →
           </NextButton>
         )}

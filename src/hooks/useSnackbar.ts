@@ -8,4 +8,3 @@ export function useSnackbar(): SnackbarContextType {
   }
   return context;
 }
-

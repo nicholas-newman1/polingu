@@ -17,9 +17,7 @@ const DEFAULT_VOCABULARY_SETTINGS: VocabularySettings = {
 };
 
 function getVocabularySettingsDocPath(direction: VocabularyDirection): string {
-  return direction === 'pl-to-en'
-    ? 'vocabularySettings-pl-en'
-    : 'vocabularySettings-en-pl';
+  return direction === 'pl-to-en' ? 'vocabularySettings-pl-en' : 'vocabularySettings-en-pl';
 }
 
 export async function loadVocabularyDirectionSettings(
@@ -29,13 +27,7 @@ export async function loadVocabularyDirectionSettings(
   if (!userId) return DEFAULT_DIRECTION_SETTINGS;
 
   try {
-    const docRef = doc(
-      db,
-      'users',
-      userId,
-      'data',
-      getVocabularySettingsDocPath(direction)
-    );
+    const docRef = doc(db, 'users', userId, 'data', getVocabularySettingsDocPath(direction));
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
       return {

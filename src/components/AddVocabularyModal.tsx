@@ -148,15 +148,11 @@ interface FormData {
 interface AddVocabularyModalProps {
   open: boolean;
   onClose: () => void;
-  onSave: (
-    word: Omit<CustomVocabularyWord, 'id' | 'isCustom' | 'createdAt'>
-  ) => void;
+  onSave: (word: Omit<CustomVocabularyWord, 'id' | 'isCustom' | 'createdAt'>) => void;
   editWord?: CustomVocabularyWord | VocabularyWord | null;
 }
 
-const getDefaultValues = (
-  editWord?: CustomVocabularyWord | VocabularyWord | null
-): FormData => ({
+const getDefaultValues = (editWord?: CustomVocabularyWord | VocabularyWord | null): FormData => ({
   polish: editWord?.polish || '',
   english: editWord?.english || '',
   partOfSpeech: editWord?.partOfSpeech || '',
@@ -165,12 +161,7 @@ const getDefaultValues = (
   examples: editWord?.examples || [],
 });
 
-export function AddVocabularyModal({
-  open,
-  onClose,
-  onSave,
-  editWord,
-}: AddVocabularyModalProps) {
+export function AddVocabularyModal({ open, onClose, onSave, editWord }: AddVocabularyModalProps) {
   const { isAdmin } = useAuthContext();
   const {
     control,
@@ -192,26 +183,17 @@ export function AddVocabularyModal({
   const polishWord = useWatch({ control, name: 'polish' });
   const englishWord = useWatch({ control, name: 'english' });
   const gender = useWatch({ control, name: 'gender' });
-  const showGenderField =
-    partOfSpeech === 'noun' || partOfSpeech === 'proper noun';
+  const showGenderField = partOfSpeech === 'noun' || partOfSpeech === 'proper noun';
 
   const newExamplePolishRef = useRef<HTMLInputElement>(null);
-  const [translatingIndexes, setTranslatingIndexes] = useState<Set<number>>(
-    new Set()
-  );
-  const translationTimeouts = useRef<
-    Map<number, ReturnType<typeof setTimeout>>
-  >(new Map());
+  const [translatingIndexes, setTranslatingIndexes] = useState<Set<number>>(new Set());
+  const translationTimeouts = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
   const userEditedEnglish = useRef<Set<number>>(new Set());
 
   const [aiContext, setAiContext] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [generatedExamples, setGeneratedExamples] = useState<
-    GeneratedExample[]
-  >([]);
-  const [selectedExampleIndexes, setSelectedExampleIndexes] = useState<
-    Set<number>
-  >(new Set());
+  const [generatedExamples, setGeneratedExamples] = useState<GeneratedExample[]>([]);
+  const [selectedExampleIndexes, setSelectedExampleIndexes] = useState<Set<number>>(new Set());
   const [generateError, setGenerateError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -334,9 +316,7 @@ export function AddVocabularyModal({
   useBackClose(open, handleClose);
 
   const onSubmit = (data: FormData) => {
-    const validExamples = data.examples.filter(
-      (ex) => ex.polish.trim() && ex.english.trim()
-    );
+    const validExamples = data.examples.filter((ex) => ex.polish.trim() && ex.english.trim());
 
     onSave({
       polish: data.polish.trim(),
@@ -389,13 +369,7 @@ export function AddVocabularyModal({
             control={control}
             rules={{ required: true, validate: (v) => v.trim().length > 0 }}
             render={({ field }) => (
-              <TextField
-                {...field}
-                label="English"
-                fullWidth
-                required
-                placeholder="e.g., cat"
-              />
+              <TextField {...field} label="English" fullWidth required placeholder="e.g., cat" />
             )}
           />
 
@@ -409,10 +383,7 @@ export function AddVocabularyModal({
                   {...field}
                   onChange={(e) => {
                     field.onChange(e);
-                    if (
-                      e.target.value !== 'noun' &&
-                      e.target.value !== 'proper noun'
-                    ) {
+                    if (e.target.value !== 'noun' && e.target.value !== 'proper noun') {
                       setValue('gender', '');
                     }
                   }}
@@ -506,11 +477,7 @@ export function AddVocabularyModal({
                         field.onChange(e);
                         handlePolishChange(index, e.target.value);
                       }}
-                      inputRef={
-                        index === fields.length - 1
-                          ? newExamplePolishRef
-                          : undefined
-                      }
+                      inputRef={index === fields.length - 1 ? newExamplePolishRef : undefined}
                       label="Polish"
                       size="small"
                       fullWidth
@@ -556,7 +523,6 @@ export function AddVocabularyModal({
               >
                 Add manually
               </AddExampleButton>
-
             </Box>
 
             {isAdmin && (
@@ -590,9 +556,7 @@ export function AddVocabularyModal({
                           <GeneratedPreview
                             key={index}
                             sx={{
-                              opacity: selectedExampleIndexes.has(index)
-                                ? 1
-                                : 0.5,
+                              opacity: selectedExampleIndexes.has(index) ? 1 : 0.5,
                               cursor: 'pointer',
                               flexDirection: 'row',
                               alignItems: 'flex-start',
@@ -610,10 +574,7 @@ export function AddVocabularyModal({
                               <Typography variant="body2" fontWeight={500}>
                                 {example.polish}
                               </Typography>
-                              <Typography
-                                variant="body2"
-                                color="text.secondary"
-                              >
+                              <Typography variant="body2" color="text.secondary">
                                 {example.english}
                               </Typography>
                               {example.meaning && (

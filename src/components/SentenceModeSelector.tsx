@@ -54,27 +54,23 @@ const LevelRow = styled(Box)({
   gap: 8,
 });
 
-const LevelLabel = styled(Typography)<{ $level: CEFRLevel }>(
-  ({ theme, $level }) => ({
-    fontSize: '0.7rem',
-    fontWeight: 600,
-    width: 24,
-    color: theme.palette.levels[$level],
-  })
-);
+const LevelLabel = styled(Typography)<{ $level: CEFRLevel }>(({ theme, $level }) => ({
+  fontSize: '0.7rem',
+  fontWeight: 600,
+  width: 24,
+  color: theme.palette.levels[$level],
+}));
 
-const LevelProgress = styled(LinearProgress)<{ $level: CEFRLevel }>(
-  ({ theme, $level }) => ({
-    flex: 1,
-    height: 6,
+const LevelProgress = styled(LinearProgress)<{ $level: CEFRLevel }>(({ theme, $level }) => ({
+  flex: 1,
+  height: 6,
+  borderRadius: 3,
+  backgroundColor: theme.palette.action.hover,
+  '& .MuiLinearProgress-bar': {
+    backgroundColor: theme.palette.levels[$level],
     borderRadius: 3,
-    backgroundColor: theme.palette.action.hover,
-    '& .MuiLinearProgress-bar': {
-      backgroundColor: theme.palette.levels[$level],
-      borderRadius: 3,
-    },
-  })
-);
+  },
+}));
 
 const LevelCount = styled(Typography)(({ theme }) => ({
   fontSize: '0.65rem',
@@ -106,11 +102,7 @@ const MODES: Array<{
   },
 ];
 
-export function SentenceModeSelector({
-  stats,
-  loading,
-  onSelectMode,
-}: SentenceModeSelectorProps) {
+export function SentenceModeSelector({ stats, loading, onSelectMode }: SentenceModeSelectorProps) {
   if (loading) {
     return (
       <Container sx={{ minHeight: '40vh', justifyContent: 'center' }}>
@@ -122,11 +114,7 @@ export function SentenceModeSelector({
   return (
     <Container>
       <Header>
-        <Typography
-          variant="h5"
-          color="text.primary"
-          sx={{ fontWeight: 500, mb: 1 }}
-        >
+        <Typography variant="h5" color="text.primary" sx={{ fontWeight: 500, mb: 1 }}>
           Choose Your Practice Mode
         </Typography>
         <Typography variant="body2" color="text.secondary">
@@ -154,17 +142,11 @@ export function SentenceModeSelector({
                 {ALL_LEVELS.map((level) => {
                   const levelStats = modeStats.byLevel[level];
                   const progress =
-                    levelStats.total > 0
-                      ? (levelStats.learned / levelStats.total) * 100
-                      : 0;
+                    levelStats.total > 0 ? (levelStats.learned / levelStats.total) * 100 : 0;
                   return (
                     <LevelRow key={level}>
                       <LevelLabel $level={level}>{level}</LevelLabel>
-                      <LevelProgress
-                        variant="determinate"
-                        value={progress}
-                        $level={level}
-                      />
+                      <LevelProgress variant="determinate" value={progress} $level={level} />
                       <LevelCount>
                         {levelStats.learned}/{levelStats.total}
                       </LevelCount>
@@ -179,4 +161,3 @@ export function SentenceModeSelector({
     </Container>
   );
 }
-

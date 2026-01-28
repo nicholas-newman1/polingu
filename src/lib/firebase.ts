@@ -3,12 +3,12 @@ import { getFirestore } from 'firebase/firestore';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyApUI66KSSG7O9X_YpfI1vy7WdRJX7bNns",
-  authDomain: "polish-declension.firebaseapp.com",
-  projectId: "polish-declension",
-  storageBucket: "polish-declension.firebasestorage.app",
-  messagingSenderId: "854216965862",
-  appId: "1:854216965862:web:5f931eecc636e50f24c527",
+  apiKey: 'AIzaSyApUI66KSSG7O9X_YpfI1vy7WdRJX7bNns',
+  authDomain: 'polish-declension.firebaseapp.com',
+  projectId: 'polish-declension',
+  storageBucket: 'polish-declension.firebasestorage.app',
+  messagingSenderId: '854216965862',
+  appId: '1:854216965862:web:5f931eecc636e50f24c527',
 };
 
 export const app = initializeApp(firebaseConfig);

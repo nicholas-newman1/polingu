@@ -12,10 +12,7 @@ export default function getSentenceExtraNewCards(
   const systemNewCards: SentenceSessionCard[] = [];
 
   for (const sentence of allSentences) {
-    const reviewData = getOrCreateSentenceCardReviewData(
-      sentence.id,
-      reviewStore
-    );
+    const reviewData = getOrCreateSentenceCardReviewData(sentence.id, reviewStore);
     const isNew = reviewData.fsrsCard.state === 0;
 
     if (isNew && !includesSentenceId(reviewStore.newCardsToday, sentence.id)) {
@@ -31,4 +28,3 @@ export default function getSentenceExtraNewCards(
 
   return [...customNewCards, ...systemNewCards].slice(0, count);
 }
-

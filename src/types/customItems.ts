@@ -6,10 +6,7 @@ export interface CustomItemBase {
   createdAt: number;
 }
 
-export type AsCustom<T extends { id: number | string }> = Omit<
-  T,
-  'id' | 'isCustom'
-> &
+export type AsCustom<T extends { id: number | string }> = Omit<T, 'id' | 'isCustom'> &
   CustomItemBase;
 
 export function isCustomId(id: ItemId): id is string {
@@ -19,4 +16,3 @@ export function isCustomId(id: ItemId): id is string {
 export function generateCustomId(): string {
   return `custom_${Date.now()}`;
 }
-

@@ -10,4 +10,3 @@ export default async function saveDeclensionSettings(settings: DeclensionSetting
   const docRef = doc(db, 'users', userId, 'data', 'settings');
   await setDoc(docRef, settings);
 }
-

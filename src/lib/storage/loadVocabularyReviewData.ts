@@ -1,9 +1,6 @@
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import type {
-  VocabularyReviewDataStore,
-  VocabularyDirection,
-} from '../../types/vocabulary';
+import type { VocabularyReviewDataStore, VocabularyDirection } from '../../types/vocabulary';
 import {
   getUserId,
   getTodayString,
@@ -18,13 +15,7 @@ export default async function loadVocabularyReviewData(
   if (!userId) return getDefaultVocabularyReviewStore();
 
   try {
-    const docRef = doc(
-      db,
-      'users',
-      userId,
-      'data',
-      getVocabularyDocPath(direction)
-    );
+    const docRef = doc(db, 'users', userId, 'data', getVocabularyDocPath(direction));
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
       const parsed = docSnap.data() as VocabularyReviewDataStore;
@@ -51,4 +42,3 @@ export default async function loadVocabularyReviewData(
   }
   return getDefaultVocabularyReviewStore();
 }
-

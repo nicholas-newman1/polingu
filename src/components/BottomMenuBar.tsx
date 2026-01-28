@@ -4,6 +4,7 @@ import MenuBookIcon from '@mui/icons-material/MenuBook';
 import AbcIcon from '@mui/icons-material/Abc';
 import TranslateIcon from '@mui/icons-material/Translate';
 import SpellcheckIcon from '@mui/icons-material/Spellcheck';
+import AutoStoriesIcon from '@mui/icons-material/AutoStories';
 import { useTranslationContext } from '../hooks/useTranslationContext';
 import { useCheatSheetContext } from '../hooks/useCheatSheetContext';
 import { alpha } from '../lib/theme';
@@ -21,37 +22,29 @@ const MenuBarContainer = styled(Box)(({ theme }) => ({
   backgroundColor: alpha(theme.palette.background.paper, 0.95),
   backdropFilter: 'blur(8px)',
   borderTop: `1px solid ${theme.palette.divider}`,
-  [theme.breakpoints.up('md')]: {
-    left: DRAWER_WIDTH,
-  },
+  [theme.breakpoints.up('md')]: { left: DRAWER_WIDTH },
 }));
 
-const MenuButton = styled(ButtonBase)<{ $disabled?: boolean }>(
-  ({ theme, $disabled }) => ({
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: theme.spacing(0.5),
-    padding: theme.spacing(1),
-    borderRadius: theme.spacing(1),
-    color: $disabled
-      ? theme.palette.text.disabled
-      : theme.palette.text.secondary,
-    cursor: $disabled ? 'default' : 'pointer',
-    '&:hover': $disabled
-      ? {}
-      : {
-          color: theme.palette.text.primary,
-          backgroundColor: theme.palette.action.hover,
-        },
-  })
-);
+const MenuButton = styled(ButtonBase)<{ $disabled?: boolean }>(({ theme, $disabled }) => ({
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  gap: theme.spacing(0.5),
+  padding: theme.spacing(1),
+  borderRadius: theme.spacing(1),
+  color: $disabled ? theme.palette.text.disabled : theme.palette.text.secondary,
+  cursor: $disabled ? 'default' : 'pointer',
+  '&:hover': $disabled
+    ? {}
+    : {
+        color: theme.palette.text.primary,
+        backgroundColor: theme.palette.action.hover,
+      },
+}));
 
 const IconWrapper = styled(Box)<{ $isActive?: boolean; $disabled?: boolean }>(
   ({ theme, $isActive, $disabled }) => ({
-    backgroundColor: $isActive
-      ? alpha(theme.palette.primary.main, 0.12)
-      : theme.palette.grey[100],
+    backgroundColor: $isActive ? alpha(theme.palette.primary.main, 0.12) : theme.palette.grey[100],
     borderRadius: theme.spacing(1),
     padding: theme.spacing(1),
     display: 'flex',
@@ -60,8 +53,8 @@ const IconWrapper = styled(Box)<{ $isActive?: boolean; $disabled?: boolean }>(
     color: $disabled
       ? theme.palette.text.disabled
       : $isActive
-      ? theme.palette.primary.main
-      : 'inherit',
+        ? theme.palette.primary.main
+        : 'inherit',
     opacity: $disabled ? 0.6 : 1,
   })
 );
@@ -76,8 +69,7 @@ interface BottomMenuBarProps {
 }
 
 export function BottomMenuBar({ showTranslator = true }: BottomMenuBarProps) {
-  const { openTranslator, showTranslator: isTranslatorOpen } =
-    useTranslationContext();
+  const { openTranslator, showTranslator: isTranslatorOpen } = useTranslationContext();
   const { openSheet, activeSheet } = useCheatSheetContext();
 
   const translatorButton = (
@@ -103,32 +95,33 @@ export function BottomMenuBar({ showTranslator = true }: BottomMenuBarProps) {
           <span>{translatorButton}</span>
         </Tooltip>
       )}
-      <MenuButton
-        onClick={() => openSheet('declension')}
-        aria-label="Open declension cheat sheet"
-      >
+      <MenuButton onClick={() => openSheet('declension')} aria-label="Open declension cheat sheet">
         <IconWrapper $isActive={activeSheet === 'declension'}>
           <MenuBookIcon fontSize="small" />
         </IconWrapper>
         <Label>Declensions</Label>
       </MenuButton>
-      <MenuButton
-        onClick={() => openSheet('consonants')}
-        aria-label="Open consonants cheat sheet"
-      >
+      <MenuButton onClick={() => openSheet('consonants')} aria-label="Open consonants cheat sheet">
         <IconWrapper $isActive={activeSheet === 'consonants'}>
           <AbcIcon fontSize="small" />
         </IconWrapper>
         <Label>Consonants</Label>
       </MenuButton>
-      <MenuButton
-        onClick={() => openSheet('yi-rule')}
-        aria-label="Open y/i rule cheat sheet"
-      >
+      <MenuButton onClick={() => openSheet('yi-rule')} aria-label="Open y/i rule cheat sheet">
         <IconWrapper $isActive={activeSheet === 'yi-rule'}>
           <SpellcheckIcon fontSize="small" />
         </IconWrapper>
         <Label>-y/-i Rule</Label>
+      </MenuButton>
+
+      <MenuButton
+        onClick={() => openSheet('conjugation')}
+        aria-label="Open conjugation cheat sheet"
+      >
+        <IconWrapper $isActive={activeSheet === 'conjugation'}>
+          <AutoStoriesIcon fontSize="small" />
+        </IconWrapper>
+        <Label>Conjugations</Label>
       </MenuButton>
     </MenuBarContainer>
   );

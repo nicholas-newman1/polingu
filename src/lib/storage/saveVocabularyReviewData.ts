@@ -1,9 +1,6 @@
 import { doc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import type {
-  VocabularyReviewDataStore,
-  VocabularyDirection,
-} from '../../types/vocabulary';
+import type { VocabularyReviewDataStore, VocabularyDirection } from '../../types/vocabulary';
 import { getUserId, getVocabularyDocPath } from './helpers';
 
 export default async function saveVocabularyReviewData(
@@ -13,13 +10,7 @@ export default async function saveVocabularyReviewData(
   const userId = getUserId();
   if (!userId) return;
 
-  const docRef = doc(
-    db,
-    'users',
-    userId,
-    'data',
-    getVocabularyDocPath(direction)
-  );
+  const docRef = doc(db, 'users', userId, 'data', getVocabularyDocPath(direction));
   const serializable = {
     ...data,
     cards: Object.fromEntries(

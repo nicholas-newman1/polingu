@@ -111,13 +111,8 @@ function StatBoxWithLoading({
 
 export function StatsPage() {
   const theme = useTheme();
-  const {
-    loading,
-    systemWords,
-    customWords,
-    systemDeclensionCards,
-    customDeclensionCards,
-  } = useReviewData();
+  const { loading, systemWords, customWords, systemDeclensionCards, customDeclensionCards } =
+    useReviewData();
   const progressStats = useProgressStats();
 
   const vocabularyStats: CategoryStats = {
@@ -170,11 +165,7 @@ export function StatsPage() {
             color={theme.palette.success.main}
             loading={loading}
           />
-          <StatBoxWithLoading
-            value={vocabularyStats.total}
-            label="Total"
-            loading={loading}
-          />
+          <StatBoxWithLoading value={vocabularyStats.total} label="Total" loading={loading} />
         </StatsGrid>
         {!loading && (
           <BreakdownText>
@@ -201,11 +192,7 @@ export function StatsPage() {
             color={theme.palette.success.main}
             loading={loading}
           />
-          <StatBoxWithLoading
-            value={declensionStats.total}
-            label="Total"
-            loading={loading}
-          />
+          <StatBoxWithLoading value={declensionStats.total} label="Total" loading={loading} />
         </StatsGrid>
         {!loading && (
           <BreakdownText>

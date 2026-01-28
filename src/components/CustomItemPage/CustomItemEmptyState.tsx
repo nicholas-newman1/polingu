@@ -20,11 +20,7 @@ export function CustomItemEmptyState({
       <Typography variant="h6" color="text.secondary" gutterBottom>
         {title}
       </Typography>
-      <Typography
-        variant="body2"
-        color="text.disabled"
-        sx={{ mb: 3, maxWidth: 320 }}
-      >
+      <Typography variant="body2" color="text.disabled" sx={{ mb: 3, maxWidth: 320 }}>
         {description}
       </Typography>
       <Button variant="outlined" startIcon={<AddIcon />} onClick={onAdd}>
@@ -33,4 +29,3 @@ export function CustomItemEmptyState({
     </EmptyContainer>
   );
 }
-

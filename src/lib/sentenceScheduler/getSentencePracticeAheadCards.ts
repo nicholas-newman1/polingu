@@ -14,19 +14,13 @@ export default function getSentencePracticeAheadCards(
   const systemPracticeCards: SentenceSessionCard[] = [];
 
   for (const sentence of allSentences) {
-    const reviewData = getOrCreateSentenceCardReviewData(
-      sentence.id,
-      reviewStore
-    );
+    const reviewData = getOrCreateSentenceCardReviewData(sentence.id, reviewStore);
     const isNew = reviewData.fsrsCard.state === 0;
 
     if (isNew) continue;
 
     const isDueCard = isDue(reviewData.fsrsCard);
-    const reviewedToday = includesSentenceId(
-      reviewStore.reviewedToday,
-      sentence.id
-    );
+    const reviewedToday = includesSentenceId(reviewStore.reviewedToday, sentence.id);
 
     if (!isDueCard || reviewedToday) {
       const isCustom = sentence.isCustom === true;
@@ -43,4 +37,3 @@ export default function getSentencePracticeAheadCards(
 
   return [...customPracticeCards, ...systemPracticeCards].slice(0, count);
 }
-

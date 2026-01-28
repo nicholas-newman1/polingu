@@ -16,8 +16,7 @@ export default function getDeclensionSessionCards(
   const customNewCards: DeclensionSessionCard[] = [];
   const systemReviewCards: DeclensionSessionCard[] = [];
   const systemNewCards: DeclensionSessionCard[] = [];
-  const remainingNewCardsToday =
-    settings.newCardsPerDay - reviewStore.newCardsToday.length;
+  const remainingNewCardsToday = settings.newCardsPerDay - reviewStore.newCardsToday.length;
 
   for (const card of allCards) {
     const reviewData = getOrCreateDeclensionCardReviewData(card.id, reviewStore);

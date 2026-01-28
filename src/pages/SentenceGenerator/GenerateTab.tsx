@@ -52,13 +52,16 @@ export const GenerateTab = memo(function GenerateTab({
     [generateFilteredSentences]
   );
 
-  const handleAddTag = useCallback(async (category: TagCategory) => {
-    const tag = newTagInputs[category].trim();
-    if (!tag) return;
-    await addSentenceTag(category, tag);
-    setNewTagInputs((prev) => ({ ...prev, [category]: '' }));
-    showSnackbar(`Added "${tag}" to ${category}`, 'success');
-  }, [newTagInputs, addSentenceTag, showSnackbar]);
+  const handleAddTag = useCallback(
+    async (category: TagCategory) => {
+      const tag = newTagInputs[category].trim();
+      if (!tag) return;
+      await addSentenceTag(category, tag);
+      setNewTagInputs((prev) => ({ ...prev, [category]: '' }));
+      showSnackbar(`Added "${tag}" to ${category}`, 'success');
+    },
+    [newTagInputs, addSentenceTag, showSnackbar]
+  );
 
   const toggleTag = useCallback((tag: string) => {
     setSelectedTags((prev) =>
@@ -284,4 +287,3 @@ export const GenerateTab = memo(function GenerateTab({
     </Stack>
   );
 });
-

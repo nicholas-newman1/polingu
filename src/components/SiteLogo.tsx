@@ -15,12 +15,7 @@ const LogoContainer = styled(Box)({
 export function SiteLogo({ size = 24 }: SiteLogoProps) {
   return (
     <LogoContainer sx={{ width: size, height: size }}>
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 32 32"
-        width="100%"
-        height="100%"
-      >
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="100%" height="100%">
         <defs>
           <linearGradient id="redGrad" x1="0%" y1="0%" x2="0%" y2="100%">
             <stop offset="0%" stopColor="#DC143C" />
@@ -30,14 +25,7 @@ export function SiteLogo({ size = 24 }: SiteLogoProps) {
             <rect x="2" y="2" width="28" height="28" rx="6" />
           </clipPath>
         </defs>
-        <rect
-          x="2"
-          y="2"
-          width="28"
-          height="28"
-          rx="6"
-          fill="#FFFFFF"
-        />
+        <rect x="2" y="2" width="28" height="28" rx="6" fill="#FFFFFF" />
         <rect
           x="2"
           y="2"
@@ -67,4 +55,3 @@ export function SiteLogo({ size = 24 }: SiteLogoProps) {
     </LogoContainer>
   );
 }
-

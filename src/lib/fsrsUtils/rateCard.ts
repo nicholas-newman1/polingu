@@ -14,4 +14,3 @@ export default function rateCard<T extends { fsrsCard: FSRSCard }>(
     log: item.log,
   };
 }
-

@@ -1,13 +1,5 @@
 import { useState, useCallback, memo } from 'react';
-import {
-  TextField,
-  Box,
-  Button,
-  Typography,
-  Chip,
-  CircularProgress,
-  Stack,
-} from '@mui/material';
+import { TextField, Box, Button, Typography, Chip, CircularProgress, Stack } from '@mui/material';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import AddIcon from '@mui/icons-material/Add';
 import type { CEFRLevel, Sentence } from '../../types/sentences';
@@ -34,9 +26,7 @@ export const AddCustomTab = memo(function AddCustomTab({
   const [savingCustom, setSavingCustom] = useState(false);
 
   const toggleCustomTag = useCallback((tag: string) => {
-    setCustomTags((prev) =>
-      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
-    );
+    setCustomTags((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]));
   }, []);
 
   const handleProcess = useCallback(async () => {
@@ -92,7 +82,8 @@ export const AddCustomTab = memo(function AddCustomTab({
   return (
     <Stack spacing={3}>
       <Typography variant="body2" color="text.secondary">
-        Add a sentence manually. Enter either Polish or English and the system will translate and assess the CEFR level.
+        Add a sentence manually. Enter either Polish or English and the system will translate and
+        assess the CEFR level.
       </Typography>
 
       <Section>
@@ -119,7 +110,9 @@ export const AddCustomTab = memo(function AddCustomTab({
 
       <TextField
         label={customSourceLang === 'PL' ? 'Polish Sentence' : 'English Sentence'}
-        placeholder={customSourceLang === 'PL' ? 'Enter a Polish sentence...' : 'Enter an English sentence...'}
+        placeholder={
+          customSourceLang === 'PL' ? 'Enter a Polish sentence...' : 'Enter an English sentence...'
+        }
         value={customText}
         onChange={(e) => setCustomText(e.target.value)}
         multiline
@@ -179,7 +172,11 @@ export const AddCustomTab = memo(function AddCustomTab({
             </Typography>
             {(['topics', 'grammar', 'style'] as const).map((category) => (
               <Box key={category}>
-                <Typography variant="caption" color="text.disabled" sx={{ mb: 0.5, display: 'block' }}>
+                <Typography
+                  variant="caption"
+                  color="text.disabled"
+                  sx={{ mb: 0.5, display: 'block' }}
+                >
                   {category.charAt(0).toUpperCase() + category.slice(1)}
                 </Typography>
                 <ChipGroup>
@@ -213,4 +210,3 @@ export const AddCustomTab = memo(function AddCustomTab({
     </Stack>
   );
 });
-

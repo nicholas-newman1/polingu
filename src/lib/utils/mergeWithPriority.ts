@@ -24,4 +24,3 @@ export function separateByCustom<T extends PrioritizableItem>(
   }
   return { customItems, systemItems };
 }
-

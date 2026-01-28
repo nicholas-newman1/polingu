@@ -15,4 +15,3 @@ export default function getNextIntervals(
     [Rating.Easy]: formatInterval(result[Rating.Easy].card, now),
   };
 }
-

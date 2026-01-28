@@ -37,13 +37,10 @@ export function useTooltipInteraction(options?: UseTooltipInteractionOptions) {
     setIsClicked((prev) => !prev);
   }, []);
 
-  const handleMouseEnter = useCallback(
-    (event: React.MouseEvent<HTMLElement>) => {
-      setAnchorEl(event.currentTarget);
-      setIsHovering(true);
-    },
-    []
-  );
+  const handleMouseEnter = useCallback((event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+    setIsHovering(true);
+  }, []);
 
   const handleMouseLeave = useCallback(() => {
     setIsHovering(false);
@@ -66,4 +63,3 @@ export function useTooltipInteraction(options?: UseTooltipInteractionOptions) {
     close,
   };
 }
-

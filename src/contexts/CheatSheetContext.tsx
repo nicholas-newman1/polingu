@@ -1,6 +1,6 @@
 import { createContext, useState, useCallback, type ReactNode } from 'react';
 
-export type CheatSheetType = 'declension' | 'consonants' | 'yi-rule' | null;
+export type CheatSheetType = 'declension' | 'consonants' | 'yi-rule' | 'conjugation' | null;
 
 export interface CheatSheetContextValue {
   activeSheet: CheatSheetType;
@@ -9,9 +9,7 @@ export interface CheatSheetContextValue {
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
-export const CheatSheetContext = createContext<CheatSheetContextValue | null>(
-  null
-);
+export const CheatSheetContext = createContext<CheatSheetContextValue | null>(null);
 
 export function CheatSheetProvider({ children }: { children: ReactNode }) {
   const [activeSheet, setActiveSheet] = useState<CheatSheetType>(null);

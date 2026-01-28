@@ -61,9 +61,7 @@ export function createCustomStorage<T extends CustomItemBase>(
       updates: Partial<Omit<T, 'id' | 'isCustom' | 'createdAt'>>
     ): Promise<void> {
       const items = await this.load();
-      const updated = items.map((item) =>
-        item.id === id ? { ...item, ...updates } : item
-      );
+      const updated = items.map((item) => (item.id === id ? { ...item, ...updates } : item));
       await this.save(updated);
     },
 

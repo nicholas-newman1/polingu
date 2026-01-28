@@ -11,13 +11,6 @@ export default async function saveVocabularySettings(
   const userId = getUserId();
   if (!userId) return;
 
-  const docRef = doc(
-    db,
-    'users',
-    userId,
-    'data',
-    getVocabularySettingsDocPath(direction)
-  );
+  const docRef = doc(db, 'users', userId, 'data', getVocabularySettingsDocPath(direction));
   await setDoc(docRef, settings);
 }
-

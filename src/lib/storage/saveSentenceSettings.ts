@@ -11,12 +11,6 @@ export default async function saveSentenceSettings(
   const userId = getUserId();
   if (!userId) return;
 
-  const docRef = doc(
-    db,
-    'users',
-    userId,
-    'data',
-    getSentenceSettingsDocPath(direction)
-  );
+  const docRef = doc(db, 'users', userId, 'data', getSentenceSettingsDocPath(direction));
   await setDoc(docRef, settings);
 }

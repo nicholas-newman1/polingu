@@ -1,8 +1,5 @@
 import { createEmptyCard } from 'ts-fsrs';
-import type {
-  SentenceReviewDataStore,
-  SentenceCardReviewData,
-} from '../../types/sentences';
+import type { SentenceReviewDataStore, SentenceCardReviewData } from '../../types/sentences';
 
 export default function getOrCreateSentenceCardReviewData(
   sentenceId: string,
@@ -16,4 +13,3 @@ export default function getOrCreateSentenceCardReviewData(
     fsrsCard: createEmptyCard(),
   };
 }
-

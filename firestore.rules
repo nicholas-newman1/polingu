@@ -63,6 +63,24 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
+    // User conjugation review data (per direction) - only the owner can read/write
+    match /users/{userId}/data/conjugationReviewData-pl-en {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    match /users/{userId}/data/conjugationReviewData-en-pl {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // User conjugation settings (per direction) - only the owner can read/write
+    match /users/{userId}/data/conjugationSettings-pl-en {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    match /users/{userId}/data/conjugationSettings-en-pl {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
     // User rate limits - users can only read their own (writes done by Cloud Function)
     match /userRateLimits/{userId} {
       allow read: if request.auth != null && request.auth.uid == userId;
@@ -82,6 +100,12 @@ service cloud.firestore {
 
     // Declension cards - public read, admin write
     match /declensionCards/{cardId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.token.admin == true;
+    }
+
+    // Verbs - public read, admin write
+    match /verbs/{verbId} {
       allow read: if true;
       allow write: if request.auth != null && request.auth.token.admin == true;
     }

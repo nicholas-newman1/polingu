@@ -6,10 +6,7 @@ import { styled } from '../lib/styled';
 import { AddButton } from '../components/AddButton';
 import { PracticeModeButton } from '../components/PracticeModeButton';
 import { SettingsButton } from '../components/SettingsButton';
-import {
-  SentenceFlashcard,
-  type RatingIntervals,
-} from '../components/SentenceFlashcard';
+import { SentenceFlashcard, type RatingIntervals } from '../components/SentenceFlashcard';
 import { SentenceModeSelector } from '../components/SentenceModeSelector';
 import { FinishedState } from '../components/FinishedState';
 import { EmptyState } from '../components/EmptyState';
@@ -37,7 +34,11 @@ import { useProgressStats } from '../hooks/useProgressStats';
 import { useOptimistic } from '../hooks/useOptimistic';
 import { useSnackbar } from '../hooks/useSnackbar';
 import { useTranslationContext } from '../hooks/useTranslationContext';
-import { updateSentence, deleteSentence, updateSentenceTranslation } from '../lib/storage/systemSentences';
+import {
+  updateSentence,
+  deleteSentence,
+  updateSentenceTranslation,
+} from '../lib/storage/systemSentences';
 import { saveCustomSentences } from '../lib/storage/customSentences';
 import shuffleArray from '../lib/utils/shuffleArray';
 import { includesSentenceId } from '../lib/storage/helpers';
@@ -79,19 +80,13 @@ export function SentencesPage({ mode }: SentencesPageProps) {
     setCustomSentences: setContextCustomSentences,
   } = useReviewData();
 
-  const [sentences, applyOptimisticSentences] = useOptimistic(
-    contextSentences,
-    {
-      onError: () => showSnackbar('Failed to save. Please try again.', 'error'),
-    }
-  );
+  const [sentences, applyOptimisticSentences] = useOptimistic(contextSentences, {
+    onError: () => showSnackbar('Failed to save. Please try again.', 'error'),
+  });
 
-  const [customSentences, applyOptimisticCustomSentences] = useOptimistic(
-    contextCustomSentences,
-    {
-      onError: () => showSnackbar('Failed to save. Please try again.', 'error'),
-    }
-  );
+  const [customSentences, applyOptimisticCustomSentences] = useOptimistic(contextCustomSentences, {
+    onError: () => showSnackbar('Failed to save. Please try again.', 'error'),
+  });
 
   const [showSettings, setShowSettings] = useState(false);
   const [practiceMode, setPracticeMode] = useState(false);
@@ -119,10 +114,7 @@ export function SentencesPage({ mode }: SentencesPageProps) {
   const reviewStore = sentenceReviewStores[currentDirection];
 
   const filteredSentences = useMemo(
-    () =>
-      contextSentences.filter((s) =>
-        directionSettings.selectedLevels.includes(s.level)
-      ),
+    () => contextSentences.filter((s) => directionSettings.selectedLevels.includes(s.level)),
     [contextSentences, directionSettings.selectedLevels]
   );
 
@@ -189,14 +181,7 @@ export function SentencesPage({ mode }: SentencesPageProps) {
         buildSession(modeSentences, modeReviewStore, modeSettings);
       });
     }
-  }, [
-    mode,
-    contextLoading,
-    settings,
-    sentenceReviewStores,
-    contextSentences,
-    buildSession,
-  ]);
+  }, [mode, contextLoading, settings, sentenceReviewStores, contextSentences, buildSession]);
 
   const startPracticeAhead = useCallback(() => {
     const aheadCards = getSentencePracticeAheadCards(
@@ -213,11 +198,7 @@ export function SentencesPage({ mode }: SentencesPageProps) {
   }, [filteredSentences, reviewStore, practiceAheadCount]);
 
   const startExtraNewCards = useCallback(() => {
-    const extraCards = getSentenceExtraNewCards(
-      filteredSentences,
-      reviewStore,
-      extraNewCardsCount
-    );
+    const extraCards = getSentenceExtraNewCards(filteredSentences, reviewStore, extraNewCardsCount);
     setSessionQueue(extraCards);
     setReviewCount(0);
     setNewCount(extraCards.length);
@@ -239,26 +220,19 @@ export function SentencesPage({ mode }: SentencesPageProps) {
   }, [practiceCards.length]);
 
   const currentSessionCard = sessionQueue[currentIndex] ?? learningQueue[0];
-  const isFinished =
-    currentIndex >= sessionQueue.length && learningQueue.length === 0;
+  const isFinished = currentIndex >= sessionQueue.length && learningQueue.length === 0;
 
   const handleRate = async (rating: Grade) => {
     if (!currentSessionCard) return;
 
     const sentenceId = currentSessionCard.sentence.id;
-    const updatedReviewData = rateSentenceCard(
-      currentSessionCard.reviewData,
-      rating
-    );
+    const updatedReviewData = rateSentenceCard(currentSessionCard.reviewData, rating);
 
     const newStore = { ...reviewStore };
     newStore.cards = { ...newStore.cards };
     newStore.cards[sentenceId] = updatedReviewData;
 
-    if (
-      currentSessionCard.isNew &&
-      !includesSentenceId(newStore.newCardsToday, sentenceId)
-    ) {
+    if (currentSessionCard.isNew && !includesSentenceId(newStore.newCardsToday, sentenceId)) {
       newStore.newCardsToday = [...newStore.newCardsToday, sentenceId];
     }
 
@@ -294,18 +268,14 @@ export function SentencesPage({ mode }: SentencesPageProps) {
   const handleNewCardsChange = async (newCardsPerDay: number) => {
     const newSettings = { ...directionSettings, newCardsPerDay };
     await updateSentenceSettings(currentDirection, newSettings);
-    const filtered = contextSentences.filter((s) =>
-      newSettings.selectedLevels.includes(s.level)
-    );
+    const filtered = contextSentences.filter((s) => newSettings.selectedLevels.includes(s.level));
     buildSession(filtered, reviewStore, newSettings);
   };
 
   const handleLevelsChange = async (selectedLevels: CEFRLevel[]) => {
     const newSettings = { ...directionSettings, selectedLevels };
     await updateSentenceSettings(currentDirection, newSettings);
-    const filtered = contextSentences.filter((s) =>
-      selectedLevels.includes(s.level)
-    );
+    const filtered = contextSentences.filter((s) => selectedLevels.includes(s.level));
 
     if (practiceMode) {
       setPracticeCards(shuffleArray([...filtered]));
@@ -335,36 +305,23 @@ export function SentencesPage({ mode }: SentencesPageProps) {
     setShowEditModal(true);
   }, [currentSessionCard]);
 
-  const updateSentenceInQueues = (
-    sentenceId: string,
-    updatedSentence: Sentence
-  ) => {
+  const updateSentenceInQueues = (sentenceId: string, updatedSentence: Sentence) => {
     setSessionQueue((prev) =>
       prev.map((item) =>
-        item.sentence.id === sentenceId
-          ? { ...item, sentence: updatedSentence }
-          : item
+        item.sentence.id === sentenceId ? { ...item, sentence: updatedSentence } : item
       )
     );
     setLearningQueue((prev) =>
       prev.map((item) =>
-        item.sentence.id === sentenceId
-          ? { ...item, sentence: updatedSentence }
-          : item
+        item.sentence.id === sentenceId ? { ...item, sentence: updatedSentence } : item
       )
     );
-    setPracticeCards((prev) =>
-      prev.map((s) => (s.id === sentenceId ? updatedSentence : s))
-    );
+    setPracticeCards((prev) => prev.map((s) => (s.id === sentenceId ? updatedSentence : s)));
   };
 
   const removeSentenceFromQueues = (sentenceId: string) => {
-    setSessionQueue((prev) =>
-      prev.filter((item) => item.sentence.id !== sentenceId)
-    );
-    setLearningQueue((prev) =>
-      prev.filter((item) => item.sentence.id !== sentenceId)
-    );
+    setSessionQueue((prev) => prev.filter((item) => item.sentence.id !== sentenceId));
+    setLearningQueue((prev) => prev.filter((item) => item.sentence.id !== sentenceId));
     setPracticeCards((prev) => prev.filter((s) => s.id !== sentenceId));
   };
 
@@ -435,12 +392,7 @@ export function SentencesPage({ mode }: SentencesPageProps) {
       await deleteSentence(sentenceToDelete.id);
       setContextSentences(newSentences);
     });
-  }, [
-    currentSessionCard,
-    sentences,
-    applyOptimisticSentences,
-    setContextSentences,
-  ]);
+  }, [currentSessionCard, sentences, applyOptimisticSentences, setContextSentences]);
 
   const handleUpdateTranslation = useCallback(
     async (sentenceId: string, word: string, translation: string) => {
@@ -452,9 +404,7 @@ export function SentencesPage({ mode }: SentencesPageProps) {
 
       updateSentenceInQueues(sentenceId, updatedSentence);
 
-      const newSentences = sentences.map((s) =>
-        s.id === sentenceId ? updatedSentence : s
-      );
+      const newSentences = sentences.map((s) => (s.id === sentenceId ? updatedSentence : s));
 
       applyOptimisticSentences(newSentences, async () => {
         await updateSentenceTranslation(sentenceId, word, translation);
@@ -474,10 +424,7 @@ export function SentencesPage({ mode }: SentencesPageProps) {
       };
     }
     const allIntervals = getNextIntervals(
-      getOrCreateSentenceCardReviewData(
-        currentSessionCard.sentence.id,
-        reviewStore
-      ).fsrsCard
+      getOrCreateSentenceCardReviewData(currentSessionCard.sentence.id, reviewStore).fsrsCard
     );
     return {
       [Rating.Again]: allIntervals[Rating.Again],
@@ -487,8 +434,7 @@ export function SentencesPage({ mode }: SentencesPageProps) {
     };
   }, [currentSessionCard, reviewStore]);
 
-  const totalRemaining =
-    sessionQueue.length - currentIndex + learningQueue.length;
+  const totalRemaining = sessionQueue.length - currentIndex + learningQueue.length;
 
   const currentPracticeSentence = practiceCards[practiceIndex];
 
@@ -539,9 +485,7 @@ export function SentencesPage({ mode }: SentencesPageProps) {
           onNewCardsChange={handleNewCardsChange}
           onLevelsChange={handleLevelsChange}
           onResetAllData={handleResetAllData}
-          resetButtonLabel={`Reset ${
-            currentDirection === 'pl-to-en' ? 'PL→EN' : 'EN→PL'
-          } Progress`}
+          resetButtonLabel={`Reset ${currentDirection === 'pl-to-en' ? 'PL→EN' : 'EN→PL'} Progress`}
           practiceMode={practiceMode}
         />
       )}
@@ -567,8 +511,7 @@ export function SentencesPage({ mode }: SentencesPageProps) {
                 `Practice Mode · ${practiceCards.length} sentences`
               ) : isFinished ? null : isPracticeAhead ? (
                 <>
-                  Practice Ahead · <ReviewCountBadge count={totalRemaining} />{' '}
-                  remaining
+                  Practice Ahead · <ReviewCountBadge count={totalRemaining} /> remaining
                 </>
               ) : (
                 <>
@@ -591,11 +534,7 @@ export function SentencesPage({ mode }: SentencesPageProps) {
                   onUpdateTranslation={
                     isAdmin
                       ? (word, translation) =>
-                          handleUpdateTranslation(
-                            currentPracticeSentence.id,
-                            word,
-                            translation
-                          )
+                          handleUpdateTranslation(currentPracticeSentence.id, word, translation)
                       : undefined
                   }
                 />
@@ -626,11 +565,7 @@ export function SentencesPage({ mode }: SentencesPageProps) {
                 onUpdateTranslation={
                   isAdmin
                     ? (word, translation) =>
-                        handleUpdateTranslation(
-                          currentSessionCard.sentence.id,
-                          word,
-                          translation
-                        )
+                        handleUpdateTranslation(currentSessionCard.sentence.id, word, translation)
                     : undefined
                 }
               />

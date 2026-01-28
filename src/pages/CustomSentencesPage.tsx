@@ -17,10 +17,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import { styled } from '../lib/styled';
 import { alpha } from '../lib/theme';
 import { EditSentenceModal } from '../components/EditSentenceModal';
-import {
-  loadCustomSentences,
-  saveCustomSentences,
-} from '../lib/storage/customSentences';
+import { loadCustomSentences, saveCustomSentences } from '../lib/storage/customSentences';
 import type { CustomSentence, CEFRLevel, Sentence } from '../types/sentences';
 import { ALL_LEVELS } from '../types/sentences';
 import { useAuthContext } from '../hooks/useAuthContext';
@@ -67,19 +64,12 @@ export function CustomSentencesPage() {
   const { showSnackbar } = useSnackbar();
   const { setCustomSentences: setContextCustomSentences } = useReviewData();
   const [isLoading, setIsLoading] = useState(true);
-  const [customSentencesBase, setCustomSentencesBase] = useState<
-    CustomSentence[]
-  >([]);
-  const [customSentences, applyOptimisticCustomSentences] = useOptimistic(
-    customSentencesBase,
-    {
-      onError: () => showSnackbar('Failed to save. Please try again.', 'error'),
-    }
-  );
+  const [customSentencesBase, setCustomSentencesBase] = useState<CustomSentence[]>([]);
+  const [customSentences, applyOptimisticCustomSentences] = useOptimistic(customSentencesBase, {
+    onError: () => showSnackbar('Failed to save. Please try again.', 'error'),
+  });
   const [showAddModal, setShowAddModal] = useState(false);
-  const [editingSentence, setEditingSentence] = useState<CustomSentence | null>(
-    null
-  );
+  const [editingSentence, setEditingSentence] = useState<CustomSentence | null>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [levelFilter, setLevelFilter] = useState<CEFRLevel | ''>('');
@@ -319,21 +309,13 @@ export function CustomSentencesPage() {
                       />
                     </TableCell>
                     <TableCell>
-                      <TruncatedCell title={sentence.polish}>
-                        {sentence.polish}
-                      </TruncatedCell>
+                      <TruncatedCell title={sentence.polish}>{sentence.polish}</TruncatedCell>
                     </TableCell>
                     <TableCell>
-                      <TruncatedCell title={sentence.english}>
-                        {sentence.english}
-                      </TruncatedCell>
+                      <TruncatedCell title={sentence.english}>{sentence.english}</TruncatedCell>
                     </TableCell>
                     <TableCell>
-                      <LevelChip
-                        $level={sentence.level}
-                        label={sentence.level}
-                        size="small"
-                      />
+                      <LevelChip $level={sentence.level} label={sentence.level} size="small" />
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2" color="text.secondary">
@@ -370,4 +352,3 @@ export function CustomSentencesPage() {
     </PageContainer>
   );
 }
-

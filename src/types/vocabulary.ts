@@ -63,7 +63,4 @@ export interface VocabularyDirectionSettings {
   newCardsPerDay: number;
 }
 
-export type VocabularySettings = Record<
-  VocabularyDirection,
-  VocabularyDirectionSettings
->;
+export type VocabularySettings = Record<VocabularyDirection, VocabularyDirectionSettings>;

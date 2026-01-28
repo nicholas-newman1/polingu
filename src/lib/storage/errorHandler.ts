@@ -12,4 +12,3 @@ export function showSaveError(error?: unknown): void {
     globalErrorHandler('Failed to save. Please try again.');
   }
 }
-

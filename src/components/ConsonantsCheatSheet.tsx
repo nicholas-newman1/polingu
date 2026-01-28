@@ -89,8 +89,8 @@ export function ConsonantsCheatSheet() {
         color="text.secondary"
         sx={{ mb: 3, textAlign: 'center', maxWidth: 400, mx: 'auto' }}
       >
-        Hard consonants soften before certain endings. This table shows
-        corresponding hard/soft pairs.
+        Hard consonants soften before certain endings. This table shows corresponding hard/soft
+        pairs.
       </Typography>
       <TableContainer>
         <TableHeader>
@@ -99,10 +99,7 @@ export function ConsonantsCheatSheet() {
         </TableHeader>
         <TableBody>
           {CONSONANT_PAIRS.map((pair, index) => (
-            <TableRow
-              key={index}
-              $isLast={index === CONSONANT_PAIRS.length - 1}
-            >
+            <TableRow key={index} $isLast={index === CONSONANT_PAIRS.length - 1}>
               <Cell $isEmpty={!pair.hard}>
                 <ConsonantText>{pair.hard || '—'}</ConsonantText>
               </Cell>

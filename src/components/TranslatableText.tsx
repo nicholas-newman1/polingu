@@ -3,11 +3,7 @@ import { CircularProgress, Typography, Box } from '@mui/material';
 import { styled } from '../lib/styled';
 import { TranslatableTextProvider } from '../contexts/TranslatableTextContext';
 import { useTranslatableText } from '../hooks/useTranslatableText';
-import {
-  translate,
-  RateLimitMinuteError,
-  RateLimitDailyError,
-} from '../lib/translate';
+import { translate, RateLimitMinuteError, RateLimitDailyError } from '../lib/translate';
 import { TooltipContent, WordTooltipPopper } from './shared';
 
 const TextContainer = styled(Box)({

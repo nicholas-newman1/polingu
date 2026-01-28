@@ -33,9 +33,7 @@ export function renderTappableText(
       return token;
     }
     const cleanToken = token.replace(/[.,!?;:"""''()]/g, '').toLowerCase();
-    const cleanHighlight = highlightedWord
-      ?.replace(/[.,!?;:"""''()]/g, '')
-      .toLowerCase();
+    const cleanHighlight = highlightedWord?.replace(/[.,!?;:"""''()]/g, '').toLowerCase();
     const isHighlighted = !!(cleanHighlight && cleanToken === cleanHighlight);
     const currentWordIndex = wordIndex;
     wordIndex++;

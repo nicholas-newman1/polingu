@@ -11,31 +11,25 @@ import {
 } from '@mui/material';
 import { styled } from '../lib/styled';
 import CloseIcon from '@mui/icons-material/Close';
-import {
-  translate,
-  RateLimitMinuteError,
-  RateLimitDailyError,
-} from '../lib/translate';
+import { translate, RateLimitMinuteError, RateLimitDailyError } from '../lib/translate';
 import { useTranslationContext } from '../hooks/useTranslationContext';
 import { useBackClose } from '../hooks/useBackClose';
 import { DirectionToggle, type TranslationDirection } from './DirectionToggle';
 
 const MAX_TEXT_LENGTH = 500;
 
-const StyledDialog = styled(Dialog)<{ $keyboardOpen?: boolean }>(
-  ({ theme, $keyboardOpen }) => ({
-    '& .MuiDialog-container': {
-      alignItems: $keyboardOpen ? 'flex-start' : 'center',
-      paddingTop: $keyboardOpen ? theme.spacing(2) : 0,
-    },
-    '& .MuiDialog-paper': {
-      width: '100%',
-      maxWidth: 500,
-      margin: theme.spacing(2),
-      maxHeight: $keyboardOpen ? 'calc(100% - 16px)' : undefined,
-    },
-  })
-);
+const StyledDialog = styled(Dialog)<{ $keyboardOpen?: boolean }>(({ theme, $keyboardOpen }) => ({
+  '& .MuiDialog-container': {
+    alignItems: $keyboardOpen ? 'flex-start' : 'center',
+    paddingTop: $keyboardOpen ? theme.spacing(2) : 0,
+  },
+  '& .MuiDialog-paper': {
+    width: '100%',
+    maxWidth: 500,
+    margin: theme.spacing(2),
+    maxHeight: $keyboardOpen ? 'calc(100% - 16px)' : undefined,
+  },
+}));
 
 const Header = styled(Box)(({ theme }) => ({
   display: 'flex',
@@ -156,11 +150,7 @@ export function TranslatorModal() {
   };
 
   return (
-    <StyledDialog
-      open={open}
-      onClose={handleClose}
-      $keyboardOpen={keyboardOpen}
-    >
+    <StyledDialog open={open} onClose={handleClose} $keyboardOpen={keyboardOpen}>
       <Header>
         <DialogTitle sx={{ p: 0, fontWeight: 500 }}>Translator</DialogTitle>
         <IconButton onClick={handleClose} size="small" aria-label="close">
@@ -172,9 +162,7 @@ export function TranslatorModal() {
           multiline
           rows={3}
           placeholder={
-            direction === 'en-to-pl'
-              ? 'Enter English text...'
-              : 'Wpisz tekst po polsku...'
+            direction === 'en-to-pl' ? 'Enter English text...' : 'Wpisz tekst po polsku...'
           }
           value={text}
           onChange={(e) => setText(e.target.value)}

@@ -18,14 +18,10 @@ export default function getVocabularySessionCards(
   const customNewCards: VocabularySessionCard[] = [];
   const systemReviewCards: VocabularySessionCard[] = [];
   const systemNewCards: VocabularySessionCard[] = [];
-  const remainingNewCardsToday =
-    settings.newCardsPerDay - reviewStore.newCardsToday.length;
+  const remainingNewCardsToday = settings.newCardsPerDay - reviewStore.newCardsToday.length;
 
   for (const word of allWords) {
-    const reviewData = getOrCreateVocabularyCardReviewData(
-      word.id,
-      reviewStore
-    );
+    const reviewData = getOrCreateVocabularyCardReviewData(word.id, reviewStore);
     const state = reviewData.fsrsCard.state;
     const isNew = state === 0;
     const isLearning = state === 1 || state === 3;
@@ -36,7 +32,7 @@ export default function getVocabularySessionCards(
     if (isNew) {
       if (
         !includesWordId(reviewStore.newCardsToday, word.id) &&
-        (customNewCards.length + systemNewCards.length) < remainingNewCardsToday
+        customNewCards.length + systemNewCards.length < remainingNewCardsToday
       ) {
         targetNewCards.push({ word, reviewData, isNew: true });
       }
@@ -59,4 +55,3 @@ export default function getVocabularySessionCards(
     newCards: [...customNewCards, ...systemNewCards],
   };
 }
-

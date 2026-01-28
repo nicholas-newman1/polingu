@@ -1,15 +1,6 @@
 import { useState } from 'react';
 import { Rating, type Grade } from 'ts-fsrs';
-import {
-  Box,
-  Button,
-  Card,
-  Chip,
-  Divider,
-  IconButton,
-  Stack,
-  Typography,
-} from '@mui/material';
+import { Box, Button, Card, Chip, Divider, IconButton, Stack, Typography } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { styled } from '../lib/styled';
@@ -147,20 +138,18 @@ interface RatingButtonProps {
   $ratingColor: 'primary' | 'warning' | 'success' | 'info';
 }
 
-const RatingButton = styled(Button)<RatingButtonProps>(
-  ({ theme, $ratingColor }) => ({
-    flexDirection: 'column',
-    padding: theme.spacing(1.5, 1),
-    borderRadius: theme.spacing(1),
-    backgroundColor: theme.palette[$ratingColor].main,
-    '&:hover': {
-      backgroundColor: theme.palette[$ratingColor].dark,
-    },
-    [theme.breakpoints.up('sm')]: {
-      padding: theme.spacing(2, 1),
-    },
-  })
-);
+const RatingButton = styled(Button)<RatingButtonProps>(({ theme, $ratingColor }) => ({
+  flexDirection: 'column',
+  padding: theme.spacing(1.5, 1),
+  borderRadius: theme.spacing(1),
+  backgroundColor: theme.palette[$ratingColor].main,
+  '&:hover': {
+    backgroundColor: theme.palette[$ratingColor].dark,
+  },
+  [theme.breakpoints.up('sm')]: {
+    padding: theme.spacing(2, 1),
+  },
+}));
 
 const IntervalText = styled(Typography)({
   opacity: 0.8,
@@ -216,9 +205,7 @@ export function VocabularyFlashcard({
   const isPolishToEnglish = direction === 'pl-to-en';
   const questionWord = isPolishToEnglish ? word.polish : word.english;
   const answerWord = isPolishToEnglish ? word.english : word.polish;
-  const directionLabel = isPolishToEnglish
-    ? 'Polish → English'
-    : 'English → Polish';
+  const directionLabel = isPolishToEnglish ? 'Polish → English' : 'English → Polish';
   const isCustomWord = word.isCustom === true;
   const canEditOrDelete = isCustomWord || isAdmin;
 
@@ -236,11 +223,7 @@ export function VocabularyFlashcard({
                 <ActionButton onClick={onEdit} size="small" aria-label="edit">
                   <EditIcon fontSize="small" />
                 </ActionButton>
-                <DeleteButton
-                  onClick={onDelete}
-                  size="small"
-                  aria-label="delete"
-                >
+                <DeleteButton onClick={onDelete} size="small" aria-label="delete">
                   <DeleteIcon fontSize="small" />
                 </DeleteButton>
               </ActionButtons>
@@ -254,12 +237,8 @@ export function VocabularyFlashcard({
           {word.examples && word.examples.length > 0 && (
             <ExamplesList>
               {word.examples.map((example, index) => {
-                const primaryText = isPolishToEnglish
-                  ? example.polish
-                  : example.english;
-                const translationText = isPolishToEnglish
-                  ? example.english
-                  : example.polish;
+                const primaryText = isPolishToEnglish ? example.polish : example.english;
+                const translationText = isPolishToEnglish ? example.english : example.polish;
                 return (
                   <ExampleItem key={index}>
                     <Box>
@@ -289,16 +268,9 @@ export function VocabularyFlashcard({
                 {answerWord}
               </AnswerText>
 
-              <Stack
-                direction="row"
-                spacing={1}
-                sx={{ mb: 2, flexWrap: 'wrap', gap: 1 }}
-              >
+              <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: 'wrap', gap: 1 }}>
                 {word.partOfSpeech && (
-                  <MetaChip
-                    label={formatPartOfSpeech(word.partOfSpeech)}
-                    size="small"
-                  />
+                  <MetaChip label={formatPartOfSpeech(word.partOfSpeech)} size="small" />
                 )}
                 {word.gender && <MetaChip label={word.gender} size="small" />}
               </Stack>
@@ -314,12 +286,7 @@ export function VocabularyFlashcard({
 
         {revealed ? (
           practiceMode ? (
-            <NextButton
-              fullWidth
-              size="large"
-              variant="contained"
-              onClick={onNext}
-            >
+            <NextButton fullWidth size="large" variant="contained" onClick={onNext}>
               Next Card →
             </NextButton>
           ) : (
@@ -333,9 +300,7 @@ export function VocabularyFlashcard({
                 <Typography variant="body2" fontWeight={600}>
                   Again
                 </Typography>
-                <IntervalText variant="caption">
-                  {intervals?.[Rating.Again]}
-                </IntervalText>
+                <IntervalText variant="caption">{intervals?.[Rating.Again]}</IntervalText>
               </RatingButton>
               <RatingButton
                 fullWidth
@@ -346,9 +311,7 @@ export function VocabularyFlashcard({
                 <Typography variant="body2" fontWeight={600}>
                   Hard
                 </Typography>
-                <IntervalText variant="caption">
-                  {intervals?.[Rating.Hard]}
-                </IntervalText>
+                <IntervalText variant="caption">{intervals?.[Rating.Hard]}</IntervalText>
               </RatingButton>
               <RatingButton
                 fullWidth
@@ -359,9 +322,7 @@ export function VocabularyFlashcard({
                 <Typography variant="body2" fontWeight={600}>
                   Good
                 </Typography>
-                <IntervalText variant="caption">
-                  {intervals?.[Rating.Good]}
-                </IntervalText>
+                <IntervalText variant="caption">{intervals?.[Rating.Good]}</IntervalText>
               </RatingButton>
               <RatingButton
                 fullWidth
@@ -372,9 +333,7 @@ export function VocabularyFlashcard({
                 <Typography variant="body2" fontWeight={600}>
                   Easy
                 </Typography>
-                <IntervalText variant="caption">
-                  {intervals?.[Rating.Easy]}
-                </IntervalText>
+                <IntervalText variant="caption">{intervals?.[Rating.Easy]}</IntervalText>
               </RatingButton>
             </Stack>
           )

@@ -85,11 +85,7 @@ export function VocabularyModeSelector({
   return (
     <Container>
       <Header>
-        <Typography
-          variant="h5"
-          color="text.primary"
-          sx={{ fontWeight: 500, mb: 1 }}
-        >
+        <Typography variant="h5" color="text.primary" sx={{ fontWeight: 500, mb: 1 }}>
           Choose Your Practice Mode
         </Typography>
         <Typography variant="body2" color="text.secondary">

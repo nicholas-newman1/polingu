@@ -39,10 +39,7 @@ export async function saveSentenceTags(tags: SentenceTagsData): Promise<void> {
   await setDoc(docRef, tags);
 }
 
-export async function addTag(
-  category: TagCategory,
-  tag: string
-): Promise<SentenceTagsData> {
+export async function addTag(category: TagCategory, tag: string): Promise<SentenceTagsData> {
   const current = await loadSentenceTags();
   if (!current[category].includes(tag)) {
     current[category] = [...current[category], tag];
@@ -51,10 +48,7 @@ export async function addTag(
   return current;
 }
 
-export async function removeTag(
-  category: TagCategory,
-  tag: string
-): Promise<SentenceTagsData> {
+export async function removeTag(category: TagCategory, tag: string): Promise<SentenceTagsData> {
   const current = await loadSentenceTags();
   current[category] = current[category].filter((t) => t !== tag);
   await saveSentenceTags(current);
@@ -62,4 +56,3 @@ export async function removeTag(
 }
 
 export { DEFAULT_TAGS };
-

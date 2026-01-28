@@ -1,9 +1,6 @@
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import type {
-  SentenceReviewDataStore,
-  SentenceDirection,
-} from '../../types/sentences';
+import type { SentenceReviewDataStore, SentenceDirection } from '../../types/sentences';
 import {
   getUserId,
   getTodayString,
@@ -18,13 +15,7 @@ export default async function loadSentenceReviewData(
   if (!userId) return getDefaultSentenceReviewStore();
 
   try {
-    const docRef = doc(
-      db,
-      'users',
-      userId,
-      'data',
-      getSentenceDocPath(direction)
-    );
+    const docRef = doc(db, 'users', userId, 'data', getSentenceDocPath(direction));
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
       const parsed = docSnap.data() as SentenceReviewDataStore;
@@ -51,4 +42,3 @@ export default async function loadSentenceReviewData(
   }
   return getDefaultSentenceReviewStore();
 }
-

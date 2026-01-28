@@ -1,12 +1,4 @@
-import {
-  Box,
-  Button,
-  Card,
-  Chip,
-  Divider,
-  Stack,
-  Typography,
-} from '@mui/material';
+import { Box, Button, Card, Chip, Divider, Stack, Typography } from '@mui/material';
 import type { User } from 'firebase/auth';
 import { styled } from '../lib/styled';
 import { alpha } from '../lib/theme';
@@ -36,17 +28,13 @@ const ResetButton = styled(Button)(({ theme }) => ({
 
 const LevelChip = styled(Chip)<{ $level: CEFRLevel; $active?: boolean }>(
   ({ theme, $level, $active = true }) => ({
-    backgroundColor: $active
-      ? theme.palette.levels[$level]
-      : theme.palette.neutral.main,
+    backgroundColor: $active ? theme.palette.levels[$level] : theme.palette.neutral.main,
     color: theme.palette.common.white,
     fontWeight: 600,
     fontSize: '0.75rem',
     cursor: 'pointer',
     '&:hover': {
-      backgroundColor: $active
-        ? theme.palette.levels[$level]
-        : theme.palette.neutral.dark,
+      backgroundColor: $active ? theme.palette.levels[$level] : theme.palette.neutral.dark,
     },
   })
 );
@@ -88,20 +76,11 @@ export function SentenceSettingsPanel({
       </Typography>
 
       {!practiceMode && (
-        <Stack
-          direction="row"
-          alignItems="center"
-          justifyContent="space-between"
-          sx={{ mb: 2 }}
-        >
+        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
           <Typography variant="body2" color="text.secondary">
             New cards per day
           </Typography>
-          <NumberInput
-            value={newCardsPerDay}
-            onChange={onNewCardsChange}
-            min={1}
-          />
+          <NumberInput value={newCardsPerDay} onChange={onNewCardsChange} min={1} />
         </Stack>
       )}
 

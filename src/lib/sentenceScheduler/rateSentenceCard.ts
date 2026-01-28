@@ -9,4 +9,3 @@ export default function rateSentenceCard(
 ): SentenceCardReviewData {
   return rateCard(reviewData, rating, now);
 }
-

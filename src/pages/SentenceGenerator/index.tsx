@@ -23,7 +23,9 @@ export function SentenceGeneratorPage() {
   const { showSnackbar } = useSnackbar();
 
   const [tabIndex, setTabIndex] = useState(0);
-  const [pendingGenerate, setPendingGenerate] = useState<{ level: CEFRLevel; tag: string } | null>(null);
+  const [pendingGenerate, setPendingGenerate] = useState<{ level: CEFRLevel; tag: string } | null>(
+    null
+  );
 
   const handleTabChange = useCallback((_: React.SyntheticEvent, value: number) => {
     setTabIndex(value);
@@ -99,4 +101,3 @@ export function SentenceGeneratorPage() {
     </PageContainer>
   );
 }
-

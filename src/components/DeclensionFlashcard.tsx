@@ -1,15 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Rating, type Grade } from 'ts-fsrs';
-import {
-  Box,
-  Button,
-  Card,
-  Chip,
-  Divider,
-  IconButton,
-  Stack,
-  Typography,
-} from '@mui/material';
+import { Box, Button, Card, Chip, Divider, IconButton, Stack, Typography } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import { styled } from '../lib/styled';
 import type { DeclensionCard } from '../types';
@@ -100,20 +91,18 @@ interface RatingButtonProps {
   $ratingColor: 'primary' | 'warning' | 'success' | 'info';
 }
 
-const RatingButton = styled(Button)<RatingButtonProps>(
-  ({ theme, $ratingColor }) => ({
-    flexDirection: 'column',
-    padding: theme.spacing(1.5, 1),
-    borderRadius: theme.spacing(1),
-    backgroundColor: theme.palette[$ratingColor].main,
-    '&:hover': {
-      backgroundColor: theme.palette[$ratingColor].dark,
-    },
-    [theme.breakpoints.up('sm')]: {
-      padding: theme.spacing(2, 1),
-    },
-  })
-);
+const RatingButton = styled(Button)<RatingButtonProps>(({ theme, $ratingColor }) => ({
+  flexDirection: 'column',
+  padding: theme.spacing(1.5, 1),
+  borderRadius: theme.spacing(1),
+  backgroundColor: theme.palette[$ratingColor].main,
+  '&:hover': {
+    backgroundColor: theme.palette[$ratingColor].dark,
+  },
+  [theme.breakpoints.up('sm')]: {
+    padding: theme.spacing(2, 1),
+  },
+}));
 
 const IntervalText = styled(Typography)({
   opacity: 0.8,
@@ -193,27 +182,17 @@ export function DeclensionFlashcard({
               )}
             </CardHeader>
           )}
-          <QuestionText>
-            {renderTappableText(card.front, tappableTextOptions)}
-          </QuestionText>
+          <QuestionText>{renderTappableText(card.front, tappableTextOptions)}</QuestionText>
 
           {revealed && (
             <Box className="animate-fade-up">
               <Divider sx={{ my: { xs: 2.5, sm: 3 } }} />
 
               <AnswerText sx={{ mb: 2 }}>
-                {renderTappableText(
-                  card.back,
-                  tappableTextOptions,
-                  card.declined
-                )}
+                {renderTappableText(card.back, tappableTextOptions, card.declined)}
               </AnswerText>
 
-              <Stack
-                direction="row"
-                spacing={1}
-                sx={{ mb: 2, flexWrap: 'wrap', gap: 1 }}
-              >
+              <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: 'wrap', gap: 1 }}>
                 <MetaChip label={card.case} size="small" />
                 <MetaChip label={card.gender} size="small" />
                 <MetaChip label={card.number} size="small" />
@@ -230,12 +209,7 @@ export function DeclensionFlashcard({
 
         {revealed ? (
           practiceMode ? (
-            <NextButton
-              fullWidth
-              size="large"
-              variant="contained"
-              onClick={onNext}
-            >
+            <NextButton fullWidth size="large" variant="contained" onClick={onNext}>
               Next Card →
             </NextButton>
           ) : (
@@ -249,9 +223,7 @@ export function DeclensionFlashcard({
                 <Typography variant="body2" fontWeight={600}>
                   Again
                 </Typography>
-                <IntervalText variant="caption">
-                  {intervals?.[Rating.Again]}
-                </IntervalText>
+                <IntervalText variant="caption">{intervals?.[Rating.Again]}</IntervalText>
               </RatingButton>
               <RatingButton
                 fullWidth
@@ -262,9 +234,7 @@ export function DeclensionFlashcard({
                 <Typography variant="body2" fontWeight={600}>
                   Hard
                 </Typography>
-                <IntervalText variant="caption">
-                  {intervals?.[Rating.Hard]}
-                </IntervalText>
+                <IntervalText variant="caption">{intervals?.[Rating.Hard]}</IntervalText>
               </RatingButton>
               <RatingButton
                 fullWidth
@@ -275,9 +245,7 @@ export function DeclensionFlashcard({
                 <Typography variant="body2" fontWeight={600}>
                   Good
                 </Typography>
-                <IntervalText variant="caption">
-                  {intervals?.[Rating.Good]}
-                </IntervalText>
+                <IntervalText variant="caption">{intervals?.[Rating.Good]}</IntervalText>
               </RatingButton>
               <RatingButton
                 fullWidth
@@ -288,9 +256,7 @@ export function DeclensionFlashcard({
                 <Typography variant="body2" fontWeight={600}>
                   Easy
                 </Typography>
-                <IntervalText variant="caption">
-                  {intervals?.[Rating.Easy]}
-                </IntervalText>
+                <IntervalText variant="caption">{intervals?.[Rating.Easy]}</IntervalText>
               </RatingButton>
             </Stack>
           )

@@ -27,9 +27,7 @@ export default function getDeclensionPracticeAheadCards(
     const reviewedToday = includesDeclensionCardId(reviewStore.reviewedToday, card.id);
 
     if (!isDueCard || reviewedToday) {
-      const targetCards = card.isCustom
-        ? customPracticeCards
-        : systemPracticeCards;
+      const targetCards = card.isCustom ? customPracticeCards : systemPracticeCards;
       targetCards.push({ card, reviewData, isNew: false });
     }
   }

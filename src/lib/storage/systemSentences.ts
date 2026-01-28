@@ -55,9 +55,7 @@ export async function getNextSentenceId(level: CEFRLevel): Promise<string> {
   return `${prefix}_${String(nextNum).padStart(3, '0')}`;
 }
 
-export async function getNextSentenceIds(
-  levels: CEFRLevel[]
-): Promise<Record<CEFRLevel, number>> {
+export async function getNextSentenceIds(levels: CEFRLevel[]): Promise<Record<CEFRLevel, number>> {
   const snapshot = await getDocs(collection(db, 'sentences'));
   const counters: Record<string, number> = {
     a1: 0,
@@ -88,4 +86,3 @@ export async function getNextSentenceIds(
 
   return result as Record<CEFRLevel, number>;
 }
-

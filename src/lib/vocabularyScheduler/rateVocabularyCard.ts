@@ -9,4 +9,3 @@ export default function rateVocabularyCard(
 ): VocabularyCardReviewData {
   return rateCard(reviewData, rating, now);
 }
-

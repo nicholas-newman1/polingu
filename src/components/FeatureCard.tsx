@@ -94,9 +94,7 @@ export function FeatureCard({
       {badge && <BadgeWrapper>{badge}</BadgeWrapper>}
       <IconWrapper $color={color}>{icon}</IconWrapper>
       <CardTitle variant="h6">{title}</CardTitle>
-      {description && (
-        <CardDescription variant="body2">{description}</CardDescription>
-      )}
+      {description && <CardDescription variant="body2">{description}</CardDescription>}
       {children}
     </CardBase>
   );

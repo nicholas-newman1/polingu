@@ -110,11 +110,7 @@ export function FinishedState({
                 sx={{ mb: 1.5 }}
               >
                 <Stack direction="row" alignItems="center" spacing={0.5}>
-                  <Typography
-                    variant="body2"
-                    fontWeight={500}
-                    color="text.secondary"
-                  >
+                  <Typography variant="body2" fontWeight={500} color="text.secondary">
                     Add new cards
                   </Typography>
                   <Tooltip
@@ -143,12 +139,7 @@ export function FinishedState({
                   </Typography>
                 </Stack>
               </Stack>
-              <SuccessButton
-                fullWidth
-                size="large"
-                variant="contained"
-                onClick={onLearnExtra}
-              >
+              <SuccessButton fullWidth size="large" variant="contained" onClick={onLearnExtra}>
                 Start New Cards
               </SuccessButton>
             </OptionPaper>
@@ -161,11 +152,7 @@ export function FinishedState({
                 sx={{ mb: 1.5 }}
               >
                 <Stack direction="row" alignItems="center" spacing={0.5}>
-                  <Typography
-                    variant="body2"
-                    fontWeight={500}
-                    color="text.secondary"
-                  >
+                  <Typography variant="body2" fontWeight={500} color="text.secondary">
                     Review early
                   </Typography>
                   <Tooltip
@@ -194,12 +181,7 @@ export function FinishedState({
                   </Typography>
                 </Stack>
               </Stack>
-              <WarningButton
-                fullWidth
-                size="large"
-                variant="contained"
-                onClick={onPracticeAhead}
-              >
+              <WarningButton fullWidth size="large" variant="contained" onClick={onPracticeAhead}>
                 Start Early Review
               </WarningButton>
             </OptionPaper>

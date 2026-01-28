@@ -1,0 +1,187 @@
+[
+  {
+    "id": "byc",
+    "infinitive": "być",
+    "infinitiveEn": "to be",
+    "aspect": "Imperfective",
+    "verbClass": "Irregular",
+    "isIrregular": true,
+    "isReflexive": false,
+    "conjugations": {
+      "present": {
+        "1sg": { "pl": "jestem", "en": ["I am"] },
+        "2sg": { "pl": "jesteś", "en": ["you are"] },
+        "3sg": { "pl": "jest", "en": ["is"] },
+        "1pl": { "pl": "jesteśmy", "en": ["we are"] },
+        "2pl": { "pl": "jesteście", "en": ["you are"] },
+        "3pl": { "pl": "są", "en": ["they are"] }
+      },
+      "past": {
+        "1sg_m": { "pl": "byłem", "en": ["I was"] },
+        "1sg_f": { "pl": "byłam", "en": ["I was"] },
+        "2sg_m": { "pl": "byłeś", "en": ["you were"] },
+        "2sg_f": { "pl": "byłaś", "en": ["you were"] },
+        "3sg_m": { "pl": "był", "en": ["he was"] },
+        "3sg_f": { "pl": "była", "en": ["she was"] },
+        "3sg_n": { "pl": "było", "en": ["it was"] },
+        "1pl_m": { "pl": "byliśmy", "en": ["we were"] },
+        "1pl_f": { "pl": "byłyśmy", "en": ["we were"] },
+        "2pl_m": { "pl": "byliście", "en": ["you were"] },
+        "2pl_f": { "pl": "byłyście", "en": ["you were"] },
+        "3pl_m": { "pl": "byli", "en": ["they were"] },
+        "3pl_f": { "pl": "były", "en": ["they were"] }
+      },
+      "future": {
+        "1sg": { "pl": "będę", "plAlternatives": ["będę był", "będę była"], "en": ["I will be"] },
+        "2sg": { "pl": "będziesz", "plAlternatives": ["będziesz był", "będziesz była"], "en": ["you will be"] },
+        "3sg": { "pl": "będzie", "plAlternatives": ["będzie był", "będzie była", "będzie było"], "en": ["will be"] },
+        "1pl": { "pl": "będziemy", "plAlternatives": ["będziemy byli", "będziemy były"], "en": ["we will be"] },
+        "2pl": { "pl": "będziecie", "plAlternatives": ["będziecie byli", "będziecie były"], "en": ["you will be"] },
+        "3pl": { "pl": "będą", "plAlternatives": ["będą byli", "będą były"], "en": ["they will be"] }
+      },
+      "imperative": {
+        "2sg": { "pl": "bądź", "en": ["be!"] },
+        "1pl": { "pl": "bądźmy", "en": ["let's be!"] },
+        "2pl": { "pl": "bądźcie", "en": ["be!"] }
+      },
+      "conditional": {
+        "1sg_m": { "pl": "byłbym", "en": ["I would be"] },
+        "1sg_f": { "pl": "byłabym", "en": ["I would be"] },
+        "2sg_m": { "pl": "byłbyś", "en": ["you would be"] },
+        "2sg_f": { "pl": "byłabyś", "en": ["you would be"] },
+        "3sg_m": { "pl": "byłby", "en": ["he would be"] },
+        "3sg_f": { "pl": "byłaby", "en": ["she would be"] },
+        "3sg_n": { "pl": "byłoby", "en": ["it would be"] },
+        "1pl_m": { "pl": "bylibyśmy", "en": ["we would be"] },
+        "1pl_f": { "pl": "byłybyśmy", "en": ["we would be"] },
+        "2pl_m": { "pl": "bylibyście", "en": ["you would be"] },
+        "2pl_f": { "pl": "byłybyście", "en": ["you would be"] },
+        "3pl_m": { "pl": "byliby", "en": ["they would be"] },
+        "3pl_f": { "pl": "byłyby", "en": ["they would be"] }
+      }
+    }
+  },
+  {
+    "id": "pisac",
+    "infinitive": "pisać",
+    "infinitiveEn": "to write",
+    "aspect": "Imperfective",
+    "aspectPair": "napisac",
+    "verbClass": "-ać",
+    "isIrregular": false,
+    "isReflexive": false,
+    "conjugations": {
+      "present": {
+        "1sg": { "pl": "piszę", "en": ["I write", "I am writing"] },
+        "2sg": { "pl": "piszesz", "en": ["you write", "you are writing"] },
+        "3sg": { "pl": "pisze", "en": ["writes", "is writing"] },
+        "1pl": { "pl": "piszemy", "en": ["we write", "we are writing"] },
+        "2pl": { "pl": "piszecie", "en": ["you write", "you are writing"] },
+        "3pl": { "pl": "piszą", "en": ["they write", "they are writing"] }
+      },
+      "past": {
+        "1sg_m": { "pl": "pisałem", "en": ["I wrote", "I was writing"] },
+        "1sg_f": { "pl": "pisałam", "en": ["I wrote", "I was writing"] },
+        "2sg_m": { "pl": "pisałeś", "en": ["you wrote", "you were writing"] },
+        "2sg_f": { "pl": "pisałaś", "en": ["you wrote", "you were writing"] },
+        "3sg_m": { "pl": "pisał", "en": ["he wrote", "he was writing"] },
+        "3sg_f": { "pl": "pisała", "en": ["she wrote", "she was writing"] },
+        "3sg_n": { "pl": "pisało", "en": ["it wrote", "it was writing"] },
+        "1pl_m": { "pl": "pisaliśmy", "en": ["we wrote", "we were writing"] },
+        "1pl_f": { "pl": "pisałyśmy", "en": ["we wrote", "we were writing"] },
+        "2pl_m": { "pl": "pisaliście", "en": ["you wrote", "you were writing"] },
+        "2pl_f": { "pl": "pisałyście", "en": ["you wrote", "you were writing"] },
+        "3pl_m": { "pl": "pisali", "en": ["they wrote", "they were writing"] },
+        "3pl_f": { "pl": "pisały", "en": ["they wrote", "they were writing"] }
+      },
+      "future": {
+        "1sg": { "pl": "będę pisać", "plAlternatives": ["będę pisał", "będę pisała"], "en": ["I will write", "I will be writing"] },
+        "2sg": { "pl": "będziesz pisać", "plAlternatives": ["będziesz pisał", "będziesz pisała"], "en": ["you will write", "you will be writing"] },
+        "3sg": { "pl": "będzie pisać", "plAlternatives": ["będzie pisał", "będzie pisała", "będzie pisało"], "en": ["will write", "will be writing"] },
+        "1pl": { "pl": "będziemy pisać", "plAlternatives": ["będziemy pisali", "będziemy pisały"], "en": ["we will write", "we will be writing"] },
+        "2pl": { "pl": "będziecie pisać", "plAlternatives": ["będziecie pisali", "będziecie pisały"], "en": ["you will write", "you will be writing"] },
+        "3pl": { "pl": "będą pisać", "plAlternatives": ["będą pisali", "będą pisały"], "en": ["they will write", "they will be writing"] }
+      },
+      "imperative": {
+        "2sg": { "pl": "pisz", "en": ["write!"] },
+        "1pl": { "pl": "piszmy", "en": ["let's write!"] },
+        "2pl": { "pl": "piszcie", "en": ["write!"] }
+      },
+      "conditional": {
+        "1sg_m": { "pl": "pisałbym", "en": ["I would write", "I would be writing"] },
+        "1sg_f": { "pl": "pisałabym", "en": ["I would write", "I would be writing"] },
+        "2sg_m": { "pl": "pisałbyś", "en": ["you would write", "you would be writing"] },
+        "2sg_f": { "pl": "pisałabyś", "en": ["you would write", "you would be writing"] },
+        "3sg_m": { "pl": "pisałby", "en": ["he would write", "he would be writing"] },
+        "3sg_f": { "pl": "pisałaby", "en": ["she would write", "she would be writing"] },
+        "3sg_n": { "pl": "pisałoby", "en": ["it would write", "it would be writing"] },
+        "1pl_m": { "pl": "pisalibyśmy", "en": ["we would write", "we would be writing"] },
+        "1pl_f": { "pl": "pisałybyśmy", "en": ["we would write", "we would be writing"] },
+        "2pl_m": { "pl": "pisalibyście", "en": ["you would write", "you would be writing"] },
+        "2pl_f": { "pl": "pisałybyście", "en": ["you would write", "you would be writing"] },
+        "3pl_m": { "pl": "pisaliby", "en": ["they would write", "they would be writing"] },
+        "3pl_f": { "pl": "pisałyby", "en": ["they would write", "they would be writing"] }
+      }
+    }
+  },
+  {
+    "id": "napisac",
+    "infinitive": "napisać",
+    "infinitiveEn": "to write",
+    "aspect": "Perfective",
+    "aspectPair": "pisac",
+    "verbClass": "-ać",
+    "isIrregular": false,
+    "isReflexive": false,
+    "conjugations": {
+      "past": {
+        "1sg_m": { "pl": "napisałem", "en": ["I wrote", "I have written"] },
+        "1sg_f": { "pl": "napisałam", "en": ["I wrote", "I have written"] },
+        "2sg_m": { "pl": "napisałeś", "en": ["you wrote", "you have written"] },
+        "2sg_f": { "pl": "napisałaś", "en": ["you wrote", "you have written"] },
+        "3sg_m": { "pl": "napisał", "en": ["he wrote", "he has written"] },
+        "3sg_f": { "pl": "napisała", "en": ["she wrote", "she has written"] },
+        "3sg_n": { "pl": "napisało", "en": ["it wrote", "it has written"] },
+        "1pl_m": { "pl": "napisaliśmy", "en": ["we wrote", "we have written"] },
+        "1pl_f": { "pl": "napisałyśmy", "en": ["we wrote", "we have written"] },
+        "2pl_m": { "pl": "napisaliście", "en": ["you wrote", "you have written"] },
+        "2pl_f": { "pl": "napisałyście", "en": ["you wrote", "you have written"] },
+        "3pl_m": { "pl": "napisali", "en": ["they wrote", "they have written"] },
+        "3pl_f": { "pl": "napisały", "en": ["they wrote", "they have written"] }
+      },
+      "future": {
+        "1sg": { "pl": "napiszę", "en": ["I will write"] },
+        "2sg": { "pl": "napiszesz", "en": ["you will write"] },
+        "3sg": { "pl": "napisze", "en": ["will write"] },
+        "1pl": { "pl": "napiszemy", "en": ["we will write"] },
+        "2pl": { "pl": "napiszecie", "en": ["you will write"] },
+        "3pl": { "pl": "napiszą", "en": ["they will write"] }
+      },
+      "imperative": {
+        "2sg": { "pl": "napisz", "en": ["write!"] },
+        "1pl": { "pl": "napiszmy", "en": ["let's write!"] },
+        "2pl": { "pl": "napiszcie", "en": ["write!"] }
+      },
+      "conditional": {
+        "1sg_m": { "pl": "napisałbym", "en": ["I would write"] },
+        "1sg_f": { "pl": "napisałabym", "en": ["I would write"] },
+        "2sg_m": { "pl": "napisałbyś", "en": ["you would write"] },
+        "2sg_f": { "pl": "napisałabyś", "en": ["you would write"] },
+        "3sg_m": { "pl": "napisałby", "en": ["he would write"] },
+        "3sg_f": { "pl": "napisałaby", "en": ["she would write"] },
+        "3sg_n": { "pl": "napisałoby", "en": ["it would write"] },
+        "1pl_m": { "pl": "napisalibyśmy", "en": ["we would write"] },
+        "1pl_f": { "pl": "napisałybyśmy", "en": ["we would write"] },
+        "2pl_m": { "pl": "napisalibyście", "en": ["you would write"] },
+        "2pl_f": { "pl": "napisałybyście", "en": ["you would write"] },
+        "3pl_m": { "pl": "napisaliby", "en": ["they would write"] },
+        "3pl_f": { "pl": "napisałyby", "en": ["they would write"] }
+      }
+    }
+  }
+]
+
+
+
+
+

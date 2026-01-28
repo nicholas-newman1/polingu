@@ -22,4 +22,3 @@ export default async function loadDeclensionSettings(): Promise<DeclensionSettin
   }
   return DEFAULT_DECLENSION_SETTINGS;
 }
-

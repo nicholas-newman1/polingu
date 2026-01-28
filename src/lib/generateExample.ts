@@ -21,10 +21,10 @@ export interface GenerateExampleResponse {
   examples: GeneratedExample[];
 }
 
-const generateExampleFn = httpsCallable<
-  GenerateExampleRequest,
-  GenerateExampleResponse
->(functions, 'generateExample');
+const generateExampleFn = httpsCallable<GenerateExampleRequest, GenerateExampleResponse>(
+  functions,
+  'generateExample'
+);
 
 export async function generateExample(
   params: GenerateExampleRequest

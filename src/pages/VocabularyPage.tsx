@@ -6,10 +6,7 @@ import { styled } from '../lib/styled';
 import { AddButton } from '../components/AddButton';
 import { PracticeModeButton } from '../components/PracticeModeButton';
 import { SettingsButton } from '../components/SettingsButton';
-import {
-  VocabularyFlashcard,
-  type RatingIntervals,
-} from '../components/VocabularyFlashcard';
+import { VocabularyFlashcard, type RatingIntervals } from '../components/VocabularyFlashcard';
 import { VocabularyModeSelector } from '../components/VocabularyModeSelector';
 import { FinishedState } from '../components/FinishedState';
 import { EmptyState } from '../components/EmptyState';
@@ -80,25 +77,17 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
     setSystemWords: setContextSystemWords,
   } = useReviewData();
 
-  const [systemWords, applyOptimisticSystemWords] = useOptimistic(
-    contextSystemWords,
-    {
-      onError: () => showSnackbar('Failed to save. Please try again.', 'error'),
-    }
-  );
-  const [customWords, applyOptimisticCustomWords] = useOptimistic(
-    contextCustomWords,
-    {
-      onError: () => showSnackbar('Failed to save. Please try again.', 'error'),
-    }
-  );
+  const [systemWords, applyOptimisticSystemWords] = useOptimistic(contextSystemWords, {
+    onError: () => showSnackbar('Failed to save. Please try again.', 'error'),
+  });
+  const [customWords, applyOptimisticCustomWords] = useOptimistic(contextCustomWords, {
+    onError: () => showSnackbar('Failed to save. Please try again.', 'error'),
+  });
 
   const [showSettings, setShowSettings] = useState(false);
   const [practiceMode, setPracticeMode] = useState(false);
 
-  const [learningQueue, setLearningQueue] = useState<VocabularySessionCard[]>(
-    []
-  );
+  const [learningQueue, setLearningQueue] = useState<VocabularySessionCard[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [practiceIndex, setPracticeIndex] = useState(0);
   const [practiceCards, setPracticeCards] = useState<VocabularyWord[]>([]);
@@ -111,9 +100,9 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
   const [extraNewCardsCount, setExtraNewCardsCount] = useState(5);
 
   const [showAddModal, setShowAddModal] = useState(false);
-  const [editingWord, setEditingWord] = useState<
-    CustomVocabularyWord | VocabularyWord | null
-  >(null);
+  const [editingWord, setEditingWord] = useState<CustomVocabularyWord | VocabularyWord | null>(
+    null
+  );
   const [editingSystemWord, setEditingSystemWord] = useState(false);
 
   const sessionBuiltRef = useRef(false);
@@ -134,11 +123,7 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
       store: VocabularyReviewDataStore,
       currentSettings: VocabularyDirectionSettings
     ) => {
-      const { reviewCards, newCards } = getVocabularySessionCards(
-        words,
-        store,
-        currentSettings
-      );
+      const { reviewCards, newCards } = getVocabularySessionCards(words, store, currentSettings);
       setSessionQueue([...reviewCards, ...newCards]);
       setReviewCount(reviewCards.length);
       setNewCount(newCards.length);
@@ -199,21 +184,10 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
         buildSession(allWords, modeReviewStore, modeSettings);
       });
     }
-  }, [
-    mode,
-    contextLoading,
-    settings,
-    vocabularyReviewStores,
-    allWords,
-    buildSession,
-  ]);
+  }, [mode, contextLoading, settings, vocabularyReviewStores, allWords, buildSession]);
 
   const startPracticeAhead = useCallback(() => {
-    const aheadCards = getVocabularyPracticeAheadCards(
-      allWords,
-      reviewStore,
-      practiceAheadCount
-    );
+    const aheadCards = getVocabularyPracticeAheadCards(allWords, reviewStore, practiceAheadCount);
     setSessionQueue(aheadCards);
     setReviewCount(aheadCards.length);
     setNewCount(0);
@@ -223,11 +197,7 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
   }, [allWords, reviewStore, practiceAheadCount]);
 
   const startExtraNewCards = useCallback(() => {
-    const extraCards = getVocabularyExtraNewCards(
-      allWords,
-      reviewStore,
-      extraNewCardsCount
-    );
+    const extraCards = getVocabularyExtraNewCards(allWords, reviewStore, extraNewCardsCount);
     setSessionQueue(extraCards);
     setReviewCount(0);
     setNewCount(extraCards.length);
@@ -249,27 +219,20 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
   }, [practiceCards.length]);
 
   const currentSessionCard = sessionQueue[currentIndex] ?? learningQueue[0];
-  const isFinished =
-    currentIndex >= sessionQueue.length && learningQueue.length === 0;
+  const isFinished = currentIndex >= sessionQueue.length && learningQueue.length === 0;
 
   const handleRate = async (rating: Grade) => {
     if (!currentSessionCard) return;
 
     const wordId = currentSessionCard.word.id;
     const wordIdKey = String(wordId);
-    const updatedReviewData = rateVocabularyCard(
-      currentSessionCard.reviewData,
-      rating
-    );
+    const updatedReviewData = rateVocabularyCard(currentSessionCard.reviewData, rating);
 
     const newStore = { ...reviewStore };
     newStore.cards = { ...newStore.cards };
     newStore.cards[wordIdKey] = updatedReviewData;
 
-    if (
-      currentSessionCard.isNew &&
-      !includesWordId(newStore.newCardsToday, wordId)
-    ) {
+    if (currentSessionCard.isNew && !includesWordId(newStore.newCardsToday, wordId)) {
       newStore.newCardsToday = [...newStore.newCardsToday, wordId];
     }
 
@@ -308,9 +271,7 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
     buildSession(allWords, reviewStore, newSettings);
   };
 
-  const handleAddWord = (
-    wordData: Omit<CustomVocabularyWord, 'id' | 'isCustom' | 'createdAt'>
-  ) => {
+  const handleAddWord = (wordData: Omit<CustomVocabularyWord, 'id' | 'isCustom' | 'createdAt'>) => {
     const newWord: CustomVocabularyWord = {
       ...wordData,
       id: `custom_${Date.now()}`,
@@ -328,22 +289,15 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
     buildSession(mergedWords, reviewStore, directionSettings);
   };
 
-  const updateWordInQueues = (
-    wordId: VocabularyWordId,
-    updates: Partial<VocabularyWord>
-  ) => {
+  const updateWordInQueues = (wordId: VocabularyWordId, updates: Partial<VocabularyWord>) => {
     setSessionQueue((prev) =>
       prev.map((card) =>
-        card.word.id === wordId
-          ? { ...card, word: { ...card.word, ...updates } }
-          : card
+        card.word.id === wordId ? { ...card, word: { ...card.word, ...updates } } : card
       )
     );
     setLearningQueue((prev) =>
       prev.map((card) =>
-        card.word.id === wordId
-          ? { ...card, word: { ...card.word, ...updates } }
-          : card
+        card.word.id === wordId ? { ...card, word: { ...card.word, ...updates } } : card
       )
     );
     setPracticeCards((prev) =>
@@ -355,9 +309,7 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
     if (currentIndex < sessionQueue.length) {
       setSessionQueue((prev) => prev.filter((card) => card.word.id !== wordId));
     } else {
-      setLearningQueue((prev) =>
-        prev.filter((card) => card.word.id !== wordId)
-      );
+      setLearningQueue((prev) => prev.filter((card) => card.word.id !== wordId));
     }
     setPracticeCards((prev) => prev.filter((word) => word.id !== wordId));
   };
@@ -380,9 +332,7 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
     });
 
     if (editingSystemWord) {
-      const newSystemWords = systemWords.map((w) =>
-        w.id === wordId ? mergeWordData(w) : w
-      );
+      const newSystemWords = systemWords.map((w) => (w.id === wordId ? mergeWordData(w) : w));
       setEditingWord(null);
       setEditingSystemWord(false);
 
@@ -391,9 +341,7 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
         setContextSystemWords(newSystemWords);
       });
     } else {
-      const newCustomWords = customWords.map((w) =>
-        w.id === wordId ? mergeWordData(w) : w
-      );
+      const newCustomWords = customWords.map((w) => (w.id === wordId ? mergeWordData(w) : w));
       setEditingWord(null);
 
       applyOptimisticCustomWords(newCustomWords, async () => {
@@ -484,10 +432,7 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
       };
     }
     const allIntervals = getVocabularyNextIntervals(
-      getOrCreateVocabularyCardReviewData(
-        currentSessionCard.word.id,
-        reviewStore
-      ).fsrsCard
+      getOrCreateVocabularyCardReviewData(currentSessionCard.word.id, reviewStore).fsrsCard
     );
     return {
       [Rating.Again]: allIntervals[Rating.Again],
@@ -497,8 +442,7 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
     };
   }, [currentSessionCard, reviewStore]);
 
-  const totalRemaining =
-    sessionQueue.length - currentIndex + learningQueue.length;
+  const totalRemaining = sessionQueue.length - currentIndex + learningQueue.length;
 
   const currentPracticeWord = practiceCards[practiceIndex];
 
@@ -544,9 +488,7 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
           user={user}
           onSettingsChange={handleSettingsChange}
           onResetAllData={handleResetAllData}
-          resetButtonLabel={`Reset ${
-            currentDirection === 'pl-to-en' ? 'PL→EN' : 'EN→PL'
-          } Progress`}
+          resetButtonLabel={`Reset ${currentDirection === 'pl-to-en' ? 'PL→EN' : 'EN→PL'} Progress`}
         />
       )}
 
@@ -571,8 +513,7 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
                 `Practice Mode · ${practiceCards.length} words`
               ) : isFinished ? null : isPracticeAhead ? (
                 <>
-                  Practice Ahead · <ReviewCountBadge count={totalRemaining} />{' '}
-                  remaining
+                  Practice Ahead · <ReviewCountBadge count={totalRemaining} /> remaining
                 </>
               ) : (
                 <>

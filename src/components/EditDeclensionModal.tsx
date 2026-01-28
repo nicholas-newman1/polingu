@@ -144,8 +144,8 @@ export function EditDeclensionModal({
   const title = isCreating
     ? 'Create Custom Card'
     : card?.isCustom
-    ? 'Edit Custom Card'
-    : 'Edit Declension Card';
+      ? 'Edit Custom Card'
+      : 'Edit Declension Card';
 
   return (
     <StyledDialog open={open} onClose={handleClose}>
@@ -278,11 +278,7 @@ export function EditDeclensionModal({
       <Actions>
         <Box>
           {onDelete && (
-            <Button
-              onClick={handleDelete}
-              color="error"
-              startIcon={<DeleteIcon />}
-            >
+            <Button onClick={handleDelete} color="error" startIcon={<DeleteIcon />}>
               Delete
             </Button>
           )}
@@ -291,11 +287,7 @@ export function EditDeclensionModal({
           <Button onClick={handleClose} color="inherit">
             Cancel
           </Button>
-          <Button
-            onClick={handleSubmit(onSubmit)}
-            variant="contained"
-            disabled={!isValid}
-          >
+          <Button onClick={handleSubmit(onSubmit)} variant="contained" disabled={!isValid}>
             {isCreating ? 'Create Card' : 'Save Changes'}
           </Button>
         </RightActions>

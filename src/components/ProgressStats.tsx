@@ -12,17 +12,15 @@ interface ProgressStatsProps {
   loading?: boolean;
 }
 
-const StatsContainer = styled(Box)<{ $layout: Layout }>(
-  ({ theme, $layout }) => ({
-    display: 'flex',
-    flexDirection: $layout === 'stacked' ? 'column' : 'row',
-    alignItems: 'center',
-    justifyContent: $layout === 'stacked' ? 'center' : 'flex-start',
-    gap: $layout === 'stacked' ? theme.spacing(2) : theme.spacing(1.5),
-    marginTop: theme.spacing(2),
-    width: '100%',
-  })
-);
+const StatsContainer = styled(Box)<{ $layout: Layout }>(({ theme, $layout }) => ({
+  display: 'flex',
+  flexDirection: $layout === 'stacked' ? 'column' : 'row',
+  alignItems: 'center',
+  justifyContent: $layout === 'stacked' ? 'center' : 'flex-start',
+  gap: $layout === 'stacked' ? theme.spacing(2) : theme.spacing(1.5),
+  marginTop: theme.spacing(2),
+  width: '100%',
+}));
 
 const StatsRow = styled(Box)<{ $layout: Layout }>(({ theme, $layout }) => ({
   display: 'flex',
@@ -44,14 +42,12 @@ const StatValue = styled(Typography)<{ $layout: Layout }>(({ $layout }) => ({
   lineHeight: 1,
 }));
 
-const StatLabel = styled(Typography)<{ $layout: Layout }>(
-  ({ theme, $layout }) => ({
-    color: theme.palette.text.disabled,
-    fontSize: $layout === 'stacked' ? '0.7rem' : '0.65rem',
-    textTransform: 'uppercase',
-    letterSpacing: '0.05em',
-  })
-);
+const StatLabel = styled(Typography)<{ $layout: Layout }>(({ theme, $layout }) => ({
+  color: theme.palette.text.disabled,
+  fontSize: $layout === 'stacked' ? '0.7rem' : '0.65rem',
+  textTransform: 'uppercase',
+  letterSpacing: '0.05em',
+}));
 
 const ProgressBar = styled(Box)<{ $layout: Layout }>(({ theme, $layout }) => ({
   flex: $layout === 'inline' ? 1 : undefined,
@@ -87,11 +83,7 @@ export function ProgressStats({
       <StatsRow $layout={layout}>
         <StatItem $layout={layout}>
           {loading ? (
-            <Skeleton
-              variant="text"
-              width={24}
-              height={layout === 'stacked' ? 24 : 20}
-            />
+            <Skeleton variant="text" width={24} height={layout === 'stacked' ? 24 : 20} />
           ) : (
             <StatValue $layout={layout} color="text.primary">
               {learned}
@@ -104,11 +96,7 @@ export function ProgressStats({
         </Typography>
         <StatItem $layout={layout}>
           {loading ? (
-            <Skeleton
-              variant="text"
-              width={24}
-              height={layout === 'stacked' ? 24 : 20}
-            />
+            <Skeleton variant="text" width={24} height={layout === 'stacked' ? 24 : 20} />
           ) : (
             <StatValue $layout={layout} color="text.secondary">
               {total}

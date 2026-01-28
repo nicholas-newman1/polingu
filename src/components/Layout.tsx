@@ -25,15 +25,17 @@ import {
   Home,
   Check,
   AutoAwesome,
+  AutoStories,
 } from '@mui/icons-material';
 import { useReviewData } from '../hooks/useReviewData';
 import { useBackClose } from '../hooks/useBackClose';
-import type { ReviewCounts } from '../contexts/ReviewDataContext';
+import type { ReviewCounts } from '../contexts/review';
 import { alpha } from '../lib/theme';
 import { Header } from './Header';
 import { DeclensionCheatSheetDrawer } from './DeclensionCheatSheetDrawer';
 import { ConsonantsCheatSheetDrawer } from './ConsonantsCheatSheetDrawer';
 import { YiRuleCheatSheetDrawer } from './YiRuleCheatSheetDrawer';
+import { ConjugationCheatSheetDrawer } from './ConjugationCheatSheetDrawer';
 import { TranslatorModal } from './TranslatorModal';
 import { LimitReachedDialog } from './LimitReachedDialog';
 import { BottomMenuBar } from './BottomMenuBar';
@@ -105,36 +107,30 @@ const DrawerHeader = styled(Box)(({ theme }) => ({
   borderBottom: `1px solid ${theme.palette.divider}`,
 }));
 
-const StyledNavItem = styled(ListItemButton)<{ $active?: boolean }>(
-  ({ theme, $active }) => ({
-    borderRadius: theme.spacing(1),
-    margin: theme.spacing(0.5, 1),
-    backgroundColor: $active ? theme.palette.action.selected : 'transparent',
-    '&:hover': {
-      backgroundColor: $active
-        ? theme.palette.action.selected
-        : theme.palette.action.hover,
-    },
-  })
-);
+const StyledNavItem = styled(ListItemButton)<{ $active?: boolean }>(({ theme, $active }) => ({
+  borderRadius: theme.spacing(1),
+  margin: theme.spacing(0.5, 1),
+  backgroundColor: $active ? theme.palette.action.selected : 'transparent',
+  '&:hover': {
+    backgroundColor: $active ? theme.palette.action.selected : theme.palette.action.hover,
+  },
+}));
 
-const ReviewBadge = styled(Box)<{ $complete?: boolean }>(
-  ({ theme, $complete }) => ({
-    minWidth: 24,
-    height: 24,
-    borderRadius: 12,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '0.75rem',
-    fontWeight: 600,
-    padding: '0 6px',
-    backgroundColor: $complete
-      ? alpha(theme.palette.success.main, 0.15)
-      : alpha(theme.palette.primary.main, 0.1),
-    color: $complete ? theme.palette.success.main : theme.palette.primary.main,
-  })
-);
+const ReviewBadge = styled(Box)<{ $complete?: boolean }>(({ theme, $complete }) => ({
+  minWidth: 24,
+  height: 24,
+  borderRadius: 12,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontSize: '0.75rem',
+  fontWeight: 600,
+  padding: '0 6px',
+  backgroundColor: $complete
+    ? alpha(theme.palette.success.main, 0.15)
+    : alpha(theme.palette.primary.main, 0.1),
+  color: $complete ? theme.palette.success.main : theme.palette.primary.main,
+}));
 
 interface NavItemProps {
   path: string;
@@ -171,12 +167,7 @@ function NavItem({
         />
         {hasBadge &&
           (loading ? (
-            <Skeleton
-              variant="rounded"
-              width={24}
-              height={24}
-              sx={{ borderRadius: 12 }}
-            />
+            <Skeleton variant="rounded" width={24} height={24} sx={{ borderRadius: 12 }} />
           ) : (
             <ReviewBadge $complete={isComplete}>
               {isComplete ? <Check sx={{ fontSize: 16 }} /> : reviewCount}
@@ -223,6 +214,13 @@ const NAV_ITEMS: Array<{
     reviewCountKey: 'sentences',
   },
   {
+    path: '/conjugation',
+    icon: AutoStories,
+    label: 'Conjugation',
+    description: 'Verb conjugations',
+    reviewCountKey: 'conjugation',
+  },
+  {
     path: '/admin/generator',
     icon: AutoAwesome,
     label: 'Generator',
@@ -240,6 +238,9 @@ const PAGE_TITLES: Record<string, string> = {
   '/sentences': 'Sentences',
   '/sentences/recognition': 'Recognition',
   '/sentences/production': 'Production',
+  '/conjugation': 'Conjugation',
+  '/conjugation/recognition': 'Recognition',
+  '/conjugation/production': 'Production',
   '/my-vocabulary': 'My Vocabulary',
   '/my-declensions': 'My Declensions',
   '/my-sentences': 'My Sentences',
@@ -252,6 +253,8 @@ const BACK_ROUTES: Record<string, string> = {
   '/vocabulary/production': '/vocabulary',
   '/sentences/recognition': '/sentences',
   '/sentences/production': '/sentences',
+  '/conjugation/recognition': '/conjugation',
+  '/conjugation/production': '/conjugation',
 };
 
 function DrawerContent({
@@ -277,10 +280,7 @@ function DrawerContent({
   return (
     <>
       <DrawerHeader>
-        <Typography
-          variant="h6"
-          sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
-        >
+        <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <SiteLogo size={28} /> {SITE_NAME}
         </Typography>
         {showCloseButton && (
@@ -293,9 +293,7 @@ function DrawerContent({
       <List sx={{ pt: 2 }}>
         {visibleItems.map((item) => {
           const active = isActive(item.path);
-          const reviewCount = item.reviewCountKey
-            ? reviewCounts[item.reviewCountKey]
-            : undefined;
+          const reviewCount = item.reviewCountKey ? reviewCounts[item.reviewCountKey] : undefined;
           return (
             <NavItem
               key={item.path}
@@ -411,6 +409,7 @@ export function Layout() {
       <DeclensionCheatSheetDrawer />
       <ConsonantsCheatSheetDrawer />
       <YiRuleCheatSheetDrawer />
+      <ConjugationCheatSheetDrawer />
       <TranslatorModal />
       <LimitReachedDialog />
 

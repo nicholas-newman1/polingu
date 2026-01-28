@@ -39,4 +39,3 @@ export function useBackClose(open: boolean, onClose: () => void): void {
     return () => window.removeEventListener('popstate', handlePopState);
   }, [open, onClose]);
 }
-

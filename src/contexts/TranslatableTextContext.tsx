@@ -13,8 +13,8 @@ export interface TranslatableTextContextValue {
   closePhraseTooltip: () => void;
 }
 
-export const TranslatableTextContext =
-  createContext<TranslatableTextContextValue | null>(null);
+// eslint-disable-next-line react-refresh/only-export-components
+export const TranslatableTextContext = createContext<TranslatableTextContextValue | null>(null);
 
 interface TranslatableTextProviderProps {
   children: React.ReactNode;
@@ -28,9 +28,7 @@ export function TranslatableTextProvider({
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState<number | null>(null);
   const [dragEnd, setDragEnd] = useState<number | null>(null);
-  const [phraseAnchorEl, setPhraseAnchorEl] = useState<HTMLElement | null>(
-    null
-  );
+  const [phraseAnchorEl, setPhraseAnchorEl] = useState<HTMLElement | null>(null);
   const [selectedPhrase, setSelectedPhrase] = useState<string | null>(null);
   const wordsRef = useRef<Map<number, string>>(new Map());
   const dragStartElementRef = useRef<HTMLElement | null>(null);
@@ -82,8 +80,7 @@ export function TranslatableTextProvider({
     if (!isDragging) return;
 
     const phrase = buildPhrase();
-    const hasDragged =
-      dragStart !== null && dragEnd !== null && dragStart !== dragEnd;
+    const hasDragged = dragStart !== null && dragEnd !== null && dragStart !== dragEnd;
 
     setIsDragging(false);
 

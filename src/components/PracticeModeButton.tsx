@@ -41,4 +41,3 @@ export function PracticeModeButton({ active, onClick, disabled }: PracticeModeBu
     </StyledButton>
   );
 }
-

@@ -18,15 +18,10 @@ interface AddButtonProps {
   'aria-label'?: string;
 }
 
-export function AddButton({
-  onClick,
-  disabled,
-  'aria-label': ariaLabel = 'Add',
-}: AddButtonProps) {
+export function AddButton({ onClick, disabled, 'aria-label': ariaLabel = 'Add' }: AddButtonProps) {
   return (
     <StyledButton onClick={onClick} disabled={disabled} aria-label={ariaLabel}>
       <AddIcon />
     </StyledButton>
   );
 }
-

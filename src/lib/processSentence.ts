@@ -26,4 +26,3 @@ export async function processSentence(
   const result = await processSentenceFn(params);
   return result.data;
 }
-

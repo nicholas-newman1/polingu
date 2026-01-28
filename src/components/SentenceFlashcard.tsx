@@ -114,20 +114,18 @@ interface RatingButtonProps {
   $ratingColor: 'primary' | 'warning' | 'success' | 'info';
 }
 
-const RatingButton = styled(Button)<RatingButtonProps>(
-  ({ theme, $ratingColor }) => ({
-    flexDirection: 'column',
-    padding: theme.spacing(1.5, 1),
-    borderRadius: theme.spacing(1),
-    backgroundColor: theme.palette[$ratingColor].main,
-    '&:hover': {
-      backgroundColor: theme.palette[$ratingColor].dark,
-    },
-    [theme.breakpoints.up('sm')]: {
-      padding: theme.spacing(2, 1),
-    },
-  })
-);
+const RatingButton = styled(Button)<RatingButtonProps>(({ theme, $ratingColor }) => ({
+  flexDirection: 'column',
+  padding: theme.spacing(1.5, 1),
+  borderRadius: theme.spacing(1),
+  backgroundColor: theme.palette[$ratingColor].main,
+  '&:hover': {
+    backgroundColor: theme.palette[$ratingColor].dark,
+  },
+  [theme.breakpoints.up('sm')]: {
+    padding: theme.spacing(2, 1),
+  },
+}));
 
 const IntervalText = styled(Typography)({
   opacity: 0.8,
@@ -180,9 +178,7 @@ export function SentenceFlashcard({
   const [revealed, setRevealed] = useState(false);
 
   const isPolishToEnglish = direction === 'pl-to-en';
-  const directionLabel = isPolishToEnglish
-    ? 'Polish → English'
-    : 'English → Polish';
+  const directionLabel = isPolishToEnglish ? 'Polish → English' : 'English → Polish';
 
   const tappableTextOptions = useMemo(
     () => ({
@@ -245,23 +241,15 @@ export function SentenceFlashcard({
             <LevelChip $level={sentence.level} label={sentence.level} />
           </Box>
 
-          <SentenceText sx={{ mb: 2 }}>
-            {questionContent}
-          </SentenceText>
+          <SentenceText sx={{ mb: 2 }}>{questionContent}</SentenceText>
 
           {revealed && (
             <Box className="animate-fade-up">
               <Divider sx={{ my: { xs: 2, sm: 2.5 } }} />
 
-              <AnswerText sx={{ mb: 2 }}>
-                {answerContent}
-              </AnswerText>
+              <AnswerText sx={{ mb: 2 }}>{answerContent}</AnswerText>
 
-              <Stack
-                direction="row"
-                spacing={0.5}
-                sx={{ flexWrap: 'wrap', gap: 0.5 }}
-              >
+              <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', gap: 0.5 }}>
                 {sentence.tags.map((tag) => (
                   <TagChip key={tag} label={tag} size="small" />
                 ))}
@@ -272,12 +260,7 @@ export function SentenceFlashcard({
 
         {revealed ? (
           practiceMode ? (
-            <NextButton
-              fullWidth
-              size="large"
-              variant="contained"
-              onClick={onNext}
-            >
+            <NextButton fullWidth size="large" variant="contained" onClick={onNext}>
               Next Card →
             </NextButton>
           ) : (
@@ -291,9 +274,7 @@ export function SentenceFlashcard({
                 <Typography variant="body2" fontWeight={600}>
                   Again
                 </Typography>
-                <IntervalText variant="caption">
-                  {intervals?.[Rating.Again]}
-                </IntervalText>
+                <IntervalText variant="caption">{intervals?.[Rating.Again]}</IntervalText>
               </RatingButton>
               <RatingButton
                 fullWidth
@@ -304,9 +285,7 @@ export function SentenceFlashcard({
                 <Typography variant="body2" fontWeight={600}>
                   Hard
                 </Typography>
-                <IntervalText variant="caption">
-                  {intervals?.[Rating.Hard]}
-                </IntervalText>
+                <IntervalText variant="caption">{intervals?.[Rating.Hard]}</IntervalText>
               </RatingButton>
               <RatingButton
                 fullWidth
@@ -317,9 +296,7 @@ export function SentenceFlashcard({
                 <Typography variant="body2" fontWeight={600}>
                   Good
                 </Typography>
-                <IntervalText variant="caption">
-                  {intervals?.[Rating.Good]}
-                </IntervalText>
+                <IntervalText variant="caption">{intervals?.[Rating.Good]}</IntervalText>
               </RatingButton>
               <RatingButton
                 fullWidth
@@ -330,9 +307,7 @@ export function SentenceFlashcard({
                 <Typography variant="body2" fontWeight={600}>
                   Easy
                 </Typography>
-                <IntervalText variant="caption">
-                  {intervals?.[Rating.Easy]}
-                </IntervalText>
+                <IntervalText variant="caption">{intervals?.[Rating.Easy]}</IntervalText>
               </RatingButton>
             </Stack>
           )
@@ -350,4 +325,3 @@ export function SentenceFlashcard({
     </CardWrapper>
   );
 }
-

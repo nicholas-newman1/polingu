@@ -15,9 +15,7 @@ export interface TranslationContextValue {
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
-export const TranslationContext = createContext<TranslationContextValue | null>(
-  null
-);
+export const TranslationContext = createContext<TranslationContextValue | null>(null);
 
 interface TranslationUsage {
   charsUsed: number;
@@ -38,8 +36,9 @@ function getInitialUsage(): TranslationUsage | null {
 }
 
 export function TranslationProvider({ children }: { children: ReactNode }) {
-  const [translationUsage, setTranslationUsage] =
-    useState<TranslationUsage | null>(getInitialUsage);
+  const [translationUsage, setTranslationUsage] = useState<TranslationUsage | null>(
+    getInitialUsage
+  );
   const [showTranslator, setShowTranslator] = useState(false);
   const [showLimitReached, setShowLimitReached] = useState(false);
   const [limitResetTime, setLimitResetTime] = useState('');

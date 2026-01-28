@@ -9,7 +9,7 @@ import {
   styled,
 } from '@mui/material';
 import BlockIcon from '@mui/icons-material/Block';
-import { useState, useEffect } from 'react';
+import { useEffect, useReducer } from 'react';
 import { useTranslationContext } from '../hooks/useTranslationContext';
 import { useBackClose } from '../hooks/useBackClose';
 
@@ -56,21 +56,19 @@ export function LimitReachedDialog() {
     closeLimitReached: onClose,
     limitResetTime: resetTime,
   } = useTranslationContext();
-  const [timeRemaining, setTimeRemaining] = useState(() => formatTimeRemaining(resetTime));
+  const [, forceUpdate] = useReducer((x: number) => x + 1, 0);
 
   useBackClose(open, onClose);
 
   useEffect(() => {
     if (!open) return;
 
-    setTimeRemaining(formatTimeRemaining(resetTime));
-
-    const interval = setInterval(() => {
-      setTimeRemaining(formatTimeRemaining(resetTime));
-    }, 60000);
+    const interval = setInterval(forceUpdate, 60000);
 
     return () => clearInterval(interval);
   }, [open, resetTime]);
+
+  const timeRemaining = formatTimeRemaining(resetTime);
 
   return (
     <StyledDialog open={open} onClose={onClose}>
@@ -93,4 +91,3 @@ export function LimitReachedDialog() {
     </StyledDialog>
   );
 }
-

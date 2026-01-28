@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { Box, Typography, useTheme } from '@mui/material';
-import { School, Abc, Translate } from '@mui/icons-material';
+import { School, Abc, Translate, AutoStories } from '@mui/icons-material';
 import { styled } from '../lib/styled';
 import { useReviewData } from '../hooks/useReviewData';
 import { useProgressStats } from '../hooks/useProgressStats';
@@ -10,7 +10,7 @@ import { ReviewCountBadge } from '../components/ReviewCountBadge';
 import { SITE_NAME } from '../constants';
 import { SiteLogo } from '../components/SiteLogo';
 
-type ColorKey = 'primary' | 'info' | 'success';
+type ColorKey = 'primary' | 'info' | 'success' | 'warning';
 
 const PageContainer = styled(Box)(({ theme }) => ({
   flex: 1,
@@ -40,7 +40,7 @@ const CardsGrid = styled(Box)(({ theme }) => ({
   maxWidth: 960,
 }));
 
-type StatsKey = 'declension' | 'vocabulary' | 'sentences';
+type StatsKey = 'declension' | 'vocabulary' | 'sentences' | 'conjugation';
 
 const FEATURES: Array<{
   path: string;
@@ -54,8 +54,7 @@ const FEATURES: Array<{
     path: '/declension',
     icon: School,
     title: 'Declension',
-    description:
-      'Practice noun and pronoun declensions with spaced repetition flashcards',
+    description: 'Practice noun and pronoun declensions with spaced repetition flashcards',
     colorKey: 'primary',
     statsKey: 'declension',
   },
@@ -63,8 +62,7 @@ const FEATURES: Array<{
     path: '/vocabulary',
     icon: Abc,
     title: 'Vocabulary',
-    description:
-      'Learn the top 1000 most common Polish words with example sentences',
+    description: 'Learn the top 1000 most common Polish words with example sentences',
     colorKey: 'info',
     statsKey: 'vocabulary',
   },
@@ -72,10 +70,17 @@ const FEATURES: Array<{
     path: '/sentences',
     icon: Translate,
     title: 'Sentences',
-    description:
-      'Translate full sentences and practice with spaced repetition',
+    description: 'Translate full sentences and practice with spaced repetition',
     colorKey: 'success',
     statsKey: 'sentences',
+  },
+  {
+    path: '/conjugation',
+    icon: AutoStories,
+    title: 'Conjugation',
+    description: 'Master Polish verb conjugations across all tenses and persons',
+    colorKey: 'warning',
+    statsKey: 'conjugation',
   },
 ];
 
@@ -109,9 +114,7 @@ export function DashboardPage() {
       <CardsGrid>
         {FEATURES.map((feature) => {
           const color = theme.palette[feature.colorKey].main;
-          const stats = feature.statsKey
-            ? progressStats[feature.statsKey]
-            : undefined;
+          const stats = feature.statsKey ? progressStats[feature.statsKey] : undefined;
 
           return (
             <FeatureCard
@@ -120,11 +123,7 @@ export function DashboardPage() {
               icon={<feature.icon sx={{ fontSize: 28 }} />}
               title={feature.title}
               description={feature.description}
-              badge={
-                stats ? (
-                  <ReviewCountBadge count={stats.due} loading={loading} />
-                ) : undefined
-              }
+              badge={stats ? <ReviewCountBadge count={stats.due} loading={loading} /> : undefined}
               onClick={() => navigate(feature.path)}
             >
               {stats && (

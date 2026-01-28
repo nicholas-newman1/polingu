@@ -56,17 +56,12 @@ export const TooltipContentRich = styled(Box)(({ theme }) => ({
   color: theme.palette.tooltip.text,
 }));
 
-interface WordTooltipPopperProps
-  extends Omit<PopperProps, 'ref' | 'popperRef'> {
+interface WordTooltipPopperProps extends Omit<PopperProps, 'ref' | 'popperRef'> {
   popperRef: RefObject<HTMLDivElement | null>;
   children: React.ReactNode;
 }
 
-export function WordTooltipPopper({
-  popperRef,
-  children,
-  ...props
-}: WordTooltipPopperProps) {
+export function WordTooltipPopper({ popperRef, children, ...props }: WordTooltipPopperProps) {
   return (
     <Popper
       placement="top"

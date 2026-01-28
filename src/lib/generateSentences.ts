@@ -22,10 +22,10 @@ export interface GenerateSentencesResponse {
   sentences: GeneratedSentence[];
 }
 
-const generateSentencesFn = httpsCallable<
-  GenerateSentencesRequest,
-  GenerateSentencesResponse
->(functions, 'generateSentences');
+const generateSentencesFn = httpsCallable<GenerateSentencesRequest, GenerateSentencesResponse>(
+  functions,
+  'generateSentences'
+);
 
 export async function generateSentences(
   params: GenerateSentencesRequest
@@ -58,10 +58,10 @@ export interface CurriculumDiscoveryResponse {
   suggestions: CurriculumSuggestion[];
 }
 
-const discoverCurriculumFn = httpsCallable<
-  CurriculumDiscoveryRequest,
-  CurriculumDiscoveryResponse
->(functions, 'discoverCurriculum');
+const discoverCurriculumFn = httpsCallable<CurriculumDiscoveryRequest, CurriculumDiscoveryResponse>(
+  functions,
+  'discoverCurriculum'
+);
 
 export async function discoverCurriculum(
   params: CurriculumDiscoveryRequest
@@ -69,4 +69,3 @@ export async function discoverCurriculum(
   const result = await discoverCurriculumFn(params);
   return result.data;
 }
-

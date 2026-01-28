@@ -24,4 +24,3 @@ export interface CurriculumTabProps {
 }
 
 export type AddCustomTabProps = BaseTabProps;
-

@@ -1,14 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import {
-  Box,
-  Button,
-  Card,
-  Divider,
-  Typography,
-  Avatar,
-  styled,
-} from '@mui/material';
+import { Box, Button, Card, Divider, Typography, Avatar, styled } from '@mui/material';
 import { useAuthContext } from '../hooks/useAuthContext';
 import { alpha } from '../lib/theme';
 import { SITE_NAME, SITE_TAGLINE } from '../constants';
@@ -139,11 +131,7 @@ export function SignIn() {
               {SITE_NAME}
             </Title>
 
-            <Typography
-              variant="body1"
-              color="text.disabled"
-              sx={{ mb: { xs: 4, sm: 5 } }}
-            >
+            <Typography variant="body1" color="text.disabled" sx={{ mb: { xs: 4, sm: 5 } }}>
               {SITE_TAGLINE}
             </Typography>
 
@@ -177,11 +165,7 @@ export function SignIn() {
               Continue as guest
             </Button>
 
-            <Typography
-              variant="body2"
-              color="text.disabled"
-              sx={{ mt: { xs: 3, sm: 4 } }}
-            >
+            <Typography variant="body2" color="text.disabled" sx={{ mt: { xs: 3, sm: 4 } }}>
               Guest progress is stored locally
               <br />
               and won't sync across devices

@@ -10,4 +10,3 @@ export const saveCustomSentences = storage.save;
 export const addCustomSentence = storage.add;
 export const updateCustomSentence = storage.update;
 export const deleteCustomSentence = storage.delete;
-

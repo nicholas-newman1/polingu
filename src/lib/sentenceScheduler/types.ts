@@ -5,4 +5,3 @@ export interface SentenceSessionCard {
   reviewData: SentenceCardReviewData;
   isNew: boolean;
 }
-

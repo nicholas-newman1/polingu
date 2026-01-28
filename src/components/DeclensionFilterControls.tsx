@@ -37,22 +37,20 @@ interface FilterButtonProps {
   $active: boolean;
 }
 
-const FilterButton = styled(Button)<FilterButtonProps>(
-  ({ theme, $active }) => ({
-    minWidth: 100,
-    ...($active
-      ? {
-          backgroundColor: theme.palette.success.main,
-          '&:hover': { backgroundColor: theme.palette.success.dark },
-        }
-      : {
-          borderColor: theme.palette.divider,
-          color: theme.palette.text.secondary,
-          backgroundColor: theme.palette.background.paper,
-          '&:hover': { backgroundColor: theme.palette.action.hover },
-        }),
-  })
-);
+const FilterButton = styled(Button)<FilterButtonProps>(({ theme, $active }) => ({
+  minWidth: 100,
+  ...($active
+    ? {
+        backgroundColor: theme.palette.success.main,
+        '&:hover': { backgroundColor: theme.palette.success.dark },
+      }
+    : {
+        borderColor: theme.palette.divider,
+        color: theme.palette.text.secondary,
+        backgroundColor: theme.palette.background.paper,
+        '&:hover': { backgroundColor: theme.palette.action.hover },
+      }),
+}));
 
 interface DeclensionFilterControlsProps {
   caseFilter: Case[];
@@ -90,26 +88,18 @@ export function DeclensionFilterControls({
 
   const handleCaseSelectChange = (event: SelectChangeEvent<Case[]>) => {
     const value = event.target.value;
-    onCaseChange(
-      typeof value === 'string' ? (value.split(',') as Case[]) : value
-    );
+    onCaseChange(typeof value === 'string' ? (value.split(',') as Case[]) : value);
   };
 
   const handleGenderSelectChange = (event: SelectChangeEvent<Gender[]>) => {
     const value = event.target.value;
-    onGenderChange(
-      typeof value === 'string' ? (value.split(',') as Gender[]) : value
-    );
+    onGenderChange(typeof value === 'string' ? (value.split(',') as Gender[]) : value);
   };
 
   return (
     <Box sx={{ mb: { xs: 2, sm: 3 } }}>
       <Stack direction="row" spacing={1} alignItems="center">
-        <Badge
-          badgeContent={activeFilterCount}
-          color="primary"
-          invisible={activeFilterCount === 0}
-        >
+        <Badge badgeContent={activeFilterCount} color="primary" invisible={activeFilterCount === 0}>
           <FilterButton
             variant={showFilters ? 'contained' : 'outlined'}
             onClick={() => setShowFilters(!showFilters)}
@@ -124,9 +114,7 @@ export function DeclensionFilterControls({
 
         <SettingsButton active={showSettings} onClick={onToggleSettings} />
 
-        {onAddCard && (
-          <AddButton onClick={onAddCard} aria-label="Add custom card" />
-        )}
+        {onAddCard && <AddButton onClick={onAddCard} aria-label="Add custom card" />}
       </Stack>
 
       <Collapse in={showFilters}>
@@ -147,9 +135,7 @@ export function DeclensionFilterControls({
                   value={c}
                   sx={{
                     fontWeight: caseFilter.includes(c) ? 600 : 400,
-                    backgroundColor: caseFilter.includes(c)
-                      ? 'action.selected'
-                      : 'transparent',
+                    backgroundColor: caseFilter.includes(c) ? 'action.selected' : 'transparent',
                   }}
                 >
                   {c}
@@ -174,9 +160,7 @@ export function DeclensionFilterControls({
                   value={g}
                   sx={{
                     fontWeight: genderFilter.includes(g) ? 600 : 400,
-                    backgroundColor: genderFilter.includes(g)
-                      ? 'action.selected'
-                      : 'transparent',
+                    backgroundColor: genderFilter.includes(g) ? 'action.selected' : 'transparent',
                   }}
                 >
                   {g}
@@ -212,9 +196,7 @@ export function DeclensionFilterControls({
           )}
         </Box>
 
-        {(caseFilter.length > 0 ||
-          genderFilter.length > 0 ||
-          numberFilter !== 'All') && (
+        {(caseFilter.length > 0 || genderFilter.length > 0 || numberFilter !== 'All') && (
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 1.5 }}>
             {caseFilter.map((c) => (
               <Chip
@@ -231,12 +213,8 @@ export function DeclensionFilterControls({
                 key={g}
                 label={g}
                 size="small"
-                onClick={() =>
-                  onGenderChange(genderFilter.filter((x) => x !== g))
-                }
-                onDelete={() =>
-                  onGenderChange(genderFilter.filter((x) => x !== g))
-                }
+                onClick={() => onGenderChange(genderFilter.filter((x) => x !== g))}
+                onDelete={() => onGenderChange(genderFilter.filter((x) => x !== g))}
                 sx={{ cursor: 'pointer' }}
               />
             ))}

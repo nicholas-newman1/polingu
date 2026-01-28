@@ -1,9 +1,6 @@
 import type { Card as FSRSCard } from 'ts-fsrs';
 
-export default function formatInterval(
-  card: FSRSCard,
-  now: Date = new Date()
-): string {
+export default function formatInterval(card: FSRSCard, now: Date = new Date()): string {
   const due = new Date(card.due);
   const diffMs = due.getTime() - now.getTime();
   const diffMins = Math.round(diffMs / 60000);
@@ -15,4 +12,3 @@ export default function formatInterval(
   if (diffHours < 24) return `${diffHours}h`;
   return `${diffDays}d`;
 }
-

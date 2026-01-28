@@ -1,0 +1,20 @@
+[
+  {
+    "id": "byc",
+    "infinitive": "być",
+    "aspect": "Imperfective",
+    "verbClass": "Irregular"
+  },
+  {
+    "id": "napisac",
+    "infinitive": "napisać",
+    "aspect": "Perfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "pisac",
+    "infinitive": "pisać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  }
+]

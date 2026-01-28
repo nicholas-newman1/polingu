@@ -1,9 +1,6 @@
 import { doc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import type {
-  SentenceReviewDataStore,
-  SentenceDirection,
-} from '../../types/sentences';
+import type { SentenceReviewDataStore, SentenceDirection } from '../../types/sentences';
 import { getUserId, getSentenceDocPath } from './helpers';
 
 export default async function saveSentenceReviewData(
@@ -13,13 +10,7 @@ export default async function saveSentenceReviewData(
   const userId = getUserId();
   if (!userId) return;
 
-  const docRef = doc(
-    db,
-    'users',
-    userId,
-    'data',
-    getSentenceDocPath(direction)
-  );
+  const docRef = doc(db, 'users', userId, 'data', getSentenceDocPath(direction));
   const serializable = {
     ...data,
     cards: Object.fromEntries(
@@ -44,4 +35,3 @@ export default async function saveSentenceReviewData(
   };
   await setDoc(docRef, serializable);
 }
-

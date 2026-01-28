@@ -1,7 +1,4 @@
-import type {
-  VocabularyWord,
-  VocabularyReviewDataStore,
-} from '../../types/vocabulary';
+import type { VocabularyWord, VocabularyReviewDataStore } from '../../types/vocabulary';
 import getOrCreateVocabularyCardReviewData from '../storage/getOrCreateVocabularyCardReviewData';
 import { includesWordId } from '../storage/helpers';
 import type { VocabularySessionCard } from './types';
@@ -14,10 +11,7 @@ export default function getVocabularyExtraNewCards(
   const newCards: VocabularySessionCard[] = [];
 
   for (const word of allWords) {
-    const reviewData = getOrCreateVocabularyCardReviewData(
-      word.id,
-      reviewStore
-    );
+    const reviewData = getOrCreateVocabularyCardReviewData(word.id, reviewStore);
     const isNew = reviewData.fsrsCard.state === 0;
 
     if (isNew && !includesWordId(reviewStore.newCardsToday, word.id)) {

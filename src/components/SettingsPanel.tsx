@@ -1,11 +1,4 @@
-import {
-  Button,
-  Card,
-  Divider,
-  Stack,
-  Typography,
-  styled,
-} from '@mui/material';
+import { Button, Card, Divider, Stack, Typography, styled } from '@mui/material';
 import type { User } from 'firebase/auth';
 import { alpha } from '../lib/theme';
 import { NumberInput } from './NumberInput';
@@ -51,20 +44,11 @@ export function SettingsPanel({
         Settings
       </Typography>
 
-      <Stack
-        direction="row"
-        alignItems="center"
-        justifyContent="space-between"
-        sx={{ mb: 2 }}
-      >
+      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
         <Typography variant="body2" color="text.secondary">
           New cards per day
         </Typography>
-        <NumberInput
-          value={newCardsPerDay}
-          onChange={onSettingsChange}
-          min={1}
-        />
+        <NumberInput value={newCardsPerDay} onChange={onSettingsChange} min={1} />
       </Stack>
 
       {user && (

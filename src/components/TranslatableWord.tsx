@@ -1,20 +1,10 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import {
-  CircularProgress,
-  Typography,
-  IconButton,
-  TextField,
-  InputAdornment,
-} from '@mui/material';
+import { CircularProgress, Typography, IconButton, TextField, InputAdornment } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import CheckIcon from '@mui/icons-material/Check';
 import CloseIcon from '@mui/icons-material/Close';
 import { styled } from '../lib/styled';
-import {
-  translate,
-  RateLimitMinuteError,
-  RateLimitDailyError,
-} from '../lib/translate';
+import { translate, RateLimitMinuteError, RateLimitDailyError } from '../lib/translate';
 import {
   useTooltipInteraction,
   TappableSpan,
@@ -122,8 +112,7 @@ export function TranslatableWord({
 
   const dragContext = useTranslatableText();
   const isDragEnabled = dragContext !== null && wordIndex !== undefined;
-  const isSelected =
-    isDragEnabled && dragContext.selectedIndices.has(wordIndex);
+  const isSelected = isDragEnabled && dragContext.selectedIndices.has(wordIndex);
   const isDragging = isDragEnabled && dragContext.isDragging;
   const hasPhrase = isDragEnabled && dragContext.selectedPhrase !== null;
 
@@ -312,9 +301,7 @@ export function TranslatableWord({
   );
 
   const showSingleWordTooltip = open && !isDragging && !hasPhrase;
-  const WordComponent = isHighlighted
-    ? SelectableHighlightedSpan
-    : SelectableSpan;
+  const WordComponent = isHighlighted ? SelectableHighlightedSpan : SelectableSpan;
 
   return (
     <>

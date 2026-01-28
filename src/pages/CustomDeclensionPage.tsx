@@ -17,17 +17,8 @@ import SearchIcon from '@mui/icons-material/Search';
 import { styled } from '../lib/styled';
 import { alpha } from '../lib/theme';
 import { EditDeclensionModal } from '../components/EditDeclensionModal';
-import {
-  loadCustomDeclension,
-  saveCustomDeclension,
-} from '../lib/storage/customDeclension';
-import type {
-  CustomDeclensionCard,
-  Case,
-  Gender,
-  Number,
-  DeclensionCard,
-} from '../types';
+import { loadCustomDeclension, saveCustomDeclension } from '../lib/storage/customDeclension';
+import type { CustomDeclensionCard, Case, Gender, Number, DeclensionCard } from '../types';
 import { useAuthContext } from '../hooks/useAuthContext';
 import { useOptimistic } from '../hooks/useOptimistic';
 import { useSnackbar } from '../hooks/useSnackbar';
@@ -46,13 +37,7 @@ import {
   formatDate,
 } from '../components/CustomItemPage';
 
-type SortField =
-  | 'front'
-  | 'declined'
-  | 'case'
-  | 'gender'
-  | 'number'
-  | 'createdAt';
+type SortField = 'front' | 'declined' | 'case' | 'gender' | 'number' | 'createdAt';
 type SortDirection = 'asc' | 'desc';
 
 const GenderChip = styled(Chip)<{
@@ -89,19 +74,12 @@ export function CustomDeclensionPage() {
   const { user } = useAuthContext();
   const { showSnackbar } = useSnackbar();
   const [isLoading, setIsLoading] = useState(true);
-  const [customCardsBase, setCustomCardsBase] = useState<
-    CustomDeclensionCard[]
-  >([]);
-  const [customCards, applyOptimisticCustomCards] = useOptimistic(
-    customCardsBase,
-    {
-      onError: () => showSnackbar('Failed to save. Please try again.', 'error'),
-    }
-  );
+  const [customCardsBase, setCustomCardsBase] = useState<CustomDeclensionCard[]>([]);
+  const [customCards, applyOptimisticCustomCards] = useOptimistic(customCardsBase, {
+    onError: () => showSnackbar('Failed to save. Please try again.', 'error'),
+  });
   const [showAddModal, setShowAddModal] = useState(false);
-  const [editingCard, setEditingCard] = useState<CustomDeclensionCard | null>(
-    null
-  );
+  const [editingCard, setEditingCard] = useState<CustomDeclensionCard | null>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [caseFilter, setCaseFilter] = useState<Case | ''>('');
@@ -135,9 +113,7 @@ export function CustomDeclensionPage() {
     });
   };
 
-  const handleEditCard = (
-    cardData: Omit<DeclensionCard, 'id' | 'isCustom'>
-  ) => {
+  const handleEditCard = (cardData: Omit<DeclensionCard, 'id' | 'isCustom'>) => {
     if (!editingCard) return;
     const newCustomCards = customCards.map((c) =>
       c.id === editingCard.id ? { ...c, ...cardData } : c
@@ -229,15 +205,7 @@ export function CustomDeclensionPage() {
     });
 
     return result;
-  }, [
-    customCards,
-    searchQuery,
-    caseFilter,
-    genderFilter,
-    numberFilter,
-    sortField,
-    sortDirection,
-  ]);
+  }, [customCards, searchQuery, caseFilter, genderFilter, numberFilter, sortField, sortDirection]);
 
   if (isLoading) {
     return <CustomItemLoadingState />;
@@ -353,9 +321,7 @@ export function CustomDeclensionPage() {
                   <TableCell>
                     <TableSortLabel
                       active={sortField === 'declined'}
-                      direction={
-                        sortField === 'declined' ? sortDirection : 'asc'
-                      }
+                      direction={sortField === 'declined' ? sortDirection : 'asc'}
                       onClick={() => handleSort('declined')}
                     >
                       Answer
@@ -391,9 +357,7 @@ export function CustomDeclensionPage() {
                   <TableCell>
                     <TableSortLabel
                       active={sortField === 'createdAt'}
-                      direction={
-                        sortField === 'createdAt' ? sortDirection : 'asc'
-                      }
+                      direction={sortField === 'createdAt' ? sortDirection : 'asc'}
                       onClick={() => handleSort('createdAt')}
                     >
                       Added
@@ -413,9 +377,7 @@ export function CustomDeclensionPage() {
                       />
                     </TableCell>
                     <TableCell>
-                      <TruncatedCell title={card.front}>
-                        {card.front}
-                      </TruncatedCell>
+                      <TruncatedCell title={card.front}>{card.front}</TruncatedCell>
                     </TableCell>
                     <TableCell>
                       <Typography fontWeight={500}>{card.declined}</Typography>
@@ -424,11 +386,7 @@ export function CustomDeclensionPage() {
                       <MetaChip label={card.case} size="small" />
                     </TableCell>
                     <TableCell>
-                      <GenderChip
-                        $gender={card.gender}
-                        label={card.gender}
-                        size="small"
-                      />
+                      <GenderChip $gender={card.gender} label={card.gender} size="small" />
                     </TableCell>
                     <TableCell>
                       <MetaChip label={card.number} size="small" />
@@ -443,9 +401,7 @@ export function CustomDeclensionPage() {
                 {filteredAndSortedCards.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
-                      <Typography color="text.secondary">
-                        No cards match your filters
-                      </Typography>
+                      <Typography color="text.secondary">No cards match your filters</Typography>
                     </TableCell>
                   </TableRow>
                 )}

@@ -18,14 +18,10 @@ export default function getSentenceSessionCards(
   const customNewCards: SentenceSessionCard[] = [];
   const systemReviewCards: SentenceSessionCard[] = [];
   const systemNewCards: SentenceSessionCard[] = [];
-  const remainingNewCardsToday =
-    settings.newCardsPerDay - reviewStore.newCardsToday.length;
+  const remainingNewCardsToday = settings.newCardsPerDay - reviewStore.newCardsToday.length;
 
   for (const sentence of allSentences) {
-    const reviewData = getOrCreateSentenceCardReviewData(
-      sentence.id,
-      reviewStore
-    );
+    const reviewData = getOrCreateSentenceCardReviewData(sentence.id, reviewStore);
     const state = reviewData.fsrsCard.state;
     const isNew = state === 0;
     const isLearning = state === 1 || state === 3;
@@ -36,7 +32,7 @@ export default function getSentenceSessionCards(
     if (isNew) {
       if (
         !includesSentenceId(reviewStore.newCardsToday, sentence.id) &&
-        (customNewCards.length + systemNewCards.length) < remainingNewCardsToday
+        customNewCards.length + systemNewCards.length < remainingNewCardsToday
       ) {
         targetNewCards.push({ sentence, reviewData, isNew: true });
       }
@@ -59,4 +55,3 @@ export default function getSentenceSessionCards(
     newCards: [...customNewCards, ...systemNewCards],
   };
 }
-

@@ -11,4 +11,3 @@ export interface DeclensionSessionCard {
   reviewData: DeclensionCardReviewData;
   isNew: boolean;
 }
-

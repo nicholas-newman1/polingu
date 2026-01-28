@@ -1,13 +1,5 @@
 import { useState, useCallback, memo } from 'react';
-import {
-  TextField,
-  Box,
-  Button,
-  Typography,
-  Chip,
-  CircularProgress,
-  Stack,
-} from '@mui/material';
+import { TextField, Box, Button, Typography, Chip, CircularProgress, Stack } from '@mui/material';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import AddIcon from '@mui/icons-material/Add';
 import type { CEFRLevel } from '../../types/sentences';
@@ -22,7 +14,9 @@ export const CurriculumTab = memo(function CurriculumTab({
   showSnackbar,
   onGenerateFromSuggestion,
 }: CurriculumTabProps) {
-  const [discoveryMode, setDiscoveryMode] = useState<'grammar' | 'topics' | 'polish-specific' | 'freeform'>('grammar');
+  const [discoveryMode, setDiscoveryMode] = useState<
+    'grammar' | 'topics' | 'polish-specific' | 'freeform'
+  >('grammar');
   const [discoveryLevel, setDiscoveryLevel] = useState<CEFRLevel | ''>('');
   const [freeformQuestion, setFreeformQuestion] = useState('');
   const [discovering, setDiscovering] = useState(false);
@@ -47,20 +41,27 @@ export const CurriculumTab = memo(function CurriculumTab({
     }
   }, [discoveryMode, discoveryLevel, freeformQuestion, sentenceTags, showSnackbar]);
 
-  const handleAddSuggestion = useCallback(async (suggestion: CurriculumSuggestion) => {
-    await addSentenceTag(suggestion.category, suggestion.tag);
-    showSnackbar(`Added "${suggestion.tag}" to ${suggestion.category}`, 'success');
-  }, [addSentenceTag, showSnackbar]);
+  const handleAddSuggestion = useCallback(
+    async (suggestion: CurriculumSuggestion) => {
+      await addSentenceTag(suggestion.category, suggestion.tag);
+      showSnackbar(`Added "${suggestion.tag}" to ${suggestion.category}`, 'success');
+    },
+    [addSentenceTag, showSnackbar]
+  );
 
-  const handleGenerateFromSuggestion = useCallback((suggestion: CurriculumSuggestion) => {
-    const level = suggestion.relevantLevels.length > 0 ? suggestion.relevantLevels[0] : 'B1';
-    onGenerateFromSuggestion(level, suggestion.tag);
-  }, [onGenerateFromSuggestion]);
+  const handleGenerateFromSuggestion = useCallback(
+    (suggestion: CurriculumSuggestion) => {
+      const level = suggestion.relevantLevels.length > 0 ? suggestion.relevantLevels[0] : 'B1';
+      onGenerateFromSuggestion(level, suggestion.tag);
+    },
+    [onGenerateFromSuggestion]
+  );
 
   return (
     <Stack spacing={3}>
       <Typography variant="body2" color="text.secondary">
-        Ask AI to discover grammar concepts, topics, or Polish-specific features missing from your curriculum.
+        Ask AI to discover grammar concepts, topics, or Polish-specific features missing from your
+        curriculum.
       </Typography>
 
       <Section>
@@ -68,12 +69,14 @@ export const CurriculumTab = memo(function CurriculumTab({
           Discovery Mode
         </Typography>
         <ChipGroup>
-          {([
-            { value: 'grammar', label: 'Grammar' },
-            { value: 'topics', label: 'Topics' },
-            { value: 'polish-specific', label: 'Polish-Specific' },
-            { value: 'freeform', label: 'Custom Question' },
-          ] as const).map((mode) => (
+          {(
+            [
+              { value: 'grammar', label: 'Grammar' },
+              { value: 'topics', label: 'Topics' },
+              { value: 'polish-specific', label: 'Polish-Specific' },
+              { value: 'freeform', label: 'Custom Question' },
+            ] as const
+          ).map((mode) => (
             <Chip
               key={mode.value}
               label={mode.label}
@@ -140,7 +143,14 @@ export const CurriculumTab = memo(function CurriculumTab({
           </Typography>
           {suggestions.map((suggestion, i) => (
             <SuggestionCard key={i} $priority={suggestion.priority}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'flex-start',
+                  mb: 1,
+                }}
+              >
                 <Box>
                   <Typography variant="subtitle2">
                     {suggestion.tag}
@@ -186,4 +196,3 @@ export const CurriculumTab = memo(function CurriculumTab({
     </Stack>
   );
 });
-

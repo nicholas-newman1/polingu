@@ -1,7 +1,4 @@
-export default function getFirstName(
-  displayName: string | null,
-  email: string | null
-): string {
+export default function getFirstName(displayName: string | null, email: string | null): string {
   if (displayName) {
     return displayName.split(' ')[0];
   }
@@ -10,4 +7,3 @@ export default function getFirstName(
   }
   return '';
 }
-

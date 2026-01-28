@@ -13,4 +13,3 @@ export default async function clearDeclensionData(): Promise<void> {
     console.error('Failed to clear declension data:', e);
   }
 }
-

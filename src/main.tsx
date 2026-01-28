@@ -9,7 +9,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { TranslationProvider } from './contexts/TranslationContext';
 import { CheatSheetProvider } from './contexts/CheatSheetContext';
 import { SnackbarProvider } from './contexts/SnackbarContext';
-import { ReviewDataProvider } from './contexts/ReviewDataContext';
+import { ReviewDataProvider } from './contexts/review';
 import { AuthGate } from './components/AuthGate';
 import { SignIn } from './components/SignIn';
 import { Layout } from './components/Layout';
@@ -18,6 +18,7 @@ import { DashboardPage } from './pages/DashboardPage';
 import { DeclensionPage } from './pages/DeclensionPage';
 import { SentencesPage } from './pages/SentencesPage';
 import { VocabularyPage } from './pages/VocabularyPage';
+import { ConjugationPage } from './pages/ConjugationPage';
 import { CustomVocabularyPage } from './pages/CustomVocabularyPage';
 import { CustomDeclensionPage } from './pages/CustomDeclensionPage';
 import { CustomSentencesPage } from './pages/CustomSentencesPage';
@@ -39,54 +40,29 @@ createRoot(document.getElementById('root')!).render(
                       <Route path="/login" element={<SignIn />} />
                       <Route element={<Layout />}>
                         <Route path="/dashboard" element={<DashboardPage />} />
-                        <Route
-                          path="/declension"
-                          element={<DeclensionPage />}
-                        />
+                        <Route path="/declension" element={<DeclensionPage />} />
                         <Route path="/vocabulary">
                           <Route index element={<VocabularyPage />} />
-                          <Route
-                            path="recognition"
-                            element={<VocabularyPage mode="pl-to-en" />}
-                          />
-                          <Route
-                            path="production"
-                            element={<VocabularyPage mode="en-to-pl" />}
-                          />
+                          <Route path="recognition" element={<VocabularyPage mode="pl-to-en" />} />
+                          <Route path="production" element={<VocabularyPage mode="en-to-pl" />} />
                         </Route>
                         <Route path="/sentences">
                           <Route index element={<SentencesPage />} />
-                          <Route
-                            path="recognition"
-                            element={<SentencesPage mode="pl-to-en" />}
-                          />
-                          <Route
-                            path="production"
-                            element={<SentencesPage mode="en-to-pl" />}
-                          />
+                          <Route path="recognition" element={<SentencesPage mode="pl-to-en" />} />
+                          <Route path="production" element={<SentencesPage mode="en-to-pl" />} />
                         </Route>
-                        <Route
-                          path="/my-vocabulary"
-                          element={<CustomVocabularyPage />}
-                        />
-                        <Route
-                          path="/my-declensions"
-                          element={<CustomDeclensionPage />}
-                        />
-                        <Route
-                          path="/my-sentences"
-                          element={<CustomSentencesPage />}
-                        />
+                        <Route path="/conjugation">
+                          <Route index element={<ConjugationPage />} />
+                          <Route path="recognition" element={<ConjugationPage mode="pl-to-en" />} />
+                          <Route path="production" element={<ConjugationPage mode="en-to-pl" />} />
+                        </Route>
+                        <Route path="/my-vocabulary" element={<CustomVocabularyPage />} />
+                        <Route path="/my-declensions" element={<CustomDeclensionPage />} />
+                        <Route path="/my-sentences" element={<CustomSentencesPage />} />
                         <Route path="/stats" element={<StatsPage />} />
-                        <Route
-                          path="/admin/generator"
-                          element={<SentenceGeneratorPage />}
-                        />
+                        <Route path="/admin/generator" element={<SentenceGeneratorPage />} />
                       </Route>
-                      <Route
-                        path="*"
-                        element={<Navigate to="/dashboard" replace />}
-                      />
+                      <Route path="*" element={<Navigate to="/dashboard" replace />} />
                     </Routes>
                   </BrowserRouter>
                 </CheatSheetProvider>
