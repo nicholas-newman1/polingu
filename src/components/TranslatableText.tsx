@@ -102,7 +102,7 @@ function PhraseTooltip({
   useEffect(() => {
     if (!selectedPhrase) return;
 
-    const handleClickOutside = (event: MouseEvent) => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
       const target = event.target as Node;
       if (popperRef.current && !popperRef.current.contains(target)) {
         closePhraseTooltip?.();
@@ -111,11 +111,13 @@ function PhraseTooltip({
 
     const timer = setTimeout(() => {
       document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
     }, 0);
 
     return () => {
       clearTimeout(timer);
       document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
     };
   }, [selectedPhrase, closePhraseTooltip]);
 
@@ -165,12 +167,36 @@ function TranslatableTextInner({ children }: TranslatableTextInnerProps) {
       }
     };
 
+    const handleTouchEnd = () => {
+      context.endDrag();
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      const touch = e.touches[0];
+      if (!touch) return;
+
+      const element = document.elementFromPoint(touch.clientX, touch.clientY);
+      if (!element) return;
+
+      const wordIndexAttr = element.getAttribute('data-word-index');
+      if (wordIndexAttr !== null) {
+        const wordIndex = parseInt(wordIndexAttr, 10);
+        if (!isNaN(wordIndex)) {
+          context.updateDrag(wordIndex);
+        }
+      }
+    };
+
     document.addEventListener('mouseup', handleMouseUp);
     document.addEventListener('mouseleave', handleMouseLeave);
+    document.addEventListener('touchend', handleTouchEnd);
+    document.addEventListener('touchmove', handleTouchMove, { passive: true });
 
     return () => {
       document.removeEventListener('mouseup', handleMouseUp);
       document.removeEventListener('mouseleave', handleMouseLeave);
+      document.removeEventListener('touchend', handleTouchEnd);
+      document.removeEventListener('touchmove', handleTouchMove);
     };
   }, [context]);
 

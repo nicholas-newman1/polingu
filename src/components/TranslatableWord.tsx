@@ -243,6 +243,16 @@ export function TranslatableWord({
     [isDragEnabled, dragContext, wordIndex]
   );
 
+  const handleTouchStart = useCallback(
+    (event: React.TouchEvent<HTMLSpanElement>) => {
+      if (isDragEnabled) {
+        // Don't prevent default immediately - let the browser determine if this is a tap or drag
+        dragContext.startDrag(wordIndex, event.currentTarget);
+      }
+    },
+    [isDragEnabled, dragContext, wordIndex]
+  );
+
   const handleMouseEnterWord = useCallback(
     (event: React.MouseEvent<HTMLSpanElement>) => {
       if (isDragEnabled && dragContext.isDragging) {
@@ -308,10 +318,12 @@ export function TranslatableWord({
       <WordComponent
         ref={spanRef}
         $isSelected={isSelected}
+        data-word-index={wordIndex}
         onClick={handleClick}
         onMouseDown={handleMouseDown}
         onMouseEnter={handleMouseEnterWord}
         onMouseLeave={handleMouseLeaveWord}
+        onTouchStart={handleTouchStart}
       >
         {word}
       </WordComponent>
