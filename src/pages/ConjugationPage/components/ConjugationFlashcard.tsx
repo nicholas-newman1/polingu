@@ -26,8 +26,12 @@ interface ConjugationFlashcardProps {
   aspectPairVerb?: Verb;
   practiceMode?: boolean;
   intervals?: ConjugationRatingIntervals;
+  canEdit?: boolean;
+  isAdmin?: boolean;
   onRate?: (rating: Grade) => void;
   onNext?: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }
 
 const DirectionLabel = styled(Typography)(({ theme }) => ({
@@ -116,8 +120,11 @@ export function ConjugationFlashcard({
   aspectPairVerb,
   practiceMode = false,
   intervals,
+  canEdit = false,
   onRate,
   onNext,
+  onEdit,
+  onDelete,
 }: ConjugationFlashcardProps) {
   const [revealed, setRevealed] = useState(false);
 
@@ -235,9 +242,12 @@ export function ConjugationFlashcard({
       practiceMode={practiceMode}
       intervals={intervals}
       accentColor="warning"
+      canEdit={canEdit}
       onReveal={() => setRevealed(true)}
       onRate={onRate}
       onNext={onNext}
+      onEdit={onEdit}
+      onDelete={onDelete}
       header={header}
       question={question}
       answer={answer}

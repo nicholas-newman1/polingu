@@ -15,8 +15,11 @@ interface AspectPairsFlashcardProps {
   card: AspectPairCard;
   practiceMode?: boolean;
   intervals?: RatingIntervals;
+  canEdit?: boolean;
   onRate?: (rating: Grade) => void;
   onNext?: () => void;
+  onEdit?: () => void;
+  onUnlink?: () => void;
 }
 
 const HeaderLabels = styled(Box)(({ theme }) => ({
@@ -79,8 +82,11 @@ export function AspectPairsFlashcard({
   card,
   practiceMode = false,
   intervals,
+  canEdit = false,
   onRate,
   onNext,
+  onEdit,
+  onUnlink,
 }: AspectPairsFlashcardProps) {
   const { settings: appSettings } = useAppSettings();
   const [revealed, setRevealed] = useState(false);
@@ -230,9 +236,12 @@ export function AspectPairsFlashcard({
       practiceMode={practiceMode}
       intervals={intervals}
       accentColor="secondary"
+      canEdit={canEdit}
       onReveal={() => setRevealed(true)}
       onRate={onRate}
       onNext={onNext}
+      onEdit={onEdit}
+      onDelete={onUnlink}
       header={header}
       question={question}
       answer={answer}

@@ -10,11 +10,13 @@ import { FinishedState } from '../../components/FinishedState';
 import { EmptyState } from '../../components/EmptyState';
 import { ReviewCountBadge } from '../../components/ReviewCountBadge';
 import { SettingsPanel } from '../../components/SettingsPanel';
+import { EditAspectPairsModal } from '../../components/EditAspectPairsModal';
 import type {
   AspectPairCard,
   AspectPairsReviewDataStore,
   AspectPairsSettings,
 } from '../../types/aspectPairs';
+import type { Verb, Aspect, VerbClass } from '../../types/conjugation';
 import getOrCreateAspectPairsCardReviewData from '../../lib/storage/getOrCreateAspectPairsCardReviewData';
 import getAspectPairsSessionCards from '../../lib/aspectPairsScheduler/getAspectPairsSessionCards';
 import getAspectPairsPracticeAheadCards from '../../lib/aspectPairsScheduler/getAspectPairsPracticeAheadCards';
@@ -23,10 +25,13 @@ import rateAspectPairsCard from '../../lib/aspectPairsScheduler/rateAspectPairsC
 import getNextIntervals from '../../lib/fsrsUtils/getNextIntervals';
 import type { AspectPairsSessionCard } from '../../lib/aspectPairsScheduler/types';
 import { useAuthContext } from '../../hooks/useAuthContext';
-import { useAspectPairs } from '../../hooks/useReviewData';
+import { useAspectPairs, useConjugation } from '../../hooks/useReviewData';
 import { useProgressStats } from '../../hooks/useProgressStats';
+import { useOptimistic } from '../../hooks/useOptimistic';
+import { useSnackbar } from '../../hooks/useSnackbar';
 import shuffleArray from '../../lib/utils/shuffleArray';
 import { includesVerbId } from '../../lib/storage/helpers';
+import { updateVerb } from '../../lib/storage/systemVerbs';
 
 const MainContent = styled(Box)({
   flex: 1,
@@ -44,7 +49,8 @@ const ControlsRow = styled(Stack)(({ theme }) => ({
 
 export function AspectPairsPage() {
   const navigate = useNavigate();
-  const { user } = useAuthContext();
+  const { user, isAdmin } = useAuthContext();
+  const { showSnackbar } = useSnackbar();
   const {
     aspectPairCards,
     aspectPairsReviewStore: reviewStore,
@@ -53,9 +59,16 @@ export function AspectPairsPage() {
     updateAspectPairsSettings,
     clearAspectPairsData,
   } = useAspectPairs();
+  const { verbs: contextVerbs, setVerbs: setContextVerbs } = useConjugation();
+
+  const [verbs, applyOptimisticVerbs] = useOptimistic(contextVerbs, {
+    onError: () => showSnackbar('Failed to save. Please try again.', 'error'),
+  });
 
   const [showSettings, setShowSettings] = useState(false);
   const [practiceMode, setPracticeMode] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingCard, setEditingCard] = useState<AspectPairCard | null>(null);
 
   const [learningQueue, setLearningQueue] = useState<AspectPairsSessionCard[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -210,6 +223,105 @@ export function AspectPairsPage() {
     }
   };
 
+  const handleOpenEditModal = useCallback(() => {
+    if (!currentSessionCard) return;
+    setEditingCard(currentSessionCard.card);
+    setShowEditModal(true);
+  }, [currentSessionCard]);
+
+  const updateCardInQueues = (verb1Id: string, verb2Id: string, updatedVerb1: Verb, updatedVerb2: Verb) => {
+    const updateCard = (card: AspectPairCard): AspectPairCard => {
+      let newCard = card;
+      if (card.verb.id === verb1Id) {
+        newCard = { ...newCard, verb: updatedVerb1 };
+      } else if (card.verb.id === verb2Id) {
+        newCard = { ...newCard, verb: updatedVerb2 };
+      }
+      if (card.pairVerb.id === verb1Id) {
+        newCard = { ...newCard, pairVerb: updatedVerb1 };
+      } else if (card.pairVerb.id === verb2Id) {
+        newCard = { ...newCard, pairVerb: updatedVerb2 };
+      }
+      return newCard;
+    };
+
+    setSessionQueue((prev) => prev.map((item) => ({ ...item, card: updateCard(item.card) })));
+    setLearningQueue((prev) => prev.map((item) => ({ ...item, card: updateCard(item.card) })));
+    setPracticeCards((prev) => prev.map(updateCard));
+  };
+
+  const removeCardFromQueues = (verb1Id: string, verb2Id: string) => {
+    const shouldRemove = (card: AspectPairCard) =>
+      (card.verb.id === verb1Id && card.pairVerb.id === verb2Id) ||
+      (card.verb.id === verb2Id && card.pairVerb.id === verb1Id);
+
+    setSessionQueue((prev) => prev.filter((item) => !shouldRemove(item.card)));
+    setLearningQueue((prev) => prev.filter((item) => !shouldRemove(item.card)));
+    setPracticeCards((prev) => prev.filter((card) => !shouldRemove(card)));
+  };
+
+  const handleSaveCard = useCallback(
+    (
+      verb1Updates: { infinitive: string; infinitiveEn: string; aspect: Aspect; verbClass: VerbClass },
+      verb2Updates: { infinitive: string; infinitiveEn: string; aspect: Aspect; verbClass: VerbClass }
+    ) => {
+      if (!editingCard) return;
+
+      const verb1 = editingCard.verb;
+      const verb2 = editingCard.pairVerb;
+      const isBiaspectual = verb1.id === verb2.id;
+
+      const updatedVerb1: Verb = { ...verb1, ...verb1Updates };
+      const updatedVerb2: Verb = isBiaspectual ? updatedVerb1 : { ...verb2, ...verb2Updates };
+
+      const newVerbs = verbs.map((v) => {
+        if (v.id === verb1.id) return updatedVerb1;
+        if (v.id === verb2.id) return updatedVerb2;
+        return v;
+      });
+
+      updateCardInQueues(verb1.id, verb2.id, updatedVerb1, updatedVerb2);
+
+      applyOptimisticVerbs(newVerbs, async () => {
+        await updateVerb(verb1.id, verb1Updates);
+        if (!isBiaspectual) {
+          await updateVerb(verb2.id, verb2Updates);
+        }
+        setContextVerbs(newVerbs);
+      });
+    },
+    [editingCard, verbs, applyOptimisticVerbs, setContextVerbs]
+  );
+
+  const handleUnlinkPair = useCallback(() => {
+    if (!editingCard) return;
+
+    const verb1 = editingCard.verb;
+    const verb2 = editingCard.pairVerb;
+
+    if (verb1.id === verb2.id) return; // Can't unlink biaspectual
+
+    const updatedVerb1: Verb = { ...verb1, aspectPair: undefined };
+    const updatedVerb2: Verb = { ...verb2, aspectPair: undefined };
+
+    const newVerbs = verbs.map((v) => {
+      if (v.id === verb1.id) return updatedVerb1;
+      if (v.id === verb2.id) return updatedVerb2;
+      return v;
+    });
+
+    removeCardFromQueues(verb1.id, verb2.id);
+
+    applyOptimisticVerbs(newVerbs, async () => {
+      await updateVerb(verb1.id, { aspectPair: undefined });
+      await updateVerb(verb2.id, { aspectPair: undefined });
+      setContextVerbs(newVerbs);
+    });
+
+    setShowEditModal(false);
+    setEditingCard(null);
+  }, [editingCard, verbs, applyOptimisticVerbs, setContextVerbs]);
+
   const intervals: RatingIntervals = useMemo(() => {
     if (!currentSessionCard) {
       return {
@@ -354,12 +466,26 @@ export function AspectPairsPage() {
                 key={`${currentSessionCard.card.verb.id}-${ratingCounter}`}
                 card={currentSessionCard.card}
                 intervals={intervals}
+                canEdit={isAdmin}
                 onRate={handleRate}
+                onEdit={handleOpenEditModal}
+                onUnlink={handleUnlinkPair}
               />
             ) : null}
           </>
         )}
       </MainContent>
+
+      <EditAspectPairsModal
+        open={showEditModal}
+        onClose={() => {
+          setShowEditModal(false);
+          setEditingCard(null);
+        }}
+        onSave={handleSaveCard}
+        onUnlink={isAdmin ? handleUnlinkPair : undefined}
+        card={editingCard}
+      />
     </>
   );
 }

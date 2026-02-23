@@ -13,12 +13,16 @@ import { FinishedState } from '../../components/FinishedState';
 import { EmptyState } from '../../components/EmptyState';
 import { ReviewCountBadge } from '../../components/ReviewCountBadge';
 import { SettingsPanel } from '../../components/SettingsPanel';
+import { EditConjugationModal } from '../../components/EditConjugationModal';
 import type {
   Verb,
   ConjugationReviewDataStore,
   ConjugationDirectionSettings,
   ConjugationFilters,
   DrillableForm,
+  ConjugationForm,
+  Aspect,
+  VerbClass,
 } from '../../types/conjugation';
 import type { TranslationDirection } from '../../types/common';
 import { DEFAULT_CONJUGATION_SETTINGS } from '../../types/conjugation';
@@ -39,6 +43,9 @@ import {
   matchesFilters,
   getDefaultFilters,
 } from '../../lib/conjugationUtils';
+import { updateVerb, deleteVerb } from '../../lib/storage/systemVerbs';
+import { useOptimistic } from '../../hooks/useOptimistic';
+import { useSnackbar } from '../../hooks/useSnackbar';
 
 const MainContent = styled(Box)({
   flex: 1,
@@ -54,19 +61,27 @@ interface ConjugationPageProps {
 
 export function ConjugationPage({ mode }: ConjugationPageProps) {
   const navigate = useNavigate();
-  const { user } = useAuthContext();
+  const { user, isAdmin } = useAuthContext();
+  const { showSnackbar } = useSnackbar();
   const {
     loading: contextLoading,
     conjugationReviewStores,
     conjugationSettings: settings,
-    verbs,
+    verbs: contextVerbs,
     updateConjugationReviewStore,
     updateConjugationSettings,
     clearConjugationReviewData,
+    setVerbs: setContextVerbs,
   } = useReviewData();
+
+  const [verbs, applyOptimisticVerbs] = useOptimistic(contextVerbs, {
+    onError: () => showSnackbar('Failed to save. Please try again.', 'error'),
+  });
 
   const [showSettings, setShowSettings] = useState(false);
   const [practiceMode, setPracticeMode] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingForm, setEditingForm] = useState<DrillableForm | null>(null);
 
   const [filters, setFilters] = useState<ConjugationFilters>(getDefaultFilters());
 
@@ -306,6 +321,133 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
     [verbs, practiceMode, buildSession, reviewStore, directionSettings]
   );
 
+  const handleOpenEditModal = useCallback(() => {
+    if (!currentSessionCard) return;
+    setEditingForm(currentSessionCard.form);
+    setShowEditModal(true);
+  }, [currentSessionCard]);
+
+  const updateFormInQueues = (verbId: string, updatedVerb: Verb) => {
+    // Update session queue
+    setSessionQueue((prev) =>
+      prev.map((item) => {
+        if (item.form.verb.id === verbId) {
+          const updatedForms = getDrillableFormsForVerb(updatedVerb);
+          const matchingForm = updatedForms.find((f) => f.fullFormKey === item.form.fullFormKey);
+          if (matchingForm) {
+            return { ...item, form: matchingForm };
+          }
+        }
+        return item;
+      })
+    );
+    // Update learning queue
+    setLearningQueue((prev) =>
+      prev.map((item) => {
+        if (item.form.verb.id === verbId) {
+          const updatedForms = getDrillableFormsForVerb(updatedVerb);
+          const matchingForm = updatedForms.find((f) => f.fullFormKey === item.form.fullFormKey);
+          if (matchingForm) {
+            return { ...item, form: matchingForm };
+          }
+        }
+        return item;
+      })
+    );
+    // Update practice cards
+    setPracticeCards((prev) =>
+      prev.map((form) => {
+        if (form.verb.id === verbId) {
+          const updatedForms = getDrillableFormsForVerb(updatedVerb);
+          const matchingForm = updatedForms.find((f) => f.fullFormKey === form.fullFormKey);
+          return matchingForm || form;
+        }
+        return form;
+      })
+    );
+  };
+
+  const removeVerbFromQueues = (verbId: string) => {
+    setSessionQueue((prev) => prev.filter((item) => item.form.verb.id !== verbId));
+    setLearningQueue((prev) => prev.filter((item) => item.form.verb.id !== verbId));
+    setPracticeCards((prev) => prev.filter((form) => form.verb.id !== verbId));
+  };
+
+  const handleSaveForm = useCallback(
+    (
+      verbUpdates: {
+        infinitive: string;
+        infinitiveEn: string;
+        aspect: Aspect;
+        verbClass: VerbClass;
+        isReflexive: boolean;
+      },
+      formUpdates: ConjugationForm
+    ) => {
+      if (!editingForm) return;
+
+      const verb = editingForm.verb;
+      const tense = editingForm.tense;
+      const formKey = editingForm.formKey;
+
+      // Build the updated conjugations
+      const updatedConjugations = { ...verb.conjugations };
+      const currentTenseForms = updatedConjugations[tense];
+      if (currentTenseForms) {
+        (updatedConjugations[tense] as typeof currentTenseForms) = {
+          ...currentTenseForms,
+          [formKey]: {
+            ...(currentTenseForms as Record<string, ConjugationForm>)[formKey],
+            ...formUpdates,
+          },
+        };
+      }
+
+      const updatedVerb: Verb = {
+        ...verb,
+        ...verbUpdates,
+        conjugations: updatedConjugations,
+      };
+
+      const newVerbs = verbs.map((v) => (v.id === verb.id ? updatedVerb : v));
+
+      updateFormInQueues(verb.id, updatedVerb);
+
+      applyOptimisticVerbs(newVerbs, async () => {
+        await updateVerb(verb.id, {
+          ...verbUpdates,
+          conjugations: updatedConjugations,
+        });
+        setContextVerbs(newVerbs);
+      });
+    },
+    [editingForm, verbs, applyOptimisticVerbs, setContextVerbs]
+  );
+
+  const handleDeleteVerb = useCallback(() => {
+    if (!editingForm) return;
+
+    const confirmMessage =
+      'Are you sure you want to delete this verb? This will remove all conjugation forms for this verb and affect all users.';
+
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    const verbId = editingForm.verb.id;
+    const newVerbs = verbs.filter((v) => v.id !== verbId);
+
+    removeVerbFromQueues(verbId);
+
+    applyOptimisticVerbs(newVerbs, async () => {
+      await deleteVerb(verbId);
+      setContextVerbs(newVerbs);
+    });
+
+    setShowEditModal(false);
+    setEditingForm(null);
+  }, [editingForm, verbs, applyOptimisticVerbs, setContextVerbs]);
+
   const intervals: ConjugationRatingIntervals = useMemo(() => {
     if (!currentSessionCard) {
       return {
@@ -479,7 +621,10 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
                 direction={currentDirection}
                 aspectPairVerb={getAspectPairVerb(currentSessionCard.form)}
                 intervals={intervals}
+                canEdit={isAdmin}
                 onRate={handleRate}
+                onEdit={handleOpenEditModal}
+                onDelete={handleDeleteVerb}
               />
             ) : verbs.length === 0 ? (
               <EmptyState message="No verbs available. Import verbs to get started." />
@@ -487,6 +632,17 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
           </>
         )}
       </MainContent>
+
+      <EditConjugationModal
+        open={showEditModal}
+        onClose={() => {
+          setShowEditModal(false);
+          setEditingForm(null);
+        }}
+        onSave={handleSaveForm}
+        onDelete={isAdmin ? handleDeleteVerb : undefined}
+        form={editingForm}
+      />
     </>
   );
 }
