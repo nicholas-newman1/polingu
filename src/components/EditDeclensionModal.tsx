@@ -1,4 +1,5 @@
-import { useForm, Controller } from 'react-hook-form';
+import { useState } from 'react';
+import { useForm, Controller, useWatch } from 'react-hook-form';
 import {
   Dialog,
   DialogTitle,
@@ -12,11 +13,14 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  Divider,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { styled } from '../lib/styled';
 import { useBackClose } from '../hooks/useBackClose';
+import { useAuthContext } from '../hooks/useAuthContext';
+import { AudioRegenerator } from './AudioRegenerator';
 import type { DeclensionCard, Case, Gender, Number } from '../types';
 
 const CASES: Case[] = [
@@ -84,6 +88,7 @@ interface EditDeclensionModalProps {
   onDelete?: () => void;
   card: DeclensionCard | null;
   isCreating?: boolean;
+  onAudioUpdated?: (audioUrl: string) => void;
 }
 
 const getDefaultValues = (card: DeclensionCard | null): FormData => ({
@@ -103,7 +108,11 @@ export function EditDeclensionModal({
   onDelete,
   card,
   isCreating = false,
+  onAudioUpdated,
 }: EditDeclensionModalProps) {
+  const { isAdmin } = useAuthContext();
+  const [pendingAudioUrl, setPendingAudioUrl] = useState<string | null>(null);
+
   const {
     control,
     handleSubmit,
@@ -114,9 +123,17 @@ export function EditDeclensionModal({
     mode: 'onChange',
   });
 
+  const backText = useWatch({ control, name: 'back' });
+
   const handleClose = () => {
     reset(getDefaultValues(null));
+    setPendingAudioUrl(null);
     onClose();
+  };
+
+  const handleAudioSaved = (audioUrl: string) => {
+    setPendingAudioUrl(audioUrl);
+    onAudioUpdated?.(audioUrl);
   };
 
   useBackClose(open, handleClose);
@@ -274,6 +291,20 @@ export function EditDeclensionModal({
             />
           )}
         />
+
+        {isAdmin && card && !isCreating && (
+          <>
+            <Divider sx={{ my: 1 }} />
+            <AudioRegenerator
+              text={backText}
+              type="declension"
+              id={String(card.id)}
+              currentAudioUrl={pendingAudioUrl || card.audioUrl}
+              onAudioSaved={handleAudioSaved}
+              label="Card Audio (Back)"
+            />
+          </>
+        )}
       </Content>
       <Actions>
         <Box>

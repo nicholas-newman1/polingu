@@ -1,4 +1,5 @@
-import { useForm, Controller } from 'react-hook-form';
+import { useState } from 'react';
+import { useForm, Controller, useWatch } from 'react-hook-form';
 import {
   Dialog,
   DialogTitle,
@@ -19,6 +20,8 @@ import CloseIcon from '@mui/icons-material/Close';
 import LinkOffIcon from '@mui/icons-material/LinkOff';
 import { styled } from '../lib/styled';
 import { useBackClose } from '../hooks/useBackClose';
+import { useAuthContext } from '../hooks/useAuthContext';
+import { AudioRegenerator } from './AudioRegenerator';
 import type { AspectPairCard } from '../types/aspectPairs';
 import type { Aspect, VerbClass } from '../types/conjugation';
 import { ALL_ASPECTS, ALL_VERB_CLASSES } from '../types/conjugation';
@@ -96,6 +99,8 @@ interface EditAspectPairsModalProps {
   onSave: (verb1Updates: VerbUpdates, verb2Updates: VerbUpdates) => void;
   onUnlink?: () => void;
   card: AspectPairCard | null;
+  onVerb1AudioUpdated?: (audioUrl: string) => void;
+  onVerb2AudioUpdated?: (audioUrl: string) => void;
 }
 
 const getDefaultValues = (card: AspectPairCard | null): FormData => ({
@@ -115,7 +120,13 @@ export function EditAspectPairsModal({
   onSave,
   onUnlink,
   card,
+  onVerb1AudioUpdated,
+  onVerb2AudioUpdated,
 }: EditAspectPairsModalProps) {
+  const { isAdmin } = useAuthContext();
+  const [pendingVerb1AudioUrl, setPendingVerb1AudioUrl] = useState<string | null>(null);
+  const [pendingVerb2AudioUrl, setPendingVerb2AudioUrl] = useState<string | null>(null);
+
   const {
     control,
     handleSubmit,
@@ -126,9 +137,24 @@ export function EditAspectPairsModal({
     mode: 'onChange',
   });
 
+  const verb1Infinitive = useWatch({ control, name: 'verb1Infinitive' });
+  const verb2Infinitive = useWatch({ control, name: 'verb2Infinitive' });
+
   const handleClose = () => {
     reset(getDefaultValues(null));
+    setPendingVerb1AudioUrl(null);
+    setPendingVerb2AudioUrl(null);
     onClose();
+  };
+
+  const handleVerb1AudioSaved = (audioUrl: string) => {
+    setPendingVerb1AudioUrl(audioUrl);
+    onVerb1AudioUpdated?.(audioUrl);
+  };
+
+  const handleVerb2AudioSaved = (audioUrl: string) => {
+    setPendingVerb2AudioUrl(audioUrl);
+    onVerb2AudioUpdated?.(audioUrl);
   };
 
   useBackClose(open, handleClose);
@@ -231,6 +257,19 @@ export function EditAspectPairsModal({
                   </FormControl>
                 )}
               />
+
+              {isAdmin && card && (
+                <Box sx={{ mt: 2 }}>
+                  <AudioRegenerator
+                    text={verb1Infinitive}
+                    type="verb-infinitive"
+                    id={card.verb.id}
+                    currentAudioUrl={pendingVerb1AudioUrl || card.verb.infinitiveAudioUrl}
+                    onAudioSaved={handleVerb1AudioSaved}
+                    label="Infinitive Audio"
+                  />
+                </Box>
+              )}
             </VerbSection>
           </>
         ) : (
@@ -307,6 +346,19 @@ export function EditAspectPairsModal({
                   )}
                 />
               </Box>
+
+              {isAdmin && card && (
+                <Box sx={{ mt: 2 }}>
+                  <AudioRegenerator
+                    text={verb1Infinitive}
+                    type="verb-infinitive"
+                    id={card.verb.id}
+                    currentAudioUrl={pendingVerb1AudioUrl || card.verb.infinitiveAudioUrl}
+                    onAudioSaved={handleVerb1AudioSaved}
+                    label="Infinitive Audio"
+                  />
+                </Box>
+              )}
             </VerbSection>
 
             <Divider sx={{ my: 1 }} />
@@ -382,6 +434,19 @@ export function EditAspectPairsModal({
                   )}
                 />
               </Box>
+
+              {isAdmin && card && (
+                <Box sx={{ mt: 2 }}>
+                  <AudioRegenerator
+                    text={verb2Infinitive}
+                    type="verb-infinitive"
+                    id={card.pairVerb.id}
+                    currentAudioUrl={pendingVerb2AudioUrl || card.pairVerb.infinitiveAudioUrl}
+                    onAudioSaved={handleVerb2AudioSaved}
+                    label="Infinitive Audio"
+                  />
+                </Box>
+              )}
             </VerbSection>
           </>
         )}

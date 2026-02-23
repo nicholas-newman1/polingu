@@ -4,14 +4,30 @@ import { defineSecret } from 'firebase-functions/params';
 import { getFirestore } from 'firebase-admin/firestore';
 import { initializeApp } from 'firebase-admin/app';
 import OpenAI from 'openai';
+import { TextToSpeechClient, protos } from '@google-cloud/text-to-speech';
+import { Storage } from '@google-cloud/storage';
 
 initializeApp();
 const db = getFirestore();
+const ttsClient = new TextToSpeechClient();
+const storage = new Storage();
 
 const deeplApiKey = defineSecret('DEEPL_API_KEY');
 const openaiApiKey = defineSecret('OPENAI_API_KEY');
 
 setGlobalOptions({ maxInstances: 10 });
+
+// Audio generation configuration
+const AUDIO_BUCKET = 'polingu-audio';
+const AUDIO_CONFIG: protos.google.cloud.texttospeech.v1.IAudioConfig = {
+  audioEncoding: 'MP3',
+};
+const GEMINI_VOICE = {
+  languageCode: 'pl-PL',
+  name: 'Achird',
+  modelName: 'gemini-2.5-pro-tts',
+};
+const VOICE_PROMPT = 'Read aloud in a normal, neutral tone.';
 
 const MAX_TEXT_LENGTH = 500;
 const MAX_REQUESTS_PER_MINUTE = 30;
@@ -658,3 +674,157 @@ export const processSentence = onCall<ProcessSentenceRequest, Promise<ProcessSen
     return { polish, english, level };
   }
 );
+
+// Audio generation types
+type AudioType = 'sentence' | 'declension' | 'vocabulary' | 'conjugation' | 'verb-infinitive';
+
+interface GenerateAudioPreviewRequest {
+  text: string;
+  type: AudioType;
+}
+
+interface GenerateAudioPreviewResponse {
+  audioBase64: string;
+}
+
+export const generateAudioPreview = onCall<
+  GenerateAudioPreviewRequest,
+  Promise<GenerateAudioPreviewResponse>
+>(async (request) => {
+  if (!request.auth?.token.admin) {
+    throw new HttpsError('permission-denied', 'Admin access required.');
+  }
+
+  const { text } = request.data;
+
+  if (!text || typeof text !== 'string' || text.length > 1000) {
+    throw new HttpsError('invalid-argument', 'Valid text required (max 1000 chars).');
+  }
+
+  try {
+    const ttsRequest = {
+      input: {
+        text,
+        prompt: VOICE_PROMPT,
+      },
+      voice: GEMINI_VOICE,
+      audioConfig: AUDIO_CONFIG,
+    };
+
+    const [response] = await ttsClient.synthesizeSpeech(ttsRequest);
+
+    if (!response.audioContent) {
+      throw new Error('No audio content in response');
+    }
+
+    const audioBase64 = Buffer.from(response.audioContent as Uint8Array).toString('base64');
+
+    return { audioBase64 };
+  } catch (error) {
+    console.error('TTS error:', error);
+    throw new HttpsError('internal', 'Failed to generate audio.');
+  }
+});
+
+interface SaveAudioRequest {
+  audioBase64: string;
+  type: AudioType;
+  id: string;
+  subPath?: string; // For conjugation: "{verbId}_{tense}_{formKey}"
+}
+
+interface SaveAudioResponse {
+  audioUrl: string;
+}
+
+function getAudioPath(type: AudioType, id: string, subPath?: string): string {
+  switch (type) {
+    case 'sentence':
+      return `sentences/${id}.mp3`;
+    case 'declension':
+      return `declension/${id}.mp3`;
+    case 'vocabulary':
+      return `vocabulary/${id}.mp3`;
+    case 'conjugation':
+      return `conjugation/${subPath || id}.mp3`;
+    case 'verb-infinitive':
+      return `verb-infinitives/${id}.mp3`;
+    default:
+      throw new Error(`Unknown audio type: ${type}`);
+  }
+}
+
+async function updateFirestoreAudioUrl(
+  type: AudioType,
+  id: string,
+  audioUrl: string,
+  subPath?: string
+): Promise<void> {
+  switch (type) {
+    case 'sentence':
+      await db.collection('sentences').doc(id).update({ audioUrl });
+      break;
+    case 'declension':
+      await db.collection('declensionCards').doc(id).update({ audioUrl });
+      break;
+    case 'vocabulary':
+      await db.collection('vocabulary').doc(id).update({ audioUrl });
+      break;
+    case 'conjugation':
+      if (subPath) {
+        // subPath format: "{verbId}_{tense}_{formKey}"
+        const parts = subPath.split('_');
+        const verbId = parts[0];
+        const tense = parts[1];
+        const formKey = parts.slice(2).join('_');
+        await db
+          .collection('verbs')
+          .doc(verbId)
+          .update({ [`conjugations.${tense}.${formKey}.audioUrl`]: audioUrl });
+      }
+      break;
+    case 'verb-infinitive':
+      await db.collection('verbs').doc(id).update({ infinitiveAudioUrl: audioUrl });
+      break;
+  }
+}
+
+export const saveAudio = onCall<SaveAudioRequest, Promise<SaveAudioResponse>>(async (request) => {
+  if (!request.auth?.token.admin) {
+    throw new HttpsError('permission-denied', 'Admin access required.');
+  }
+
+  const { audioBase64, type, id, subPath } = request.data;
+
+  if (!audioBase64 || typeof audioBase64 !== 'string') {
+    throw new HttpsError('invalid-argument', 'Audio data required.');
+  }
+
+  if (!type || !id) {
+    throw new HttpsError('invalid-argument', 'Type and ID required.');
+  }
+
+  try {
+    const audioBuffer = Buffer.from(audioBase64, 'base64');
+    const filePath = getAudioPath(type, id, subPath);
+    const bucket = storage.bucket(AUDIO_BUCKET);
+    const file = bucket.file(filePath);
+
+    await file.save(audioBuffer, {
+      contentType: 'audio/mpeg',
+      metadata: {
+        cacheControl: 'public, max-age=31536000',
+      },
+    });
+
+    const audioUrl = `https://storage.googleapis.com/${AUDIO_BUCKET}/${filePath}`;
+
+    // Update Firestore with the new audio URL
+    await updateFirestoreAudioUrl(type, id, audioUrl, subPath);
+
+    return { audioUrl };
+  } catch (error) {
+    console.error('Storage error:', error);
+    throw new HttpsError('internal', 'Failed to save audio.');
+  }
+});

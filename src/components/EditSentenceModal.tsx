@@ -1,4 +1,5 @@
-import { useForm, Controller } from 'react-hook-form';
+import { useState } from 'react';
+import { useForm, Controller, useWatch } from 'react-hook-form';
 import {
   Dialog,
   DialogTitle,
@@ -13,11 +14,14 @@ import {
   Select,
   MenuItem,
   Stack,
+  Divider,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import { styled } from '../lib/styled';
 import { useBackClose } from '../hooks/useBackClose';
 import { useReviewData } from '../hooks/useReviewData';
+import { useAuthContext } from '../hooks/useAuthContext';
+import { AudioRegenerator } from './AudioRegenerator';
 import type { Sentence, CEFRLevel } from '../types/sentences';
 import { ALL_LEVELS } from '../types/sentences';
 
@@ -69,6 +73,7 @@ interface EditSentenceModalProps {
   onSave: (data: Omit<Sentence, 'id'>) => void;
   sentence: Sentence | null;
   isCreating?: boolean;
+  onAudioUpdated?: (audioUrl: string) => void;
 }
 
 const getDefaultValues = (sentence: Sentence | null): FormData => ({
@@ -84,9 +89,12 @@ export function EditSentenceModal({
   onSave,
   sentence,
   isCreating = false,
+  onAudioUpdated,
 }: EditSentenceModalProps) {
+  const { isAdmin } = useAuthContext();
   const { sentenceTags } = useReviewData();
   const allTags = [...sentenceTags.topics, ...sentenceTags.grammar, ...sentenceTags.style];
+  const [pendingAudioUrl, setPendingAudioUrl] = useState<string | null>(null);
 
   const {
     control,
@@ -98,9 +106,17 @@ export function EditSentenceModal({
     mode: 'onChange',
   });
 
+  const polishText = useWatch({ control, name: 'polish' });
+
   const handleClose = () => {
     reset(getDefaultValues(null));
+    setPendingAudioUrl(null);
     onClose();
+  };
+
+  const handleAudioSaved = (audioUrl: string) => {
+    setPendingAudioUrl(audioUrl);
+    onAudioUpdated?.(audioUrl);
   };
 
   useBackClose(open, handleClose);
@@ -185,6 +201,20 @@ export function EditSentenceModal({
             )}
           />
         </Stack>
+
+        {isAdmin && sentence && !isCreating && (
+          <>
+            <Divider sx={{ my: 1 }} />
+            <AudioRegenerator
+              text={polishText}
+              type="sentence"
+              id={sentence.id}
+              currentAudioUrl={pendingAudioUrl || sentence.audioUrl}
+              onAudioSaved={handleAudioSaved}
+              label="Sentence Audio"
+            />
+          </>
+        )}
       </Content>
       <Actions>
         <Box />

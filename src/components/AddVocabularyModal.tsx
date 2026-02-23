@@ -17,6 +17,7 @@ import {
   CircularProgress,
   InputAdornment,
   Checkbox,
+  Divider,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import AddIcon from '@mui/icons-material/Add';
@@ -29,6 +30,7 @@ import { translate } from '../lib/translate';
 import { generateExample, type GeneratedExample } from '../lib/generateExample';
 import { useAuthContext } from '../hooks/useAuthContext';
 import { useBackClose } from '../hooks/useBackClose';
+import { AudioRegenerator } from './AudioRegenerator';
 import type {
   CustomVocabularyWord,
   VocabularyWord,
@@ -150,6 +152,7 @@ interface AddVocabularyModalProps {
   onClose: () => void;
   onSave: (word: Omit<CustomVocabularyWord, 'id' | 'isCustom' | 'createdAt'>) => void;
   editWord?: CustomVocabularyWord | VocabularyWord | null;
+  onAudioUpdated?: (audioUrl: string) => void;
 }
 
 const getDefaultValues = (editWord?: CustomVocabularyWord | VocabularyWord | null): FormData => ({
@@ -161,8 +164,16 @@ const getDefaultValues = (editWord?: CustomVocabularyWord | VocabularyWord | nul
   examples: editWord?.examples || [],
 });
 
-export function AddVocabularyModal({ open, onClose, onSave, editWord }: AddVocabularyModalProps) {
+export function AddVocabularyModal({
+  open,
+  onClose,
+  onSave,
+  editWord,
+  onAudioUpdated,
+}: AddVocabularyModalProps) {
   const { isAdmin } = useAuthContext();
+  const [pendingAudioUrl, setPendingAudioUrl] = useState<string | null>(null);
+
   const {
     control,
     handleSubmit,
@@ -310,8 +321,17 @@ export function AddVocabularyModal({ open, onClose, onSave, editWord }: AddVocab
     setSelectedExampleIndexes(new Set());
     setGenerateError(null);
     setIsGenerating(false);
+    setPendingAudioUrl(null);
     onClose();
   }, [onClose, reset]);
+
+  const handleAudioSaved = useCallback(
+    (audioUrl: string) => {
+      setPendingAudioUrl(audioUrl);
+      onAudioUpdated?.(audioUrl);
+    },
+    [onAudioUpdated]
+  );
 
   useBackClose(open, handleClose);
 
@@ -645,6 +665,23 @@ export function AddVocabularyModal({ open, onClose, onSave, editWord }: AddVocab
               </Box>
             )}
           </ExamplesSection>
+
+          {isAdmin && editWord && 'id' in editWord && (
+            <>
+              <Divider sx={{ my: 1 }} />
+              <AudioRegenerator
+                text={polishWord}
+                type="vocabulary"
+                id={String(editWord.id)}
+                currentAudioUrl={
+                  pendingAudioUrl ||
+                  ('audioUrl' in editWord ? editWord.audioUrl : undefined)
+                }
+                onAudioSaved={handleAudioSaved}
+                label="Word Audio"
+              />
+            </>
+          )}
         </Content>
         <Actions>
           <Button onClick={handleClose} color="inherit" type="button">

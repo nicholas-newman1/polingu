@@ -1,4 +1,5 @@
-import { useForm, Controller, useFieldArray } from 'react-hook-form';
+import { useState } from 'react';
+import { useForm, Controller, useFieldArray, useWatch } from 'react-hook-form';
 import {
   Dialog,
   DialogTitle,
@@ -20,6 +21,8 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import { styled } from '../lib/styled';
 import { useBackClose } from '../hooks/useBackClose';
+import { useAuthContext } from '../hooks/useAuthContext';
+import { AudioRegenerator } from './AudioRegenerator';
 import type { DrillableForm, ConjugationForm, Aspect, VerbClass } from '../types/conjugation';
 import { ALL_ASPECTS, ALL_VERB_CLASSES, TENSE_LABELS } from '../types/conjugation';
 
@@ -98,6 +101,7 @@ interface EditConjugationModalProps {
   ) => void;
   onDelete?: () => void;
   form: DrillableForm | null;
+  onAudioUpdated?: (audioUrl: string) => void;
 }
 
 const getDefaultValues = (form: DrillableForm | null): FormData => ({
@@ -117,7 +121,11 @@ export function EditConjugationModal({
   onSave,
   onDelete,
   form,
+  onAudioUpdated,
 }: EditConjugationModalProps) {
+  const { isAdmin } = useAuthContext();
+  const [pendingAudioUrl, setPendingAudioUrl] = useState<string | null>(null);
+
   const {
     control,
     handleSubmit,
@@ -133,9 +141,17 @@ export function EditConjugationModal({
     name: 'plAlternatives',
   });
 
+  const plText = useWatch({ control, name: 'pl' });
+
   const handleClose = () => {
     reset(getDefaultValues(null));
+    setPendingAudioUrl(null);
     onClose();
+  };
+
+  const handleAudioSaved = (audioUrl: string) => {
+    setPendingAudioUrl(audioUrl);
+    onAudioUpdated?.(audioUrl);
   };
 
   useBackClose(open, handleClose);
@@ -345,6 +361,21 @@ export function EditConjugationModal({
             />
           )}
         />
+
+        {isAdmin && form && (
+          <>
+            <Divider sx={{ my: 1 }} />
+            <AudioRegenerator
+              text={plText}
+              type="conjugation"
+              id={form.verb.id}
+              subPath={`${form.verb.id}_${form.tense}_${form.formKey}`}
+              currentAudioUrl={pendingAudioUrl || form.form.audioUrl}
+              onAudioSaved={handleAudioSaved}
+              label="Form Audio"
+            />
+          </>
+        )}
       </Content>
       <Actions>
         <Box>
