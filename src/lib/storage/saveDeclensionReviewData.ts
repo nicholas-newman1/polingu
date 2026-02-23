@@ -1,16 +1,8 @@
-import { doc, setDoc } from 'firebase/firestore';
-import { db } from '../firebase';
 import type { DeclensionReviewDataStore } from '../../types';
-import { getUserId } from './helpers';
+import { saveUserDataOfflineFirst } from '../offlineDb/userDataWrapper';
 
-export default async function saveDeclensionReviewData(
-  data: DeclensionReviewDataStore
-): Promise<void> {
-  const userId = getUserId();
-  if (!userId) return;
-
-  const docRef = doc(db, 'users', userId, 'data', 'reviewData');
-  const serializable = {
+function serializeDeclensionReviewData(data: DeclensionReviewDataStore): unknown {
+  return {
     ...data,
     cards: Object.fromEntries(
       Object.entries(data.cards).map(([key, card]) => [
@@ -32,5 +24,10 @@ export default async function saveDeclensionReviewData(
       ])
     ),
   };
-  await setDoc(docRef, serializable);
+}
+
+export default async function saveDeclensionReviewData(
+  data: DeclensionReviewDataStore
+): Promise<void> {
+  await saveUserDataOfflineFirst('reviewData', data, serializeDeclensionReviewData);
 }

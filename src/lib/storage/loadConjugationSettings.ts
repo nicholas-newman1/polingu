@@ -1,8 +1,6 @@
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../firebase';
 import type { ConjugationSettings, ConjugationDirectionSettings } from '../../types/conjugation';
 import type { TranslationDirection } from '../../types/common';
-import { getUserId } from './helpers';
+import { loadUserDataOfflineFirst } from '../offlineDb/userDataWrapper';
 
 const DEFAULT_DIRECTION_SETTINGS: ConjugationDirectionSettings = {
   newCardsPerDay: 10,
@@ -20,22 +18,14 @@ function getConjugationSettingsDocPath(direction: TranslationDirection): string 
 export async function loadConjugationDirectionSettings(
   direction: TranslationDirection
 ): Promise<ConjugationDirectionSettings> {
-  const userId = getUserId();
-  if (!userId) return DEFAULT_DIRECTION_SETTINGS;
-
-  try {
-    const docRef = doc(db, 'users', userId, 'data', getConjugationSettingsDocPath(direction));
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-      return {
-        ...DEFAULT_DIRECTION_SETTINGS,
-        ...(docSnap.data() as ConjugationDirectionSettings),
-      };
-    }
-  } catch (e) {
-    console.error('Failed to load conjugation settings:', e);
-  }
-  return DEFAULT_DIRECTION_SETTINGS;
+  return loadUserDataOfflineFirst(
+    getConjugationSettingsDocPath(direction),
+    DEFAULT_DIRECTION_SETTINGS,
+    (data) => ({
+      ...DEFAULT_DIRECTION_SETTINGS,
+      ...(data as ConjugationDirectionSettings),
+    })
+  );
 }
 
 export default async function loadConjugationSettings(): Promise<ConjugationSettings> {

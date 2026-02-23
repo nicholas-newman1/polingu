@@ -1,8 +1,6 @@
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../firebase';
 import type { VocabularySettings, VocabularyDirectionSettings } from '../../types/vocabulary';
 import type { TranslationDirection } from '../../types/common';
-import { getUserId } from './helpers';
+import { loadUserDataOfflineFirst } from '../offlineDb/userDataWrapper';
 
 const DEFAULT_DIRECTION_SETTINGS: VocabularyDirectionSettings = {
   newCardsPerDay: 10,
@@ -20,22 +18,14 @@ function getVocabularySettingsDocPath(direction: TranslationDirection): string {
 export async function loadVocabularyDirectionSettings(
   direction: TranslationDirection
 ): Promise<VocabularyDirectionSettings> {
-  const userId = getUserId();
-  if (!userId) return DEFAULT_DIRECTION_SETTINGS;
-
-  try {
-    const docRef = doc(db, 'users', userId, 'data', getVocabularySettingsDocPath(direction));
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-      return {
-        ...DEFAULT_DIRECTION_SETTINGS,
-        ...(docSnap.data() as VocabularyDirectionSettings),
-      };
-    }
-  } catch (e) {
-    console.error('Failed to load vocabulary settings:', e);
-  }
-  return DEFAULT_DIRECTION_SETTINGS;
+  return loadUserDataOfflineFirst(
+    getVocabularySettingsDocPath(direction),
+    DEFAULT_DIRECTION_SETTINGS,
+    (data) => ({
+      ...DEFAULT_DIRECTION_SETTINGS,
+      ...(data as VocabularyDirectionSettings),
+    })
+  );
 }
 
 export default async function loadVocabularySettings(): Promise<VocabularySettings> {

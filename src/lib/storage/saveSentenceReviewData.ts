@@ -1,18 +1,10 @@
-import { doc, setDoc } from 'firebase/firestore';
-import { db } from '../firebase';
 import type { SentenceReviewDataStore } from '../../types/sentences';
 import type { TranslationDirection } from '../../types/common';
-import { getUserId, getSentenceDocPath } from './helpers';
+import { getSentenceDocPath } from './helpers';
+import { saveUserDataOfflineFirst } from '../offlineDb/userDataWrapper';
 
-export default async function saveSentenceReviewData(
-  data: SentenceReviewDataStore,
-  direction: TranslationDirection
-): Promise<void> {
-  const userId = getUserId();
-  if (!userId) return;
-
-  const docRef = doc(db, 'users', userId, 'data', getSentenceDocPath(direction));
-  const serializable = {
+function serializeSentenceReviewData(data: SentenceReviewDataStore): unknown {
+  return {
     ...data,
     cards: Object.fromEntries(
       Object.entries(data.cards).map(([key, card]) => [
@@ -34,5 +26,11 @@ export default async function saveSentenceReviewData(
       ])
     ),
   };
-  await setDoc(docRef, serializable);
+}
+
+export default async function saveSentenceReviewData(
+  data: SentenceReviewDataStore,
+  direction: TranslationDirection
+): Promise<void> {
+  await saveUserDataOfflineFirst(getSentenceDocPath(direction), data, serializeSentenceReviewData);
 }

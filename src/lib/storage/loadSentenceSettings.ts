@@ -1,9 +1,7 @@
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../firebase';
 import type { SentenceSettings, SentenceDirectionSettings } from '../../types/sentences';
 import type { TranslationDirection } from '../../types/common';
 import { ALL_LEVELS } from '../../types/sentences';
-import { getUserId } from './helpers';
+import { loadUserDataOfflineFirst } from '../offlineDb/userDataWrapper';
 
 const DEFAULT_DIRECTION_SETTINGS: SentenceDirectionSettings = {
   newCardsPerDay: 5,
@@ -22,22 +20,14 @@ function getSentenceSettingsDocPath(direction: TranslationDirection): string {
 export async function loadSentenceDirectionSettings(
   direction: TranslationDirection
 ): Promise<SentenceDirectionSettings> {
-  const userId = getUserId();
-  if (!userId) return DEFAULT_DIRECTION_SETTINGS;
-
-  try {
-    const docRef = doc(db, 'users', userId, 'data', getSentenceSettingsDocPath(direction));
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-      return {
-        ...DEFAULT_DIRECTION_SETTINGS,
-        ...(docSnap.data() as SentenceDirectionSettings),
-      };
-    }
-  } catch (e) {
-    console.error('Failed to load sentence settings:', e);
-  }
-  return DEFAULT_DIRECTION_SETTINGS;
+  return loadUserDataOfflineFirst(
+    getSentenceSettingsDocPath(direction),
+    DEFAULT_DIRECTION_SETTINGS,
+    (data) => ({
+      ...DEFAULT_DIRECTION_SETTINGS,
+      ...(data as SentenceDirectionSettings),
+    })
+  );
 }
 
 export default async function loadSentenceSettings(): Promise<SentenceSettings> {

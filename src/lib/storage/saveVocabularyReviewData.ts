@@ -1,18 +1,10 @@
-import { doc, setDoc } from 'firebase/firestore';
-import { db } from '../firebase';
 import type { VocabularyReviewDataStore } from '../../types/vocabulary';
 import type { TranslationDirection } from '../../types/common';
-import { getUserId, getVocabularyDocPath } from './helpers';
+import { getVocabularyDocPath } from './helpers';
+import { saveUserDataOfflineFirst } from '../offlineDb/userDataWrapper';
 
-export default async function saveVocabularyReviewData(
-  data: VocabularyReviewDataStore,
-  direction: TranslationDirection
-): Promise<void> {
-  const userId = getUserId();
-  if (!userId) return;
-
-  const docRef = doc(db, 'users', userId, 'data', getVocabularyDocPath(direction));
-  const serializable = {
+function serializeVocabularyReviewData(data: VocabularyReviewDataStore): unknown {
+  return {
     ...data,
     cards: Object.fromEntries(
       Object.entries(data.cards).map(([key, card]) => [
@@ -34,5 +26,15 @@ export default async function saveVocabularyReviewData(
       ])
     ),
   };
-  await setDoc(docRef, serializable);
+}
+
+export default async function saveVocabularyReviewData(
+  data: VocabularyReviewDataStore,
+  direction: TranslationDirection
+): Promise<void> {
+  await saveUserDataOfflineFirst(
+    getVocabularyDocPath(direction),
+    data,
+    serializeVocabularyReviewData
+  );
 }

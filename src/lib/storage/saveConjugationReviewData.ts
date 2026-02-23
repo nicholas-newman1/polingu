@@ -1,18 +1,10 @@
-import { doc, setDoc } from 'firebase/firestore';
-import { db } from '../firebase';
 import type { ConjugationReviewDataStore } from '../../types/conjugation';
 import type { TranslationDirection } from '../../types/common';
-import { getUserId, getConjugationDocPath } from './helpers';
+import { getConjugationDocPath } from './helpers';
+import { saveUserDataOfflineFirst } from '../offlineDb/userDataWrapper';
 
-export default async function saveConjugationReviewData(
-  data: ConjugationReviewDataStore,
-  direction: TranslationDirection
-): Promise<void> {
-  const userId = getUserId();
-  if (!userId) return;
-
-  const docRef = doc(db, 'users', userId, 'data', getConjugationDocPath(direction));
-  const serializable = {
+function serializeConjugationReviewData(data: ConjugationReviewDataStore): unknown {
+  return {
     ...data,
     forms: Object.fromEntries(
       Object.entries(data.forms).map(([key, form]) => [
@@ -34,5 +26,15 @@ export default async function saveConjugationReviewData(
       ])
     ),
   };
-  await setDoc(docRef, serializable);
+}
+
+export default async function saveConjugationReviewData(
+  data: ConjugationReviewDataStore,
+  direction: TranslationDirection
+): Promise<void> {
+  await saveUserDataOfflineFirst(
+    getConjugationDocPath(direction),
+    data,
+    serializeConjugationReviewData
+  );
 }

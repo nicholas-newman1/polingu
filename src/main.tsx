@@ -14,6 +14,7 @@ import { AuthGate } from './components/AuthGate';
 import { SignIn } from './components/SignIn';
 import { Layout } from './components/Layout';
 import { AppSnackbar } from './components/AppSnackbar';
+import { OfflineIndicator } from './components/OfflineIndicator';
 import { DashboardPage } from './pages/DashboardPage';
 import { DeclensionPage } from './pages/DeclensionPage';
 import { SentencesPage } from './pages/SentencesPage';
@@ -80,6 +81,7 @@ createRoot(document.getElementById('root')!).render(
           </AuthGate>
         </AuthProvider>
         <AppSnackbar />
+        <OfflineIndicator />
       </SnackbarProvider>
     </ThemeProvider>
   </StrictMode>

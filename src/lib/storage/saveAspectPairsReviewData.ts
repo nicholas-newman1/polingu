@@ -1,16 +1,8 @@
-import { doc, setDoc } from 'firebase/firestore';
-import { db } from '../firebase';
 import type { AspectPairsReviewDataStore } from '../../types/aspectPairs';
-import { getUserId } from './helpers';
+import { saveUserDataOfflineFirst } from '../offlineDb/userDataWrapper';
 
-export default async function saveAspectPairsReviewData(
-  data: AspectPairsReviewDataStore
-): Promise<void> {
-  const userId = getUserId();
-  if (!userId) return;
-
-  const docRef = doc(db, 'users', userId, 'data', 'aspectPairsReviewData');
-  const serializable = {
+function serializeAspectPairsReviewData(data: AspectPairsReviewDataStore): unknown {
+  return {
     ...data,
     cards: Object.fromEntries(
       Object.entries(data.cards).map(([key, card]) => [
@@ -32,5 +24,10 @@ export default async function saveAspectPairsReviewData(
       ])
     ),
   };
-  await setDoc(docRef, serializable);
+}
+
+export default async function saveAspectPairsReviewData(
+  data: AspectPairsReviewDataStore
+): Promise<void> {
+  await saveUserDataOfflineFirst('aspectPairsReviewData', data, serializeAspectPairsReviewData);
 }

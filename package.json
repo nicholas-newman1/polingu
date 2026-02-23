@@ -32,12 +32,14 @@
     "@mui/icons-material": "^7.3.6",
     "@mui/material": "^7.3.6",
     "@tanstack/react-virtual": "^3.13.18",
+    "dexie": "^4.3.0",
     "firebase": "^12.7.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-hook-form": "^7.71.1",
     "react-router-dom": "^7.11.0",
-    "ts-fsrs": "^5.2.3"
+    "ts-fsrs": "^5.2.3",
+    "vite-plugin-pwa": "^1.2.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
