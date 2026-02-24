@@ -14,7 +14,31 @@ export interface AuthContextType {
 // eslint-disable-next-line react-refresh/only-export-components
 export const AuthContext = createContext<AuthContextType | null>(null);
 
-const AUTH_TIMEOUT_MS = 5000;
+async function resolveUser(
+  user: User | null,
+  setUser: (u: User | null) => void,
+  setIsAdmin: (a: boolean) => void
+) {
+  setUser(user);
+  if (user) {
+    if (navigator.onLine) {
+      console.log('[Auth] Online - getting token...');
+      try {
+        const idTokenResult = await user.getIdTokenResult();
+        console.log('[Auth] Got token result');
+        setIsAdmin(!!idTokenResult.claims.admin);
+      } catch (e) {
+        console.warn('[Auth] Token error:', e);
+        setIsAdmin(false);
+      }
+    } else {
+      console.log('[Auth] Offline - skipping token');
+      setIsAdmin(false);
+    }
+  } else {
+    setIsAdmin(false);
+  }
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -23,46 +47,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const authResolved = useRef(false);
 
   useEffect(() => {
-    console.log('[Auth] Setting up onAuthStateChanged listener');
+    console.log('[Auth] Setting up auth resolution');
 
-    // Timeout fallback - if auth doesn't resolve in time, proceed without user
-    const timeout = setTimeout(() => {
-      if (!authResolved.current) {
-        console.warn('[Auth] Timeout waiting for auth state - proceeding without user');
-        setLoading(false);
+    // Poll auth.currentUser - Firebase often loads from IndexedDB before callback fires
+    const pollInterval = setInterval(() => {
+      if (!authResolved.current && auth.currentUser) {
+        console.log('[Auth] Found user via polling:', auth.currentUser.email);
+        authResolved.current = true;
+        clearInterval(pollInterval);
+        resolveUser(auth.currentUser, setUser, setIsAdmin).then(() => setLoading(false));
       }
-    }, AUTH_TIMEOUT_MS);
+    }, 100);
+
+    // Stop polling after 3s regardless
+    const pollTimeout = setTimeout(() => clearInterval(pollInterval), 3000);
 
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (authResolved.current) {
+        // Already resolved via polling, but still update if user changed
+        console.log(
+          '[Auth] onAuthStateChanged fired (already resolved), user:',
+          user?.email ?? 'null'
+        );
+        await resolveUser(user, setUser, setIsAdmin);
+        return;
+      }
       authResolved.current = true;
-      clearTimeout(timeout);
+      clearInterval(pollInterval);
+      clearTimeout(pollTimeout);
       console.log('[Auth] onAuthStateChanged fired, user:', user?.email ?? 'null');
       console.log('[Auth] navigator.onLine:', navigator.onLine);
-      setUser(user);
-      if (user) {
-        if (navigator.onLine) {
-          console.log('[Auth] Online - getting token...');
-          try {
-            const idTokenResult = await user.getIdTokenResult();
-            console.log('[Auth] Got token result');
-            setIsAdmin(!!idTokenResult.claims.admin);
-          } catch (e) {
-            console.warn('[Auth] Token error:', e);
-            setIsAdmin(false);
-          }
-        } else {
-          console.log('[Auth] Offline - skipping token');
-          setIsAdmin(false);
-        }
-      } else {
-        setIsAdmin(false);
-      }
+      await resolveUser(user, setUser, setIsAdmin);
       console.log('[Auth] Setting loading to false');
       setLoading(false);
     });
 
     return () => {
-      clearTimeout(timeout);
+      clearInterval(pollInterval);
+      clearTimeout(pollTimeout);
       unsubscribe();
     };
   }, []);
