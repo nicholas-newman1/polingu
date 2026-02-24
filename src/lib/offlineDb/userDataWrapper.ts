@@ -12,6 +12,15 @@ import { db } from '../firebase';
 import { userDb } from './userDb';
 import { getUserId } from '../storage/helpers';
 
+const FETCH_TIMEOUT_MS = 5000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error('Timeout')), ms)),
+  ]);
+}
+
 /**
  * Save user data with offline-first strategy
  * 1. Save to IndexedDB immediately (works offline)
@@ -63,11 +72,11 @@ export async function loadUserDataOfflineFirst<T>(
   const userId = getUserId();
   if (!userId) return defaultValue;
 
-  // If online, always fetch fresh from Firestore
+  // If online, try to fetch fresh from Firestore with timeout
   if (navigator.onLine) {
     try {
       const docRef = doc(db, 'users', userId, 'data', docPath);
-      const docSnap = await getDoc(docRef);
+      const docSnap = await withTimeout(getDoc(docRef), FETCH_TIMEOUT_MS);
       if (docSnap.exists()) {
         const rawData = docSnap.data();
         // Update local cache
