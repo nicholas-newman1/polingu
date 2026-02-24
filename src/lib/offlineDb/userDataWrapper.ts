@@ -11,14 +11,24 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { userDb } from './userDb';
 import { getUserId } from '../storage/helpers';
+import { showOfflineModeNotification } from '../storage/errorHandler';
 
 const FETCH_TIMEOUT_MS = 5000;
+
+let offlineNotificationShown = false;
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return Promise.race([
     promise,
     new Promise<T>((_, reject) => setTimeout(() => reject(new Error('Timeout')), ms)),
   ]);
+}
+
+function notifyOfflineOnce(): void {
+  if (!offlineNotificationShown) {
+    offlineNotificationShown = true;
+    showOfflineModeNotification();
+  }
 }
 
 /**
@@ -86,6 +96,8 @@ export async function loadUserDataOfflineFirst<T>(
           lastModified: Date.now(),
           pendingSync: 0,
         });
+        // Reset offline notification so it shows again next time
+        offlineNotificationShown = false;
         return deserialize ? deserialize(rawData) : (rawData as T);
       }
     } catch (e) {
@@ -97,6 +109,7 @@ export async function loadUserDataOfflineFirst<T>(
   // Offline or Firestore failed - use local cache
   const localRecord = await userDb.userData.get(docPath);
   if (localRecord) {
+    notifyOfflineOnce();
     return deserialize ? deserialize(localRecord.data) : (localRecord.data as T);
   }
 
