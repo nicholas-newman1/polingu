@@ -1,4 +1,4 @@
-import { createContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useEffect, useState, useRef, type ReactNode } from 'react';
 import { signInWithPopup, signOut as firebaseSignOut, onAuthStateChanged } from 'firebase/auth';
 import type { User } from 'firebase/auth';
 import { auth, googleProvider } from '../lib/firebase';
@@ -14,14 +14,28 @@ export interface AuthContextType {
 // eslint-disable-next-line react-refresh/only-export-components
 export const AuthContext = createContext<AuthContextType | null>(null);
 
+const AUTH_TIMEOUT_MS = 5000;
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const authResolved = useRef(false);
 
   useEffect(() => {
     console.log('[Auth] Setting up onAuthStateChanged listener');
+
+    // Timeout fallback - if auth doesn't resolve in time, proceed without user
+    const timeout = setTimeout(() => {
+      if (!authResolved.current) {
+        console.warn('[Auth] Timeout waiting for auth state - proceeding without user');
+        setLoading(false);
+      }
+    }, AUTH_TIMEOUT_MS);
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      authResolved.current = true;
+      clearTimeout(timeout);
       console.log('[Auth] onAuthStateChanged fired, user:', user?.email ?? 'null');
       console.log('[Auth] navigator.onLine:', navigator.onLine);
       setUser(user);
@@ -46,7 +60,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log('[Auth] Setting loading to false');
       setLoading(false);
     });
-    return unsubscribe;
+
+    return () => {
+      clearTimeout(timeout);
+      unsubscribe();
+    };
   }, []);
 
   const signInWithGoogle = async () => {
