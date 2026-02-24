@@ -20,24 +20,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
+    console.log('[Auth] Setting up onAuthStateChanged listener');
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      console.log('[Auth] onAuthStateChanged fired, user:', user?.email ?? 'null');
+      console.log('[Auth] navigator.onLine:', navigator.onLine);
       setUser(user);
       if (user) {
-        // Skip admin check when offline - getIdTokenResult() has a long timeout
         if (navigator.onLine) {
+          console.log('[Auth] Online - getting token...');
           try {
             const idTokenResult = await user.getIdTokenResult();
+            console.log('[Auth] Got token result');
             setIsAdmin(!!idTokenResult.claims.admin);
           } catch (e) {
-            console.warn('Could not get ID token:', e);
+            console.warn('[Auth] Token error:', e);
             setIsAdmin(false);
           }
         } else {
+          console.log('[Auth] Offline - skipping token');
           setIsAdmin(false);
         }
       } else {
         setIsAdmin(false);
       }
+      console.log('[Auth] Setting loading to false');
       setLoading(false);
     });
     return unsubscribe;

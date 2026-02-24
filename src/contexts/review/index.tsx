@@ -116,13 +116,16 @@ export function ReviewDataProvider({ children }: ReviewDataProviderProps) {
   }, []);
 
   const loadAllData = useCallback(async () => {
+    console.log('[ReviewData] loadAllData starting');
     const userId = getUserId();
     if (!userId) {
+      console.log('[ReviewData] No userId, skipping load');
       setLoading(false);
       return;
     }
 
     setLoading(true);
+    console.log('[ReviewData] Loading user review data and content...');
 
     // Load user review data and content data in parallel
     const [
@@ -141,6 +144,8 @@ export function ReviewDataProvider({ children }: ReviewDataProviderProps) {
       loadContentData(),
     ]);
 
+    console.log('[ReviewData] All data loaded successfully');
+
     setData({
       declensionData: loadedDeclensionData,
       vocabularyData: loadedVocabularyData,
@@ -152,6 +157,7 @@ export function ReviewDataProvider({ children }: ReviewDataProviderProps) {
 
     setLoading(false);
     setInitialLoadComplete(true);
+    console.log('[ReviewData] loadAllData complete');
   }, [loadContentData]);
 
   useEffect(() => {
