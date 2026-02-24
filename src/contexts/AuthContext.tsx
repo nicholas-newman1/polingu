@@ -2,6 +2,7 @@ import { createContext, useEffect, useState, type ReactNode } from 'react';
 import { signInWithPopup, signOut as firebaseSignOut, onAuthStateChanged } from 'firebase/auth';
 import type { User } from 'firebase/auth';
 import { auth, googleProvider } from '../lib/firebase';
+import { getCachedUser, setCachedUser } from '../lib/cachedAuth';
 
 export interface AuthContextType {
   user: User | null;
@@ -13,34 +14,6 @@ export interface AuthContextType {
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const AuthContext = createContext<AuthContextType | null>(null);
-
-const CACHED_USER_KEY = 'polingu_cached_user';
-
-interface CachedUser {
-  uid: string;
-  email: string | null;
-}
-
-function getCachedUser(): CachedUser | null {
-  try {
-    const cached = localStorage.getItem(CACHED_USER_KEY);
-    return cached ? JSON.parse(cached) : null;
-  } catch {
-    return null;
-  }
-}
-
-function setCachedUser(user: User | null) {
-  try {
-    if (user) {
-      localStorage.setItem(CACHED_USER_KEY, JSON.stringify({ uid: user.uid, email: user.email }));
-    } else {
-      localStorage.removeItem(CACHED_USER_KEY);
-    }
-  } catch {
-    // localStorage might be unavailable
-  }
-}
 
 function getInitialState(): { user: User | null; loading: boolean } {
   const cached = getCachedUser();

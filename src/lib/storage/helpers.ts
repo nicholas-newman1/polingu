@@ -1,10 +1,10 @@
-import { auth } from '../firebase';
 import type { DeclensionReviewDataStore, DeclensionCardId } from '../../types';
 import type { TranslationDirection } from '../../types/common';
 import type { VocabularyReviewDataStore, VocabularyWordId } from '../../types/vocabulary';
 import type { SentenceReviewDataStore } from '../../types/sentences';
 import type { ConjugationReviewDataStore, ConjugationFormKey } from '../../types/conjugation';
 import type { AspectPairsReviewDataStore } from '../../types/aspectPairs';
+import { getCurrentUserId } from '../cachedAuth';
 
 export function getTodayString(): string {
   return new Date().toISOString().split('T')[0];
@@ -21,7 +21,7 @@ export function includesDeclensionCardId(array: DeclensionCardId[], id: Declensi
 }
 
 export function getUserId(): string | null {
-  return auth.currentUser?.uid ?? null;
+  return getCurrentUserId();
 }
 
 export function getDefaultDeclensionReviewStore(): DeclensionReviewDataStore {
