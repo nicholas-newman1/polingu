@@ -1,4 +1,4 @@
-import { createContext, useEffect, useState, useRef, type ReactNode } from 'react';
+import { createContext, useEffect, useState, type ReactNode } from 'react';
 import { signInWithPopup, signOut as firebaseSignOut, onAuthStateChanged } from 'firebase/auth';
 import type { User } from 'firebase/auth';
 import { auth, googleProvider } from '../lib/firebase';
@@ -42,19 +42,16 @@ function setCachedUser(user: User | null) {
   }
 }
 
-function getInitialState(): { user: User | null; loading: boolean; resolved: boolean } {
-  if (!navigator.onLine) {
-    const cached = getCachedUser();
-    if (cached) {
-      console.log('[Auth] Offline - using cached user:', cached.email);
-      return {
-        user: { uid: cached.uid, email: cached.email } as User,
-        loading: false,
-        resolved: true,
-      };
-    }
+function getInitialState(): { user: User | null; loading: boolean } {
+  const cached = getCachedUser();
+  if (cached) {
+    console.log('[Auth] Using cached user:', cached.email);
+    return {
+      user: { uid: cached.uid, email: cached.email } as User,
+      loading: false,
+    };
   }
-  return { user: null, loading: true, resolved: false };
+  return { user: null, loading: true };
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -62,31 +59,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(initial.user);
   const [loading, setLoading] = useState(initial.loading);
   const [isAdmin, setIsAdmin] = useState(false);
-  const authResolved = useRef(initial.resolved);
 
   useEffect(() => {
-    console.log('[Auth] Setting up auth listener, online:', navigator.onLine);
+    console.log('[Auth] Setting up auth listener');
 
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      console.log('[Auth] onAuthStateChanged fired, user:', user?.email ?? 'null');
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      console.log('[Auth] onAuthStateChanged fired, user:', firebaseUser?.email ?? 'null');
 
-      // Cache the user for offline use
-      setCachedUser(user);
+      // Cache the user for future offline use
+      setCachedUser(firebaseUser);
 
-      // If we already resolved with cached user and this matches, skip
-      if (authResolved.current && !navigator.onLine) {
-        console.log('[Auth] Already resolved offline, skipping update');
-        return;
-      }
+      // Update with the real Firebase user
+      setUser(firebaseUser);
 
-      authResolved.current = true;
-      setUser(user);
-
-      if (user) {
+      if (firebaseUser) {
         if (navigator.onLine) {
           console.log('[Auth] Online - getting token...');
           try {
-            const idTokenResult = await user.getIdTokenResult();
+            const idTokenResult = await firebaseUser.getIdTokenResult();
             console.log('[Auth] Got token result');
             setIsAdmin(!!idTokenResult.claims.admin);
           } catch (e) {
@@ -100,7 +90,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsAdmin(false);
       }
 
-      console.log('[Auth] Setting loading to false');
       setLoading(false);
     });
 
