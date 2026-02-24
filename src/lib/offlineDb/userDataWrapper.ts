@@ -51,9 +51,9 @@ export async function saveUserDataOfflineFirst<T>(
 }
 
 /**
- * Load user data with offline-first strategy
- * 1. Check IndexedDB first (instant, works offline)
- * 2. If no local data and online, pull from Firestore
+ * Load user data with online-first strategy
+ * 1. If online, fetch from Firestore (ensures cross-device sync)
+ * 2. If offline, use IndexedDB cache
  */
 export async function loadUserDataOfflineFirst<T>(
   docPath: string,
@@ -63,20 +63,14 @@ export async function loadUserDataOfflineFirst<T>(
   const userId = getUserId();
   if (!userId) return defaultValue;
 
-  // Try IndexedDB first
-  const localRecord = await userDb.userData.get(docPath);
-  if (localRecord) {
-    return deserialize ? deserialize(localRecord.data) : (localRecord.data as T);
-  }
-
-  // No local data - try Firestore if online
+  // If online, always fetch fresh from Firestore
   if (navigator.onLine) {
     try {
       const docRef = doc(db, 'users', userId, 'data', docPath);
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
         const rawData = docSnap.data();
-        // Cache in IndexedDB for next time
+        // Update local cache
         await userDb.userData.put({
           key: docPath,
           data: rawData,
@@ -86,8 +80,15 @@ export async function loadUserDataOfflineFirst<T>(
         return deserialize ? deserialize(rawData) : (rawData as T);
       }
     } catch (e) {
-      console.error(`Failed to load ${docPath} from Firestore:`, e);
+      console.error(`Failed to load ${docPath} from Firestore, falling back to cache:`, e);
+      // Fall through to local cache on error
     }
+  }
+
+  // Offline or Firestore failed - use local cache
+  const localRecord = await userDb.userData.get(docPath);
+  if (localRecord) {
+    return deserialize ? deserialize(localRecord.data) : (localRecord.data as T);
   }
 
   return defaultValue;
