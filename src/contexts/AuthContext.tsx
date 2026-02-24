@@ -14,79 +14,97 @@ export interface AuthContextType {
 // eslint-disable-next-line react-refresh/only-export-components
 export const AuthContext = createContext<AuthContextType | null>(null);
 
-async function resolveUser(
-  user: User | null,
-  setUser: (u: User | null) => void,
-  setIsAdmin: (a: boolean) => void
-) {
-  setUser(user);
-  if (user) {
-    if (navigator.onLine) {
-      console.log('[Auth] Online - getting token...');
-      try {
-        const idTokenResult = await user.getIdTokenResult();
-        console.log('[Auth] Got token result');
-        setIsAdmin(!!idTokenResult.claims.admin);
-      } catch (e) {
-        console.warn('[Auth] Token error:', e);
-        setIsAdmin(false);
-      }
-    } else {
-      console.log('[Auth] Offline - skipping token');
-      setIsAdmin(false);
-    }
-  } else {
-    setIsAdmin(false);
+const CACHED_USER_KEY = 'polingu_cached_user';
+
+interface CachedUser {
+  uid: string;
+  email: string | null;
+}
+
+function getCachedUser(): CachedUser | null {
+  try {
+    const cached = localStorage.getItem(CACHED_USER_KEY);
+    return cached ? JSON.parse(cached) : null;
+  } catch {
+    return null;
   }
 }
 
+function setCachedUser(user: User | null) {
+  try {
+    if (user) {
+      localStorage.setItem(CACHED_USER_KEY, JSON.stringify({ uid: user.uid, email: user.email }));
+    } else {
+      localStorage.removeItem(CACHED_USER_KEY);
+    }
+  } catch {
+    // localStorage might be unavailable
+  }
+}
+
+function getInitialState(): { user: User | null; loading: boolean; resolved: boolean } {
+  if (!navigator.onLine) {
+    const cached = getCachedUser();
+    if (cached) {
+      console.log('[Auth] Offline - using cached user:', cached.email);
+      return {
+        user: { uid: cached.uid, email: cached.email } as User,
+        loading: false,
+        resolved: true,
+      };
+    }
+  }
+  return { user: null, loading: true, resolved: false };
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const initial = getInitialState();
+  const [user, setUser] = useState<User | null>(initial.user);
+  const [loading, setLoading] = useState(initial.loading);
   const [isAdmin, setIsAdmin] = useState(false);
-  const authResolved = useRef(false);
+  const authResolved = useRef(initial.resolved);
 
   useEffect(() => {
-    console.log('[Auth] Setting up auth resolution');
-
-    // Poll auth.currentUser - Firebase often loads from IndexedDB before callback fires
-    const pollInterval = setInterval(() => {
-      if (!authResolved.current && auth.currentUser) {
-        console.log('[Auth] Found user via polling:', auth.currentUser.email);
-        authResolved.current = true;
-        clearInterval(pollInterval);
-        resolveUser(auth.currentUser, setUser, setIsAdmin).then(() => setLoading(false));
-      }
-    }, 100);
-
-    // Stop polling after 3s regardless
-    const pollTimeout = setTimeout(() => clearInterval(pollInterval), 3000);
+    console.log('[Auth] Setting up auth listener, online:', navigator.onLine);
 
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (authResolved.current) {
-        // Already resolved via polling, but still update if user changed
-        console.log(
-          '[Auth] onAuthStateChanged fired (already resolved), user:',
-          user?.email ?? 'null'
-        );
-        await resolveUser(user, setUser, setIsAdmin);
+      console.log('[Auth] onAuthStateChanged fired, user:', user?.email ?? 'null');
+
+      // Cache the user for offline use
+      setCachedUser(user);
+
+      // If we already resolved with cached user and this matches, skip
+      if (authResolved.current && !navigator.onLine) {
+        console.log('[Auth] Already resolved offline, skipping update');
         return;
       }
+
       authResolved.current = true;
-      clearInterval(pollInterval);
-      clearTimeout(pollTimeout);
-      console.log('[Auth] onAuthStateChanged fired, user:', user?.email ?? 'null');
-      console.log('[Auth] navigator.onLine:', navigator.onLine);
-      await resolveUser(user, setUser, setIsAdmin);
+      setUser(user);
+
+      if (user) {
+        if (navigator.onLine) {
+          console.log('[Auth] Online - getting token...');
+          try {
+            const idTokenResult = await user.getIdTokenResult();
+            console.log('[Auth] Got token result');
+            setIsAdmin(!!idTokenResult.claims.admin);
+          } catch (e) {
+            console.warn('[Auth] Token error:', e);
+            setIsAdmin(false);
+          }
+        } else {
+          setIsAdmin(false);
+        }
+      } else {
+        setIsAdmin(false);
+      }
+
       console.log('[Auth] Setting loading to false');
       setLoading(false);
     });
 
-    return () => {
-      clearInterval(pollInterval);
-      clearTimeout(pollTimeout);
-      unsubscribe();
-    };
+    return unsubscribe;
   }, []);
 
   const signInWithGoogle = async () => {
