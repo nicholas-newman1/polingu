@@ -107,12 +107,15 @@ export async function loadUserDataOfflineFirst<T>(
   }
 
   // Offline or Firestore failed - use local cache
+  console.log(`[UserData] Attempting to load ${docPath} from local cache...`);
   const localRecord = await userDb.userData.get(docPath);
   if (localRecord) {
+    console.log(`[UserData] Found ${docPath} in local cache`);
     notifyOfflineOnce();
     return deserialize ? deserialize(localRecord.data) : (localRecord.data as T);
   }
 
+  console.log(`[UserData] No local cache found for ${docPath}, using default`);
   return defaultValue;
 }
 
