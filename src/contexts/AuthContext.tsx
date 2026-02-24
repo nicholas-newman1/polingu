@@ -23,13 +23,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
       if (user) {
-        try {
-          // This can fail when offline - token refresh requires network
-          const idTokenResult = await user.getIdTokenResult();
-          setIsAdmin(!!idTokenResult.claims.admin);
-        } catch (e) {
-          // Offline or token refresh failed - default to non-admin
-          console.warn('Could not get ID token (likely offline):', e);
+        // Skip admin check when offline - getIdTokenResult() has a long timeout
+        if (navigator.onLine) {
+          try {
+            const idTokenResult = await user.getIdTokenResult();
+            setIsAdmin(!!idTokenResult.claims.admin);
+          } catch (e) {
+            console.warn('Could not get ID token:', e);
+            setIsAdmin(false);
+          }
+        } else {
           setIsAdmin(false);
         }
       } else {
