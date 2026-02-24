@@ -11,25 +11,6 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { userDb } from './userDb';
 import { getUserId } from '../storage/helpers';
-import { showOfflineModeNotification } from '../storage/errorHandler';
-
-const FETCH_TIMEOUT_MS = 5000;
-
-let offlineNotificationShown = false;
-
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<T>((_, reject) => setTimeout(() => reject(new Error('Timeout')), ms)),
-  ]);
-}
-
-function notifyOfflineOnce(): void {
-  if (!offlineNotificationShown) {
-    offlineNotificationShown = true;
-    showOfflineModeNotification();
-  }
-}
 
 /**
  * Save user data with offline-first strategy
@@ -82,11 +63,11 @@ export async function loadUserDataOfflineFirst<T>(
   const userId = getUserId();
   if (!userId) return defaultValue;
 
-  // If online, try to fetch fresh from Firestore with timeout
+  // If online, always fetch fresh from Firestore
   if (navigator.onLine) {
     try {
       const docRef = doc(db, 'users', userId, 'data', docPath);
-      const docSnap = await withTimeout(getDoc(docRef), FETCH_TIMEOUT_MS);
+      const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
         const rawData = docSnap.data();
         // Update local cache
@@ -96,8 +77,6 @@ export async function loadUserDataOfflineFirst<T>(
           lastModified: Date.now(),
           pendingSync: 0,
         });
-        // Reset offline notification so it shows again next time
-        offlineNotificationShown = false;
         return deserialize ? deserialize(rawData) : (rawData as T);
       }
     } catch (e) {
@@ -107,15 +86,11 @@ export async function loadUserDataOfflineFirst<T>(
   }
 
   // Offline or Firestore failed - use local cache
-  console.log(`[UserData] Attempting to load ${docPath} from local cache...`);
   const localRecord = await userDb.userData.get(docPath);
   if (localRecord) {
-    console.log(`[UserData] Found ${docPath} in local cache`);
-    notifyOfflineOnce();
     return deserialize ? deserialize(localRecord.data) : (localRecord.data as T);
   }
 
-  console.log(`[UserData] No local cache found for ${docPath}, using default`);
   return defaultValue;
 }
 

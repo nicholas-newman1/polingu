@@ -18,7 +18,6 @@ export const AuthContext = createContext<AuthContextType | null>(null);
 function getInitialState(): { user: User | null; loading: boolean } {
   const cached = getCachedUser();
   if (cached) {
-    console.log('[Auth] Using cached user:', cached.email);
     return {
       user: { uid: cached.uid, email: cached.email } as User,
       loading: false,
@@ -34,26 +33,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    console.log('[Auth] Setting up auth listener');
-
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      console.log('[Auth] onAuthStateChanged fired, user:', firebaseUser?.email ?? 'null');
-
-      // Cache the user for future offline use
       setCachedUser(firebaseUser);
-
-      // Update with the real Firebase user
       setUser(firebaseUser);
 
       if (firebaseUser) {
         if (navigator.onLine) {
-          console.log('[Auth] Online - getting token...');
           try {
             const idTokenResult = await firebaseUser.getIdTokenResult();
-            console.log('[Auth] Got token result');
             setIsAdmin(!!idTokenResult.claims.admin);
-          } catch (e) {
-            console.warn('[Auth] Token error:', e);
+          } catch {
             setIsAdmin(false);
           }
         } else {
