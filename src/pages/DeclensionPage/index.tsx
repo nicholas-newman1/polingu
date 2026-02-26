@@ -600,9 +600,15 @@ export function DeclensionPage() {
             card={historyCard}
             isViewingHistory
             canGoBack={canGoBack}
+            canEdit={historyCard.isCustom || isAdmin}
             isAdmin={isAdmin}
             onGoBack={goBack}
             onContinue={goForward}
+            onEdit={() => {
+              setEditingCard(historyCard);
+              setIsCreatingNew(false);
+              setShowEditModal(true);
+            }}
             onUpdateTranslation={
               isAdmin
                 ? (word, translation) => handleUpdateTranslation(historyCard.id, word, translation)

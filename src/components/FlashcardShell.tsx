@@ -202,7 +202,7 @@ export function FlashcardShell({
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
           <CardHeader>
             <Box sx={{ flex: 1 }}>{header}</Box>
-            {canEdit && !isViewingHistory && (
+            {canEdit && (
               <ActionButtons>
                 <ActionButton onClick={onEdit} size="small" aria-label="edit">
                   <EditIcon fontSize="small" />

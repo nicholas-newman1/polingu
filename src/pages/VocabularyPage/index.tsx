@@ -556,8 +556,43 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
                 direction={currentDirection}
                 isViewingHistory
                 canGoBack={canGoBack}
+                isAdmin={isAdmin}
                 onGoBack={goBack}
                 onContinue={goForward}
+                onEdit={() => {
+                  const isCustomWord = historyCard.isCustom === true;
+                  if (isCustomWord) {
+                    setEditingWord(historyCard as CustomVocabularyWord);
+                    setEditingSystemWord(false);
+                  } else if (isAdmin) {
+                    setEditingWord(historyCard);
+                    setEditingSystemWord(true);
+                  }
+                  setShowAddModal(true);
+                }}
+                onDelete={() => {
+                  const isCustomWord = historyCard.isCustom === true;
+                  const isSystemWord = !isCustomWord && isAdmin;
+                  if (!isCustomWord && !isSystemWord) return;
+                  const confirmMessage = isCustomWord
+                    ? 'Are you sure you want to delete this custom word?'
+                    : 'Are you sure you want to delete this system vocabulary word? This will affect all users.';
+                  if (!window.confirm(confirmMessage)) return;
+                  if (isCustomWord) {
+                    const newCustomWords = customWords.filter((w) => w.id !== historyCard.id);
+                    applyOptimisticCustomWords(newCustomWords, async () => {
+                      await saveCustomVocabulary(newCustomWords);
+                      setContextCustomWords(newCustomWords);
+                    });
+                  } else {
+                    const newSystemWords = systemWords.filter((w) => w.id !== historyCard.id);
+                    applyOptimisticSystemWords(newSystemWords, async () => {
+                      await deleteSystemVocabularyWord(historyCard.id as number);
+                      setContextSystemWords(newSystemWords);
+                    });
+                  }
+                  goForward();
+                }}
               />
             ) : isFinished ? (
               <FinishedState

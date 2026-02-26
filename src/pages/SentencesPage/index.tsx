@@ -562,9 +562,26 @@ export function SentencesPage({ mode }: SentencesPageProps) {
                 direction={currentDirection}
                 isViewingHistory
                 canGoBack={canGoBack}
+                canEdit={isAdmin}
                 isAdmin={isAdmin}
                 onGoBack={goBack}
                 onContinue={goForward}
+                onEdit={() => {
+                  setEditingSentence(historyCard);
+                  setIsCreatingSentence(false);
+                  setShowEditModal(true);
+                }}
+                onDelete={() => {
+                  if (window.confirm('Are you sure you want to delete this sentence?')) {
+                    const newSentences = sentences.filter((s) => s.id !== historyCard.id);
+                    removeSentenceFromQueues(historyCard.id);
+                    applyOptimisticSentences(newSentences, async () => {
+                      await deleteSentence(historyCard.id);
+                      setContextSentences(newSentences);
+                    });
+                    goForward();
+                  }
+                }}
                 onDailyLimitReached={handleDailyLimitReached}
                 onUpdateTranslation={
                   isAdmin

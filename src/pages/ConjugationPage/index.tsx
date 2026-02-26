@@ -588,8 +588,26 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
                 aspectPairVerb={getAspectPairVerb(historyCard)}
                 isViewingHistory
                 canGoBack={canGoBack}
+                canEdit={isAdmin}
                 onGoBack={goBack}
                 onContinue={goForward}
+                onEdit={() => {
+                  setEditingForm(historyCard);
+                  setShowEditModal(true);
+                }}
+                onDelete={() => {
+                  const confirmMessage =
+                    'Are you sure you want to delete this verb? This will remove all conjugation forms for this verb and affect all users.';
+                  if (!window.confirm(confirmMessage)) return;
+                  const verbId = historyCard.verb.id;
+                  const newVerbs = verbs.filter((v) => v.id !== verbId);
+                  removeVerbFromQueues(verbId);
+                  applyOptimisticVerbs(newVerbs, async () => {
+                    await deleteVerb(verbId);
+                    setContextVerbs(newVerbs);
+                  });
+                  goForward();
+                }}
               />
             ) : isFinished ? (
               <FinishedState
