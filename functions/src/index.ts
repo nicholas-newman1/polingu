@@ -817,7 +817,7 @@ export const saveAudio = onCall<SaveAudioRequest, Promise<SaveAudioResponse>>(as
       },
     });
 
-    const audioUrl = `https://storage.googleapis.com/${AUDIO_BUCKET}/${filePath}`;
+    const audioUrl = `https://storage.googleapis.com/${AUDIO_BUCKET}/${filePath}?v=${Date.now()}`;
 
     // Update Firestore with the new audio URL
     await updateFirestoreAudioUrl(type, id, audioUrl, subPath);
