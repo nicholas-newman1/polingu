@@ -8,6 +8,8 @@ import { TextToSpeechClient, protos } from '@google-cloud/text-to-speech';
 import { Storage } from '@google-cloud/storage';
 
 initializeApp();
+
+export { processBookUpload, deleteBook, renameBook, getStorageUsage } from './reader.js';
 const db = getFirestore();
 const ttsClient = new TextToSpeechClient();
 const storage = new Storage();

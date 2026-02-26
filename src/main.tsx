@@ -28,6 +28,8 @@ import { CustomSentencesPage } from './pages/CustomSentencesPage';
 import { StatsPage } from './pages/StatsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { SentenceGeneratorPage } from './pages/SentenceGenerator';
+import { LibraryPage } from './pages/LibraryPage';
+import { ReaderPage } from './pages/ReaderPage';
 import { AppSettingsProvider } from './contexts/AppSettingsContext';
 
 createRoot(document.getElementById('root')!).render(
@@ -41,39 +43,50 @@ createRoot(document.getElementById('root')!).render(
               <AppSettingsProvider>
                 <TranslationProvider>
                   <CheatSheetProvider>
-                  <BrowserRouter>
-                    <Routes>
-                      <Route path="/login" element={<SignIn />} />
-                      <Route element={<Layout />}>
-                        <Route path="/dashboard" element={<DashboardPage />} />
-                        <Route path="/declension" element={<DeclensionPage />} />
-                        <Route path="/vocabulary">
-                          <Route index element={<VocabularyPage />} />
-                          <Route path="recognition" element={<VocabularyPage mode="pl-to-en" />} />
-                          <Route path="production" element={<VocabularyPage mode="en-to-pl" />} />
+                    <BrowserRouter>
+                      <Routes>
+                        <Route path="/login" element={<SignIn />} />
+                        <Route element={<Layout />}>
+                          <Route path="/dashboard" element={<DashboardPage />} />
+                          <Route path="/declension" element={<DeclensionPage />} />
+                          <Route path="/vocabulary">
+                            <Route index element={<VocabularyPage />} />
+                            <Route
+                              path="recognition"
+                              element={<VocabularyPage mode="pl-to-en" />}
+                            />
+                            <Route path="production" element={<VocabularyPage mode="en-to-pl" />} />
+                          </Route>
+                          <Route path="/sentences">
+                            <Route index element={<SentencesPage />} />
+                            <Route path="recognition" element={<SentencesPage mode="pl-to-en" />} />
+                            <Route path="production" element={<SentencesPage mode="en-to-pl" />} />
+                          </Route>
+                          <Route path="/conjugation">
+                            <Route index element={<ConjugationPage />} />
+                            <Route
+                              path="recognition"
+                              element={<ConjugationPage mode="pl-to-en" />}
+                            />
+                            <Route
+                              path="production"
+                              element={<ConjugationPage mode="en-to-pl" />}
+                            />
+                          </Route>
+                          <Route path="/aspect-pairs" element={<AspectPairsPage />} />
+                          <Route path="/consonant-driller" element={<ConsonantDrillerPage />} />
+                          <Route path="/my-vocabulary" element={<CustomVocabularyPage />} />
+                          <Route path="/my-declensions" element={<CustomDeclensionPage />} />
+                          <Route path="/my-sentences" element={<CustomSentencesPage />} />
+                          <Route path="/stats" element={<StatsPage />} />
+                          <Route path="/settings" element={<SettingsPage />} />
+                          <Route path="/library" element={<LibraryPage />} />
+                          <Route path="/admin/generator" element={<SentenceGeneratorPage />} />
                         </Route>
-                        <Route path="/sentences">
-                          <Route index element={<SentencesPage />} />
-                          <Route path="recognition" element={<SentencesPage mode="pl-to-en" />} />
-                          <Route path="production" element={<SentencesPage mode="en-to-pl" />} />
-                        </Route>
-                        <Route path="/conjugation">
-                          <Route index element={<ConjugationPage />} />
-                          <Route path="recognition" element={<ConjugationPage mode="pl-to-en" />} />
-                          <Route path="production" element={<ConjugationPage mode="en-to-pl" />} />
-                        </Route>
-                        <Route path="/aspect-pairs" element={<AspectPairsPage />} />
-                        <Route path="/consonant-driller" element={<ConsonantDrillerPage />} />
-                        <Route path="/my-vocabulary" element={<CustomVocabularyPage />} />
-                        <Route path="/my-declensions" element={<CustomDeclensionPage />} />
-                        <Route path="/my-sentences" element={<CustomSentencesPage />} />
-                        <Route path="/stats" element={<StatsPage />} />
-                        <Route path="/settings" element={<SettingsPage />} />
-                        <Route path="/admin/generator" element={<SentenceGeneratorPage />} />
-                      </Route>
-                      <Route path="*" element={<Navigate to="/dashboard" replace />} />
-                    </Routes>
-                  </BrowserRouter>
+                        <Route path="/reader/:bookId" element={<ReaderPage />} />
+                        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                      </Routes>
+                    </BrowserRouter>
                   </CheatSheetProvider>
                 </TranslationProvider>
               </AppSettingsProvider>

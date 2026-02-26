@@ -96,6 +96,30 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
+    // Reader settings - only the owner can read/write
+    match /users/{userId}/data/reader-settings {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Reader progress, highlights, bookmarks - only the owner can read/write
+    match /users/{userId}/data/{docId} {
+      allow read, write: if request.auth != null 
+                         && request.auth.uid == userId
+                         && docId.matches('reader-.*');
+    }
+
+    // Books - owner can read, Cloud Function writes
+    match /users/{userId}/books/{bookId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if false;
+    }
+
+    // Book chapters - owner can read, Cloud Function writes
+    match /users/{userId}/books/{bookId}/chapters/{chapterId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if false;
+    }
+
     // User rate limits - users can only read their own (writes done by Cloud Function)
     match /userRateLimits/{userId} {
       allow read: if request.auth != null && request.auth.uid == userId;

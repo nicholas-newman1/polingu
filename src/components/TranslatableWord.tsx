@@ -89,6 +89,7 @@ export interface TranslatableWordProps {
   onDailyLimitReached?: (resetTime: string) => void;
   onUpdateTranslation?: (word: string, translation: string) => void;
   isAdmin?: boolean;
+  disableHoverTranslate?: boolean;
 }
 
 export function TranslatableWord({
@@ -102,6 +103,7 @@ export function TranslatableWord({
   onDailyLimitReached,
   onUpdateTranslation,
   isAdmin = false,
+  disableHoverTranslate = false,
 }: TranslatableWordProps) {
   const [translation, setTranslation] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -260,7 +262,7 @@ export function TranslatableWord({
       if (isDragEnabled && dragContext.isDragging) {
         dragContext.updateDrag(wordIndex);
       }
-      if (!isDragging && !hasPhrase) {
+      if (!isDragging && !hasPhrase && !disableHoverTranslate) {
         baseHandleMouseEnter(event);
         fetchTranslation();
       }
@@ -271,6 +273,7 @@ export function TranslatableWord({
       wordIndex,
       isDragging,
       hasPhrase,
+      disableHoverTranslate,
       baseHandleMouseEnter,
       fetchTranslation,
     ]

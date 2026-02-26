@@ -34,6 +34,7 @@
     "@tanstack/react-virtual": "^3.13.18",
     "dexie": "^4.3.0",
     "firebase": "^12.7.0",
+    "pdfjs-dist": "^4.0.379",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-hook-form": "^7.71.1",

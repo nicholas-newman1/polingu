@@ -16,7 +16,7 @@ import {
   useTheme,
 } from '@mui/material';
 import { styled } from '../lib/styled';
-import { Menu, Close, Home, Check, AutoAwesome, MusicNote } from '@mui/icons-material';
+import { Menu, Close, Home, Check, AutoAwesome, MusicNote, MenuBook } from '@mui/icons-material';
 import { useReviewData } from '../hooks/useReviewData';
 import { useBackClose } from '../hooks/useBackClose';
 import type { ReviewCounts } from '../contexts/review';
@@ -197,6 +197,12 @@ const NAV_ITEMS: Array<{
     description: 'Hard/soft consonants',
   },
   {
+    path: '/library',
+    icon: MenuBook,
+    label: 'Library',
+    description: 'Read books & PDFs',
+  },
+  {
     path: '/admin/generator',
     icon: AutoAwesome,
     label: 'Generator',
@@ -222,6 +228,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/my-vocabulary': 'My Vocabulary',
   '/my-declensions': 'My Declensions',
   '/my-sentences': 'My Sentences',
+  '/library': 'Library',
   '/stats': 'Statistics',
   '/admin/generator': 'Sentence Generator',
 };
