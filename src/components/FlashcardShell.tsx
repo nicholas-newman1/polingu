@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
-import { Box, Button, Card, Divider, IconButton } from '@mui/material';
+import { Box, Button, Card, Divider, IconButton, Stack } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { styled } from '../lib/styled';
 import { alpha } from '../lib/theme';
 import type { Grade } from 'ts-fsrs';
@@ -12,6 +13,8 @@ type AccentColor = 'primary' | 'warning' | 'success' | 'info' | 'error' | 'secon
 interface FlashcardShellProps {
   revealed: boolean;
   practiceMode?: boolean;
+  isViewingHistory?: boolean;
+  canGoBack?: boolean;
   intervals?: RatingIntervals;
   accentColor?: AccentColor;
   maxWidth?: number;
@@ -19,6 +22,8 @@ interface FlashcardShellProps {
   onReveal: () => void;
   onRate?: (rating: Grade) => void;
   onNext?: () => void;
+  onGoBack?: () => void;
+  onContinue?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
   header?: ReactNode;
@@ -92,9 +97,28 @@ const DeleteButton = styled(ActionButton)(({ theme }) => ({
   },
 }));
 
+const BackButton = styled(Button)(({ theme }) => ({
+  minWidth: 'auto',
+  padding: theme.spacing(1.5, 2),
+  backgroundColor: alpha(theme.palette.text.primary, 0.08),
+  color: theme.palette.text.secondary,
+  '&:hover': {
+    backgroundColor: alpha(theme.palette.text.primary, 0.15),
+  },
+}));
+
+const ContinueButton = styled(Button)(({ theme }) => ({
+  backgroundColor: theme.palette.text.primary,
+  '&:hover': {
+    backgroundColor: theme.palette.text.secondary,
+  },
+}));
+
 export function FlashcardShell({
   revealed,
   practiceMode = false,
+  isViewingHistory = false,
+  canGoBack = false,
   intervals,
   accentColor = 'primary',
   maxWidth = 420,
@@ -102,19 +126,83 @@ export function FlashcardShell({
   onReveal,
   onRate,
   onNext,
+  onGoBack,
+  onContinue,
   onEdit,
   onDelete,
   header,
   question,
   answer,
 }: FlashcardShellProps) {
+  const showBackButton = canGoBack && !practiceMode;
+
+  const renderBottomActions = () => {
+    if (!revealed) {
+      return (
+        <Stack spacing={1}>
+          <RevealButton
+            $accentColor={accentColor}
+            fullWidth
+            size="large"
+            variant="contained"
+            onClick={onReveal}
+          >
+            Reveal Answer
+          </RevealButton>
+          {showBackButton && (
+            <BackButton fullWidth variant="contained" onClick={onGoBack}>
+              <ArrowBackIcon fontSize="small" sx={{ mr: 0.5 }} />
+              Previous Card
+            </BackButton>
+          )}
+        </Stack>
+      );
+    }
+
+    if (practiceMode) {
+      return (
+        <NextButton fullWidth size="large" variant="contained" onClick={onNext}>
+          Next Card →
+        </NextButton>
+      );
+    }
+
+    if (isViewingHistory) {
+      return (
+        <Stack spacing={1}>
+          <ContinueButton fullWidth size="large" variant="contained" onClick={onContinue}>
+            Continue →
+          </ContinueButton>
+          {showBackButton && (
+            <BackButton fullWidth variant="contained" onClick={onGoBack}>
+              <ArrowBackIcon fontSize="small" sx={{ mr: 0.5 }} />
+              Previous Card
+            </BackButton>
+          )}
+        </Stack>
+      );
+    }
+
+    return (
+      <Stack spacing={1}>
+        <RatingButtons intervals={intervals} onRate={onRate!} />
+        {showBackButton && (
+          <BackButton fullWidth variant="contained" onClick={onGoBack}>
+            <ArrowBackIcon fontSize="small" sx={{ mr: 0.5 }} />
+            Previous Card
+          </BackButton>
+        )}
+      </Stack>
+    );
+  };
+
   return (
     <CardWrapper $maxWidth={maxWidth} className="animate-fade-up">
       <StyledCard $accentColor={accentColor}>
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
           <CardHeader>
             <Box sx={{ flex: 1 }}>{header}</Box>
-            {canEdit && (
+            {canEdit && !isViewingHistory && (
               <ActionButtons>
                 <ActionButton onClick={onEdit} size="small" aria-label="edit">
                   <EditIcon fontSize="small" />
@@ -136,27 +224,8 @@ export function FlashcardShell({
           )}
         </Box>
 
-        {revealed ? (
-          practiceMode ? (
-            <NextButton fullWidth size="large" variant="contained" onClick={onNext}>
-              Next Card →
-            </NextButton>
-          ) : (
-            <RatingButtons intervals={intervals} onRate={onRate!} />
-          )
-        ) : (
-          <RevealButton
-            $accentColor={accentColor}
-            fullWidth
-            size="large"
-            variant="contained"
-            onClick={onReveal}
-          >
-            Reveal Answer
-          </RevealButton>
-        )}
+        {renderBottomActions()}
       </StyledCard>
     </CardWrapper>
   );
 }
-

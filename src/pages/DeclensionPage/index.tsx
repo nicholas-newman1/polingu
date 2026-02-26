@@ -40,6 +40,7 @@ import { useReviewData } from '../../hooks/useReviewData';
 import { useOptimistic } from '../../hooks/useOptimistic';
 import { useSnackbar } from '../../hooks/useSnackbar';
 import { useProgressStats } from '../../hooks/useProgressStats';
+import { useCardHistory } from '../../hooks/useCardHistory';
 import { DEFAULT_DECLENSION_SETTINGS } from '../../constants';
 import shuffleArray from '../../lib/utils/shuffleArray';
 
@@ -119,6 +120,16 @@ export function DeclensionPage() {
   const [sessionReady, setSessionReady] = useState(false);
   const sessionBuiltRef = useRef(false);
 
+  const {
+    isViewingHistory,
+    historyCard,
+    canGoBack,
+    addToHistory,
+    goBack,
+    goForward,
+    clearHistory,
+  } = useCardHistory<DeclensionCard>();
+
   const filteredCards = useMemo(() => {
     return allDeclensionCards.filter((card) => {
       if (caseFilter.length > 0 && !caseFilter.includes(card.case)) return false;
@@ -146,8 +157,9 @@ export function DeclensionPage() {
       setNewCount(newCards.length);
       setLearningQueue([]);
       setCurrentIndex(0);
+      clearHistory();
     },
-    [allDeclensionCards, caseFilter, genderFilter, numberFilter]
+    [allDeclensionCards, caseFilter, genderFilter, numberFilter, clearHistory]
   );
 
   useEffect(() => {
@@ -268,6 +280,8 @@ export function DeclensionPage() {
 
   const handleRate = async (rating: Grade) => {
     if (!currentSessionCard) return;
+
+    addToHistory(currentSessionCard.card);
 
     const updatedReviewData = rateCard(currentSessionCard.reviewData, rating);
 
@@ -580,6 +594,21 @@ export function DeclensionPage() {
           ) : (
             <EmptyState message="No cards match your filters" />
           )
+        ) : isViewingHistory && historyCard ? (
+          <DeclensionFlashcard
+            key={`history-${historyCard.id}`}
+            card={historyCard}
+            isViewingHistory
+            canGoBack={canGoBack}
+            isAdmin={isAdmin}
+            onGoBack={goBack}
+            onContinue={goForward}
+            onUpdateTranslation={
+              isAdmin
+                ? (word, translation) => handleUpdateTranslation(historyCard.id, word, translation)
+                : undefined
+            }
+          />
         ) : isFinished ? (
           <FinishedState
             currentFeature="declension"
@@ -622,9 +651,11 @@ export function DeclensionPage() {
             key={`${currentSessionCard.card.id}-${ratingCounter}`}
             card={currentSessionCard.card}
             intervals={intervals}
+            canGoBack={canGoBack}
             canEdit={canEditCurrentCard}
             isAdmin={isAdmin}
             onRate={handleRate}
+            onGoBack={goBack}
             onEdit={handleOpenEditModal}
             onUpdateTranslation={
               isAdmin

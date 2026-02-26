@@ -34,6 +34,7 @@ import { useProgressStats } from '../../hooks/useProgressStats';
 import { useOptimistic } from '../../hooks/useOptimistic';
 import { useSnackbar } from '../../hooks/useSnackbar';
 import { useTranslationContext } from '../../hooks/useTranslationContext';
+import { useCardHistory } from '../../hooks/useCardHistory';
 import {
   updateSentence,
   deleteSentence,
@@ -106,6 +107,16 @@ export function SentencesPage({ mode }: SentencesPageProps) {
   const [isPracticeAhead, setIsPracticeAhead] = useState(false);
   const [extraNewCardsCount, setExtraNewCardsCount] = useState(5);
 
+  const {
+    isViewingHistory,
+    historyCard,
+    canGoBack,
+    addToHistory,
+    goBack,
+    goForward,
+    clearHistory,
+  } = useCardHistory<Sentence>();
+
   const sessionBuiltRef = useRef(false);
   const currentDirection = mode ?? 'pl-to-en';
   const directionRef = useRef(currentDirection);
@@ -135,8 +146,9 @@ export function SentencesPage({ mode }: SentencesPageProps) {
       setLearningQueue([]);
       setCurrentIndex(0);
       setIsPracticeAhead(false);
+      clearHistory();
     },
-    []
+    [clearHistory]
   );
 
   useEffect(() => {
@@ -224,6 +236,8 @@ export function SentencesPage({ mode }: SentencesPageProps) {
 
   const handleRate = async (rating: Grade) => {
     if (!currentSessionCard) return;
+
+    addToHistory(currentSessionCard.sentence);
 
     const sentenceId = currentSessionCard.sentence.id;
     const updatedReviewData = rateSentenceCard(currentSessionCard.reviewData, rating);
@@ -541,6 +555,24 @@ export function SentencesPage({ mode }: SentencesPageProps) {
               ) : (
                 <EmptyState message="No sentences available" />
               )
+            ) : isViewingHistory && historyCard ? (
+              <SentenceFlashcard
+                key={`history-${historyCard.id}`}
+                sentence={historyCard}
+                direction={currentDirection}
+                isViewingHistory
+                canGoBack={canGoBack}
+                isAdmin={isAdmin}
+                onGoBack={goBack}
+                onContinue={goForward}
+                onDailyLimitReached={handleDailyLimitReached}
+                onUpdateTranslation={
+                  isAdmin
+                    ? (word, translation) =>
+                        handleUpdateTranslation(historyCard.id, word, translation)
+                    : undefined
+                }
+              />
             ) : isFinished ? (
               <FinishedState
                 currentFeature="sentences"
@@ -595,9 +627,11 @@ export function SentencesPage({ mode }: SentencesPageProps) {
                 sentence={currentSessionCard.sentence}
                 direction={currentDirection}
                 intervals={intervals}
+                canGoBack={canGoBack}
                 canEdit={isAdmin}
                 isAdmin={isAdmin}
                 onRate={handleRate}
+                onGoBack={goBack}
                 onEdit={handleOpenEditModal}
                 onDelete={handleDeleteSentence}
                 onDailyLimitReached={handleDailyLimitReached}

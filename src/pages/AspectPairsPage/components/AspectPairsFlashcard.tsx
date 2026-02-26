@@ -14,10 +14,14 @@ import { useAppSettings } from '../../../contexts/AppSettingsContext';
 interface AspectPairsFlashcardProps {
   card: AspectPairCard;
   practiceMode?: boolean;
+  isViewingHistory?: boolean;
+  canGoBack?: boolean;
   intervals?: RatingIntervals;
   canEdit?: boolean;
   onRate?: (rating: Grade) => void;
   onNext?: () => void;
+  onGoBack?: () => void;
+  onContinue?: () => void;
   onEdit?: () => void;
   onUnlink?: () => void;
 }
@@ -81,15 +85,19 @@ function getDefaultTenseForVerb(verb: Verb): Tense {
 export function AspectPairsFlashcard({
   card,
   practiceMode = false,
+  isViewingHistory = false,
+  canGoBack = false,
   intervals,
   canEdit = false,
   onRate,
   onNext,
+  onGoBack,
+  onContinue,
   onEdit,
   onUnlink,
 }: AspectPairsFlashcardProps) {
   const { settings: appSettings } = useAppSettings();
-  const [revealed, setRevealed] = useState(false);
+  const [revealed, setRevealed] = useState(isViewingHistory);
   const [showPerfectiveFirst] = useState(() => Math.random() < 0.5);
   const [playingAudio, setPlayingAudio] = useState<'front' | 'back' | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -234,12 +242,16 @@ export function AspectPairsFlashcard({
     <FlashcardShell
       revealed={revealed}
       practiceMode={practiceMode}
+      isViewingHistory={isViewingHistory}
+      canGoBack={canGoBack}
       intervals={intervals}
       accentColor="secondary"
       canEdit={canEdit}
       onReveal={() => setRevealed(true)}
       onRate={onRate}
       onNext={onNext}
+      onGoBack={onGoBack}
+      onContinue={onContinue}
       onEdit={onEdit}
       onDelete={onUnlink}
       header={header}

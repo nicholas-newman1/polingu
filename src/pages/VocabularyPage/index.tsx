@@ -38,6 +38,7 @@ import { useOptimistic } from '../../hooks/useOptimistic';
 import { useSnackbar } from '../../hooks/useSnackbar';
 import { useReviewData } from '../../hooks/useReviewData';
 import { useProgressStats } from '../../hooks/useProgressStats';
+import { useCardHistory } from '../../hooks/useCardHistory';
 import shuffleArray from '../../lib/utils/shuffleArray';
 import { includesWordId } from '../../lib/storage/helpers';
 
@@ -105,6 +106,16 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
   );
   const [editingSystemWord, setEditingSystemWord] = useState(false);
 
+  const {
+    isViewingHistory,
+    historyCard,
+    canGoBack,
+    addToHistory,
+    goBack,
+    goForward,
+    clearHistory,
+  } = useCardHistory<VocabularyWord>();
+
   const sessionBuiltRef = useRef(false);
   const currentDirection = mode ?? 'pl-to-en';
   const directionRef = useRef(currentDirection);
@@ -130,8 +141,9 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
       setLearningQueue([]);
       setCurrentIndex(0);
       setIsPracticeAhead(false);
+      clearHistory();
     },
-    []
+    [clearHistory]
   );
 
   useEffect(() => {
@@ -223,6 +235,8 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
 
   const handleRate = async (rating: Grade) => {
     if (!currentSessionCard) return;
+
+    addToHistory(currentSessionCard.word);
 
     const wordId = currentSessionCard.word.id;
     const wordIdKey = String(wordId);
@@ -535,6 +549,16 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
               ) : (
                 <EmptyState message="No words available" />
               )
+            ) : isViewingHistory && historyCard ? (
+              <VocabularyFlashcard
+                key={`history-${historyCard.id}`}
+                word={historyCard}
+                direction={currentDirection}
+                isViewingHistory
+                canGoBack={canGoBack}
+                onGoBack={goBack}
+                onContinue={goForward}
+              />
             ) : isFinished ? (
               <FinishedState
                 currentFeature="vocabulary"
@@ -589,8 +613,10 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
                 word={currentSessionCard.word}
                 direction={currentDirection}
                 intervals={intervals}
+                canGoBack={canGoBack}
                 isAdmin={isAdmin}
                 onRate={handleRate}
+                onGoBack={goBack}
                 onEdit={handleOpenEditModal}
                 onDelete={handleDeleteWord}
               />

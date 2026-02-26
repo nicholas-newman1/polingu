@@ -25,11 +25,15 @@ interface ConjugationFlashcardProps {
   direction: TranslationDirection;
   aspectPairVerb?: Verb;
   practiceMode?: boolean;
+  isViewingHistory?: boolean;
+  canGoBack?: boolean;
   intervals?: ConjugationRatingIntervals;
   canEdit?: boolean;
   isAdmin?: boolean;
   onRate?: (rating: Grade) => void;
   onNext?: () => void;
+  onGoBack?: () => void;
+  onContinue?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
 }
@@ -119,14 +123,18 @@ export function ConjugationFlashcard({
   direction,
   aspectPairVerb,
   practiceMode = false,
+  isViewingHistory = false,
+  canGoBack = false,
   intervals,
   canEdit = false,
   onRate,
   onNext,
+  onGoBack,
+  onContinue,
   onEdit,
   onDelete,
 }: ConjugationFlashcardProps) {
-  const [revealed, setRevealed] = useState(false);
+  const [revealed, setRevealed] = useState(isViewingHistory);
 
   const isPolishToEnglish = direction === 'pl-to-en';
 
@@ -240,12 +248,16 @@ export function ConjugationFlashcard({
     <FlashcardShell
       revealed={revealed}
       practiceMode={practiceMode}
+      isViewingHistory={isViewingHistory}
+      canGoBack={canGoBack}
       intervals={intervals}
       accentColor="warning"
       canEdit={canEdit}
       onReveal={() => setRevealed(true)}
       onRate={onRate}
       onNext={onNext}
+      onGoBack={onGoBack}
+      onContinue={onContinue}
       onEdit={onEdit}
       onDelete={onDelete}
       header={header}

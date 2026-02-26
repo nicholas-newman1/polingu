@@ -29,6 +29,7 @@ import { useAspectPairs, useConjugation } from '../../hooks/useReviewData';
 import { useProgressStats } from '../../hooks/useProgressStats';
 import { useOptimistic } from '../../hooks/useOptimistic';
 import { useSnackbar } from '../../hooks/useSnackbar';
+import { useCardHistory } from '../../hooks/useCardHistory';
 import shuffleArray from '../../lib/utils/shuffleArray';
 import { includesVerbId } from '../../lib/storage/helpers';
 import { updateVerb } from '../../lib/storage/systemVerbs';
@@ -83,13 +84,17 @@ export function AspectPairsPage() {
   const [extraNewCardsCount, setExtraNewCardsCount] = useState(5);
 
   const sessionBuiltRef = useRef(false);
-  const [contextLoading, setContextLoading] = useState(true);
+  const contextLoading = !(aspectPairCards.length > 0 || reviewStore);
 
-  useEffect(() => {
-    if (aspectPairCards.length > 0 || reviewStore) {
-      setContextLoading(false);
-    }
-  }, [aspectPairCards, reviewStore]);
+  const {
+    isViewingHistory,
+    historyCard,
+    canGoBack,
+    addToHistory,
+    goBack,
+    goForward,
+    clearHistory,
+  } = useCardHistory<AspectPairCard>();
 
   const buildSession = useCallback(
     (
@@ -104,8 +109,9 @@ export function AspectPairsPage() {
       setLearningQueue([]);
       setCurrentIndex(0);
       setIsPracticeAhead(false);
+      clearHistory();
     },
-    []
+    [clearHistory]
   );
 
   useEffect(() => {
@@ -164,6 +170,8 @@ export function AspectPairsPage() {
 
   const handleRate = async (rating: Grade) => {
     if (!currentSessionCard) return;
+
+    addToHistory(currentSessionCard.card);
 
     const verbId = currentSessionCard.card.verb.id;
     const updatedReviewData = rateAspectPairsCard(currentSessionCard.reviewData, rating);
@@ -229,7 +237,12 @@ export function AspectPairsPage() {
     setShowEditModal(true);
   }, [currentSessionCard]);
 
-  const updateCardInQueues = (verb1Id: string, verb2Id: string, updatedVerb1: Verb, updatedVerb2: Verb) => {
+  const updateCardInQueues = (
+    verb1Id: string,
+    verb2Id: string,
+    updatedVerb1: Verb,
+    updatedVerb2: Verb
+  ) => {
     const updateCard = (card: AspectPairCard): AspectPairCard => {
       let newCard = card;
       if (card.verb.id === verb1Id) {
@@ -262,8 +275,18 @@ export function AspectPairsPage() {
 
   const handleSaveCard = useCallback(
     (
-      verb1Updates: { infinitive: string; infinitiveEn: string; aspect: Aspect; verbClass: VerbClass },
-      verb2Updates: { infinitive: string; infinitiveEn: string; aspect: Aspect; verbClass: VerbClass }
+      verb1Updates: {
+        infinitive: string;
+        infinitiveEn: string;
+        aspect: Aspect;
+        verbClass: VerbClass;
+      },
+      verb2Updates: {
+        infinitive: string;
+        infinitiveEn: string;
+        aspect: Aspect;
+        verbClass: VerbClass;
+      }
     ) => {
       if (!editingCard) return;
 
@@ -424,6 +447,15 @@ export function AspectPairsPage() {
               ) : (
                 <EmptyState message="No aspect pairs available" />
               )
+            ) : isViewingHistory && historyCard ? (
+              <AspectPairsFlashcard
+                key={`history-${historyCard.verb.id}`}
+                card={historyCard}
+                isViewingHistory
+                canGoBack={canGoBack}
+                onGoBack={goBack}
+                onContinue={goForward}
+              />
             ) : isFinished ? (
               <FinishedState
                 currentFeature="aspectPairs"
@@ -466,8 +498,10 @@ export function AspectPairsPage() {
                 key={`${currentSessionCard.card.verb.id}-${ratingCounter}`}
                 card={currentSessionCard.card}
                 intervals={intervals}
+                canGoBack={canGoBack}
                 canEdit={isAdmin}
                 onRate={handleRate}
+                onGoBack={goBack}
                 onEdit={handleOpenEditModal}
                 onUnlink={handleUnlinkPair}
               />

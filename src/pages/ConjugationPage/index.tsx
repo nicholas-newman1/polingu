@@ -46,6 +46,7 @@ import {
 import { updateVerb, deleteVerb } from '../../lib/storage/systemVerbs';
 import { useOptimistic } from '../../hooks/useOptimistic';
 import { useSnackbar } from '../../hooks/useSnackbar';
+import { useCardHistory } from '../../hooks/useCardHistory';
 
 const MainContent = styled(Box)({
   flex: 1,
@@ -101,6 +102,16 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
   const currentDirection = mode ?? 'pl-to-en';
   const directionRef = useRef(currentDirection);
 
+  const {
+    isViewingHistory,
+    historyCard,
+    canGoBack,
+    addToHistory,
+    goBack,
+    goForward,
+    clearHistory,
+  } = useCardHistory<DrillableForm>();
+
   const directionSettings = settings[currentDirection];
   const reviewStore = conjugationReviewStores[currentDirection];
 
@@ -145,8 +156,9 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
       setLearningQueue([]);
       setCurrentIndex(0);
       setIsPracticeAhead(false);
+      clearHistory();
     },
-    []
+    [clearHistory]
   );
 
   useEffect(() => {
@@ -239,6 +251,8 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
 
   const handleRate = async (rating: Grade) => {
     if (!currentSessionCard) return;
+
+    addToHistory(currentSessionCard.form);
 
     const formKey = currentSessionCard.form.fullFormKey;
     const updatedReviewData = rateConjugationCard(currentSessionCard.reviewData, rating);
@@ -566,6 +580,17 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
               ) : (
                 <EmptyState message="No forms match your filters" />
               )
+            ) : isViewingHistory && historyCard ? (
+              <ConjugationFlashcard
+                key={`history-${historyCard.fullFormKey}`}
+                form={historyCard}
+                direction={currentDirection}
+                aspectPairVerb={getAspectPairVerb(historyCard)}
+                isViewingHistory
+                canGoBack={canGoBack}
+                onGoBack={goBack}
+                onContinue={goForward}
+              />
             ) : isFinished ? (
               <FinishedState
                 currentFeature="conjugation"
@@ -621,8 +646,10 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
                 direction={currentDirection}
                 aspectPairVerb={getAspectPairVerb(currentSessionCard.form)}
                 intervals={intervals}
+                canGoBack={canGoBack}
                 canEdit={isAdmin}
                 onRate={handleRate}
+                onGoBack={goBack}
                 onEdit={handleOpenEditModal}
                 onDelete={handleDeleteVerb}
               />

@@ -14,11 +14,15 @@ interface SentenceFlashcardProps {
   sentence: Sentence;
   direction: TranslationDirection;
   practiceMode?: boolean;
+  isViewingHistory?: boolean;
+  canGoBack?: boolean;
   intervals?: RatingIntervals;
   canEdit?: boolean;
   isAdmin?: boolean;
   onRate?: (rating: Grade) => void;
   onNext?: () => void;
+  onGoBack?: () => void;
+  onContinue?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
   onDailyLimitReached?: (resetTime: string) => void;
@@ -71,17 +75,21 @@ export function SentenceFlashcard({
   sentence,
   direction,
   practiceMode = false,
+  isViewingHistory = false,
+  canGoBack = false,
   intervals,
   canEdit = false,
   isAdmin = false,
   onRate,
   onNext,
+  onGoBack,
+  onContinue,
   onEdit,
   onDelete,
   onDailyLimitReached,
   onUpdateTranslation,
 }: SentenceFlashcardProps) {
-  const [revealed, setRevealed] = useState(false);
+  const [revealed, setRevealed] = useState(isViewingHistory);
 
   const isPolishToEnglish = direction === 'pl-to-en';
 
@@ -163,6 +171,8 @@ export function SentenceFlashcard({
     <FlashcardShell
       revealed={revealed}
       practiceMode={practiceMode}
+      isViewingHistory={isViewingHistory}
+      canGoBack={canGoBack}
       intervals={intervals}
       accentColor="primary"
       maxWidth={520}
@@ -170,6 +180,8 @@ export function SentenceFlashcard({
       onReveal={() => setRevealed(true)}
       onRate={onRate}
       onNext={onNext}
+      onGoBack={onGoBack}
+      onContinue={onContinue}
       onEdit={onEdit}
       onDelete={handleDelete}
       header={header}

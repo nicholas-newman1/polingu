@@ -15,11 +15,15 @@ export type DeclensionRatingIntervals = RatingIntervals;
 interface DeclensionFlashcardProps {
   card: DeclensionCard;
   practiceMode?: boolean;
+  isViewingHistory?: boolean;
+  canGoBack?: boolean;
   intervals?: DeclensionRatingIntervals;
   canEdit?: boolean;
   isAdmin?: boolean;
   onRate?: (rating: Grade) => void;
   onNext?: () => void;
+  onGoBack?: () => void;
+  onContinue?: () => void;
   onEdit?: () => void;
   onUpdateTranslation?: (word: string, translation: string) => void;
 }
@@ -57,15 +61,19 @@ const CustomLabel = styled(Typography)(({ theme }) => ({
 export function DeclensionFlashcard({
   card,
   practiceMode = false,
+  isViewingHistory = false,
+  canGoBack = false,
   intervals,
   canEdit = false,
   isAdmin = false,
   onRate,
   onNext,
+  onGoBack,
+  onContinue,
   onEdit,
   onUpdateTranslation,
 }: DeclensionFlashcardProps) {
-  const [revealed, setRevealed] = useState(false);
+  const [revealed, setRevealed] = useState(isViewingHistory);
   const { handleDailyLimitReached } = useTranslationContext();
 
   const { isPlaying, toggleAudio, hasAudio } = useAudioPlayer({
@@ -131,12 +139,16 @@ export function DeclensionFlashcard({
     <FlashcardShell
       revealed={revealed}
       practiceMode={practiceMode}
+      isViewingHistory={isViewingHistory}
+      canGoBack={canGoBack}
       intervals={intervals}
       accentColor="primary"
       canEdit={canEdit}
       onReveal={() => setRevealed(true)}
       onRate={onRate}
       onNext={onNext}
+      onGoBack={onGoBack}
+      onContinue={onContinue}
       onEdit={onEdit}
       header={header}
       question={question}
