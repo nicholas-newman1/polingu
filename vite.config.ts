@@ -18,7 +18,7 @@ export default defineConfig({
         runtimeCaching: [
           {
             // Cache audio files from Firebase Storage
-            urlPattern: /^https:\/\/storage\.googleapis\.com\/.*\.(mp3|wav)$/,
+            urlPattern: /^https:\/\/storage\.googleapis\.com\/.*\.(mp3|wav)(\?.*)?$/,
             handler: 'CacheFirst',
             options: {
               cacheName: 'polingu-audio',
