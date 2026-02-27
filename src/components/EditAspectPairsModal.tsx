@@ -209,6 +209,19 @@ export function EditAspectPairsModal({
 
             <SectionLabel>Verb Details</SectionLabel>
             <VerbSection>
+              {isAdmin && card && (
+                <Box sx={{ mb: 2 }}>
+                  <AudioRegenerator
+                    text={verb1Infinitive}
+                    type="verb-infinitive"
+                    id={card.verb.id}
+                    currentAudioUrl={pendingVerb1AudioUrl || card.verb.infinitiveAudioUrl}
+                    onAudioSaved={handleVerb1AudioSaved}
+                    label="Infinitive Audio"
+                  />
+                </Box>
+              )}
+
               <Controller
                 name="verb1Infinitive"
                 control={control}
@@ -257,9 +270,16 @@ export function EditAspectPairsModal({
                   </FormControl>
                 )}
               />
-
+            </VerbSection>
+          </>
+        ) : (
+          <>
+            <SectionLabel>
+              {card?.verb.aspect} Verb ({card?.verb.infinitive})
+            </SectionLabel>
+            <VerbSection>
               {isAdmin && card && (
-                <Box sx={{ mt: 2 }}>
+                <Box sx={{ mb: 2 }}>
                   <AudioRegenerator
                     text={verb1Infinitive}
                     type="verb-infinitive"
@@ -270,14 +290,7 @@ export function EditAspectPairsModal({
                   />
                 </Box>
               )}
-            </VerbSection>
-          </>
-        ) : (
-          <>
-            <SectionLabel>
-              {card?.verb.aspect} Verb ({card?.verb.infinitive})
-            </SectionLabel>
-            <VerbSection>
+
               <Controller
                 name="verb1Infinitive"
                 control={control}
@@ -346,19 +359,6 @@ export function EditAspectPairsModal({
                   )}
                 />
               </Box>
-
-              {isAdmin && card && (
-                <Box sx={{ mt: 2 }}>
-                  <AudioRegenerator
-                    text={verb1Infinitive}
-                    type="verb-infinitive"
-                    id={card.verb.id}
-                    currentAudioUrl={pendingVerb1AudioUrl || card.verb.infinitiveAudioUrl}
-                    onAudioSaved={handleVerb1AudioSaved}
-                    label="Infinitive Audio"
-                  />
-                </Box>
-              )}
             </VerbSection>
 
             <Divider sx={{ my: 1 }} />
@@ -367,6 +367,19 @@ export function EditAspectPairsModal({
               {card?.pairVerb.aspect} Verb ({card?.pairVerb.infinitive})
             </SectionLabel>
             <VerbSection>
+              {isAdmin && card && (
+                <Box sx={{ mb: 2 }}>
+                  <AudioRegenerator
+                    text={verb2Infinitive}
+                    type="verb-infinitive"
+                    id={card.pairVerb.id}
+                    currentAudioUrl={pendingVerb2AudioUrl || card.pairVerb.infinitiveAudioUrl}
+                    onAudioSaved={handleVerb2AudioSaved}
+                    label="Infinitive Audio"
+                  />
+                </Box>
+              )}
+
               <Controller
                 name="verb2Infinitive"
                 control={control}
@@ -434,19 +447,6 @@ export function EditAspectPairsModal({
                   )}
                 />
               </Box>
-
-              {isAdmin && card && (
-                <Box sx={{ mt: 2 }}>
-                  <AudioRegenerator
-                    text={verb2Infinitive}
-                    type="verb-infinitive"
-                    id={card.pairVerb.id}
-                    currentAudioUrl={pendingVerb2AudioUrl || card.pairVerb.infinitiveAudioUrl}
-                    onAudioSaved={handleVerb2AudioSaved}
-                    label="Infinitive Audio"
-                  />
-                </Box>
-              )}
             </VerbSection>
           </>
         )}

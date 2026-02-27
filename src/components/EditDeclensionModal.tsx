@@ -173,6 +173,20 @@ export function EditDeclensionModal({
         </IconButton>
       </Header>
       <Content>
+        {isAdmin && card && !isCreating && (
+          <>
+            <AudioRegenerator
+              text={backText}
+              type="declension"
+              id={String(card.id)}
+              currentAudioUrl={pendingAudioUrl || card.audioUrl}
+              onAudioSaved={handleAudioSaved}
+              label="Card Audio (Back)"
+            />
+            <Divider sx={{ my: 1 }} />
+          </>
+        )}
+
         <Controller
           name="front"
           control={control}
@@ -291,20 +305,6 @@ export function EditDeclensionModal({
             />
           )}
         />
-
-        {isAdmin && card && !isCreating && (
-          <>
-            <Divider sx={{ my: 1 }} />
-            <AudioRegenerator
-              text={backText}
-              type="declension"
-              id={String(card.id)}
-              currentAudioUrl={pendingAudioUrl || card.audioUrl}
-              onAudioSaved={handleAudioSaved}
-              label="Card Audio (Back)"
-            />
-          </>
-        )}
       </Content>
       <Actions>
         <Box>

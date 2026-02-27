@@ -100,16 +100,12 @@ export function AudioRegenerator({
     };
   }, []);
 
-  // Stop preview audio when preview changes
-  useEffect(() => {
+  const handleGenerate = useCallback(async () => {
     if (previewAudioRef.current) {
       previewAudioRef.current.pause();
       previewAudioRef.current = null;
       setIsPlayingPreview(false);
     }
-  }, [previewAudioBase64]);
-
-  const handleGenerate = useCallback(async () => {
     if (!text.trim()) {
       setError('No text to generate audio for.');
       return;
@@ -122,6 +118,19 @@ export function AudioRegenerator({
     try {
       const audioBase64 = await generateAudioPreview(text, type);
       setPreviewAudioBase64(audioBase64);
+
+      const audio = new Audio(`data:audio/mpeg;base64,${audioBase64}`);
+      previewAudioRef.current = audio;
+      setIsPlayingPreview(true);
+      audio.onended = () => {
+        setIsPlayingPreview(false);
+        previewAudioRef.current = null;
+      };
+      audio.onerror = () => {
+        setIsPlayingPreview(false);
+        previewAudioRef.current = null;
+      };
+      audio.play().catch(() => setIsPlayingPreview(false));
     } catch (err) {
       console.error('Failed to generate audio:', err);
       setError('Failed to generate audio. Please try again.');
@@ -354,16 +363,14 @@ export function InlineAudioRegenerator({
     };
   }, []);
 
-  useEffect(() => {
+  const handleGenerate = useCallback(async () => {
+    if (!text.trim()) return;
+
     if (previewAudioRef.current) {
       previewAudioRef.current.pause();
       previewAudioRef.current = null;
       setIsPlayingPreview(false);
     }
-  }, [previewAudioBase64]);
-
-  const handleGenerate = useCallback(async () => {
-    if (!text.trim()) return;
 
     setIsGenerating(true);
     setPreviewAudioBase64(null);
@@ -371,6 +378,19 @@ export function InlineAudioRegenerator({
     try {
       const audioBase64 = await generateAudioPreview(text, type);
       setPreviewAudioBase64(audioBase64);
+
+      const audio = new Audio(`data:audio/mpeg;base64,${audioBase64}`);
+      previewAudioRef.current = audio;
+      setIsPlayingPreview(true);
+      audio.onended = () => {
+        setIsPlayingPreview(false);
+        previewAudioRef.current = null;
+      };
+      audio.onerror = () => {
+        setIsPlayingPreview(false);
+        previewAudioRef.current = null;
+      };
+      audio.play().catch(() => setIsPlayingPreview(false));
     } catch (err) {
       console.error('Failed to generate audio:', err);
     } finally {

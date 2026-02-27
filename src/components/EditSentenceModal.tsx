@@ -142,6 +142,20 @@ export function EditSentenceModal({
         </IconButton>
       </Header>
       <Content>
+        {isAdmin && sentence && !isCreating && (
+          <>
+            <AudioRegenerator
+              text={polishText}
+              type="sentence"
+              id={sentence.id}
+              currentAudioUrl={pendingAudioUrl || sentence.audioUrl}
+              onAudioSaved={handleAudioSaved}
+              label="Sentence Audio"
+            />
+            <Divider sx={{ my: 1 }} />
+          </>
+        )}
+
         <Controller
           name="polish"
           control={control}
@@ -201,20 +215,6 @@ export function EditSentenceModal({
             )}
           />
         </Stack>
-
-        {isAdmin && sentence && !isCreating && (
-          <>
-            <Divider sx={{ my: 1 }} />
-            <AudioRegenerator
-              text={polishText}
-              type="sentence"
-              id={sentence.id}
-              currentAudioUrl={pendingAudioUrl || sentence.audioUrl}
-              onAudioSaved={handleAudioSaved}
-              label="Sentence Audio"
-            />
-          </>
-        )}
       </Content>
       <Actions>
         <Box />

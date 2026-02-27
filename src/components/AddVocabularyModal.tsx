@@ -368,96 +368,21 @@ export function AddVocabularyModal({
       </Header>
       <form onSubmit={handleSubmit(onSubmit)}>
         <Content>
-          <Controller
-            name="polish"
-            control={control}
-            rules={{ required: true, validate: (v) => v.trim().length > 0 }}
-            render={({ field }) => (
-              <TextField
-                {...field}
-                label="Polish"
-                fullWidth
-                autoFocus
-                required
-                placeholder="e.g., kot"
+          {isAdmin && editWord && 'id' in editWord && (
+            <>
+              <AudioRegenerator
+                text={polishWord}
+                type="vocabulary"
+                id={String(editWord.id)}
+                currentAudioUrl={
+                  pendingAudioUrl || ('audioUrl' in editWord ? editWord.audioUrl : undefined)
+                }
+                onAudioSaved={handleAudioSaved}
+                label="Word Audio"
               />
-            )}
-          />
-
-          <Controller
-            name="english"
-            control={control}
-            rules={{ required: true, validate: (v) => v.trim().length > 0 }}
-            render={({ field }) => (
-              <TextField {...field} label="English" fullWidth required placeholder="e.g., cat" />
-            )}
-          />
-
-          <Controller
-            name="partOfSpeech"
-            control={control}
-            render={({ field }) => (
-              <FormControl fullWidth>
-                <InputLabel>Part of Speech (optional)</InputLabel>
-                <Select
-                  {...field}
-                  onChange={(e) => {
-                    field.onChange(e);
-                    if (e.target.value !== 'noun' && e.target.value !== 'proper noun') {
-                      setValue('gender', '');
-                    }
-                  }}
-                  label="Part of Speech (optional)"
-                >
-                  <MenuItem value="">
-                    <em>None</em>
-                  </MenuItem>
-                  {PARTS_OF_SPEECH.map((pos) => (
-                    <MenuItem key={pos} value={pos}>
-                      {pos.charAt(0).toUpperCase() + pos.slice(1)}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            )}
-          />
-
-          {showGenderField && (
-            <Controller
-              name="gender"
-              control={control}
-              render={({ field }) => (
-                <FormControl fullWidth>
-                  <InputLabel>Gender (optional)</InputLabel>
-                  <Select {...field} label="Gender (optional)">
-                    <MenuItem value="">
-                      <em>None</em>
-                    </MenuItem>
-                    {GENDERS.map((g) => (
-                      <MenuItem key={g} value={g}>
-                        {g.charAt(0).toUpperCase() + g.slice(1)}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              )}
-            />
+              <Divider sx={{ my: 1 }} />
+            </>
           )}
-
-          <Controller
-            name="notes"
-            control={control}
-            render={({ field }) => (
-              <TextField
-                {...field}
-                label="Notes (optional)"
-                fullWidth
-                multiline
-                rows={2}
-                placeholder="Any additional notes..."
-              />
-            )}
-          />
 
           <ExamplesSection>
             <Typography variant="body2" color="text.secondary">
@@ -666,22 +591,96 @@ export function AddVocabularyModal({
             )}
           </ExamplesSection>
 
-          {isAdmin && editWord && 'id' in editWord && (
-            <>
-              <Divider sx={{ my: 1 }} />
-              <AudioRegenerator
-                text={polishWord}
-                type="vocabulary"
-                id={String(editWord.id)}
-                currentAudioUrl={
-                  pendingAudioUrl ||
-                  ('audioUrl' in editWord ? editWord.audioUrl : undefined)
-                }
-                onAudioSaved={handleAudioSaved}
-                label="Word Audio"
+          <Controller
+            name="polish"
+            control={control}
+            rules={{ required: true, validate: (v) => v.trim().length > 0 }}
+            render={({ field }) => (
+              <TextField
+                {...field}
+                label="Polish"
+                fullWidth
+                autoFocus
+                required
+                placeholder="e.g., kot"
               />
-            </>
+            )}
+          />
+
+          <Controller
+            name="english"
+            control={control}
+            rules={{ required: true, validate: (v) => v.trim().length > 0 }}
+            render={({ field }) => (
+              <TextField {...field} label="English" fullWidth required placeholder="e.g., cat" />
+            )}
+          />
+
+          <Controller
+            name="partOfSpeech"
+            control={control}
+            render={({ field }) => (
+              <FormControl fullWidth>
+                <InputLabel>Part of Speech (optional)</InputLabel>
+                <Select
+                  {...field}
+                  onChange={(e) => {
+                    field.onChange(e);
+                    if (e.target.value !== 'noun' && e.target.value !== 'proper noun') {
+                      setValue('gender', '');
+                    }
+                  }}
+                  label="Part of Speech (optional)"
+                >
+                  <MenuItem value="">
+                    <em>None</em>
+                  </MenuItem>
+                  {PARTS_OF_SPEECH.map((pos) => (
+                    <MenuItem key={pos} value={pos}>
+                      {pos.charAt(0).toUpperCase() + pos.slice(1)}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
+          />
+
+          {showGenderField && (
+            <Controller
+              name="gender"
+              control={control}
+              render={({ field }) => (
+                <FormControl fullWidth>
+                  <InputLabel>Gender (optional)</InputLabel>
+                  <Select {...field} label="Gender (optional)">
+                    <MenuItem value="">
+                      <em>None</em>
+                    </MenuItem>
+                    {GENDERS.map((g) => (
+                      <MenuItem key={g} value={g}>
+                        {g.charAt(0).toUpperCase() + g.slice(1)}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              )}
+            />
           )}
+
+          <Controller
+            name="notes"
+            control={control}
+            render={({ field }) => (
+              <TextField
+                {...field}
+                label="Notes (optional)"
+                fullWidth
+                multiline
+                rows={2}
+                placeholder="Any additional notes..."
+              />
+            )}
+          />
         </Content>
         <Actions>
           <Button onClick={handleClose} color="inherit" type="button">

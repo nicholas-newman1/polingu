@@ -306,6 +306,21 @@ export function EditConjugationModal({
         <Divider sx={{ my: 1 }} />
         <SectionLabel>This Form ({form?.formKey})</SectionLabel>
 
+        {isAdmin && form && (
+          <>
+            <AudioRegenerator
+              text={plText}
+              type="conjugation"
+              id={form.verb.id}
+              subPath={`${form.verb.id}_${form.tense}_${form.formKey}`}
+              currentAudioUrl={pendingAudioUrl || form.form.audioUrl}
+              onAudioSaved={handleAudioSaved}
+              label="Form Audio"
+            />
+            <Divider sx={{ my: 1 }} />
+          </>
+        )}
+
         <Controller
           name="pl"
           control={control}
@@ -361,21 +376,6 @@ export function EditConjugationModal({
             />
           )}
         />
-
-        {isAdmin && form && (
-          <>
-            <Divider sx={{ my: 1 }} />
-            <AudioRegenerator
-              text={plText}
-              type="conjugation"
-              id={form.verb.id}
-              subPath={`${form.verb.id}_${form.tense}_${form.formKey}`}
-              currentAudioUrl={pendingAudioUrl || form.form.audioUrl}
-              onAudioSaved={handleAudioSaved}
-              label="Form Audio"
-            />
-          </>
-        )}
       </Content>
       <Actions>
         <Box>
