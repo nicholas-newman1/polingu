@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Box, IconButton, Typography, CircularProgress } from '@mui/material';
+import { Box, IconButton, Typography, CircularProgress, Tooltip } from '@mui/material';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
+import BookmarkIcon from '@mui/icons-material/Bookmark';
+import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
 import * as pdfjsLib from 'pdfjs-dist';
 import { styled } from '../../../lib/styled';
 import { alpha } from '../../../lib/theme';
@@ -11,8 +13,13 @@ import { TranslatableWord } from '../../../components/TranslatableWord';
 import { TranslatableText } from '../../../components/TranslatableText';
 import { useTranslatableText } from '../../../hooks/useTranslatableText';
 import { DRAWER_WIDTH } from '../../../components/Layout';
+import { PageProgressBar } from './PageProgressBar';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.mjs`;
+
+const BOTTOM_MENU_HEIGHT = 70;
+const PROGRESS_BAR_HEIGHT = 24;
+const NAV_BAR_HEIGHT = 48;
 
 const ViewerContainer = styled(Box)({
   flex: 1,
@@ -29,7 +36,7 @@ const PageContainer = styled(Box)({
   alignItems: 'flex-start',
   overflow: 'auto',
   padding: 16,
-  paddingBottom: 160,
+  paddingBottom: BOTTOM_MENU_HEIGHT + PROGRESS_BAR_HEIGHT + NAV_BAR_HEIGHT + 16,
 });
 
 const PageWrapper = styled(Box)({
@@ -52,11 +59,9 @@ const TextLayer = styled(Box)({
   lineHeight: 1,
 });
 
-const BOTTOM_MENU_HEIGHT = 95;
-
 const NavigationBar = styled(Box)(({ theme }) => ({
   position: 'fixed',
-  bottom: BOTTOM_MENU_HEIGHT,
+  bottom: BOTTOM_MENU_HEIGHT + PROGRESS_BAR_HEIGHT,
   left: 0,
   right: 0,
   display: 'flex',
@@ -67,7 +72,6 @@ const NavigationBar = styled(Box)(({ theme }) => ({
   backgroundColor: alpha(theme.palette.background.paper, 0.95),
   backdropFilter: 'blur(8px)',
   borderTop: `1px solid ${theme.palette.divider}`,
-  borderBottom: `1px solid ${theme.palette.divider}`,
   zIndex: 10,
   [theme.breakpoints.up('md')]: {
     left: DRAWER_WIDTH,
@@ -94,7 +98,9 @@ interface WordPosition {
 interface PdfViewerProps {
   pdfUrl: string;
   initialPage?: number;
+  bookmarks?: number[];
   onPageChange?: (page: number, totalPages: number) => void;
+  onBookmarkToggle?: (page: number) => void;
 }
 
 interface PdfWordBoxProps {
@@ -137,7 +143,13 @@ const ZOOM_STEP = 0.1;
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 3;
 
-export function PdfViewer({ pdfUrl, initialPage = 1, onPageChange }: PdfViewerProps) {
+export function PdfViewer({
+  pdfUrl,
+  initialPage = 1,
+  bookmarks = [],
+  onPageChange,
+  onBookmarkToggle,
+}: PdfViewerProps) {
   const [pdf, setPdf] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
   const [currentPage, setCurrentPage] = useState(initialPage);
   const [totalPages, setTotalPages] = useState(0);
@@ -149,6 +161,7 @@ export function PdfViewer({ pdfUrl, initialPage = 1, onPageChange }: PdfViewerPr
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const initialPageRef = useRef(initialPage);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -319,15 +332,59 @@ export function PdfViewer({ pdfUrl, initialPage = 1, onPageChange }: PdfViewerPr
     return () => window.removeEventListener('resize', handleResize);
   }, [renderPage]);
 
-  const goToPage = (page: number) => {
-    if (page >= 1 && page <= totalPages) {
-      setCurrentPage(page);
-      window.scrollTo({ top: 0 });
-    }
-  };
+  const goToPage = useCallback(
+    (page: number) => {
+      if (page >= 1 && page <= totalPages) {
+        setCurrentPage(page);
+        window.scrollTo({ top: 0 });
+      }
+    },
+    [totalPages]
+  );
 
   const zoomIn = () => setZoom((z) => Math.min(z + ZOOM_STEP, MAX_ZOOM));
   const zoomOut = () => setZoom((z) => Math.max(z - ZOOM_STEP, MIN_ZOOM));
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+  }, []);
+
+  const handleTouchEnd = useCallback(
+    (e: React.TouchEvent) => {
+      if (!touchStartRef.current) return;
+
+      const touch = e.changedTouches[0];
+      const deltaX = touch.clientX - touchStartRef.current.x;
+      const deltaY = touch.clientY - touchStartRef.current.y;
+
+      const minSwipeDistance = 50;
+
+      if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > minSwipeDistance) {
+        if (deltaX < 0) {
+          goToPage(currentPage + 1);
+        } else {
+          goToPage(currentPage - 1);
+        }
+      }
+
+      touchStartRef.current = null;
+    },
+    [currentPage, goToPage]
+  );
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') {
+        goToPage(currentPage - 1);
+      } else if (e.key === 'ArrowRight') {
+        goToPage(currentPage + 1);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentPage, goToPage]);
 
   if (loading) {
     return (
@@ -351,7 +408,7 @@ export function PdfViewer({ pdfUrl, initialPage = 1, onPageChange }: PdfViewerPr
 
   return (
     <ViewerContainer>
-      <PageContainer ref={containerRef}>
+      <PageContainer ref={containerRef} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
         <PageWrapper>
           <Canvas ref={canvasRef} />
           <TextLayer
@@ -374,6 +431,17 @@ export function PdfViewer({ pdfUrl, initialPage = 1, onPageChange }: PdfViewerPr
         </PageWrapper>
       </PageContainer>
       <NavigationBar>
+        <Box sx={{ position: 'absolute', left: 8, display: 'flex', alignItems: 'center' }}>
+          <Tooltip title={bookmarks.includes(currentPage) ? 'Remove bookmark' : 'Add bookmark'}>
+            <IconButton onClick={() => onBookmarkToggle?.(currentPage)} size="small">
+              {bookmarks.includes(currentPage) ? (
+                <BookmarkIcon color="warning" />
+              ) : (
+                <BookmarkBorderIcon />
+              )}
+            </IconButton>
+          </Tooltip>
+        </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <IconButton
             onClick={() => goToPage(currentPage - 1)}
@@ -407,6 +475,12 @@ export function PdfViewer({ pdfUrl, initialPage = 1, onPageChange }: PdfViewerPr
           </IconButton>
         </Box>
       </NavigationBar>
+      <PageProgressBar
+        currentPage={currentPage}
+        totalPages={totalPages}
+        bookmarks={bookmarks}
+        onPageChange={goToPage}
+      />
     </ViewerContainer>
   );
 }

@@ -10,6 +10,52 @@ const DEFAULT_BUCKET = 'polish-declension.firebasestorage.app';
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
 const MAX_USER_STORAGE = 1024 * 1024 * 1024;
 
+type BookColor =
+  | 'red'
+  | 'orange'
+  | 'amber'
+  | 'green'
+  | 'teal'
+  | 'blue'
+  | 'indigo'
+  | 'purple'
+  | 'pink';
+
+const BOOK_COLORS: BookColor[] = [
+  'red',
+  'orange',
+  'amber',
+  'green',
+  'teal',
+  'blue',
+  'indigo',
+  'purple',
+  'pink',
+];
+
+async function getUnusedColor(userId: string): Promise<BookColor> {
+  const booksSnapshot = await db
+    .collection('users')
+    .doc(userId)
+    .collection('books')
+    .where('status', '==', 'ready')
+    .get();
+
+  const colorCounts = new Map<BookColor, number>();
+  BOOK_COLORS.forEach((c) => colorCounts.set(c, 0));
+
+  booksSnapshot.forEach((doc) => {
+    const book = doc.data() as BookMetadata;
+    if (book.color && colorCounts.has(book.color)) {
+      colorCounts.set(book.color, (colorCounts.get(book.color) || 0) + 1);
+    }
+  });
+
+  const minCount = Math.min(...colorCounts.values());
+  const leastUsed = BOOK_COLORS.filter((c) => colorCounts.get(c) === minCount);
+  return leastUsed[Math.floor(Math.random() * leastUsed.length)];
+}
+
 interface BookMetadata {
   id: string;
   userId: string;
@@ -23,6 +69,7 @@ interface BookMetadata {
   status: 'processing' | 'ready' | 'error';
   error?: string;
   pageCount?: number;
+  color?: BookColor;
 }
 
 interface ExtractedPdfMetadata {
@@ -120,6 +167,7 @@ export const processBookUpload = onObjectFinalized(
       await file.move(finalPath);
 
       const extracted = await extractPdfMetadata(buffer);
+      const color = await getUnusedColor(userId);
 
       const bookData: BookMetadata = {
         id: bookId,
@@ -133,6 +181,7 @@ export const processBookUpload = onObjectFinalized(
         uploadedAt: Date.now(),
         status: 'ready',
         pageCount: extracted.pageCount,
+        color,
       };
 
       await bookRef.set(bookData);
@@ -171,50 +220,6 @@ export const processBookUpload = onObjectFinalized(
         // Ignore deletion errors
       }
     }
-  }
-);
-
-interface UpdateBookRequest {
-  bookId: string;
-  title?: string;
-  author?: string;
-}
-
-export const renameBook = onCall<UpdateBookRequest, Promise<{ success: boolean }>>(
-  async (request) => {
-    if (!request.auth) {
-      throw new HttpsError('unauthenticated', 'Must be signed in.');
-    }
-
-    const userId = request.auth.uid;
-    const { bookId, title, author } = request.data;
-
-    if (!bookId) {
-      throw new HttpsError('invalid-argument', 'Book ID required.');
-    }
-
-    const bookRef = db.collection('users').doc(userId).collection('books').doc(bookId);
-    const bookDoc = await bookRef.get();
-
-    if (!bookDoc.exists) {
-      throw new HttpsError('not-found', 'Book not found.');
-    }
-
-    const book = bookDoc.data() as BookMetadata;
-
-    if (book.userId !== userId) {
-      throw new HttpsError('permission-denied', 'Not your book.');
-    }
-
-    const updates: Partial<BookMetadata> = {};
-    if (title !== undefined) updates.title = title.trim();
-    if (author !== undefined) updates.author = author.trim() || undefined;
-
-    if (Object.keys(updates).length > 0) {
-      await bookRef.update(updates);
-    }
-
-    return { success: true };
   }
 );
 

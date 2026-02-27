@@ -33,8 +33,10 @@ import {
   deleteBook,
   updateBook,
   getStorageUsage,
+  getReadingProgress,
 } from '../../lib/reader';
-import type { Book, UploadProgress } from '../../types/reader';
+import type { Book, BookColor, ReadingProgress, UploadProgress } from '../../types/reader';
+import { BOOK_COLORS } from '../../types/reader';
 
 const PageContainer = styled(Box)(({ theme }) => ({
   flex: 1,
@@ -74,17 +76,19 @@ const BookCard = styled(Card)({
   position: 'relative',
 });
 
-const BookCover = styled(Box)(({ theme }) => ({
-  height: 180,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  background: `linear-gradient(135deg, ${theme.palette.primary.light} 0%, ${theme.palette.primary.main} 100%)`,
-  color: theme.palette.primary.contrastText,
-  [theme.breakpoints.up('sm')]: {
-    height: 220,
-  },
-}));
+const BookCover = styled(Box)<{ $colorMain?: string; $colorLight?: string }>(
+  ({ theme, $colorMain, $colorLight }) => ({
+    height: 180,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: `linear-gradient(135deg, ${$colorLight || theme.palette.primary.light} 0%, ${$colorMain || theme.palette.primary.main} 100%)`,
+    color: '#fff',
+    [theme.breakpoints.up('sm')]: {
+      height: 220,
+    },
+  })
+);
 
 const MenuButton = styled(IconButton)(({ theme }) => ({
   position: 'absolute',
@@ -94,7 +98,7 @@ const MenuButton = styled(IconButton)(({ theme }) => ({
   backgroundColor: theme.palette.background.paper,
   boxShadow: theme.shadows[1],
   '&:hover': {
-    backgroundColor: theme.palette.action.hover,
+    backgroundColor: theme.palette.grey[100],
   },
 }));
 
@@ -158,11 +162,13 @@ export function LibraryPage() {
   const [editDialog, setEditDialog] = useState<Book | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [editAuthor, setEditAuthor] = useState('');
+  const [editColor, setEditColor] = useState<BookColor>('red');
   const [saving, setSaving] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<{ el: HTMLElement; book: Book } | null>(null);
   const [storageUsage, setStorageUsage] = useState<{ usedBytes: number; maxBytes: number } | null>(
     null
   );
+  const [progressMap, setProgressMap] = useState<Record<string, ReadingProgress>>({});
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -185,6 +191,30 @@ export function LibraryPage() {
 
     return unsubscribe;
   }, []);
+
+  useEffect(() => {
+    const loadProgress = async () => {
+      const readyBooks = books.filter((b) => b.status === 'ready');
+      const progressResults = await Promise.all(
+        readyBooks.map(async (book) => {
+          const progress = await getReadingProgress(book.id);
+          return { bookId: book.id, progress };
+        })
+      );
+
+      const newProgressMap: Record<string, ReadingProgress> = {};
+      progressResults.forEach(({ bookId, progress }) => {
+        if (progress) {
+          newProgressMap[bookId] = progress;
+        }
+      });
+      setProgressMap(newProgressMap);
+    };
+
+    if (books.length > 0) {
+      loadProgress();
+    }
+  }, [books]);
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -227,6 +257,7 @@ export function LibraryPage() {
       await updateBook(editDialog.id, {
         title: editTitle.trim(),
         author: editAuthor.trim(),
+        color: editColor,
       });
     } catch (error) {
       console.error('Update failed:', error);
@@ -239,6 +270,7 @@ export function LibraryPage() {
   const openEditDialog = (book: Book) => {
     setEditTitle(book.title);
     setEditAuthor(book.author || '');
+    setEditColor(book.color || 'red');
     setEditDialog(book);
     setMenuAnchor(null);
   };
@@ -247,6 +279,7 @@ export function LibraryPage() {
     setEditDialog(null);
     setEditTitle('');
     setEditAuthor('');
+    setEditColor('red');
   };
 
   const openDeleteConfirm = (book: Book) => {
@@ -307,34 +340,55 @@ export function LibraryPage() {
           </BookCard>
         ))}
 
-        {readyBooks.map((book) => (
-          <BookCard key={book.id}>
-            <MenuButton
-              size="small"
-              onClick={(e) => {
-                e.stopPropagation();
-                setMenuAnchor({ el: e.currentTarget, book });
-              }}
-            >
-              <MoreVertIcon fontSize="small" />
-            </MenuButton>
-            <CardActionArea onClick={() => navigate(`/reader/${book.id}`)}>
-              <BookCover>
-                <MenuBookIcon sx={{ fontSize: 48 }} />
-              </BookCover>
-              <CardContent sx={{ py: 1.5 }}>
-                <Typography variant="body2" fontWeight={500} noWrap>
-                  {book.title}
-                </Typography>
-                {book.author && (
-                  <Typography variant="caption" color="text.secondary" noWrap>
-                    {book.author}
+        {readyBooks.map((book) => {
+          const progress = progressMap[book.id];
+          const percentage =
+            progress && book.pageCount
+              ? Math.round((progress.currentPage / book.pageCount) * 100)
+              : 0;
+
+          return (
+            <BookCard key={book.id}>
+              <MenuButton
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMenuAnchor({ el: e.currentTarget, book });
+                }}
+              >
+                <MoreVertIcon fontSize="small" />
+              </MenuButton>
+              <CardActionArea onClick={() => navigate(`/reader/${book.id}`)}>
+                <BookCover
+                  $colorMain={book.color ? BOOK_COLORS[book.color].main : undefined}
+                  $colorLight={book.color ? BOOK_COLORS[book.color].light : undefined}
+                >
+                  <MenuBookIcon sx={{ fontSize: 48 }} />
+                </BookCover>
+                <CardContent sx={{ py: 1.5 }}>
+                  <Typography variant="body2" fontWeight={500} noWrap>
+                    {book.title}
                   </Typography>
-                )}
-              </CardContent>
-            </CardActionArea>
-          </BookCard>
-        ))}
+                  {book.author && (
+                    <Typography variant="caption" color="text.secondary" noWrap>
+                      {book.author}
+                    </Typography>
+                  )}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                    <LinearProgress
+                      variant="determinate"
+                      value={percentage}
+                      sx={{ flex: 1, height: 4, borderRadius: 2 }}
+                    />
+                    <Typography variant="caption" color="text.secondary" sx={{ minWidth: 32 }}>
+                      {percentage}%
+                    </Typography>
+                  </Box>
+                </CardContent>
+              </CardActionArea>
+            </BookCard>
+          );
+        })}
       </BooksGrid>
 
       {books.length === 0 && (
@@ -401,6 +455,31 @@ export function LibraryPage() {
               value={editAuthor}
               onChange={(e) => setEditAuthor(e.target.value)}
             />
+            <Box>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                Color
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                {(Object.keys(BOOK_COLORS) as BookColor[]).map((colorKey) => (
+                  <Box
+                    key={colorKey}
+                    onClick={() => setEditColor(colorKey)}
+                    sx={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: 1,
+                      cursor: 'pointer',
+                      background: `linear-gradient(135deg, ${BOOK_COLORS[colorKey].light} 0%, ${BOOK_COLORS[colorKey].main} 100%)`,
+                      border: editColor === colorKey ? '2px solid' : '2px solid transparent',
+                      borderColor: editColor === colorKey ? 'text.primary' : 'transparent',
+                      '&:hover': {
+                        opacity: 0.8,
+                      },
+                    }}
+                  />
+                ))}
+              </Box>
+            </Box>
           </Box>
         </DialogContent>
         <DialogActions>

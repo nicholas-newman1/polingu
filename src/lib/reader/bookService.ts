@@ -1,10 +1,19 @@
-import { collection, doc, getDoc, getDocs, onSnapshot, query, orderBy } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  onSnapshot,
+  query,
+  orderBy,
+  updateDoc,
+} from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { getDownloadURL, ref } from 'firebase/storage';
 import { db, functions, storage } from '../firebase';
 import { saveUserData, loadUserData } from '../offlineDb/userSync';
 import { getUserId } from '../storage/helpers';
-import type { Book, ReadingProgress } from '../../types/reader';
+import type { Book, BookColor, ReadingProgress } from '../../types/reader';
 
 export async function getBooks(): Promise<Book[]> {
   const userId = getUserId();
@@ -63,21 +72,21 @@ export async function deleteBook(bookId: string): Promise<void> {
   await deleteFn({ bookId });
 }
 
-interface UpdateBookRequest {
-  bookId: string;
-  title?: string;
-  author?: string;
-}
-
 export async function updateBook(
   bookId: string,
-  updates: { title?: string; author?: string }
+  updates: { title?: string; author?: string; color?: BookColor }
 ): Promise<void> {
-  const updateBookFn = httpsCallable<UpdateBookRequest, { success: boolean }>(
-    functions,
-    'renameBook'
-  );
-  await updateBookFn({ bookId, ...updates });
+  const userId = getUserId();
+  if (!userId) throw new Error('Not authenticated');
+
+  const bookRef = doc(db, 'users', userId, 'books', bookId);
+
+  const cleanUpdates: Record<string, string | undefined> = {};
+  if (updates.title !== undefined) cleanUpdates.title = updates.title.trim();
+  if (updates.author !== undefined) cleanUpdates.author = updates.author.trim() || undefined;
+  if (updates.color !== undefined) cleanUpdates.color = updates.color;
+
+  await updateDoc(bookRef, cleanUpdates);
 }
 
 export async function getStorageUsage(): Promise<{ usedBytes: number; maxBytes: number }> {

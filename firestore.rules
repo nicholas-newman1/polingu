@@ -108,10 +108,14 @@ service cloud.firestore {
                          && docId.matches('reader-.*');
     }
 
-    // Books - owner can read, Cloud Function writes
+    // Books - owner can read and update, Cloud Function creates/deletes
     match /users/{userId}/books/{bookId} {
       allow read: if request.auth != null && request.auth.uid == userId;
-      allow write: if false;
+      allow update: if request.auth != null 
+                    && request.auth.uid == userId
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                       .hasOnly(['title', 'author', 'color']);
+      allow create, delete: if false;
     }
 
     // Book chapters - owner can read, Cloud Function writes

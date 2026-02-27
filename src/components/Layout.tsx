@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useContext } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -33,6 +33,7 @@ import { useAuthContext } from '../hooks/useAuthContext';
 import { SITE_NAME } from '../constants';
 import { FEATURE_NAV_ITEMS } from '../constants/navigation';
 import { SiteLogo } from './SiteLogo';
+import { PageTitleContext, PageTitleProvider } from '../contexts/PageTitleContext';
 
 export const DRAWER_WIDTH = 260;
 
@@ -303,7 +304,7 @@ function DrawerContent({
   );
 }
 
-export function Layout() {
+function LayoutContent() {
   const { user, signOut, isAdmin } = useAuthContext();
   const { counts, loading: countsLoading } = useReviewData();
   const location = useLocation();
@@ -311,6 +312,7 @@ export function Layout() {
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const theme = useTheme();
   const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
+  const pageTitleContext = useContext(PageTitleContext);
 
   const closeMobileDrawer = useCallback(() => setMobileDrawerOpen(false), []);
   useBackClose(mobileDrawerOpen, closeMobileDrawer);
@@ -324,6 +326,9 @@ export function Layout() {
     navigate(path);
     setMobileDrawerOpen(false);
   };
+
+  const defaultTitle = PAGE_TITLES[location.pathname];
+  const pageTitle = pageTitleContext?.customTitle || defaultTitle;
 
   return (
     <PageContainer>
@@ -385,8 +390,11 @@ export function Layout() {
             <Header
               user={user}
               onSignOut={handleSignOut}
-              pageTitle={PAGE_TITLES[location.pathname] || (location.pathname.startsWith('/reader/') ? 'Reader' : undefined)}
-              backPath={BACK_ROUTES[location.pathname] || BACK_ROUTE_PATTERNS.find(p => p.pattern.test(location.pathname))?.backPath}
+              pageTitle={pageTitle}
+              backPath={
+                BACK_ROUTES[location.pathname] ||
+                BACK_ROUTE_PATTERNS.find((p) => p.pattern.test(location.pathname))?.backPath
+              }
             />
           </Box>
         </HeaderRow>
@@ -405,5 +413,13 @@ export function Layout() {
 
       <BottomMenuBar showTranslator={!!user} />
     </PageContainer>
+  );
+}
+
+export function Layout() {
+  return (
+    <PageTitleProvider>
+      <LayoutContent />
+    </PageTitleProvider>
   );
 }

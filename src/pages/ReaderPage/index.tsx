@@ -10,6 +10,7 @@ import {
 } from '../../lib/reader';
 import type { Book, ReadingProgress } from '../../types/reader';
 import { PdfViewer } from './components/PdfViewer';
+import { usePageTitle } from '../../hooks/usePageTitle';
 
 const PageContainer = styled(Box)({
   display: 'flex',
@@ -33,6 +34,8 @@ export function ReaderPage() {
   const { bookId } = useParams<{ bookId: string }>();
 
   const [book, setBook] = useState<Book | null>(null);
+
+  usePageTitle(book?.title || null);
   const [progress, setProgress] = useState<ReadingProgress | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -114,6 +117,27 @@ export function ReaderPage() {
     [progress, bookId]
   );
 
+  const handleBookmarkToggle = useCallback(
+    (page: number) => {
+      if (!progress || !bookId) return;
+
+      const currentBookmarks = progress.bookmarks || [];
+      const newBookmarks = currentBookmarks.includes(page)
+        ? currentBookmarks.filter((p) => p !== page)
+        : [...currentBookmarks, page].sort((a, b) => a - b);
+
+      const newProgress: ReadingProgress = {
+        ...progress,
+        bookmarks: newBookmarks,
+        lastReadAt: Date.now(),
+      };
+
+      setProgress(newProgress);
+      saveReadingProgress(newProgress);
+    },
+    [progress, bookId]
+  );
+
   if (loading) {
     return (
       <LoadingContainer>
@@ -136,7 +160,9 @@ export function ReaderPage() {
       <PdfViewer
         pdfUrl={pdfUrl}
         initialPage={progress.currentPage || 1}
+        bookmarks={progress.bookmarks || []}
         onPageChange={handlePdfPageChange}
+        onBookmarkToggle={handleBookmarkToggle}
       />
     </PageContainer>
   );
