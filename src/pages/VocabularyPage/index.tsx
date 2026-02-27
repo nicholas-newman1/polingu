@@ -544,7 +544,43 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
                   word={currentPracticeWord}
                   direction={currentDirection}
                   practiceMode
+                  isAdmin={isAdmin}
                   onNext={handlePracticeNext}
+                  onEdit={() => {
+                    const isCustomWord = currentPracticeWord.isCustom === true;
+                    if (isCustomWord) {
+                      setEditingWord(currentPracticeWord as CustomVocabularyWord);
+                      setEditingSystemWord(false);
+                    } else if (isAdmin) {
+                      setEditingWord(currentPracticeWord);
+                      setEditingSystemWord(true);
+                    }
+                    setShowAddModal(true);
+                  }}
+                  onDelete={() => {
+                    const isCustomWord = currentPracticeWord.isCustom === true;
+                    const isSystemWord = !isCustomWord && isAdmin;
+                    if (!isCustomWord && !isSystemWord) return;
+                    const confirmMessage = isCustomWord
+                      ? 'Are you sure you want to delete this custom word?'
+                      : 'Are you sure you want to delete this system vocabulary word? This will affect all users.';
+                    if (!window.confirm(confirmMessage)) return;
+                    if (isCustomWord) {
+                      const newCustomWords = customWords.filter((w) => w.id !== currentPracticeWord.id);
+                      applyOptimisticCustomWords(newCustomWords, async () => {
+                        await saveCustomVocabulary(newCustomWords);
+                        setContextCustomWords(newCustomWords);
+                      });
+                    } else {
+                      const newSystemWords = systemWords.filter((w) => w.id !== currentPracticeWord.id);
+                      applyOptimisticSystemWords(newSystemWords, async () => {
+                        await deleteSystemVocabularyWord(currentPracticeWord.id as number);
+                        setContextSystemWords(newSystemWords);
+                      });
+                    }
+                    removeWordFromQueues(currentPracticeWord.id);
+                    handlePracticeNext();
+                  }}
                 />
               ) : (
                 <EmptyState message="No words available" />

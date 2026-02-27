@@ -442,7 +442,31 @@ export function AspectPairsPage() {
                   key={`practice-${currentPracticeCard.verb.id}-${practiceIndex}`}
                   card={currentPracticeCard}
                   practiceMode
+                  canEdit={isAdmin}
                   onNext={handlePracticeNext}
+                  onEdit={() => {
+                    setEditingCard(currentPracticeCard);
+                    setShowEditModal(true);
+                  }}
+                  onUnlink={() => {
+                    const verb1 = currentPracticeCard.verb;
+                    const verb2 = currentPracticeCard.pairVerb;
+                    if (verb1.id === verb2.id) return;
+                    const updatedVerb1: Verb = { ...verb1, aspectPair: undefined };
+                    const updatedVerb2: Verb = { ...verb2, aspectPair: undefined };
+                    const newVerbs = verbs.map((v) => {
+                      if (v.id === verb1.id) return updatedVerb1;
+                      if (v.id === verb2.id) return updatedVerb2;
+                      return v;
+                    });
+                    removeCardFromQueues(verb1.id, verb2.id);
+                    applyOptimisticVerbs(newVerbs, async () => {
+                      await updateVerb(verb1.id, { aspectPair: undefined });
+                      await updateVerb(verb2.id, { aspectPair: undefined });
+                      setContextVerbs(newVerbs);
+                    });
+                    handlePracticeNext();
+                  }}
                 />
               ) : (
                 <EmptyState message="No aspect pairs available" />

@@ -575,7 +575,25 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
                   direction={currentDirection}
                   aspectPairVerb={getAspectPairVerb(currentPracticeForm)}
                   practiceMode
+                  canEdit={isAdmin}
                   onNext={handlePracticeNext}
+                  onEdit={() => {
+                    setEditingForm(currentPracticeForm);
+                    setShowEditModal(true);
+                  }}
+                  onDelete={() => {
+                    const confirmMessage =
+                      'Are you sure you want to delete this verb? This will remove all conjugation forms for this verb and affect all users.';
+                    if (!window.confirm(confirmMessage)) return;
+                    const verbId = currentPracticeForm.verb.id;
+                    const newVerbs = verbs.filter((v) => v.id !== verbId);
+                    removeVerbFromQueues(verbId);
+                    applyOptimisticVerbs(newVerbs, async () => {
+                      await deleteVerb(verbId);
+                      setContextVerbs(newVerbs);
+                    });
+                    handlePracticeNext();
+                  }}
                 />
               ) : (
                 <EmptyState message="No forms match your filters" />

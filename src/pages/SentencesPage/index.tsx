@@ -543,7 +543,24 @@ export function SentencesPage({ mode }: SentencesPageProps) {
                   direction={currentDirection}
                   practiceMode
                   isAdmin={isAdmin}
+                  canEdit={isAdmin}
                   onNext={handlePracticeNext}
+                  onEdit={() => {
+                    setEditingSentence(currentPracticeSentence);
+                    setIsCreatingSentence(false);
+                    setShowEditModal(true);
+                  }}
+                  onDelete={() => {
+                    if (window.confirm('Are you sure you want to delete this sentence?')) {
+                      const newSentences = sentences.filter((s) => s.id !== currentPracticeSentence.id);
+                      removeSentenceFromQueues(currentPracticeSentence.id);
+                      applyOptimisticSentences(newSentences, async () => {
+                        await deleteSentence(currentPracticeSentence.id);
+                        setContextSentences(newSentences);
+                      });
+                      handlePracticeNext();
+                    }
+                  }}
                   onDailyLimitReached={handleDailyLimitReached}
                   onUpdateTranslation={
                     isAdmin

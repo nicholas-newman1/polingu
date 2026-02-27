@@ -583,7 +583,13 @@ export function DeclensionPage() {
               card={currentPracticeCard}
               practiceMode
               isAdmin={isAdmin}
+              canEdit={currentPracticeCard.isCustom || isAdmin}
               onNext={handlePracticeNext}
+              onEdit={() => {
+                setEditingCard(currentPracticeCard);
+                setIsCreatingNew(false);
+                setShowEditModal(true);
+              }}
               onUpdateTranslation={
                 isAdmin
                   ? (word, translation) =>
