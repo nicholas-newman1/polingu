@@ -182,8 +182,14 @@ export function PdfViewer({ pdfUrl, initialPage = 1, onPageChange }: PdfViewerPr
       const context = canvas.getContext('2d');
       if (!context) return;
 
-      canvas.height = scaledViewport.height;
-      canvas.width = scaledViewport.width;
+      const pixelRatio = window.devicePixelRatio || 1;
+
+      canvas.width = scaledViewport.width * pixelRatio;
+      canvas.height = scaledViewport.height * pixelRatio;
+      canvas.style.width = `${scaledViewport.width}px`;
+      canvas.style.height = `${scaledViewport.height}px`;
+
+      context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
 
       await page.render({
         canvasContext: context,
@@ -323,8 +329,8 @@ export function PdfViewer({ pdfUrl, initialPage = 1, onPageChange }: PdfViewerPr
           <Canvas ref={canvasRef} />
           <TextLayer
             sx={{
-              width: canvasRef.current?.width || 'auto',
-              height: canvasRef.current?.height || 'auto',
+              width: canvasRef.current?.style.width || 'auto',
+              height: canvasRef.current?.style.height || 'auto',
             }}
           >
             <TranslatableText>
