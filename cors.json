@@ -1,6 +1,6 @@
 [
   {
-    "origin": ["http://localhost:5173", "http://localhost:5174", "https://polingu.web.app", "https://polingu.firebaseapp.com"],
+    "origin": ["https://polish-declension.web.app", "http://localhost:5173"],
     "method": ["GET", "HEAD"],
     "maxAgeSeconds": 3600
   }
