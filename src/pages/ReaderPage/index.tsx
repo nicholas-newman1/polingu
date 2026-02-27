@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { Box, CircularProgress, Typography, IconButton } from '@mui/material';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import { useParams } from 'react-router-dom';
+import { Box, CircularProgress, Typography } from '@mui/material';
 import { styled } from '../../lib/styled';
 import {
   getBook,
@@ -15,8 +14,10 @@ import { PdfViewer } from './components/PdfViewer';
 const PageContainer = styled(Box)({
   display: 'flex',
   flexDirection: 'column',
-  height: '100vh',
+  flex: 1,
   overflow: 'hidden',
+  margin: -16,
+  marginBottom: -128,
 });
 
 const LoadingContainer = styled(Box)({
@@ -30,7 +31,6 @@ const LoadingContainer = styled(Box)({
 
 export function ReaderPage() {
   const { bookId } = useParams<{ bookId: string }>();
-  const navigate = useNavigate();
 
   const [book, setBook] = useState<Book | null>(null);
   const [progress, setProgress] = useState<ReadingProgress | null>(null);
@@ -133,25 +133,6 @@ export function ReaderPage() {
 
   return (
     <PageContainer>
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1,
-          px: 2,
-          py: 1,
-          borderBottom: 1,
-          borderColor: 'divider',
-          bgcolor: 'background.paper',
-        }}
-      >
-        <IconButton onClick={() => navigate('/library')} size="small">
-          <ArrowBackIcon />
-        </IconButton>
-        <Typography variant="subtitle1" noWrap sx={{ flex: 1 }}>
-          {book.title}
-        </Typography>
-      </Box>
       <PdfViewer
         pdfUrl={pdfUrl}
         initialPage={progress.currentPage || 1}

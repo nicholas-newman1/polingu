@@ -30,8 +30,7 @@ const MenuBarContainer = styled(Box)(({ theme }) => ({
   justifyContent: 'center',
   gap: theme.spacing(3),
   padding: theme.spacing(1.5),
-  backgroundColor: alpha(theme.palette.background.paper, 0.95),
-  backdropFilter: 'blur(8px)',
+  backgroundColor: theme.palette.background.paper,
   borderTop: `1px solid ${theme.palette.divider}`,
   [theme.breakpoints.up('md')]: { left: DRAWER_WIDTH },
 }));

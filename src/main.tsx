@@ -81,9 +81,9 @@ createRoot(document.getElementById('root')!).render(
                           <Route path="/stats" element={<StatsPage />} />
                           <Route path="/settings" element={<SettingsPage />} />
                           <Route path="/library" element={<LibraryPage />} />
+                          <Route path="/reader/:bookId" element={<ReaderPage />} />
                           <Route path="/admin/generator" element={<SentenceGeneratorPage />} />
                         </Route>
-                        <Route path="/reader/:bookId" element={<ReaderPage />} />
                         <Route path="*" element={<Navigate to="/dashboard" replace />} />
                       </Routes>
                     </BrowserRouter>

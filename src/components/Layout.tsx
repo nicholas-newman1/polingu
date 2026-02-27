@@ -229,6 +229,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/my-declensions': 'My Declensions',
   '/my-sentences': 'My Sentences',
   '/library': 'Library',
+  '/reader': 'Reader',
   '/stats': 'Statistics',
   '/admin/generator': 'Sentence Generator',
 };
@@ -241,6 +242,10 @@ const BACK_ROUTES: Record<string, string> = {
   '/conjugation/recognition': '/conjugation',
   '/conjugation/production': '/conjugation',
 };
+
+const BACK_ROUTE_PATTERNS: Array<{ pattern: RegExp; backPath: string }> = [
+  { pattern: /^\/reader\//, backPath: '/library' },
+];
 
 function DrawerContent({
   currentPath,
@@ -380,8 +385,8 @@ export function Layout() {
             <Header
               user={user}
               onSignOut={handleSignOut}
-              pageTitle={PAGE_TITLES[location.pathname]}
-              backPath={BACK_ROUTES[location.pathname]}
+              pageTitle={PAGE_TITLES[location.pathname] || (location.pathname.startsWith('/reader/') ? 'Reader' : undefined)}
+              backPath={BACK_ROUTES[location.pathname] || BACK_ROUTE_PATTERNS.find(p => p.pattern.test(location.pathname))?.backPath}
             />
           </Box>
         </HeaderRow>

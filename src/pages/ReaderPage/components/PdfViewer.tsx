@@ -2,11 +2,15 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Box, IconButton, Typography, CircularProgress } from '@mui/material';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import AddIcon from '@mui/icons-material/Add';
+import RemoveIcon from '@mui/icons-material/Remove';
 import * as pdfjsLib from 'pdfjs-dist';
 import { styled } from '../../../lib/styled';
+import { alpha } from '../../../lib/theme';
 import { TranslatableWord } from '../../../components/TranslatableWord';
 import { TranslatableText } from '../../../components/TranslatableText';
 import { useTranslatableText } from '../../../hooks/useTranslatableText';
+import { DRAWER_WIDTH } from '../../../components/Layout';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.mjs`;
 
@@ -25,6 +29,7 @@ const PageContainer = styled(Box)({
   alignItems: 'flex-start',
   overflow: 'auto',
   padding: 16,
+  paddingBottom: 160,
 });
 
 const PageWrapper = styled(Box)({
@@ -47,14 +52,26 @@ const TextLayer = styled(Box)({
   lineHeight: 1,
 });
 
+const BOTTOM_MENU_HEIGHT = 95;
+
 const NavigationBar = styled(Box)(({ theme }) => ({
+  position: 'fixed',
+  bottom: BOTTOM_MENU_HEIGHT,
+  left: 0,
+  right: 0,
   display: 'flex',
   justifyContent: 'center',
   alignItems: 'center',
   gap: theme.spacing(2),
   padding: theme.spacing(1),
-  backgroundColor: theme.palette.background.paper,
+  backgroundColor: alpha(theme.palette.background.paper, 0.95),
+  backdropFilter: 'blur(8px)',
   borderTop: `1px solid ${theme.palette.divider}`,
+  borderBottom: `1px solid ${theme.palette.divider}`,
+  zIndex: 10,
+  [theme.breakpoints.up('md')]: {
+    left: DRAWER_WIDTH,
+  },
 }));
 
 interface TextItem {
@@ -116,6 +133,10 @@ function PdfWordBox({ item, index, pageKey }: PdfWordBoxProps) {
   );
 }
 
+const ZOOM_STEP = 0.1;
+const MIN_ZOOM = 0.5;
+const MAX_ZOOM = 3;
+
 export function PdfViewer({ pdfUrl, initialPage = 1, onPageChange }: PdfViewerProps) {
   const [pdf, setPdf] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
   const [currentPage, setCurrentPage] = useState(initialPage);
@@ -123,6 +144,7 @@ export function PdfViewer({ pdfUrl, initialPage = 1, onPageChange }: PdfViewerPr
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [words, setWords] = useState<WordPosition[]>([]);
+  const [zoom, setZoom] = useState(1);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -175,7 +197,8 @@ export function PdfViewer({ pdfUrl, initialPage = 1, onPageChange }: PdfViewerPr
       const viewport = page.getViewport({ scale: 1 });
       const scaleX = containerWidth / viewport.width;
       const scaleY = containerHeight / viewport.height;
-      const newScale = Math.min(scaleX, scaleY, 2);
+      const baseScale = Math.min(scaleX, scaleY, 2);
+      const newScale = baseScale * zoom;
       const scaledViewport = page.getViewport({ scale: newScale });
 
       const canvas = canvasRef.current;
@@ -272,7 +295,7 @@ export function PdfViewer({ pdfUrl, initialPage = 1, onPageChange }: PdfViewerPr
     } catch (err) {
       console.error('Failed to render page:', err);
     }
-  }, [pdf, currentPage]);
+  }, [pdf, currentPage, zoom]);
 
   useEffect(() => {
     renderPage();
@@ -299,8 +322,12 @@ export function PdfViewer({ pdfUrl, initialPage = 1, onPageChange }: PdfViewerPr
   const goToPage = (page: number) => {
     if (page >= 1 && page <= totalPages) {
       setCurrentPage(page);
+      window.scrollTo({ top: 0 });
     }
   };
+
+  const zoomIn = () => setZoom((z) => Math.min(z + ZOOM_STEP, MAX_ZOOM));
+  const zoomOut = () => setZoom((z) => Math.max(z - ZOOM_STEP, MIN_ZOOM));
 
   if (loading) {
     return (
@@ -347,15 +374,38 @@ export function PdfViewer({ pdfUrl, initialPage = 1, onPageChange }: PdfViewerPr
         </PageWrapper>
       </PageContainer>
       <NavigationBar>
-        <IconButton onClick={() => goToPage(currentPage - 1)} disabled={currentPage <= 1}>
-          <ChevronLeftIcon />
-        </IconButton>
-        <Typography variant="body2">
-          {currentPage} / {totalPages}
-        </Typography>
-        <IconButton onClick={() => goToPage(currentPage + 1)} disabled={currentPage >= totalPages}>
-          <ChevronRightIcon />
-        </IconButton>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <IconButton
+            onClick={() => goToPage(currentPage - 1)}
+            disabled={currentPage <= 1}
+            size="small"
+          >
+            <ChevronLeftIcon />
+          </IconButton>
+          <Typography variant="body2">
+            {currentPage} / {totalPages}
+          </Typography>
+          <IconButton
+            onClick={() => goToPage(currentPage + 1)}
+            disabled={currentPage >= totalPages}
+            size="small"
+          >
+            <ChevronRightIcon />
+          </IconButton>
+        </Box>
+        <Box
+          sx={{ position: 'absolute', right: 8, display: 'flex', alignItems: 'center', gap: 0.5 }}
+        >
+          <IconButton onClick={zoomOut} disabled={zoom <= MIN_ZOOM} size="small">
+            <RemoveIcon fontSize="small" />
+          </IconButton>
+          <Typography variant="body2" sx={{ minWidth: 45, textAlign: 'center' }}>
+            {Math.round(zoom * 100)}%
+          </Typography>
+          <IconButton onClick={zoomIn} disabled={zoom >= MAX_ZOOM} size="small">
+            <AddIcon fontSize="small" />
+          </IconButton>
+        </Box>
       </NavigationBar>
     </ViewerContainer>
   );
