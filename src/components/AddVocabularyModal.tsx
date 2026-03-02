@@ -152,23 +152,50 @@ interface AddVocabularyModalProps {
   onClose: () => void;
   onSave: (word: Omit<CustomVocabularyWord, 'id' | 'isCustom' | 'createdAt'>) => void;
   editWord?: CustomVocabularyWord | VocabularyWord | null;
+  initialValues?: { polish: string; english: string };
   onAudioUpdated?: (audioUrl: string) => void;
 }
 
-const getDefaultValues = (editWord?: CustomVocabularyWord | VocabularyWord | null): FormData => ({
-  polish: editWord?.polish || '',
-  english: editWord?.english || '',
-  partOfSpeech: editWord?.partOfSpeech || '',
-  gender: editWord?.gender || '',
-  notes: editWord?.notes || '',
-  examples: editWord?.examples || [],
-});
+const getDefaultValues = (
+  editWord?: CustomVocabularyWord | VocabularyWord | null,
+  initialValues?: { polish: string; english: string }
+): FormData => {
+  if (editWord) {
+    return {
+      polish: editWord.polish || '',
+      english: editWord.english || '',
+      partOfSpeech: editWord.partOfSpeech || '',
+      gender: editWord.gender || '',
+      notes: editWord.notes || '',
+      examples: editWord.examples || [],
+    };
+  }
+  if (initialValues) {
+    return {
+      polish: initialValues.polish || '',
+      english: initialValues.english || '',
+      partOfSpeech: '',
+      gender: '',
+      notes: '',
+      examples: [],
+    };
+  }
+  return {
+    polish: '',
+    english: '',
+    partOfSpeech: '',
+    gender: '',
+    notes: '',
+    examples: [],
+  };
+};
 
 export function AddVocabularyModal({
   open,
   onClose,
   onSave,
   editWord,
+  initialValues,
   onAudioUpdated,
 }: AddVocabularyModalProps) {
   const { isAdmin } = useAuthContext();
@@ -181,7 +208,7 @@ export function AddVocabularyModal({
     setValue,
     formState: { isValid },
   } = useForm<FormData>({
-    values: getDefaultValues(editWord),
+    values: getDefaultValues(editWord, initialValues),
     mode: 'onChange',
   });
 
@@ -311,7 +338,7 @@ export function AddVocabularyModal({
   }, [generatedExamples, selectedExampleIndexes, append]);
 
   const handleClose = useCallback(() => {
-    reset(getDefaultValues(null));
+    reset(getDefaultValues(null, undefined));
     translationTimeouts.current.forEach((timeout) => clearTimeout(timeout));
     translationTimeouts.current.clear();
     userEditedEnglish.current.clear();

@@ -1,8 +1,10 @@
 import { useEffect, useState, useRef } from 'react';
-import { CircularProgress, Typography, Box } from '@mui/material';
+import { CircularProgress, Typography, Box, IconButton } from '@mui/material';
+import BookmarkAddOutlinedIcon from '@mui/icons-material/BookmarkAddOutlined';
 import { styled } from '../lib/styled';
 import { TranslatableTextProvider } from '../contexts/TranslatableTextContext';
 import { useTranslatableText } from '../hooks/useTranslatableText';
+import { useAddToVocabulary } from '../hooks/useAddToVocabulary';
 import { translate, RateLimitMinuteError, RateLimitDailyError } from '../lib/translate';
 import { TooltipContent, WordTooltipPopper } from './shared';
 
@@ -28,6 +30,14 @@ function cleanPhrase(phrase: string): string {
     .join(' ');
 }
 
+const AddToVocabButton = styled(IconButton)(({ theme }) => ({
+  padding: 2,
+  color: theme.palette.tooltip.text,
+  '&:hover': {
+    backgroundColor: 'transparent',
+  },
+}));
+
 function PhraseTooltip({
   sentenceContext,
   translations,
@@ -37,6 +47,7 @@ function PhraseTooltip({
   onUpdateTranslation,
 }: PhraseTooltipProps) {
   const context = useTranslatableText();
+  const addToVocabulary = useAddToVocabulary();
   const [translation, setTranslation] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,6 +56,13 @@ function PhraseTooltip({
   const selectedPhrase = context?.selectedPhrase;
   const phraseAnchorEl = context?.phraseAnchorEl;
   const closePhraseTooltip = context?.closePhraseTooltip;
+
+  const handleAddToVocabulary = () => {
+    if (selectedPhrase && addToVocabulary) {
+      addToVocabulary.openAddToVocabulary(selectedPhrase, translation || '');
+      closePhraseTooltip?.();
+    }
+  };
 
   useEffect(() => {
     if (!selectedPhrase) {
@@ -133,14 +151,27 @@ function PhraseTooltip({
       <TooltipContent>
         {loading ? (
           <CircularProgress size={16} sx={{ color: 'tooltip.text' }} />
-        ) : error ? (
-          <Typography variant="caption" sx={{ color: 'tooltip.error' }}>
-            {error}
-          </Typography>
         ) : (
-          <Typography variant="body2" fontWeight={500}>
-            {translation}
-          </Typography>
+          <>
+            {error ? (
+              <Typography variant="caption" sx={{ color: 'tooltip.error' }}>
+                {error}
+              </Typography>
+            ) : (
+              <Typography variant="body2" fontWeight={500}>
+                {translation}
+              </Typography>
+            )}
+            {addToVocabulary && (
+              <AddToVocabButton
+                size="small"
+                onClick={handleAddToVocabulary}
+                aria-label="Add to vocabulary"
+              >
+                <BookmarkAddOutlinedIcon sx={{ fontSize: 16 }} />
+              </AddToVocabButton>
+            )}
+          </>
         )}
       </TooltipContent>
     </WordTooltipPopper>

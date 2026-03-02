@@ -34,6 +34,7 @@ import { SITE_NAME } from '../constants';
 import { FEATURE_NAV_ITEMS } from '../constants/navigation';
 import { SiteLogo } from './SiteLogo';
 import { PageTitleContext, PageTitleProvider } from '../contexts/PageTitleContext';
+import { AddToVocabularyProvider } from '../contexts/AddToVocabularyContext';
 
 export const DRAWER_WIDTH = 260;
 
@@ -331,88 +332,90 @@ function LayoutContent() {
   const pageTitle = pageTitleContext?.customTitle || defaultTitle;
 
   return (
-    <PageContainer>
-      {isDesktop ? (
-        <Drawer
-          variant="permanent"
-          PaperProps={{
-            sx: {
-              width: DRAWER_WIDTH,
-              backgroundColor: 'background.default',
-              borderRight: 1,
-              borderColor: 'divider',
-            },
-          }}
-        >
-          <DrawerContent
-            currentPath={location.pathname}
-            onNavigate={handleNavigation}
-            onClose={() => {}}
-            showCloseButton={false}
-            reviewCounts={counts}
-            loading={countsLoading}
-            isAdmin={isAdmin}
-          />
-        </Drawer>
-      ) : (
-        <SwipeableDrawer
-          anchor="left"
-          open={mobileDrawerOpen}
-          onOpen={() => setMobileDrawerOpen(true)}
-          onClose={() => setMobileDrawerOpen(false)}
-          swipeAreaWidth={20}
-          disableBackdropTransition
-          PaperProps={{
-            sx: {
-              width: DRAWER_WIDTH,
-              backgroundColor: 'background.default',
-            },
-          }}
-        >
-          <DrawerContent
-            currentPath={location.pathname}
-            onNavigate={handleNavigation}
-            onClose={() => setMobileDrawerOpen(false)}
-            showCloseButton={true}
-            reviewCounts={counts}
-            loading={countsLoading}
-            isAdmin={isAdmin}
-          />
-        </SwipeableDrawer>
-      )}
-
-      <MainArea>
-        <HeaderRow>
-          <MenuButton onClick={() => setMobileDrawerOpen(true)} size="small">
-            <Menu />
-          </MenuButton>
-          <Box sx={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
-            <Header
-              user={user}
-              onSignOut={handleSignOut}
-              pageTitle={pageTitle}
-              backPath={
-                BACK_ROUTES[location.pathname] ||
-                BACK_ROUTE_PATTERNS.find((p) => p.pattern.test(location.pathname))?.backPath
-              }
+    <AddToVocabularyProvider>
+      <PageContainer>
+        {isDesktop ? (
+          <Drawer
+            variant="permanent"
+            PaperProps={{
+              sx: {
+                width: DRAWER_WIDTH,
+                backgroundColor: 'background.default',
+                borderRight: 1,
+                borderColor: 'divider',
+              },
+            }}
+          >
+            <DrawerContent
+              currentPath={location.pathname}
+              onNavigate={handleNavigation}
+              onClose={() => {}}
+              showCloseButton={false}
+              reviewCounts={counts}
+              loading={countsLoading}
+              isAdmin={isAdmin}
             />
-          </Box>
-        </HeaderRow>
+          </Drawer>
+        ) : (
+          <SwipeableDrawer
+            anchor="left"
+            open={mobileDrawerOpen}
+            onOpen={() => setMobileDrawerOpen(true)}
+            onClose={() => setMobileDrawerOpen(false)}
+            swipeAreaWidth={20}
+            disableBackdropTransition
+            PaperProps={{
+              sx: {
+                width: DRAWER_WIDTH,
+                backgroundColor: 'background.default',
+              },
+            }}
+          >
+            <DrawerContent
+              currentPath={location.pathname}
+              onNavigate={handleNavigation}
+              onClose={() => setMobileDrawerOpen(false)}
+              showCloseButton={true}
+              reviewCounts={counts}
+              loading={countsLoading}
+              isAdmin={isAdmin}
+            />
+          </SwipeableDrawer>
+        )}
 
-        <ContentArea>
-          <Outlet />
-        </ContentArea>
-      </MainArea>
+        <MainArea>
+          <HeaderRow>
+            <MenuButton onClick={() => setMobileDrawerOpen(true)} size="small">
+              <Menu />
+            </MenuButton>
+            <Box sx={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+              <Header
+                user={user}
+                onSignOut={handleSignOut}
+                pageTitle={pageTitle}
+                backPath={
+                  BACK_ROUTES[location.pathname] ||
+                  BACK_ROUTE_PATTERNS.find((p) => p.pattern.test(location.pathname))?.backPath
+                }
+              />
+            </Box>
+          </HeaderRow>
 
-      <DeclensionCheatSheetDrawer />
-      <ConsonantsCheatSheetDrawer />
-      <YiRuleCheatSheetDrawer />
-      <ConjugationCheatSheetDrawer />
-      <TranslatorModal />
-      <LimitReachedDialog />
+          <ContentArea>
+            <Outlet />
+          </ContentArea>
+        </MainArea>
 
-      <BottomMenuBar showTranslator={!!user} />
-    </PageContainer>
+        <DeclensionCheatSheetDrawer />
+        <ConsonantsCheatSheetDrawer />
+        <YiRuleCheatSheetDrawer />
+        <ConjugationCheatSheetDrawer />
+        <TranslatorModal />
+        <LimitReachedDialog />
+
+        <BottomMenuBar showTranslator={!!user} />
+      </PageContainer>
+    </AddToVocabularyProvider>
   );
 }
 

@@ -3,6 +3,7 @@ import { CircularProgress, Typography, IconButton, TextField, InputAdornment } f
 import EditIcon from '@mui/icons-material/Edit';
 import CheckIcon from '@mui/icons-material/Check';
 import CloseIcon from '@mui/icons-material/Close';
+import BookmarkAddOutlinedIcon from '@mui/icons-material/BookmarkAddOutlined';
 import { styled } from '../lib/styled';
 import { translate, RateLimitMinuteError, RateLimitDailyError } from '../lib/translate';
 import {
@@ -13,6 +14,7 @@ import {
   WordTooltipPopper,
 } from './shared';
 import { useTranslatableText } from '../hooks/useTranslatableText';
+import { useAddToVocabulary } from '../hooks/useAddToVocabulary';
 
 const EditButton = styled(IconButton)(({ theme }) => ({
   padding: 2,
@@ -45,6 +47,14 @@ const EditInput = styled(TextField)(({ theme }) => ({
 }));
 
 const ActionIconButton = styled(IconButton)(({ theme }) => ({
+  padding: 2,
+  color: theme.palette.tooltip.text,
+  '&:hover': {
+    backgroundColor: 'transparent',
+  },
+}));
+
+const AddToVocabButton = styled(IconButton)(({ theme }) => ({
   padding: 2,
   color: theme.palette.tooltip.text,
   '&:hover': {
@@ -115,6 +125,7 @@ export function TranslatableWord({
   const spanRef = useRef<HTMLSpanElement>(null);
 
   const dragContext = useTranslatableText();
+  const addToVocabulary = useAddToVocabulary();
   const isDragEnabled = dragContext !== null && wordIndex !== undefined;
   const isSelected = isDragEnabled && dragContext.selectedIndices.has(wordIndex);
   const isDragging = isDragEnabled && dragContext.isDragging;
@@ -237,6 +248,13 @@ export function TranslatableWord({
     }
   };
 
+  const handleAddToVocabulary = () => {
+    if (addToVocabulary) {
+      addToVocabulary.openAddToVocabulary(word, translation || '');
+      close();
+    }
+  };
+
   const handleMouseDown = useCallback(
     (event: React.MouseEvent<HTMLSpanElement>) => {
       if (isDragEnabled && event.button === 0) {
@@ -341,10 +359,6 @@ export function TranslatableWord({
         <TooltipContent>
           {loading || isSaving ? (
             <CircularProgress size={16} sx={{ color: 'tooltip.text' }} />
-          ) : error ? (
-            <Typography variant="caption" sx={{ color: 'tooltip.error' }}>
-              {error}
-            </Typography>
           ) : isEditing ? (
             <EditInput
               size="small"
@@ -367,13 +381,28 @@ export function TranslatableWord({
             />
           ) : (
             <>
-              <Typography variant="body2" fontWeight={500}>
-                {translation}
-              </Typography>
+              {error ? (
+                <Typography variant="caption" sx={{ color: 'tooltip.error' }}>
+                  {error}
+                </Typography>
+              ) : (
+                <Typography variant="body2" fontWeight={500}>
+                  {translation}
+                </Typography>
+              )}
               {isAdmin && translation && (
                 <EditButton size="small" onClick={handleStartEdit}>
                   <EditIcon sx={{ fontSize: 14 }} />
                 </EditButton>
+              )}
+              {addToVocabulary && (
+                <AddToVocabButton
+                  size="small"
+                  onClick={handleAddToVocabulary}
+                  aria-label="Add to vocabulary"
+                >
+                  <BookmarkAddOutlinedIcon sx={{ fontSize: 14 }} />
+                </AddToVocabButton>
               )}
             </>
           )}
