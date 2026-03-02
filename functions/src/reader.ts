@@ -173,7 +173,7 @@ export const processBookUpload = onObjectFinalized(
         id: bookId,
         userId,
         title: extracted.title || fileName.replace(/\.pdf$/i, ''),
-        author: extracted.author,
+        ...(extracted.author && { author: extracted.author }),
         fileName,
         fileSize,
         fileType: 'pdf',

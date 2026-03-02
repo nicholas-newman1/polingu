@@ -159,6 +159,7 @@ export function ReaderPage() {
     <PageContainer>
       <PdfViewer
         pdfUrl={pdfUrl}
+        bookId={bookId!}
         initialPage={progress.currentPage || 1}
         bookmarks={progress.bookmarks || []}
         onPageChange={handlePdfPageChange}

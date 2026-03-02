@@ -97,6 +97,7 @@ interface WordPosition {
 
 interface PdfViewerProps {
   pdfUrl: string;
+  bookId: string;
   initialPage?: number;
   bookmarks?: number[];
   onPageChange?: (page: number, totalPages: number) => void;
@@ -143,8 +144,17 @@ const ZOOM_STEP = 0.1;
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 3;
 
+function getStoredZoom(bookId: string): number {
+  const stored = localStorage.getItem(`polingu_zoom_${bookId}`);
+  if (!stored) return 1;
+  const value = parseFloat(stored);
+  if (isNaN(value) || value < MIN_ZOOM || value > MAX_ZOOM) return 1;
+  return value;
+}
+
 export function PdfViewer({
   pdfUrl,
+  bookId,
   initialPage = 1,
   bookmarks = [],
   onPageChange,
@@ -157,6 +167,7 @@ export function PdfViewer({
   const [error, setError] = useState<string | null>(null);
   const [words, setWords] = useState<WordPosition[]>([]);
   const [zoom, setZoom] = useState(1);
+  const [initialRenderDone, setInitialRenderDone] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -306,14 +317,28 @@ export function PdfViewer({
       }
 
       setWords(wordPositions);
+      if (!initialRenderDone) setInitialRenderDone(true);
     } catch (err) {
       console.error('Failed to render page:', err);
     }
-  }, [pdf, currentPage, zoom]);
+  }, [pdf, currentPage, zoom, initialRenderDone]);
+
+  const appliedStoredZoomRef = useRef(false);
 
   useEffect(() => {
     renderPage();
   }, [renderPage]);
+
+  useEffect(() => {
+    if (!initialRenderDone || !appliedStoredZoomRef.current) return;
+    appliedStoredZoomRef.current = true;
+    const storedZoom = getStoredZoom(bookId);
+    if (storedZoom !== 1) setZoom(storedZoom);
+  }, [initialRenderDone, bookId]);
+
+  useEffect(() => {
+    if (initialRenderDone) localStorage.setItem(`polingu_zoom_${bookId}`, String(zoom));
+  }, [zoom, bookId, initialRenderDone]);
 
   const onPageChangeRef = useRef(onPageChange);
   onPageChangeRef.current = onPageChange;

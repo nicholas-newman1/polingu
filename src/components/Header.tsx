@@ -22,6 +22,9 @@ import { alpha } from '../lib/theme';
 const PageTitle = styled(Typography)({
   fontWeight: 600,
   fontSize: '1.1rem',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
 });
 
 const GuestChip = styled(Chip)(({ theme }) => ({
@@ -102,7 +105,7 @@ export function Header({ user, onSignOut, pageTitle, backPath }: HeaderProps) {
       justifyContent="space-between"
       sx={{ width: '100%' }}
     >
-      <Stack direction="row" alignItems="center">
+      <Stack direction="row" alignItems="center" sx={{ minWidth: 0, overflow: 'hidden', flex: 1 }}>
         {backPath && (
           <BackButton size="small" onClick={() => navigate(backPath)}>
             <ArrowBack fontSize="small" />

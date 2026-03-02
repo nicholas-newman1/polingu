@@ -9,7 +9,7 @@ import { Storage } from '@google-cloud/storage';
 
 initializeApp();
 
-export { processBookUpload, deleteBook, renameBook, getStorageUsage } from './reader.js';
+export { processBookUpload, deleteBook, getStorageUsage } from './reader.js';
 const db = getFirestore();
 const ttsClient = new TextToSpeechClient();
 const storage = new Storage();
