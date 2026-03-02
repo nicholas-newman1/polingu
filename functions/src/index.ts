@@ -32,7 +32,7 @@ const GEMINI_VOICE = {
 const VOICE_PROMPT = 'Read aloud in a normal, neutral tone.';
 
 const MAX_TEXT_LENGTH = 500;
-const MAX_REQUESTS_PER_MINUTE = 30;
+const MAX_REQUESTS_PER_MINUTE = 120;
 const MAX_CHARS_PER_DAY = 1500;
 
 function stripMarkdownCodeFences(content: string): string {
@@ -155,15 +155,18 @@ export const translate = onCall<TranslateRequest, Promise<TranslateResponse>>(
       throw new HttpsError('invalid-argument', 'Context too long.');
     }
 
+    const isAdmin = !!request.auth?.token?.admin;
     const rateLimitData = await getRateLimitDoc(userId);
     const resetTime = getNextMidnightUTC();
 
-    if (!checkMinuteRateLimit(rateLimitData.recentRequests)) {
-      throw new HttpsError('resource-exhausted', 'RATE_LIMIT_MINUTE');
-    }
+    if (!isAdmin) {
+      if (!checkMinuteRateLimit(rateLimitData.recentRequests)) {
+        throw new HttpsError('resource-exhausted', 'RATE_LIMIT_MINUTE');
+      }
 
-    if (rateLimitData.dailyCharsUsed + text.length > MAX_CHARS_PER_DAY) {
-      throw new HttpsError('resource-exhausted', `RATE_LIMIT_DAILY:${resetTime}`);
+      if (rateLimitData.dailyCharsUsed + text.length > MAX_CHARS_PER_DAY) {
+        throw new HttpsError('resource-exhausted', `RATE_LIMIT_DAILY:${resetTime}`);
+      }
     }
 
     const apiKey = deeplApiKey.value();

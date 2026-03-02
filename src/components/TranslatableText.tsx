@@ -5,6 +5,7 @@ import { styled } from '../lib/styled';
 import { TranslatableTextProvider } from '../contexts/TranslatableTextContext';
 import { useTranslatableText } from '../hooks/useTranslatableText';
 import { useAddToVocabulary } from '../hooks/useAddToVocabulary';
+import { useSnackbar } from '../hooks/useSnackbar';
 import { translate, RateLimitMinuteError, RateLimitDailyError } from '../lib/translate';
 import { TooltipContent, WordTooltipPopper } from './shared';
 
@@ -48,6 +49,7 @@ function PhraseTooltip({
 }: PhraseTooltipProps) {
   const context = useTranslatableText();
   const addToVocabulary = useAddToVocabulary();
+  const { showSnackbar } = useSnackbar();
   const [translation, setTranslation] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -94,11 +96,13 @@ function PhraseTooltip({
       } catch (err) {
         if (err instanceof RateLimitMinuteError) {
           setError('Too many requests');
+          showSnackbar('Too many requests. Please wait a moment.', 'warning');
         } else if (err instanceof RateLimitDailyError) {
           closePhraseTooltip?.();
           onDailyLimitReached?.(err.resetTime);
         } else {
           setError('Translation failed');
+          showSnackbar('Translation failed. Please try again.', 'error');
         }
       } finally {
         setLoading(false);
@@ -115,6 +119,7 @@ function PhraseTooltip({
     onDailyLimitReached,
     onUpdateTranslation,
     closePhraseTooltip,
+    showSnackbar,
   ]);
 
   useEffect(() => {

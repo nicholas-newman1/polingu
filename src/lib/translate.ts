@@ -79,6 +79,14 @@ export async function translate(
       throw new RateLimitDailyError(resetTime);
     }
 
+    if (firebaseError.code === 'functions/resource-exhausted') {
+      if (firebaseError.message?.startsWith('RATE_LIMIT_DAILY:')) {
+        const resetTime = firebaseError.message.substring('RATE_LIMIT_DAILY:'.length);
+        throw new RateLimitDailyError(resetTime);
+      }
+      throw new RateLimitMinuteError();
+    }
+
     throw error;
   }
 }

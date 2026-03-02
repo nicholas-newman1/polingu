@@ -15,6 +15,7 @@ import {
 } from './shared';
 import { useTranslatableText } from '../hooks/useTranslatableText';
 import { useAddToVocabulary } from '../hooks/useAddToVocabulary';
+import { useSnackbar } from '../hooks/useSnackbar';
 
 const EditButton = styled(IconButton)(({ theme }) => ({
   padding: 2,
@@ -126,6 +127,7 @@ export function TranslatableWord({
 
   const dragContext = useTranslatableText();
   const addToVocabulary = useAddToVocabulary();
+  const { showSnackbar } = useSnackbar();
   const isDragEnabled = dragContext !== null && wordIndex !== undefined;
   const isSelected = isDragEnabled && dragContext.selectedIndices.has(wordIndex);
   const isDragging = isDragEnabled && dragContext.isDragging;
@@ -191,11 +193,13 @@ export function TranslatableWord({
     } catch (err) {
       if (err instanceof RateLimitMinuteError) {
         setError('Too many requests');
+        showSnackbar('Too many requests. Please wait a moment.', 'warning');
       } else if (err instanceof RateLimitDailyError) {
         setIsClicked(false);
         onDailyLimitReached?.(err.resetTime);
       } else {
         setError('Translation failed');
+        showSnackbar('Translation failed. Please try again.', 'error');
       }
     } finally {
       setLoading(false);
@@ -210,6 +214,7 @@ export function TranslatableWord({
     translation,
     loading,
     setIsClicked,
+    showSnackbar,
   ]);
 
   const handleStartEdit = () => {
