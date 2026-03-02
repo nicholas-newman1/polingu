@@ -162,6 +162,7 @@ export function PdfViewer({
   const containerRef = useRef<HTMLDivElement>(null);
   const initialPageRef = useRef(initialPage);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const isWordDragRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -348,11 +349,18 @@ export function PdfViewer({
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     const touch = e.touches[0];
     touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+    const target = e.target as HTMLElement;
+    isWordDragRef.current =
+      target.hasAttribute('data-word-index') || target.closest('[data-word-index]') !== null;
   }, []);
 
   const handleTouchEnd = useCallback(
     (e: React.TouchEvent) => {
-      if (!touchStartRef.current) return;
+      if (!touchStartRef.current || isWordDragRef.current) {
+        touchStartRef.current = null;
+        isWordDragRef.current = false;
+        return;
+      }
 
       const touch = e.changedTouches[0];
       const deltaX = touch.clientX - touchStartRef.current.x;
@@ -369,6 +377,7 @@ export function PdfViewer({
       }
 
       touchStartRef.current = null;
+      isWordDragRef.current = false;
     },
     [currentPage, goToPage]
   );
