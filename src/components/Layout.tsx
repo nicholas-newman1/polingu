@@ -386,7 +386,7 @@ function LayoutContent() {
           <MenuButton onClick={() => setMobileDrawerOpen(true)} size="small">
             <Menu />
           </MenuButton>
-          <Box sx={{ flex: 1 }}>
+          <Box sx={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
             <Header
               user={user}
               onSignOut={handleSignOut}
