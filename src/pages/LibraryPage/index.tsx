@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -287,8 +287,15 @@ export function LibraryPage() {
     setMenuAnchor(null);
   };
 
-  const readyBooks = books.filter((b) => b.status === 'ready');
   const processingBooks = books.filter((b) => b.status === 'processing');
+  const sortedReadyBooks = useMemo(() => {
+    const ready = books.filter((b) => b.status === 'ready');
+    return [...ready].sort((a, b) => {
+      const aLastRead = progressMap[a.id]?.lastReadAt ?? 0;
+      const bLastRead = progressMap[b.id]?.lastReadAt ?? 0;
+      return bLastRead - aLastRead;
+    });
+  }, [books, progressMap]);
 
   if (loading) {
     return (
@@ -340,7 +347,7 @@ export function LibraryPage() {
           </BookCard>
         ))}
 
-        {readyBooks.map((book) => {
+        {sortedReadyBooks.map((book) => {
           const progress = progressMap[book.id];
           const percentage =
             progress && book.pageCount
@@ -366,7 +373,16 @@ export function LibraryPage() {
                   <MenuBookIcon sx={{ fontSize: 48 }} />
                 </BookCover>
                 <CardContent sx={{ py: 1.5 }}>
-                  <Typography variant="body2" fontWeight={500} noWrap>
+                  <Typography
+                    variant="subtitle1"
+                    fontWeight={600}
+                    sx={{
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden',
+                    }}
+                  >
                     {book.title}
                   </Typography>
                   {book.author && (

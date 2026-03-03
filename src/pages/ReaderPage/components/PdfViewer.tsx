@@ -166,7 +166,7 @@ export function PdfViewer({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [words, setWords] = useState<WordPosition[]>([]);
-  const [zoom, setZoom] = useState(1);
+  const [zoom, setZoom] = useState(() => getStoredZoom(bookId));
   const [initialRenderDone, setInitialRenderDone] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -323,18 +323,9 @@ export function PdfViewer({
     }
   }, [pdf, currentPage, zoom, initialRenderDone]);
 
-  const appliedStoredZoomRef = useRef(false);
-
   useEffect(() => {
     renderPage();
   }, [renderPage]);
-
-  useEffect(() => {
-    if (!initialRenderDone || !appliedStoredZoomRef.current) return;
-    appliedStoredZoomRef.current = true;
-    const storedZoom = getStoredZoom(bookId);
-    if (storedZoom !== 1) setZoom(storedZoom);
-  }, [initialRenderDone, bookId]);
 
   useEffect(() => {
     if (initialRenderDone) localStorage.setItem(`polingu_zoom_${bookId}`, String(zoom));

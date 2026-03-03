@@ -74,14 +74,16 @@ export function ReaderPage() {
         ]);
 
         setPdfUrl(url);
-        setProgress(
-          progressData || {
-            bookId,
-            currentPage: 1,
-            scrollPercent: 0,
-            lastReadAt: Date.now(),
-          }
-        );
+        const initialProgress = progressData || {
+          bookId,
+          currentPage: 1,
+          scrollPercent: 0,
+          lastReadAt: Date.now(),
+        };
+        setProgress(initialProgress);
+        if (!progressData) {
+          saveReadingProgress(initialProgress);
+        }
       } catch (err) {
         console.error('Failed to load book:', err);
         setError('Failed to load book');

@@ -69,9 +69,19 @@ export function TranslatableTextProvider({
     const max = Math.max(dragStart, dragEnd);
 
     const words: string[] = [];
+    let lastAddedIndex: number | null = null;
     for (let i = min; i <= max; i++) {
       const word = wordsRef.current.get(i);
-      if (word) words.push(word);
+      if (!word) continue;
+      if (
+        lastAddedIndex !== null &&
+        i === lastAddedIndex + 1 &&
+        word === words[words.length - 1]
+      ) {
+        continue;
+      }
+      words.push(word);
+      lastAddedIndex = i;
     }
     return words.join(' ');
   }, [dragStart, dragEnd]);
