@@ -3,6 +3,7 @@ import { signInWithPopup, signOut as firebaseSignOut, onAuthStateChanged } from 
 import type { User } from 'firebase/auth';
 import { auth, googleProvider } from '../lib/firebase';
 import { getCachedUser, setCachedUser } from '../lib/cachedAuth';
+import { clearUserData } from '../lib/offlineDb/userSync';
 
 export interface AuthContextType {
   user: User | null;
@@ -64,6 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     await firebaseSignOut(auth);
+    await clearUserData();
   };
 
   return (

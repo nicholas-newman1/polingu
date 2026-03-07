@@ -71,6 +71,7 @@ export function TranslatorModal() {
   const [error, setError] = useState<string | null>(null);
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const handleClose = useCallback(() => {
     setText('');
@@ -80,6 +81,12 @@ export function TranslatorModal() {
   }, [onClose]);
 
   useBackClose(open, handleClose);
+
+  useEffect(() => {
+    if (open) {
+      setTimeout(() => inputRef.current?.focus(), 100);
+    }
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -148,6 +155,7 @@ export function TranslatorModal() {
     if (result) setText(result);
     setResult('');
     setError(null);
+    inputRef.current?.focus();
   };
 
   return (
@@ -169,6 +177,7 @@ export function TranslatorModal() {
           onChange={(e) => setText(e.target.value)}
           fullWidth
           autoFocus
+          inputRef={inputRef}
           inputProps={{
             maxLength: MAX_TEXT_LENGTH,
             style: {

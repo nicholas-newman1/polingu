@@ -22,22 +22,6 @@ export async function saveUserData(key: string, data: unknown): Promise<void> {
 }
 
 /**
- * Load user data from local IndexedDB (instant, works offline)
- */
-export async function loadUserData<T>(key: string): Promise<T | null> {
-  const record = await userDb.userData.get(key);
-  return (record?.data as T) ?? null;
-}
-
-/**
- * Check if we have any cached user data for a key
- */
-export async function hasUserData(key: string): Promise<boolean> {
-  const record = await userDb.userData.get(key);
-  return record !== undefined;
-}
-
-/**
  * Sync a single record to Firestore
  */
 async function syncSingleRecord(key: string): Promise<void> {

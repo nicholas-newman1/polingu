@@ -13,7 +13,6 @@ export {
 export { userDb } from './userDb';
 export {
   saveUserData,
-  loadUserData,
   syncAllPendingUserData,
   pullUserDataFromFirestore,
   clearUserData,

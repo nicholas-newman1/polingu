@@ -4,6 +4,7 @@ import type { VocabularyWord } from '../../types/vocabulary';
 import type { Sentence } from '../../types/sentences';
 import type { Verb } from '../../types/conjugation';
 import { getUserId } from '../../lib/storage/helpers';
+import { useAuthContext } from '../../hooks/useAuthContext';
 import {
   hasCachedContent,
   loadCachedContent,
@@ -37,11 +38,11 @@ export interface ReviewDataProviderProps {
 }
 
 interface LoadedData {
-  declensionData: Awaited<ReturnType<typeof loadDeclensionData>>;
-  vocabularyData: Awaited<ReturnType<typeof loadVocabularyData>>;
-  sentenceData: Awaited<ReturnType<typeof loadSentenceData>>;
-  conjugationData: Awaited<ReturnType<typeof loadConjugationData>>;
-  aspectPairsData: Awaited<ReturnType<typeof loadAspectPairsData>>;
+  declensionData?: Awaited<ReturnType<typeof loadDeclensionData>>;
+  vocabularyData?: Awaited<ReturnType<typeof loadVocabularyData>>;
+  sentenceData?: Awaited<ReturnType<typeof loadSentenceData>>;
+  conjugationData?: Awaited<ReturnType<typeof loadConjugationData>>;
+  aspectPairsData?: Awaited<ReturnType<typeof loadAspectPairsData>>;
   systemDeclensionCards: DeclensionCard[];
   systemWords: VocabularyWord[];
   systemSentences: Sentence[];
@@ -49,6 +50,7 @@ interface LoadedData {
 }
 
 export function ReviewDataProvider({ children }: ReviewDataProviderProps) {
+  const { user } = useAuthContext();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<LoadedData | null>(null);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
@@ -115,49 +117,61 @@ export function ReviewDataProvider({ children }: ReviewDataProviderProps) {
     }
   }, []);
 
-  const loadAllData = useCallback(async () => {
+  const fetchAllData = useCallback(async (): Promise<LoadedData> => {
     const userId = getUserId();
-    if (!userId) {
-      setLoading(false);
-      return;
+
+    if (userId) {
+      const [
+        loadedDeclensionData,
+        loadedVocabularyData,
+        loadedSentenceData,
+        loadedConjugationData,
+        loadedAspectPairsData,
+        contentData,
+      ] = await Promise.all([
+        loadDeclensionData(),
+        loadVocabularyData(),
+        loadSentenceData(),
+        loadConjugationData(),
+        loadAspectPairsData(),
+        loadContentData(),
+      ]);
+
+      return {
+        declensionData: loadedDeclensionData,
+        vocabularyData: loadedVocabularyData,
+        sentenceData: loadedSentenceData,
+        conjugationData: loadedConjugationData,
+        aspectPairsData: loadedAspectPairsData,
+        ...contentData,
+      };
     }
 
-    setLoading(true);
-
-    // Load user review data and content data in parallel
-    const [
-      loadedDeclensionData,
-      loadedVocabularyData,
-      loadedSentenceData,
-      loadedConjugationData,
-      loadedAspectPairsData,
-      contentData,
-    ] = await Promise.all([
-      loadDeclensionData(),
-      loadVocabularyData(),
-      loadSentenceData(),
-      loadConjugationData(),
-      loadAspectPairsData(),
-      loadContentData(),
-    ]);
-
-    setData({
-      declensionData: loadedDeclensionData,
-      vocabularyData: loadedVocabularyData,
-      sentenceData: loadedSentenceData,
-      conjugationData: loadedConjugationData,
-      aspectPairsData: loadedAspectPairsData,
-      ...contentData,
-    });
-
-    setLoading(false);
-    setInitialLoadComplete(true);
+    return await loadContentData();
   }, [loadContentData]);
 
+  const [prevUid, setPrevUid] = useState(user?.uid);
+  if (prevUid !== user?.uid) {
+    setPrevUid(user?.uid);
+    setData(null);
+    setLoading(true);
+  }
+
   useEffect(() => {
-    void loadAllData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    let active = true;
+
+    fetchAllData().then((result) => {
+      if (active) {
+        setData(result);
+        setLoading(false);
+        setInitialLoadComplete(true);
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [user?.uid, fetchAllData]);
 
   // Re-sync content when coming back online (only after initial load)
   useEffect(() => {
@@ -191,37 +205,37 @@ export function ReviewDataProvider({ children }: ReviewDataProviderProps) {
   return (
     <DeclensionProvider
       key={`declension-${key}`}
-      initialCustomCards={data?.declensionData.customCards}
+      initialCustomCards={data?.declensionData?.customCards}
       initialSystemCards={data?.systemDeclensionCards}
-      initialReviewStore={data?.declensionData.reviewData}
-      initialSettings={data?.declensionData.settings}
+      initialReviewStore={data?.declensionData?.reviewData}
+      initialSettings={data?.declensionData?.settings}
     >
       <VocabularyProvider
         key={`vocabulary-${key}`}
-        initialCustomWords={data?.vocabularyData.customWords}
+        initialCustomWords={data?.vocabularyData?.customWords}
         initialSystemWords={data?.systemWords}
-        initialReviewStores={data?.vocabularyData.reviewStores}
-        initialSettings={data?.vocabularyData.settings}
+        initialReviewStores={data?.vocabularyData?.reviewStores}
+        initialSettings={data?.vocabularyData?.settings}
       >
         <SentenceProvider
           key={`sentence-${key}`}
-          initialCustomSentences={data?.sentenceData.customSentences}
+          initialCustomSentences={data?.sentenceData?.customSentences}
           initialSystemSentences={data?.systemSentences}
-          initialReviewStores={data?.sentenceData.reviewStores}
-          initialSettings={data?.sentenceData.settings}
-          initialTags={data?.sentenceData.tags}
+          initialReviewStores={data?.sentenceData?.reviewStores}
+          initialSettings={data?.sentenceData?.settings}
+          initialTags={data?.sentenceData?.tags}
         >
           <ConjugationProvider
             key={`conjugation-${key}`}
             initialVerbs={data?.verbs}
-            initialReviewStores={data?.conjugationData.reviewStores}
-            initialSettings={data?.conjugationData.settings}
+            initialReviewStores={data?.conjugationData?.reviewStores}
+            initialSettings={data?.conjugationData?.settings}
           >
             <AspectPairsProvider
               key={`aspectPairs-${key}`}
               verbs={data?.verbs ?? []}
-              initialReviewStore={data?.aspectPairsData.reviewData}
-              initialSettings={data?.aspectPairsData.settings}
+              initialReviewStore={data?.aspectPairsData?.reviewData}
+              initialSettings={data?.aspectPairsData?.settings}
             >
               <ReviewCountsProvider loading={loading}>{children}</ReviewCountsProvider>
             </AspectPairsProvider>
