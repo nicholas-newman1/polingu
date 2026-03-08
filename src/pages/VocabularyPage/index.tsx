@@ -111,6 +111,7 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
     historyCard,
     canGoBack,
     addToHistory,
+    updateInHistory,
     goBack,
     goForward,
     clearHistory,
@@ -316,6 +317,10 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
     );
     setPracticeCards((prev) =>
       prev.map((word) => (word.id === wordId ? { ...word, ...updates } : word))
+    );
+    updateInHistory(
+      (w) => w.id === wordId,
+      (w) => ({ ...w, ...updates })
     );
   };
 
@@ -566,13 +571,17 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
                       : 'Are you sure you want to delete this system vocabulary word? This will affect all users.';
                     if (!window.confirm(confirmMessage)) return;
                     if (isCustomWord) {
-                      const newCustomWords = customWords.filter((w) => w.id !== currentPracticeWord.id);
+                      const newCustomWords = customWords.filter(
+                        (w) => w.id !== currentPracticeWord.id
+                      );
                       applyOptimisticCustomWords(newCustomWords, async () => {
                         await saveCustomVocabulary(newCustomWords);
                         setContextCustomWords(newCustomWords);
                       });
                     } else {
-                      const newSystemWords = systemWords.filter((w) => w.id !== currentPracticeWord.id);
+                      const newSystemWords = systemWords.filter(
+                        (w) => w.id !== currentPracticeWord.id
+                      );
                       applyOptimisticSystemWords(newSystemWords, async () => {
                         await deleteSystemVocabularyWord(currentPracticeWord.id as number);
                         setContextSystemWords(newSystemWords);

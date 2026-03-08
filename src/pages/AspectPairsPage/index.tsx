@@ -91,6 +91,7 @@ export function AspectPairsPage() {
     historyCard,
     canGoBack,
     addToHistory,
+    updateInHistory,
     goBack,
     goForward,
     clearHistory,
@@ -237,31 +238,37 @@ export function AspectPairsPage() {
     setShowEditModal(true);
   }, [currentSessionCard]);
 
-  const updateCardInQueues = (
-    verb1Id: string,
-    verb2Id: string,
-    updatedVerb1: Verb,
-    updatedVerb2: Verb
-  ) => {
-    const updateCard = (card: AspectPairCard): AspectPairCard => {
-      let newCard = card;
-      if (card.verb.id === verb1Id) {
-        newCard = { ...newCard, verb: updatedVerb1 };
-      } else if (card.verb.id === verb2Id) {
-        newCard = { ...newCard, verb: updatedVerb2 };
-      }
-      if (card.pairVerb.id === verb1Id) {
-        newCard = { ...newCard, pairVerb: updatedVerb1 };
-      } else if (card.pairVerb.id === verb2Id) {
-        newCard = { ...newCard, pairVerb: updatedVerb2 };
-      }
-      return newCard;
-    };
+  const updateCardInQueues = useCallback(
+    (verb1Id: string, verb2Id: string, updatedVerb1: Verb, updatedVerb2: Verb) => {
+      const updateCard = (card: AspectPairCard): AspectPairCard => {
+        let newCard = card;
+        if (card.verb.id === verb1Id) {
+          newCard = { ...newCard, verb: updatedVerb1 };
+        } else if (card.verb.id === verb2Id) {
+          newCard = { ...newCard, verb: updatedVerb2 };
+        }
+        if (card.pairVerb.id === verb1Id) {
+          newCard = { ...newCard, pairVerb: updatedVerb1 };
+        } else if (card.pairVerb.id === verb2Id) {
+          newCard = { ...newCard, pairVerb: updatedVerb2 };
+        }
+        return newCard;
+      };
 
-    setSessionQueue((prev) => prev.map((item) => ({ ...item, card: updateCard(item.card) })));
-    setLearningQueue((prev) => prev.map((item) => ({ ...item, card: updateCard(item.card) })));
-    setPracticeCards((prev) => prev.map(updateCard));
-  };
+      setSessionQueue((prev) => prev.map((item) => ({ ...item, card: updateCard(item.card) })));
+      setLearningQueue((prev) => prev.map((item) => ({ ...item, card: updateCard(item.card) })));
+      setPracticeCards((prev) => prev.map(updateCard));
+      updateInHistory(
+        (c) =>
+          c.verb.id === verb1Id ||
+          c.verb.id === verb2Id ||
+          c.pairVerb.id === verb1Id ||
+          c.pairVerb.id === verb2Id,
+        updateCard
+      );
+    },
+    [updateInHistory]
+  );
 
   const removeCardFromQueues = (verb1Id: string, verb2Id: string) => {
     const shouldRemove = (card: AspectPairCard) =>
@@ -313,7 +320,7 @@ export function AspectPairsPage() {
         setContextVerbs(newVerbs);
       });
     },
-    [editingCard, verbs, applyOptimisticVerbs, setContextVerbs]
+    [editingCard, verbs, applyOptimisticVerbs, setContextVerbs, updateCardInQueues]
   );
 
   const handleUnlinkPair = useCallback(() => {

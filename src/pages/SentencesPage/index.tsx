@@ -112,6 +112,7 @@ export function SentencesPage({ mode }: SentencesPageProps) {
     historyCard,
     canGoBack,
     addToHistory,
+    updateInHistory,
     goBack,
     goForward,
     clearHistory,
@@ -319,19 +320,26 @@ export function SentencesPage({ mode }: SentencesPageProps) {
     setShowEditModal(true);
   }, [currentSessionCard]);
 
-  const updateSentenceInQueues = (sentenceId: string, updatedSentence: Sentence) => {
-    setSessionQueue((prev) =>
-      prev.map((item) =>
-        item.sentence.id === sentenceId ? { ...item, sentence: updatedSentence } : item
-      )
-    );
-    setLearningQueue((prev) =>
-      prev.map((item) =>
-        item.sentence.id === sentenceId ? { ...item, sentence: updatedSentence } : item
-      )
-    );
-    setPracticeCards((prev) => prev.map((s) => (s.id === sentenceId ? updatedSentence : s)));
-  };
+  const updateSentenceInQueues = useCallback(
+    (sentenceId: string, updatedSentence: Sentence) => {
+      setSessionQueue((prev) =>
+        prev.map((item) =>
+          item.sentence.id === sentenceId ? { ...item, sentence: updatedSentence } : item
+        )
+      );
+      setLearningQueue((prev) =>
+        prev.map((item) =>
+          item.sentence.id === sentenceId ? { ...item, sentence: updatedSentence } : item
+        )
+      );
+      setPracticeCards((prev) => prev.map((s) => (s.id === sentenceId ? updatedSentence : s)));
+      updateInHistory(
+        (s) => s.id === sentenceId,
+        () => updatedSentence
+      );
+    },
+    [updateInHistory]
+  );
 
   const removeSentenceFromQueues = (sentenceId: string) => {
     setSessionQueue((prev) => prev.filter((item) => item.sentence.id !== sentenceId));
@@ -391,7 +399,13 @@ export function SentencesPage({ mode }: SentencesPageProps) {
         setContextSentences(newSentences);
       });
     },
-    [editingSentence, sentences, applyOptimisticSentences, setContextSentences]
+    [
+      editingSentence,
+      sentences,
+      applyOptimisticSentences,
+      setContextSentences,
+      updateSentenceInQueues,
+    ]
   );
 
   const handleDeleteSentence = useCallback(() => {
@@ -425,7 +439,7 @@ export function SentencesPage({ mode }: SentencesPageProps) {
         setContextSentences(newSentences);
       });
     },
-    [sentences, applyOptimisticSentences, setContextSentences]
+    [sentences, applyOptimisticSentences, setContextSentences, updateSentenceInQueues]
   );
 
   const intervals: RatingIntervals = useMemo(() => {
@@ -552,7 +566,9 @@ export function SentencesPage({ mode }: SentencesPageProps) {
                   }}
                   onDelete={() => {
                     if (window.confirm('Are you sure you want to delete this sentence?')) {
-                      const newSentences = sentences.filter((s) => s.id !== currentPracticeSentence.id);
+                      const newSentences = sentences.filter(
+                        (s) => s.id !== currentPracticeSentence.id
+                      );
                       removeSentenceFromQueues(currentPracticeSentence.id);
                       applyOptimisticSentences(newSentences, async () => {
                         await deleteSentence(currentPracticeSentence.id);

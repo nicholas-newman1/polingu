@@ -125,6 +125,7 @@ export function DeclensionPage() {
     historyCard,
     canGoBack,
     addToHistory,
+    updateInHistory,
     goBack,
     goForward,
     clearHistory,
@@ -351,15 +352,22 @@ export function DeclensionPage() {
     setShowEditModal(true);
   }, []);
 
-  const updateCardInQueues = (cardId: DeclensionCard['id'], updatedCard: DeclensionCard) => {
-    setSessionQueue((prev) =>
-      prev.map((item) => (item.card.id === cardId ? { ...item, card: updatedCard } : item))
-    );
-    setLearningQueue((prev) =>
-      prev.map((item) => (item.card.id === cardId ? { ...item, card: updatedCard } : item))
-    );
-    setPracticeCards((prev) => prev.map((card) => (card.id === cardId ? updatedCard : card)));
-  };
+  const updateCardInQueues = useCallback(
+    (cardId: DeclensionCard['id'], updatedCard: DeclensionCard) => {
+      setSessionQueue((prev) =>
+        prev.map((item) => (item.card.id === cardId ? { ...item, card: updatedCard } : item))
+      );
+      setLearningQueue((prev) =>
+        prev.map((item) => (item.card.id === cardId ? { ...item, card: updatedCard } : item))
+      );
+      setPracticeCards((prev) => prev.map((card) => (card.id === cardId ? updatedCard : card)));
+      updateInHistory(
+        (c) => c.id === cardId,
+        () => updatedCard
+      );
+    },
+    [updateInHistory]
+  );
 
   const removeCardFromQueues = (cardId: DeclensionCard['id']) => {
     setSessionQueue((prev) => prev.filter((item) => item.card.id !== cardId));
@@ -425,6 +433,7 @@ export function DeclensionPage() {
       buildSession,
       reviewStore,
       settings,
+      updateCardInQueues,
     ]
   );
 
@@ -487,6 +496,7 @@ export function DeclensionPage() {
       applyOptimisticSystemCards,
       setContextCustomDeclensionCards,
       setContextSystemDeclensionCards,
+      updateCardInQueues,
     ]
   );
 

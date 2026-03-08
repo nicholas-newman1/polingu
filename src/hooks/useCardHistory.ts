@@ -7,6 +7,7 @@ export interface CardHistoryState<T> {
 
 export interface CardHistoryActions<T> {
   addToHistory: (card: T) => void;
+  updateInHistory: (predicate: (item: T) => boolean, updater: (item: T) => T) => void;
   goBack: () => void;
   goForward: () => void;
   clearHistory: () => void;
@@ -32,6 +33,13 @@ export function useCardHistory<T>(): CardHistoryResult<T> {
     setHistory((prev) => [...prev, card]);
     setHistoryIndex(null);
   }, []);
+
+  const updateInHistory = useCallback(
+    (predicate: (item: T) => boolean, updater: (item: T) => T) => {
+      setHistory((prev) => prev.map((item) => (predicate(item) ? updater(item) : item)));
+    },
+    []
+  );
 
   const goBack = useCallback(() => {
     if (!canGoBack) return;
@@ -66,6 +74,7 @@ export function useCardHistory<T>(): CardHistoryResult<T> {
     canGoBack,
     canGoForward,
     addToHistory,
+    updateInHistory,
     goBack,
     goForward,
     clearHistory,

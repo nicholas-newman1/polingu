@@ -107,6 +107,7 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
     historyCard,
     canGoBack,
     addToHistory,
+    updateInHistory,
     goBack,
     goForward,
     clearHistory,
@@ -341,45 +342,52 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
     setShowEditModal(true);
   }, [currentSessionCard]);
 
-  const updateFormInQueues = (verbId: string, updatedVerb: Verb) => {
-    // Update session queue
-    setSessionQueue((prev) =>
-      prev.map((item) => {
-        if (item.form.verb.id === verbId) {
-          const updatedForms = getDrillableFormsForVerb(updatedVerb);
-          const matchingForm = updatedForms.find((f) => f.fullFormKey === item.form.fullFormKey);
-          if (matchingForm) {
-            return { ...item, form: matchingForm };
+  const updateFormInQueues = useCallback(
+    (verbId: string, updatedVerb: Verb) => {
+      setSessionQueue((prev) =>
+        prev.map((item) => {
+          if (item.form.verb.id === verbId) {
+            const updatedForms = getDrillableFormsForVerb(updatedVerb);
+            const matchingForm = updatedForms.find((f) => f.fullFormKey === item.form.fullFormKey);
+            if (matchingForm) {
+              return { ...item, form: matchingForm };
+            }
           }
-        }
-        return item;
-      })
-    );
-    // Update learning queue
-    setLearningQueue((prev) =>
-      prev.map((item) => {
-        if (item.form.verb.id === verbId) {
-          const updatedForms = getDrillableFormsForVerb(updatedVerb);
-          const matchingForm = updatedForms.find((f) => f.fullFormKey === item.form.fullFormKey);
-          if (matchingForm) {
-            return { ...item, form: matchingForm };
+          return item;
+        })
+      );
+      setLearningQueue((prev) =>
+        prev.map((item) => {
+          if (item.form.verb.id === verbId) {
+            const updatedForms = getDrillableFormsForVerb(updatedVerb);
+            const matchingForm = updatedForms.find((f) => f.fullFormKey === item.form.fullFormKey);
+            if (matchingForm) {
+              return { ...item, form: matchingForm };
+            }
           }
-        }
-        return item;
-      })
-    );
-    // Update practice cards
-    setPracticeCards((prev) =>
-      prev.map((form) => {
-        if (form.verb.id === verbId) {
+          return item;
+        })
+      );
+      setPracticeCards((prev) =>
+        prev.map((form) => {
+          if (form.verb.id === verbId) {
+            const updatedForms = getDrillableFormsForVerb(updatedVerb);
+            const matchingForm = updatedForms.find((f) => f.fullFormKey === form.fullFormKey);
+            return matchingForm || form;
+          }
+          return form;
+        })
+      );
+      updateInHistory(
+        (form) => form.verb.id === verbId,
+        (form) => {
           const updatedForms = getDrillableFormsForVerb(updatedVerb);
-          const matchingForm = updatedForms.find((f) => f.fullFormKey === form.fullFormKey);
-          return matchingForm || form;
+          return updatedForms.find((f) => f.fullFormKey === form.fullFormKey) || form;
         }
-        return form;
-      })
-    );
-  };
+      );
+    },
+    [updateInHistory]
+  );
 
   const removeVerbFromQueues = (verbId: string) => {
     setSessionQueue((prev) => prev.filter((item) => item.form.verb.id !== verbId));
@@ -435,7 +443,7 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
         setContextVerbs(newVerbs);
       });
     },
-    [editingForm, verbs, applyOptimisticVerbs, setContextVerbs]
+    [editingForm, verbs, applyOptimisticVerbs, setContextVerbs, updateFormInQueues]
   );
 
   const handleDeleteVerb = useCallback(() => {
