@@ -1,30 +1,47 @@
-import { IconButton } from '@mui/material';
-import { VolumeUp } from '@mui/icons-material';
+import { Box, IconButton, Tooltip } from '@mui/material';
+import { PlayArrow, Stop, VolumeOff } from '@mui/icons-material';
+import { useAppSettings } from '../contexts/AppSettingsContext';
 
 interface AudioButtonProps {
-  /** Whether audio is currently playing */
   isPlaying: boolean;
-  /** Callback to toggle audio play/stop */
   onToggle: () => void;
-  /** Size of the button */
   size?: 'small' | 'medium';
 }
 
-/**
- * A button to play/stop audio. Shows red when audio is playing.
- */
 export function AudioButton({ isPlaying, onToggle, size = 'small' }: AudioButtonProps) {
+  const { settings, updateSettings } = useAppSettings();
+  const isMuted = !settings.autoPlayAudio;
+
+  const handleToggleMute = () => {
+    updateSettings({ autoPlayAudio: !settings.autoPlayAudio });
+  };
+
   return (
-    <IconButton
-      onClick={onToggle}
-      size={size}
-      sx={{
-        color: isPlaying ? 'error.main' : 'text.secondary',
-        p: 0.5,
-      }}
-      aria-label={isPlaying ? 'Stop audio' : 'Play audio'}
-    >
-      <VolumeUp fontSize={size} />
-    </IconButton>
+    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+      <IconButton
+        onClick={onToggle}
+        size={size}
+        sx={{
+          color: isPlaying ? 'error.main' : 'text.disabled',
+          p: 0.5,
+        }}
+        aria-label={isPlaying ? 'Stop audio' : 'Play audio'}
+      >
+        {isPlaying ? <Stop fontSize={size} /> : <PlayArrow fontSize={size} />}
+      </IconButton>
+      <Tooltip title={isMuted ? 'Enable auto-play' : 'Disable auto-play'}>
+        <IconButton
+          onClick={handleToggleMute}
+          size={size}
+          sx={{
+            color: isMuted ? 'error.main' : 'text.disabled',
+            p: 0.5,
+          }}
+          aria-label={isMuted ? 'Enable auto-play audio' : 'Disable auto-play audio'}
+        >
+          <VolumeOff fontSize={size} />
+        </IconButton>
+      </Tooltip>
+    </Box>
   );
 }
