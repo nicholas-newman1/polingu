@@ -714,6 +714,11 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
         }}
         onSave={editingWord ? handleEditWord : handleAddWord}
         editWord={editingWord}
+        onAudioUpdated={(audioUrl) => {
+          if (editingWord) {
+            updateWordInQueues(editingWord.id, { audioUrl });
+          }
+        }}
       />
     </>
   );
