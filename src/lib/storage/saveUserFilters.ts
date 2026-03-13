@@ -1,6 +1,6 @@
 import type { UserFilters } from '../../types/userFilters';
-import { saveUserDataOfflineFirst } from '../offlineDb/userDataWrapper';
+import { saveUserData } from '../offlineDb/userDataWrapper';
 
 export default async function saveUserFilters(filters: UserFilters): Promise<void> {
-  await saveUserDataOfflineFirst('userFilters', filters);
+  await saveUserData('userFilters', filters);
 }

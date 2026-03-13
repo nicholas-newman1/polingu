@@ -1,10 +1,10 @@
 /**
- * This module provides wrapper functions that integrate IndexedDB-first storage
+ * This module provides wrapper functions that integrate IndexedDB caching
  * with the existing Firestore-based storage functions.
  *
  * The strategy is:
  * - SAVE: Save to IndexedDB immediately, then sync to Firestore in background
- * - LOAD: Load from IndexedDB first, then pull from Firestore if needed
+ * - LOAD: Fetch from Firestore first, fall back to IndexedDB cache if offline
  */
 
 import { doc, getDoc, setDoc } from 'firebase/firestore';
@@ -13,11 +13,10 @@ import { userDb } from './userDb';
 import { getUserId } from '../storage/helpers';
 
 /**
- * Save user data with offline-first strategy
  * 1. Save to IndexedDB immediately (works offline)
  * 2. Sync to Firestore in background if online
  */
-export async function saveUserDataOfflineFirst<T>(
+export async function saveUserData<T>(
   docPath: string,
   data: T,
   serialize?: (data: T) => unknown
@@ -51,11 +50,10 @@ export async function saveUserDataOfflineFirst<T>(
 }
 
 /**
- * Load user data with online-first strategy
  * 1. If online, fetch from Firestore (ensures cross-device sync)
  * 2. If offline, use IndexedDB cache
  */
-export async function loadUserDataOfflineFirst<T>(
+export async function loadUserData<T>(
   docPath: string,
   defaultValue: T,
   deserialize?: (data: unknown) => T

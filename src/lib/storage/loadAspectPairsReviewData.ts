@@ -1,6 +1,6 @@
 import type { AspectPairsReviewDataStore } from '../../types/aspectPairs';
 import { getTodayString, getDefaultAspectPairsReviewStore } from './helpers';
-import { loadUserDataOfflineFirst } from '../offlineDb/userDataWrapper';
+import { loadUserData } from '../offlineDb/userDataWrapper';
 
 function deserializeAspectPairsReviewData(data: unknown): AspectPairsReviewDataStore {
   const parsed = data as AspectPairsReviewDataStore;
@@ -24,7 +24,7 @@ function deserializeAspectPairsReviewData(data: unknown): AspectPairsReviewDataS
 }
 
 export default async function loadAspectPairsReviewData(): Promise<AspectPairsReviewDataStore> {
-  return loadUserDataOfflineFirst(
+  return loadUserData(
     'aspectPairsReviewData',
     getDefaultAspectPairsReviewStore(),
     deserializeAspectPairsReviewData

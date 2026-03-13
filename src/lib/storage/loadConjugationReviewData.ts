@@ -1,7 +1,7 @@
 import type { ConjugationReviewDataStore } from '../../types/conjugation';
 import type { TranslationDirection } from '../../types/common';
 import { getTodayString, getDefaultConjugationReviewStore, getConjugationDocPath } from './helpers';
-import { loadUserDataOfflineFirst } from '../offlineDb/userDataWrapper';
+import { loadUserData } from '../offlineDb/userDataWrapper';
 
 function deserializeConjugationReviewData(data: unknown): ConjugationReviewDataStore {
   const parsed = data as ConjugationReviewDataStore;
@@ -27,7 +27,7 @@ function deserializeConjugationReviewData(data: unknown): ConjugationReviewDataS
 export default async function loadConjugationReviewData(
   direction: TranslationDirection
 ): Promise<ConjugationReviewDataStore> {
-  return loadUserDataOfflineFirst(
+  return loadUserData(
     getConjugationDocPath(direction),
     getDefaultConjugationReviewStore(),
     deserializeConjugationReviewData

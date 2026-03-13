@@ -1,5 +1,5 @@
 import type { AspectPairsReviewDataStore } from '../../types/aspectPairs';
-import { saveUserDataOfflineFirst } from '../offlineDb/userDataWrapper';
+import { saveUserData } from '../offlineDb/userDataWrapper';
 
 function serializeAspectPairsReviewData(data: AspectPairsReviewDataStore): unknown {
   return {
@@ -29,5 +29,5 @@ function serializeAspectPairsReviewData(data: AspectPairsReviewDataStore): unkno
 export default async function saveAspectPairsReviewData(
   data: AspectPairsReviewDataStore
 ): Promise<void> {
-  await saveUserDataOfflineFirst('aspectPairsReviewData', data, serializeAspectPairsReviewData);
+  await saveUserData('aspectPairsReviewData', data, serializeAspectPairsReviewData);
 }

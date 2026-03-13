@@ -1,6 +1,6 @@
 import type { ConjugationSettings, ConjugationDirectionSettings } from '../../types/conjugation';
 import type { TranslationDirection } from '../../types/common';
-import { loadUserDataOfflineFirst } from '../offlineDb/userDataWrapper';
+import { loadUserData } from '../offlineDb/userDataWrapper';
 
 const DEFAULT_DIRECTION_SETTINGS: ConjugationDirectionSettings = {
   newCardsPerDay: 10,
@@ -18,7 +18,7 @@ function getConjugationSettingsDocPath(direction: TranslationDirection): string 
 export async function loadConjugationDirectionSettings(
   direction: TranslationDirection
 ): Promise<ConjugationDirectionSettings> {
-  return loadUserDataOfflineFirst(
+  return loadUserData(
     getConjugationSettingsDocPath(direction),
     DEFAULT_DIRECTION_SETTINGS,
     (data) => ({

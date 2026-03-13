@@ -1,6 +1,6 @@
 import type { DeclensionReviewDataStore } from '../../types';
 import { getTodayString, getDefaultDeclensionReviewStore } from './helpers';
-import { loadUserDataOfflineFirst } from '../offlineDb/userDataWrapper';
+import { loadUserData } from '../offlineDb/userDataWrapper';
 
 function deserializeDeclensionReviewData(data: unknown): DeclensionReviewDataStore {
   const parsed = data as DeclensionReviewDataStore;
@@ -24,7 +24,7 @@ function deserializeDeclensionReviewData(data: unknown): DeclensionReviewDataSto
 }
 
 export default async function loadDeclensionReviewData(): Promise<DeclensionReviewDataStore> {
-  return loadUserDataOfflineFirst(
+  return loadUserData(
     'reviewData',
     getDefaultDeclensionReviewStore(),
     deserializeDeclensionReviewData

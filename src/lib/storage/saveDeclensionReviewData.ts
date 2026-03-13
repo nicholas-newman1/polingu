@@ -1,5 +1,5 @@
 import type { DeclensionReviewDataStore } from '../../types';
-import { saveUserDataOfflineFirst } from '../offlineDb/userDataWrapper';
+import { saveUserData } from '../offlineDb/userDataWrapper';
 
 function serializeDeclensionReviewData(data: DeclensionReviewDataStore): unknown {
   return {
@@ -29,5 +29,5 @@ function serializeDeclensionReviewData(data: DeclensionReviewDataStore): unknown
 export default async function saveDeclensionReviewData(
   data: DeclensionReviewDataStore
 ): Promise<void> {
-  await saveUserDataOfflineFirst('reviewData', data, serializeDeclensionReviewData);
+  await saveUserData('reviewData', data, serializeDeclensionReviewData);
 }

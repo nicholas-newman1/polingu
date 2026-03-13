@@ -13,27 +13,38 @@ export interface ContentData {
   declensionCards: DeclensionCard[];
 }
 
-/**
- * Check if we have any cached content in IndexedDB
- */
-export async function hasCachedContent(): Promise<boolean> {
-  const count = await contentDb.sentences.count();
-  return count > 0;
-}
+const EMPTY_CONTENT: ContentData = {
+  sentences: [],
+  verbs: [],
+  vocabulary: [],
+  declensionCards: [],
+};
 
 /**
- * Get the timestamp of the last successful sync
+ * Load content using online-first strategy:
+ * 1. If online, fetch from Firestore and update IndexedDB cache
+ * 2. If offline or Firestore fails, use IndexedDB cache
  */
-export async function getLastSyncTime(): Promise<number | null> {
-  const meta = await contentDb.meta.get('lastSync');
-  return meta?.value ?? null;
+export async function loadContentData(): Promise<ContentData> {
+  if (navigator.onLine) {
+    try {
+      return await syncContentFromFirestore();
+    } catch (e) {
+      console.error('Failed to load content from Firestore, falling back to cache:', e);
+    }
+  }
+
+  const cached = await loadCachedContent();
+  const hasCached = cached.sentences.length > 0;
+  if (hasCached) return cached;
+
+  if (!navigator.onLine) {
+    console.warn('Offline with no cached content');
+  }
+  return EMPTY_CONTENT;
 }
 
-/**
- * Load all content from local IndexedDB cache
- * This is instant and works offline
- */
-export async function loadCachedContent(): Promise<ContentData> {
+async function loadCachedContent(): Promise<ContentData> {
   const [sentences, verbs, vocabulary, declensionCards] = await Promise.all([
     contentDb.sentences.toArray(),
     contentDb.verbs.toArray(),
@@ -44,8 +55,8 @@ export async function loadCachedContent(): Promise<ContentData> {
 }
 
 /**
- * Sync all content from Firestore to local IndexedDB
- * Returns the synced data
+ * Sync all content from Firestore to local IndexedDB.
+ * Returns the synced data.
  */
 export async function syncContentFromFirestore(): Promise<ContentData> {
   const [sentencesSnap, verbsSnap, vocabSnap, declensionSnap] = await Promise.all([
@@ -62,7 +73,13 @@ export async function syncContentFromFirestore(): Promise<ContentData> {
 
   await contentDb.transaction(
     'rw',
-    [contentDb.sentences, contentDb.verbs, contentDb.vocabulary, contentDb.declensionCards, contentDb.meta],
+    [
+      contentDb.sentences,
+      contentDb.verbs,
+      contentDb.vocabulary,
+      contentDb.declensionCards,
+      contentDb.meta,
+    ],
     async () => {
       // Clear and replace (full sync)
       await contentDb.sentences.clear();
@@ -88,7 +105,13 @@ export async function syncContentFromFirestore(): Promise<ContentData> {
 export async function clearCachedContent(): Promise<void> {
   await contentDb.transaction(
     'rw',
-    [contentDb.sentences, contentDb.verbs, contentDb.vocabulary, contentDb.declensionCards, contentDb.meta],
+    [
+      contentDb.sentences,
+      contentDb.verbs,
+      contentDb.vocabulary,
+      contentDb.declensionCards,
+      contentDb.meta,
+    ],
     async () => {
       await contentDb.sentences.clear();
       await contentDb.verbs.clear();

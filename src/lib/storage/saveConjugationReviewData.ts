@@ -1,7 +1,7 @@
 import type { ConjugationReviewDataStore } from '../../types/conjugation';
 import type { TranslationDirection } from '../../types/common';
 import { getConjugationDocPath } from './helpers';
-import { saveUserDataOfflineFirst } from '../offlineDb/userDataWrapper';
+import { saveUserData } from '../offlineDb/userDataWrapper';
 
 function serializeConjugationReviewData(data: ConjugationReviewDataStore): unknown {
   return {
@@ -32,9 +32,5 @@ export default async function saveConjugationReviewData(
   data: ConjugationReviewDataStore,
   direction: TranslationDirection
 ): Promise<void> {
-  await saveUserDataOfflineFirst(
-    getConjugationDocPath(direction),
-    data,
-    serializeConjugationReviewData
-  );
+  await saveUserData(getConjugationDocPath(direction), data, serializeConjugationReviewData);
 }

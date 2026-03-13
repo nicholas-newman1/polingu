@@ -1,9 +1,9 @@
 import type { UserFilters } from '../../types/userFilters';
 import { DEFAULT_USER_FILTERS } from '../../types/userFilters';
-import { loadUserDataOfflineFirst } from '../offlineDb/userDataWrapper';
+import { loadUserData } from '../offlineDb/userDataWrapper';
 
 export default async function loadUserFilters(): Promise<UserFilters> {
-  return loadUserDataOfflineFirst('userFilters', DEFAULT_USER_FILTERS, (data) => ({
+  return loadUserData('userFilters', DEFAULT_USER_FILTERS, (data) => ({
     ...DEFAULT_USER_FILTERS,
     ...(data as Partial<UserFilters>),
     conjugation: {

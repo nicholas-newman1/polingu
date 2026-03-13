@@ -5,11 +5,7 @@ import type { Sentence } from '../../types/sentences';
 import type { Verb } from '../../types/conjugation';
 import { getUserId } from '../../lib/storage/helpers';
 import { useAuthContext } from '../../hooks/useAuthContext';
-import {
-  hasCachedContent,
-  loadCachedContent,
-  syncContentFromFirestore,
-} from '../../lib/offlineDb/contentSync';
+import { loadContentData } from '../../lib/offlineDb/contentSync';
 import { DeclensionProvider, DeclensionContext, loadDeclensionData } from './DeclensionContext';
 import { VocabularyProvider, VocabularyContext, loadVocabularyData } from './VocabularyContext';
 import { SentenceProvider, SentenceContext, loadSentenceData } from './SentenceContext';
@@ -53,69 +49,6 @@ export function ReviewDataProvider({ children }: ReviewDataProviderProps) {
   const { user } = useAuthContext();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<LoadedData | null>(null);
-  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
-
-  // Load content (sentences, verbs, vocabulary, declension cards) using IndexedDB-first strategy
-  const loadContentData = useCallback(async (): Promise<{
-    systemDeclensionCards: DeclensionCard[];
-    systemWords: VocabularyWord[];
-    systemSentences: Sentence[];
-    verbs: Verb[];
-  }> => {
-    const hasCached = await hasCachedContent();
-
-    if (hasCached) {
-      // Load from IndexedDB first (instant)
-      const cached = await loadCachedContent();
-
-      // Sync from Firestore in background if online (don't await)
-      if (navigator.onLine) {
-        syncContentFromFirestore()
-          .then(async (fresh) => {
-            // Update state with fresh data after background sync completes
-            setData((prev) =>
-              prev
-                ? {
-                    ...prev,
-                    systemDeclensionCards: fresh.declensionCards,
-                    systemWords: fresh.vocabulary,
-                    systemSentences: fresh.sentences,
-                    verbs: fresh.verbs,
-                  }
-                : null
-            );
-          })
-          .catch((e) => console.error('Background content sync failed:', e));
-      }
-
-      return {
-        systemDeclensionCards: cached.declensionCards,
-        systemWords: cached.vocabulary,
-        systemSentences: cached.sentences,
-        verbs: cached.verbs,
-      };
-    } else {
-      // No cache - need to fetch from Firestore (first time use)
-      if (navigator.onLine) {
-        const fresh = await syncContentFromFirestore();
-        return {
-          systemDeclensionCards: fresh.declensionCards,
-          systemWords: fresh.vocabulary,
-          systemSentences: fresh.sentences,
-          verbs: fresh.verbs,
-        };
-      } else {
-        // Offline with no cache - return empty (will show offline message)
-        console.warn('Offline with no cached content');
-        return {
-          systemDeclensionCards: [],
-          systemWords: [],
-          systemSentences: [],
-          verbs: [],
-        };
-      }
-    }
-  }, []);
 
   const fetchAllData = useCallback(async (): Promise<LoadedData> => {
     const userId = getUserId();
@@ -127,7 +60,7 @@ export function ReviewDataProvider({ children }: ReviewDataProviderProps) {
         loadedSentenceData,
         loadedConjugationData,
         loadedAspectPairsData,
-        contentData,
+        content,
       ] = await Promise.all([
         loadDeclensionData(),
         loadVocabularyData(),
@@ -143,12 +76,21 @@ export function ReviewDataProvider({ children }: ReviewDataProviderProps) {
         sentenceData: loadedSentenceData,
         conjugationData: loadedConjugationData,
         aspectPairsData: loadedAspectPairsData,
-        ...contentData,
+        systemDeclensionCards: content.declensionCards,
+        systemWords: content.vocabulary,
+        systemSentences: content.sentences,
+        verbs: content.verbs,
       };
     }
 
-    return await loadContentData();
-  }, [loadContentData]);
+    const content = await loadContentData();
+    return {
+      systemDeclensionCards: content.declensionCards,
+      systemWords: content.vocabulary,
+      systemSentences: content.sentences,
+      verbs: content.verbs,
+    };
+  }, []);
 
   const [prevUid, setPrevUid] = useState(user?.uid);
   if (prevUid !== user?.uid) {
@@ -164,7 +106,6 @@ export function ReviewDataProvider({ children }: ReviewDataProviderProps) {
       if (active) {
         setData(result);
         setLoading(false);
-        setInitialLoadComplete(true);
       }
     });
 
@@ -172,32 +113,6 @@ export function ReviewDataProvider({ children }: ReviewDataProviderProps) {
       active = false;
     };
   }, [user?.uid, fetchAllData]);
-
-  // Re-sync content when coming back online (only after initial load)
-  useEffect(() => {
-    if (!initialLoadComplete) return;
-
-    const handleOnline = () => {
-      syncContentFromFirestore()
-        .then((fresh) => {
-          setData((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  systemDeclensionCards: fresh.declensionCards,
-                  systemWords: fresh.vocabulary,
-                  systemSentences: fresh.sentences,
-                  verbs: fresh.verbs,
-                }
-              : null
-          );
-        })
-        .catch((e) => console.error('Content sync on reconnect failed:', e));
-    };
-
-    window.addEventListener('online', handleOnline);
-    return () => window.removeEventListener('online', handleOnline);
-  }, [initialLoadComplete]);
 
   // Use key to force remount when data loads, ensuring initial props take effect
   const key = data ? 'loaded' : 'loading';

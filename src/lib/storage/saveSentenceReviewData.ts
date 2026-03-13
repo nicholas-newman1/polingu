@@ -1,7 +1,7 @@
 import type { SentenceReviewDataStore } from '../../types/sentences';
 import type { TranslationDirection } from '../../types/common';
 import { getSentenceDocPath } from './helpers';
-import { saveUserDataOfflineFirst } from '../offlineDb/userDataWrapper';
+import { saveUserData } from '../offlineDb/userDataWrapper';
 
 function serializeSentenceReviewData(data: SentenceReviewDataStore): unknown {
   return {
@@ -32,5 +32,5 @@ export default async function saveSentenceReviewData(
   data: SentenceReviewDataStore,
   direction: TranslationDirection
 ): Promise<void> {
-  await saveUserDataOfflineFirst(getSentenceDocPath(direction), data, serializeSentenceReviewData);
+  await saveUserData(getSentenceDocPath(direction), data, serializeSentenceReviewData);
 }

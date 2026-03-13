@@ -1,7 +1,7 @@
 import type { SentenceSettings, SentenceDirectionSettings } from '../../types/sentences';
 import type { TranslationDirection } from '../../types/common';
 import { ALL_LEVELS } from '../../types/sentences';
-import { loadUserDataOfflineFirst } from '../offlineDb/userDataWrapper';
+import { loadUserData } from '../offlineDb/userDataWrapper';
 
 const DEFAULT_DIRECTION_SETTINGS: SentenceDirectionSettings = {
   newCardsPerDay: 5,
@@ -20,7 +20,7 @@ function getSentenceSettingsDocPath(direction: TranslationDirection): string {
 export async function loadSentenceDirectionSettings(
   direction: TranslationDirection
 ): Promise<SentenceDirectionSettings> {
-  return loadUserDataOfflineFirst(
+  return loadUserData(
     getSentenceSettingsDocPath(direction),
     DEFAULT_DIRECTION_SETTINGS,
     (data) => ({

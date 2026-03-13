@@ -1,7 +1,7 @@
 import type { VocabularyReviewDataStore } from '../../types/vocabulary';
 import type { TranslationDirection } from '../../types/common';
 import { getTodayString, getDefaultVocabularyReviewStore, getVocabularyDocPath } from './helpers';
-import { loadUserDataOfflineFirst } from '../offlineDb/userDataWrapper';
+import { loadUserData } from '../offlineDb/userDataWrapper';
 
 function deserializeVocabularyReviewData(data: unknown): VocabularyReviewDataStore {
   const parsed = data as VocabularyReviewDataStore;
@@ -27,7 +27,7 @@ function deserializeVocabularyReviewData(data: unknown): VocabularyReviewDataSto
 export default async function loadVocabularyReviewData(
   direction: TranslationDirection
 ): Promise<VocabularyReviewDataStore> {
-  return loadUserDataOfflineFirst(
+  return loadUserData(
     getVocabularyDocPath(direction),
     getDefaultVocabularyReviewStore(),
     deserializeVocabularyReviewData

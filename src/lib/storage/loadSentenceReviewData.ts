@@ -1,7 +1,7 @@
 import type { SentenceReviewDataStore } from '../../types/sentences';
 import type { TranslationDirection } from '../../types/common';
 import { getTodayString, getDefaultSentenceReviewStore, getSentenceDocPath } from './helpers';
-import { loadUserDataOfflineFirst } from '../offlineDb/userDataWrapper';
+import { loadUserData } from '../offlineDb/userDataWrapper';
 
 function deserializeSentenceReviewData(data: unknown): SentenceReviewDataStore {
   const parsed = data as SentenceReviewDataStore;
@@ -27,7 +27,7 @@ function deserializeSentenceReviewData(data: unknown): SentenceReviewDataStore {
 export default async function loadSentenceReviewData(
   direction: TranslationDirection
 ): Promise<SentenceReviewDataStore> {
-  return loadUserDataOfflineFirst(
+  return loadUserData(
     getSentenceDocPath(direction),
     getDefaultSentenceReviewStore(),
     deserializeSentenceReviewData

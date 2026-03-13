@@ -1,7 +1,7 @@
 import type { VocabularyReviewDataStore } from '../../types/vocabulary';
 import type { TranslationDirection } from '../../types/common';
 import { getVocabularyDocPath } from './helpers';
-import { saveUserDataOfflineFirst } from '../offlineDb/userDataWrapper';
+import { saveUserData } from '../offlineDb/userDataWrapper';
 
 function serializeVocabularyReviewData(data: VocabularyReviewDataStore): unknown {
   return {
@@ -32,9 +32,5 @@ export default async function saveVocabularyReviewData(
   data: VocabularyReviewDataStore,
   direction: TranslationDirection
 ): Promise<void> {
-  await saveUserDataOfflineFirst(
-    getVocabularyDocPath(direction),
-    data,
-    serializeVocabularyReviewData
-  );
+  await saveUserData(getVocabularyDocPath(direction), data, serializeVocabularyReviewData);
 }

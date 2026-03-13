@@ -1,9 +1,7 @@
 // Content database and sync
 export { contentDb } from './contentDb';
 export {
-  hasCachedContent,
-  getLastSyncTime,
-  loadCachedContent,
+  loadContentData,
   syncContentFromFirestore,
   clearCachedContent,
   type ContentData,
@@ -11,17 +9,11 @@ export {
 
 // User database and sync
 export { userDb } from './userDb';
+export { syncAllPendingUserData, pullUserDataFromFirestore, clearUserData } from './userSync';
+
 export {
   saveUserData,
-  syncAllPendingUserData,
-  pullUserDataFromFirestore,
-  clearUserData,
-} from './userSync';
-
-// Offline-first wrappers for storage
-export {
-  saveUserDataOfflineFirst,
-  loadUserDataOfflineFirst,
+  loadUserData,
   syncAllPendingToFirestore,
   getPendingSyncCount,
 } from './userDataWrapper';

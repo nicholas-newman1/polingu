@@ -1,8 +1,8 @@
 import type { AspectPairsSettings } from '../../types/aspectPairs';
-import { saveUserDataOfflineFirst } from '../offlineDb/userDataWrapper';
+import { saveUserData } from '../offlineDb/userDataWrapper';
 
 export default async function saveAspectPairsSettings(
   settings: AspectPairsSettings
 ): Promise<void> {
-  await saveUserDataOfflineFirst('aspectPairsSettings', settings);
+  await saveUserData('aspectPairsSettings', settings);
 }

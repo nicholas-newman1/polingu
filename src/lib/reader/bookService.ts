@@ -12,7 +12,7 @@ import { httpsCallable } from 'firebase/functions';
 import { getDownloadURL, ref } from 'firebase/storage';
 import { db, functions, storage } from '../firebase';
 import { saveUserData } from '../offlineDb/userSync';
-import { loadUserDataOfflineFirst } from '../offlineDb/userDataWrapper';
+import { loadUserData } from '../offlineDb/userDataWrapper';
 import { getUserId } from '../storage/helpers';
 import type { Book, BookColor, ReadingProgress } from '../../types/reader';
 
@@ -57,10 +57,7 @@ export async function getBookDownloadUrl(storagePath: string): Promise<string> {
 }
 
 export async function getReadingProgress(bookId: string): Promise<ReadingProgress | null> {
-  const progress = await loadUserDataOfflineFirst<ReadingProgress | null>(
-    `reader-progress-${bookId}`,
-    null
-  );
+  const progress = await loadUserData<ReadingProgress | null>(`reader-progress-${bookId}`, null);
   return progress;
 }
 

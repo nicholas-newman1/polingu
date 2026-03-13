@@ -1,6 +1,6 @@
 import type { VocabularySettings, VocabularyDirectionSettings } from '../../types/vocabulary';
 import type { TranslationDirection } from '../../types/common';
-import { loadUserDataOfflineFirst } from '../offlineDb/userDataWrapper';
+import { loadUserData } from '../offlineDb/userDataWrapper';
 
 const DEFAULT_DIRECTION_SETTINGS: VocabularyDirectionSettings = {
   newCardsPerDay: 10,
@@ -18,7 +18,7 @@ function getVocabularySettingsDocPath(direction: TranslationDirection): string {
 export async function loadVocabularyDirectionSettings(
   direction: TranslationDirection
 ): Promise<VocabularyDirectionSettings> {
-  return loadUserDataOfflineFirst(
+  return loadUserData(
     getVocabularySettingsDocPath(direction),
     DEFAULT_DIRECTION_SETTINGS,
     (data) => ({

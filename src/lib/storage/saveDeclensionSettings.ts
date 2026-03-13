@@ -1,6 +1,6 @@
 import type { DeclensionSettings } from '../../types';
-import { saveUserDataOfflineFirst } from '../offlineDb/userDataWrapper';
+import { saveUserData } from '../offlineDb/userDataWrapper';
 
 export default async function saveDeclensionSettings(settings: DeclensionSettings): Promise<void> {
-  await saveUserDataOfflineFirst('settings', settings);
+  await saveUserData('settings', settings);
 }
