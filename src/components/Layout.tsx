@@ -16,7 +16,16 @@ import {
   useTheme,
 } from '@mui/material';
 import { styled } from '../lib/styled';
-import { Menu, Close, Home, Check, AutoAwesome, MusicNote, MenuBook } from '@mui/icons-material';
+import {
+  Menu,
+  Close,
+  Home,
+  Check,
+  AutoAwesome,
+  MusicNote,
+  MenuBook,
+  Storage,
+} from '@mui/icons-material';
 import { useReviewData } from '../hooks/useReviewData';
 import { useBackClose } from '../hooks/useBackClose';
 import type { ReviewCounts } from '../contexts/review';
@@ -206,6 +215,13 @@ const NAV_ITEMS: Array<{
     description: 'Read books & PDFs',
   },
   {
+    path: '/admin/content',
+    icon: Storage,
+    label: 'Content',
+    description: 'Manage system content',
+    adminOnly: true,
+  },
+  {
     path: '/admin/generator',
     icon: AutoAwesome,
     label: 'Generator',
@@ -335,89 +351,89 @@ function LayoutContent() {
   return (
     <AddToVocabularyProvider>
       <AddSentenceProvider>
-      <PageContainer>
-        {isDesktop ? (
-          <Drawer
-            variant="permanent"
-            PaperProps={{
-              sx: {
-                width: DRAWER_WIDTH,
-                backgroundColor: 'background.default',
-                borderRight: 1,
-                borderColor: 'divider',
-              },
-            }}
-          >
-            <DrawerContent
-              currentPath={location.pathname}
-              onNavigate={handleNavigation}
-              onClose={() => {}}
-              showCloseButton={false}
-              reviewCounts={counts}
-              loading={countsLoading}
-              isAdmin={isAdmin}
-            />
-          </Drawer>
-        ) : (
-          <SwipeableDrawer
-            anchor="left"
-            open={mobileDrawerOpen}
-            onOpen={() => setMobileDrawerOpen(true)}
-            onClose={() => setMobileDrawerOpen(false)}
-            swipeAreaWidth={20}
-            disableBackdropTransition
-            PaperProps={{
-              sx: {
-                width: DRAWER_WIDTH,
-                backgroundColor: 'background.default',
-              },
-            }}
-          >
-            <DrawerContent
-              currentPath={location.pathname}
-              onNavigate={handleNavigation}
-              onClose={() => setMobileDrawerOpen(false)}
-              showCloseButton={true}
-              reviewCounts={counts}
-              loading={countsLoading}
-              isAdmin={isAdmin}
-            />
-          </SwipeableDrawer>
-        )}
-
-        <MainArea>
-          <HeaderRow>
-            <MenuButton onClick={() => setMobileDrawerOpen(true)} size="small">
-              <Menu />
-            </MenuButton>
-            <Box sx={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
-              <Header
-                user={user}
-                onSignOut={handleSignOut}
-                pageTitle={pageTitle}
-                backPath={
-                  BACK_ROUTES[location.pathname] ||
-                  BACK_ROUTE_PATTERNS.find((p) => p.pattern.test(location.pathname))?.backPath
-                }
+        <PageContainer>
+          {isDesktop ? (
+            <Drawer
+              variant="permanent"
+              PaperProps={{
+                sx: {
+                  width: DRAWER_WIDTH,
+                  backgroundColor: 'background.default',
+                  borderRight: 1,
+                  borderColor: 'divider',
+                },
+              }}
+            >
+              <DrawerContent
+                currentPath={location.pathname}
+                onNavigate={handleNavigation}
+                onClose={() => {}}
+                showCloseButton={false}
+                reviewCounts={counts}
+                loading={countsLoading}
+                isAdmin={isAdmin}
               />
-            </Box>
-          </HeaderRow>
+            </Drawer>
+          ) : (
+            <SwipeableDrawer
+              anchor="left"
+              open={mobileDrawerOpen}
+              onOpen={() => setMobileDrawerOpen(true)}
+              onClose={() => setMobileDrawerOpen(false)}
+              swipeAreaWidth={20}
+              disableBackdropTransition
+              PaperProps={{
+                sx: {
+                  width: DRAWER_WIDTH,
+                  backgroundColor: 'background.default',
+                },
+              }}
+            >
+              <DrawerContent
+                currentPath={location.pathname}
+                onNavigate={handleNavigation}
+                onClose={() => setMobileDrawerOpen(false)}
+                showCloseButton={true}
+                reviewCounts={counts}
+                loading={countsLoading}
+                isAdmin={isAdmin}
+              />
+            </SwipeableDrawer>
+          )}
 
-          <ContentArea>
-            <Outlet />
-          </ContentArea>
-        </MainArea>
+          <MainArea>
+            <HeaderRow>
+              <MenuButton onClick={() => setMobileDrawerOpen(true)} size="small">
+                <Menu />
+              </MenuButton>
+              <Box sx={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+                <Header
+                  user={user}
+                  onSignOut={handleSignOut}
+                  pageTitle={pageTitle}
+                  backPath={
+                    BACK_ROUTES[location.pathname] ||
+                    BACK_ROUTE_PATTERNS.find((p) => p.pattern.test(location.pathname))?.backPath
+                  }
+                />
+              </Box>
+            </HeaderRow>
 
-        <DeclensionCheatSheetDrawer />
-        <ConsonantsCheatSheetDrawer />
-        <YiRuleCheatSheetDrawer />
-        <ConjugationCheatSheetDrawer />
-        <TranslatorModal />
-        <LimitReachedDialog />
+            <ContentArea>
+              <Outlet />
+            </ContentArea>
+          </MainArea>
 
-        <BottomMenuBar showTranslator={!!user} />
-      </PageContainer>
-    </AddSentenceProvider>
+          <DeclensionCheatSheetDrawer />
+          <ConsonantsCheatSheetDrawer />
+          <YiRuleCheatSheetDrawer />
+          <ConjugationCheatSheetDrawer />
+          <TranslatorModal />
+          <LimitReachedDialog />
+
+          <BottomMenuBar showTranslator={!!user} />
+        </PageContainer>
+      </AddSentenceProvider>
     </AddToVocabularyProvider>
   );
 }

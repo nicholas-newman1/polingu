@@ -28,6 +28,7 @@ import { CustomSentencesPage } from './pages/CustomSentencesPage';
 import { StatsPage } from './pages/StatsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { SentenceGeneratorPage } from './pages/SentenceGenerator';
+import { AdminContentPage } from './pages/AdminContentPage';
 import { LibraryPage } from './pages/LibraryPage';
 import { ReaderPage } from './pages/ReaderPage';
 import { AppSettingsProvider } from './contexts/AppSettingsContext';
@@ -94,6 +95,11 @@ createRoot(document.getElementById('root')!).render(
                             <Route path="/library" element={<LibraryPage />} />
                             <Route path="/reader/:bookId" element={<ReaderPage />} />
                             <Route path="/admin/generator" element={<SentenceGeneratorPage />} />
+                            <Route
+                              path="/admin/content"
+                              element={<Navigate to="/admin/content/vocabulary" replace />}
+                            />
+                            <Route path="/admin/content/:tab" element={<AdminContentPage />} />
                           </Route>
                           <Route path="*" element={<Navigate to="/dashboard" replace />} />
                         </Routes>

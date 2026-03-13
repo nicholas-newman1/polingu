@@ -351,14 +351,20 @@ export function InlineAudioRegenerator({
   const [isSaving, setIsSaving] = useState(false);
   const [previewAudioBase64, setPreviewAudioBase64] = useState<string | null>(null);
   const [isPlayingPreview, setIsPlayingPreview] = useState(false);
+  const [isPlayingCurrent, setIsPlayingCurrent] = useState(false);
 
   const previewAudioRef = useRef<HTMLAudioElement | null>(null);
+  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     return () => {
       if (previewAudioRef.current) {
         previewAudioRef.current.pause();
         previewAudioRef.current = null;
+      }
+      if (currentAudioRef.current) {
+        currentAudioRef.current.pause();
+        currentAudioRef.current = null;
       }
     };
   }, []);
@@ -419,6 +425,38 @@ export function InlineAudioRegenerator({
     setIsPlayingPreview(true);
   }, [previewAudioBase64, isPlayingPreview]);
 
+  const handlePlayCurrent = useCallback(() => {
+    if (!currentAudioUrl) return;
+
+    if (previewAudioRef.current) {
+      previewAudioRef.current.pause();
+      setIsPlayingPreview(false);
+    }
+
+    if (isPlayingCurrent && currentAudioRef.current) {
+      currentAudioRef.current.pause();
+      currentAudioRef.current = null;
+      setIsPlayingCurrent(false);
+      return;
+    }
+
+    const audio = new Audio(currentAudioUrl);
+    currentAudioRef.current = audio;
+    audio.onended = () => {
+      setIsPlayingCurrent(false);
+      currentAudioRef.current = null;
+    };
+    audio.onerror = () => {
+      setIsPlayingCurrent(false);
+      currentAudioRef.current = null;
+    };
+    audio.play().catch(() => {
+      setIsPlayingCurrent(false);
+      currentAudioRef.current = null;
+    });
+    setIsPlayingCurrent(true);
+  }, [currentAudioUrl, isPlayingCurrent]);
+
   const handleAccept = useCallback(async () => {
     if (!previewAudioBase64) return;
 
@@ -463,14 +501,26 @@ export function InlineAudioRegenerator({
   }
 
   return (
-    <IconButton
-      size="small"
-      onClick={handleGenerate}
-      disabled={isGenerating || !text.trim()}
-      color={currentAudioUrl ? 'default' : 'info'}
-      sx={{ p: 0.5 }}
-    >
-      {isGenerating ? <CircularProgress size={16} /> : <GraphicEqIcon fontSize="small" />}
-    </IconButton>
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
+      {currentAudioUrl && (
+        <IconButton
+          size="small"
+          onClick={handlePlayCurrent}
+          color={isPlayingCurrent ? 'error' : 'default'}
+          sx={{ p: 0.5 }}
+        >
+          {isPlayingCurrent ? <StopIcon fontSize="small" /> : <VolumeUpIcon fontSize="small" />}
+        </IconButton>
+      )}
+      <IconButton
+        size="small"
+        onClick={handleGenerate}
+        disabled={isGenerating || !text.trim()}
+        color="info"
+        sx={{ p: 0.5 }}
+      >
+        {isGenerating ? <CircularProgress size={16} /> : <GraphicEqIcon fontSize="small" />}
+      </IconButton>
+    </Box>
   );
 }
