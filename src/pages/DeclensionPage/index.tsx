@@ -41,6 +41,7 @@ import { useOptimistic } from '../../hooks/useOptimistic';
 import { useSnackbar } from '../../hooks/useSnackbar';
 import { useProgressStats } from '../../hooks/useProgressStats';
 import { useCardHistory } from '../../hooks/useCardHistory';
+import { useUserFilters } from '../../contexts/UserFiltersContext';
 import { DEFAULT_DECLENSION_SETTINGS } from '../../constants';
 import shuffleArray from '../../lib/utils/shuffleArray';
 
@@ -96,15 +97,14 @@ export function DeclensionPage() {
     [customDeclensionCards, systemDeclensionCards]
   );
 
+  const { filters: userFilters, filtersLoading, updateDeclensionFilters } = useUserFilters();
+  const { cases: caseFilter, genders: genderFilter, number: numberFilter } = userFilters.declension;
+
   const [showSettings, setShowSettings] = useState(false);
   const [practiceMode, setPracticeMode] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingCard, setEditingCard] = useState<DeclensionCard | null>(null);
   const [isCreatingNew, setIsCreatingNew] = useState(false);
-
-  const [caseFilter, setCaseFilter] = useState<Case[]>([]);
-  const [genderFilter, setGenderFilter] = useState<Gender[]>([]);
-  const [numberFilter, setNumberFilter] = useState<Number | 'All'>('All');
 
   const [learningQueue, setLearningQueue] = useState<DeclensionSessionCard[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -164,14 +164,26 @@ export function DeclensionPage() {
   );
 
   useEffect(() => {
-    if (!contextLoading && !sessionBuiltRef.current && allDeclensionCards.length > 0) {
+    if (
+      !contextLoading &&
+      !filtersLoading &&
+      !sessionBuiltRef.current &&
+      allDeclensionCards.length > 0
+    ) {
       sessionBuiltRef.current = true;
       queueMicrotask(() => {
         buildSession(reviewStore, settings);
         setSessionReady(true);
       });
     }
-  }, [contextLoading, buildSession, reviewStore, settings, allDeclensionCards.length]);
+  }, [
+    contextLoading,
+    filtersLoading,
+    buildSession,
+    reviewStore,
+    settings,
+    allDeclensionCards.length,
+  ]);
 
   const resetSession = useCallback(() => {
     buildSession(reviewStore, settings);
@@ -239,29 +251,29 @@ export function DeclensionPage() {
 
   const handleCaseChange = useCallback(
     (value: Case[]) => {
-      setCaseFilter(value);
+      updateDeclensionFilters({ cases: value, genders: genderFilter, number: numberFilter });
       resetSession();
       handleFilterChange(value, genderFilter, numberFilter);
     },
-    [resetSession, handleFilterChange, genderFilter, numberFilter]
+    [resetSession, handleFilterChange, genderFilter, numberFilter, updateDeclensionFilters]
   );
 
   const handleGenderChange = useCallback(
     (value: Gender[]) => {
-      setGenderFilter(value);
+      updateDeclensionFilters({ cases: caseFilter, genders: value, number: numberFilter });
       resetSession();
       handleFilterChange(caseFilter, value, numberFilter);
     },
-    [resetSession, handleFilterChange, caseFilter, numberFilter]
+    [resetSession, handleFilterChange, caseFilter, numberFilter, updateDeclensionFilters]
   );
 
   const handleNumberChange = useCallback(
     (value: Number | 'All') => {
-      setNumberFilter(value);
+      updateDeclensionFilters({ cases: caseFilter, genders: genderFilter, number: value });
       resetSession();
       handleFilterChange(caseFilter, genderFilter, value);
     },
-    [resetSession, handleFilterChange, caseFilter, genderFilter]
+    [resetSession, handleFilterChange, caseFilter, genderFilter, updateDeclensionFilters]
   );
 
   const togglePracticeMode = useCallback(() => {
@@ -526,7 +538,7 @@ export function DeclensionPage() {
 
   const canEditCurrentCard = currentSessionCard?.card.isCustom || isAdmin;
 
-  if (contextLoading || !sessionReady) {
+  if (contextLoading || filtersLoading || !sessionReady) {
     return (
       <LoadingContainer>
         <CircularProgress sx={{ color: 'text.disabled' }} />

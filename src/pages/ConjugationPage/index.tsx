@@ -43,6 +43,7 @@ import {
   matchesFilters,
   getDefaultFilters,
 } from '../../lib/conjugationUtils';
+import { useUserFilters } from '../../contexts/UserFiltersContext';
 import { updateVerb, deleteVerb } from '../../lib/storage/systemVerbs';
 import { useOptimistic } from '../../hooks/useOptimistic';
 import { useSnackbar } from '../../hooks/useSnackbar';
@@ -79,12 +80,13 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
     onError: () => showSnackbar('Failed to save. Please try again.', 'error'),
   });
 
+  const { filters: userFilters, filtersLoading, updateConjugationFilters } = useUserFilters();
+  const filters = userFilters.conjugation;
+
   const [showSettings, setShowSettings] = useState(false);
   const [practiceMode, setPracticeMode] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingForm, setEditingForm] = useState<DrillableForm | null>(null);
-
-  const [filters, setFilters] = useState<ConjugationFilters>(getDefaultFilters());
 
   const [learningQueue, setLearningQueue] = useState<ConjugationSessionCard[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -163,7 +165,7 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
   );
 
   useEffect(() => {
-    if (!contextLoading && !sessionBuiltRef.current && verbs.length > 0) {
+    if (!contextLoading && !filtersLoading && !sessionBuiltRef.current && verbs.length > 0) {
       sessionBuiltRef.current = true;
       directionRef.current = currentDirection;
       queueMicrotask(() => {
@@ -172,6 +174,7 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
     }
   }, [
     contextLoading,
+    filtersLoading,
     buildSession,
     verbs,
     reviewStore,
@@ -316,7 +319,7 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
 
   const handleFilterChange = useCallback(
     (newFilters: ConjugationFilters) => {
-      setFilters(newFilters);
+      updateConjugationFilters(newFilters);
       if (practiceMode) {
         const allForms: DrillableForm[] = [];
         for (const verb of verbs) {
@@ -333,7 +336,7 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
         buildSession(verbs, reviewStore, directionSettings, newFilters);
       }
     },
-    [verbs, practiceMode, buildSession, reviewStore, directionSettings]
+    [verbs, practiceMode, buildSession, reviewStore, directionSettings, updateConjugationFilters]
   );
 
   const handleOpenEditModal = useCallback(() => {
@@ -495,7 +498,7 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
 
   const currentPracticeForm = practiceCards[practiceIndex];
 
-  const isLoading = contextLoading;
+  const isLoading = contextLoading || filtersLoading;
 
   const getAspectPairVerb = (form: DrillableForm): Verb | undefined => {
     if (!form.verb.aspectPair) return undefined;
