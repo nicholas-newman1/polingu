@@ -11,7 +11,7 @@ import { SentenceModeSelector } from './components/SentenceModeSelector';
 import { FinishedState } from '../../components/FinishedState';
 import { EmptyState } from '../../components/EmptyState';
 import { ReviewCountBadge } from '../../components/ReviewCountBadge';
-import { SentenceSettingsPanel } from './components/SentenceSettingsPanel';
+import { SentenceSettingsPanel, LevelChip } from './components/SentenceSettingsPanel';
 import { EditSentenceModal } from '../../components/EditSentenceModal';
 import type {
   Sentence,
@@ -20,6 +20,7 @@ import type {
   SentenceDirectionSettings,
   CEFRLevel,
 } from '../../types/sentences';
+import { ALL_LEVELS } from '../../types/sentences';
 import type { TranslationDirection } from '../../types/common';
 import getOrCreateSentenceCardReviewData from '../../lib/storage/getOrCreateSentenceCardReviewData';
 import getSentenceSessionCards from '../../lib/sentenceScheduler/getSentenceSessionCards';
@@ -487,11 +488,13 @@ export function SentencesPage({ mode }: SentencesPageProps) {
           disabled={isLoading}
         />
 
-        <SettingsButton
-          active={showSettings}
-          onClick={() => setShowSettings(!showSettings)}
-          disabled={isLoading}
-        />
+        {!practiceMode && (
+          <SettingsButton
+            active={showSettings}
+            onClick={() => setShowSettings(!showSettings)}
+            disabled={isLoading}
+          />
+        )}
 
         {user && (
           <AddButton
@@ -505,16 +508,33 @@ export function SentencesPage({ mode }: SentencesPageProps) {
         )}
       </ControlsRow>
 
-      {showSettings && (
+      <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mb: 2 }}>
+        {ALL_LEVELS.map((level) => (
+          <LevelChip
+            key={level}
+            $level={level}
+            label={level}
+            $active={directionSettings.selectedLevels.includes(level)}
+            onClick={() => {
+              const selected = directionSettings.selectedLevels;
+              if (selected.includes(level)) {
+                if (selected.length === 1) return;
+                handleLevelsChange(selected.filter((l) => l !== level));
+              } else {
+                handleLevelsChange([...selected, level]);
+              }
+            }}
+          />
+        ))}
+      </Stack>
+
+      {showSettings && !practiceMode && (
         <SentenceSettingsPanel
           newCardsPerDay={directionSettings.newCardsPerDay}
-          selectedLevels={directionSettings.selectedLevels}
           user={user}
           onNewCardsChange={handleNewCardsChange}
-          onLevelsChange={handleLevelsChange}
           onResetAllData={handleResetAllData}
           resetButtonLabel={`Reset ${currentDirection === 'pl-to-en' ? 'PL→EN' : 'EN→PL'} Progress`}
-          practiceMode={practiceMode}
         />
       )}
 

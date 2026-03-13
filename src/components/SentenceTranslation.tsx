@@ -5,12 +5,11 @@ import {
   Button,
   Chip,
   IconButton,
-  Collapse,
   CircularProgress,
   Switch,
 } from '@mui/material';
 import { styled } from '../lib/styled';
-import { KeyboardArrowLeft, KeyboardArrowRight, ExpandMore, ExpandLess } from '@mui/icons-material';
+import { KeyboardArrowLeft, KeyboardArrowRight } from '@mui/icons-material';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { renderTappableText } from '../lib/renderTappableText';
@@ -119,7 +118,6 @@ export function SentenceTranslation() {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
   const [shuffleMode, setShuffleMode] = useState(false);
   const [direction, setDirection] = useState<TranslationDirection>('en-to-pl');
   const [sentences, setSentences] = useState<Sentence[]>([]);
@@ -235,6 +233,28 @@ export function SentenceTranslation() {
             />
           ))}
         </Box>
+
+        {TAG_CATEGORY_ORDER.map((category) => {
+          const categoryTags = sentenceTags[category].filter((tag) => availableTags.has(tag));
+          if (categoryTags.length === 0) return null;
+          return (
+            <CategorySection key={category}>
+              <CategoryLabel>{TAG_CATEGORY_NAMES[category]}</CategoryLabel>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                {categoryTags.map((tag) => (
+                  <TagChip
+                    key={tag}
+                    label={tag}
+                    $selected={selectedTags.includes(tag)}
+                    onClick={() => toggleTag(tag)}
+                    sx={{ cursor: 'pointer' }}
+                  />
+                ))}
+              </Box>
+            </CategorySection>
+          );
+        })}
+
         <Card>
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
             <CircularProgress />
@@ -265,33 +285,28 @@ export function SentenceTranslation() {
               sx={{ cursor: 'pointer' }}
             />
           ))}
-          <IconButton size="small" onClick={() => setShowFilters(!showFilters)}>
-            {showFilters ? <ExpandLess /> : <ExpandMore />}
-          </IconButton>
         </Box>
 
-        <Collapse in={showFilters}>
-          {TAG_CATEGORY_ORDER.map((category) => {
-            const categoryTags = sentenceTags[category].filter((tag) => availableTags.has(tag));
-            if (categoryTags.length === 0) return null;
-            return (
-              <CategorySection key={category}>
-                <CategoryLabel>{TAG_CATEGORY_NAMES[category]}</CategoryLabel>
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                  {categoryTags.map((tag) => (
-                    <TagChip
-                      key={tag}
-                      label={tag}
-                      $selected={selectedTags.includes(tag)}
-                      onClick={() => toggleTag(tag)}
-                      sx={{ cursor: 'pointer' }}
-                    />
-                  ))}
-                </Box>
-              </CategorySection>
-            );
-          })}
-        </Collapse>
+        {TAG_CATEGORY_ORDER.map((category) => {
+          const categoryTags = sentenceTags[category].filter((tag) => availableTags.has(tag));
+          if (categoryTags.length === 0) return null;
+          return (
+            <CategorySection key={category}>
+              <CategoryLabel>{TAG_CATEGORY_NAMES[category]}</CategoryLabel>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                {categoryTags.map((tag) => (
+                  <TagChip
+                    key={tag}
+                    label={tag}
+                    $selected={selectedTags.includes(tag)}
+                    onClick={() => toggleTag(tag)}
+                    sx={{ cursor: 'pointer' }}
+                  />
+                ))}
+              </Box>
+            </CategorySection>
+          );
+        })}
 
         <Card>
           <Typography color="text.secondary" textAlign="center">
@@ -331,9 +346,6 @@ export function SentenceTranslation() {
               sx={{ cursor: 'pointer' }}
             />
           ))}
-          <IconButton size="small" onClick={() => setShowFilters(!showFilters)}>
-            {showFilters ? <ExpandLess /> : <ExpandMore />}
-          </IconButton>
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <DirectionToggle
@@ -349,28 +361,26 @@ export function SentenceTranslation() {
         </Box>
       </Box>
 
-      <Collapse in={showFilters}>
-        {TAG_CATEGORY_ORDER.map((category) => {
-          const categoryTags = sentenceTags[category].filter((tag) => availableTags.has(tag));
-          if (categoryTags.length === 0) return null;
-          return (
-            <CategorySection key={category}>
-              <CategoryLabel>{TAG_CATEGORY_NAMES[category]}</CategoryLabel>
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                {categoryTags.map((tag) => (
-                  <TagChip
-                    key={tag}
-                    label={tag}
-                    $selected={selectedTags.includes(tag)}
-                    onClick={() => toggleTag(tag)}
-                    sx={{ cursor: 'pointer' }}
-                  />
-                ))}
-              </Box>
-            </CategorySection>
-          );
-        })}
-      </Collapse>
+      {TAG_CATEGORY_ORDER.map((category) => {
+        const categoryTags = sentenceTags[category].filter((tag) => availableTags.has(tag));
+        if (categoryTags.length === 0) return null;
+        return (
+          <CategorySection key={category}>
+            <CategoryLabel>{TAG_CATEGORY_NAMES[category]}</CategoryLabel>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+              {categoryTags.map((tag) => (
+                <TagChip
+                  key={tag}
+                  label={tag}
+                  $selected={selectedTags.includes(tag)}
+                  onClick={() => toggleTag(tag)}
+                  sx={{ cursor: 'pointer' }}
+                />
+              ))}
+            </Box>
+          </CategorySection>
+        );
+      })}
 
       <Card>
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
