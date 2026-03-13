@@ -35,6 +35,7 @@ import { FEATURE_NAV_ITEMS } from '../constants/navigation';
 import { SiteLogo } from './SiteLogo';
 import { PageTitleContext, PageTitleProvider } from '../contexts/PageTitleContext';
 import { AddToVocabularyProvider } from '../contexts/AddToVocabularyContext';
+import { AddSentenceProvider } from '../contexts/AddSentenceContext';
 
 export const DRAWER_WIDTH = 260;
 
@@ -333,6 +334,7 @@ function LayoutContent() {
 
   return (
     <AddToVocabularyProvider>
+      <AddSentenceProvider>
       <PageContainer>
         {isDesktop ? (
           <Drawer
@@ -415,6 +417,7 @@ function LayoutContent() {
 
         <BottomMenuBar showTranslator={!!user} />
       </PageContainer>
+    </AddSentenceProvider>
     </AddToVocabularyProvider>
   );
 }
