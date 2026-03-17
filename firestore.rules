@@ -7,6 +7,11 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
+    // User filters (conjugation, declension, etc.) - only the owner can read/write
+    match /users/{userId}/data/userFilters {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
     // User declension review data - only the owner can read/write
     match /users/{userId}/data/reviewData {
       allow read, write: if request.auth != null && request.auth.uid == userId;
