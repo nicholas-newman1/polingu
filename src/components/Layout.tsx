@@ -24,6 +24,7 @@ import {
   AutoAwesome,
   MusicNote,
   MenuBook,
+  Headphones,
   Storage,
 } from '@mui/icons-material';
 import { useReviewData } from '../hooks/useReviewData';
@@ -215,6 +216,12 @@ const NAV_ITEMS: Array<{
     description: 'Read books & PDFs',
   },
   {
+    path: '/audio',
+    icon: Headphones,
+    label: 'Audio',
+    description: 'Listen & learn',
+  },
+  {
     path: '/admin/content',
     icon: Storage,
     label: 'Content',
@@ -249,6 +256,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/my-sentences': 'My Sentences',
   '/library': 'Library',
   '/reader': 'Reader',
+  '/audio': 'Audio',
   '/stats': 'Statistics',
   '/admin/generator': 'Sentence Generator',
 };
@@ -264,6 +272,7 @@ const BACK_ROUTES: Record<string, string> = {
 
 const BACK_ROUTE_PATTERNS: Array<{ pattern: RegExp; backPath: string }> = [
   { pattern: /^\/reader\//, backPath: '/library' },
+  { pattern: /^\/audio\//, backPath: '/audio' },
 ];
 
 function DrawerContent({

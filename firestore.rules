@@ -108,6 +108,16 @@ service cloud.firestore {
                          && docId.matches('reader-.*');
     }
 
+    // Audio items - owner can read and update title, Cloud Function creates/deletes
+    match /users/{userId}/audioItems/{audioId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow update: if request.auth != null 
+                    && request.auth.uid == userId
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                       .hasOnly(['title']);
+      allow create, delete: if false;
+    }
+
     // Books - owner can read and update, Cloud Function creates/deletes
     match /users/{userId}/books/{bookId} {
       allow read: if request.auth != null && request.auth.uid == userId;

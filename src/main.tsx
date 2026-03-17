@@ -31,6 +31,8 @@ import { SentenceGeneratorPage } from './pages/SentenceGenerator';
 import { AdminContentPage } from './pages/AdminContentPage';
 import { LibraryPage } from './pages/LibraryPage';
 import { ReaderPage } from './pages/ReaderPage';
+import { AudioLibraryPage } from './pages/AudioLibraryPage';
+import { AudioPlayerPage } from './pages/AudioPlayerPage';
 import { AppSettingsProvider } from './contexts/AppSettingsContext';
 import { UserFiltersProvider } from './contexts/UserFiltersContext';
 
@@ -94,6 +96,8 @@ createRoot(document.getElementById('root')!).render(
                             <Route path="/settings" element={<SettingsPage />} />
                             <Route path="/library" element={<LibraryPage />} />
                             <Route path="/reader/:bookId" element={<ReaderPage />} />
+                            <Route path="/audio" element={<AudioLibraryPage />} />
+                            <Route path="/audio/:audioId" element={<AudioPlayerPage />} />
                             <Route path="/admin/generator" element={<SentenceGeneratorPage />} />
                             <Route
                               path="/admin/content"

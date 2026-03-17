@@ -101,6 +101,7 @@ export interface TranslatableWordProps {
   onUpdateTranslation?: (word: string, translation: string) => void;
   isAdmin?: boolean;
   disableHoverTranslate?: boolean;
+  onTranslateRequest?: () => void;
 }
 
 export function TranslatableWord({
@@ -115,6 +116,7 @@ export function TranslatableWord({
   onUpdateTranslation,
   isAdmin = false,
   disableHoverTranslate = false,
+  onTranslateRequest,
 }: TranslatableWordProps) {
   const [translation, setTranslation] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -321,6 +323,7 @@ export function TranslatableWord({
         setIsEditing(false);
       } else {
         setIsClicked(true);
+        onTranslateRequest?.();
         fetchTranslation();
       }
       if (event.currentTarget) {
@@ -335,6 +338,7 @@ export function TranslatableWord({
       fetchTranslation,
       baseHandleMouseEnter,
       dragContext,
+      onTranslateRequest,
     ]
   );
 

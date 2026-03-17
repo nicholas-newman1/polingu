@@ -1,6 +1,22 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
+    // Audio folder rules - pending uploads
+    match /audio/users/{userId}/pending/{audioId}/{fileName} {
+      allow write: if request.auth != null 
+                   && request.auth.uid == userId
+                   && request.resource.size < 25 * 1024 * 1024
+                   && (request.resource.contentType.matches('audio/.*')
+                       || fileName.matches('.*\\.(mp3|wav|ogg|flac|m4a)$'));
+      allow read: if false;
+    }
+    
+    // Audio folder rules - processed audio
+    match /audio/users/{userId}/{audioId}/{fileName} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if false;
+    }
+
     // Books folder rules - pending uploads
     match /books/users/{userId}/pending/{bookId}/{fileName} {
       // Authenticated user can upload to their pending folder
