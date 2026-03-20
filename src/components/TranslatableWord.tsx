@@ -266,20 +266,22 @@ export function TranslatableWord({
     (event: React.MouseEvent<HTMLSpanElement>) => {
       if (isDragEnabled && event.button === 0) {
         event.preventDefault();
+        onTranslateRequest?.();
         dragContext.startDrag(wordIndex, event.currentTarget);
       }
     },
-    [isDragEnabled, dragContext, wordIndex]
+    [isDragEnabled, dragContext, wordIndex, onTranslateRequest]
   );
 
   const handleTouchStart = useCallback(
     (event: React.TouchEvent<HTMLSpanElement>) => {
       if (isDragEnabled) {
         // Don't prevent default immediately - let the browser determine if this is a tap or drag
+        onTranslateRequest?.();
         dragContext.startDrag(wordIndex, event.currentTarget);
       }
     },
-    [isDragEnabled, dragContext, wordIndex]
+    [isDragEnabled, dragContext, wordIndex, onTranslateRequest]
   );
 
   const handleMouseEnterWord = useCallback(
@@ -323,7 +325,9 @@ export function TranslatableWord({
         setIsEditing(false);
       } else {
         setIsClicked(true);
-        onTranslateRequest?.();
+        if (!isDragEnabled) {
+          onTranslateRequest?.();
+        }
         fetchTranslation();
       }
       if (event.currentTarget) {
@@ -334,6 +338,7 @@ export function TranslatableWord({
       hasPhrase,
       isDragging,
       isClicked,
+      isDragEnabled,
       setIsClicked,
       fetchTranslation,
       baseHandleMouseEnter,

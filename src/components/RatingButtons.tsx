@@ -67,4 +67,3 @@ export function RatingButtons({ intervals, onRate }: RatingButtonsProps) {
     </Stack>
   );
 }
-

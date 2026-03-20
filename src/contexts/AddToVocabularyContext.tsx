@@ -3,6 +3,9 @@ import { AddVocabularyModal } from '../components/AddVocabularyModal';
 import { loadCustomVocabulary, saveCustomVocabulary } from '../lib/storage/customVocabulary';
 import type { CustomVocabularyWord } from '../types/vocabulary';
 import { useVocabulary } from '../hooks/useReviewData';
+import { normalizeVocabularyPrefill } from '../lib/utils/normalizeVocabularyPrefill';
+import { findCustomWordWithSamePolish } from '../lib/utils/findDuplicateCustomVocabularyPolish';
+import { useSnackbar } from '../hooks/useSnackbar';
 
 export interface AddToVocabularyContextType {
   openAddToVocabulary: (polish: string, english: string) => void;
@@ -21,9 +24,13 @@ export function AddToVocabularyProvider({ children }: AddToVocabularyProviderPro
     { polish: string; english: string } | undefined
   >();
   const { refreshVocabularyWords } = useVocabulary();
+  const { showSnackbar } = useSnackbar();
 
   const openAddToVocabulary = useCallback((polish: string, english: string) => {
-    setInitialValues({ polish, english });
+    setInitialValues({
+      polish: normalizeVocabularyPrefill(polish),
+      english: normalizeVocabularyPrefill(english),
+    });
     setModalOpen(true);
   }, []);
 
@@ -34,19 +41,22 @@ export function AddToVocabularyProvider({ children }: AddToVocabularyProviderPro
 
   const handleSave = useCallback(
     async (wordData: Omit<CustomVocabularyWord, 'id' | 'isCustom' | 'createdAt'>) => {
+      const loaded = await loadCustomVocabulary();
+      if (findCustomWordWithSamePolish(loaded, wordData.polish)) {
+        showSnackbar('This Polish word is already in your custom vocabulary.', 'error');
+        return false;
+      }
       const newWord: CustomVocabularyWord = {
         ...wordData,
         id: `custom_${Date.now()}`,
         isCustom: true,
         createdAt: Date.now(),
       };
-      const loaded = await loadCustomVocabulary();
       const newCustomWords = [newWord, ...loaded];
       await saveCustomVocabulary(newCustomWords);
       await refreshVocabularyWords();
-      handleClose();
     },
-    [refreshVocabularyWords, handleClose]
+    [refreshVocabularyWords, showSnackbar]
   );
 
   return (

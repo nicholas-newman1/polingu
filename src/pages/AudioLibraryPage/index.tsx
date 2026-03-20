@@ -4,8 +4,6 @@ import {
   Box,
   Typography,
   Card,
-  CardContent,
-  CardActionArea,
   IconButton,
   LinearProgress,
   Dialog,
@@ -19,12 +17,18 @@ import {
   ListItemIcon,
   ListItemText,
   TextField,
+  ButtonBase,
+  Stack,
+  Chip,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import HeadphonesIcon from '@mui/icons-material/Headphones';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import GraphicEqRoundedIcon from '@mui/icons-material/GraphicEqRounded';
 import { styled } from '../../lib/styled';
 import {
   uploadAudio,
@@ -39,84 +43,115 @@ const PageContainer = styled(Box)(({ theme }) => ({
   flex: 1,
   display: 'flex',
   flexDirection: 'column',
-  padding: theme.spacing(2),
-  maxWidth: 960,
+  gap: theme.spacing(2),
+  padding: theme.spacing(2, 1),
+  maxWidth: 980,
   margin: '0 auto',
   width: '100%',
+  [theme.breakpoints.up('sm')]: {
+    padding: theme.spacing(3, 2),
+  },
 }));
 
-const Header = styled(Box)(({ theme }) => ({
+const HeroCard = styled(Card)(({ theme }) => ({
+  borderRadius: theme.spacing(2),
+  padding: theme.spacing(2),
+  background: `linear-gradient(135deg, ${theme.palette.primary.light} 0%, ${theme.palette.primary.main} 100%)`,
+  color: theme.palette.primary.contrastText,
+  [theme.breakpoints.up('sm')]: {
+    padding: theme.spacing(2.5, 3),
+  },
+}));
+
+const HeroRow = styled(Box)(({ theme }) => ({
   display: 'flex',
   justifyContent: 'space-between',
-  alignItems: 'center',
-  marginBottom: theme.spacing(3),
-}));
-
-const ItemsGrid = styled(Box)(({ theme }) => ({
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
+  alignItems: 'flex-start',
   gap: theme.spacing(2),
-  [theme.breakpoints.up('sm')]: {
-    gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-  },
 }));
 
-const AudioCard = styled(Card)({
-  position: 'relative',
-});
-
-const AudioCover = styled(Box)(({ theme }) => ({
-  height: 180,
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  justifyContent: 'center',
-  gap: theme.spacing(1),
-  background: `linear-gradient(135deg, ${theme.palette.primary.light} 0%, ${theme.palette.primary.main} 100%)`,
-  color: '#fff',
-  [theme.breakpoints.up('sm')]: {
-    height: 220,
-  },
-}));
-
-const MenuButton = styled(IconButton)(({ theme }) => ({
-  position: 'absolute',
-  top: 8,
-  right: 8,
-  zIndex: 1,
+const UploadButton = styled(Button)(({ theme }) => ({
+  borderRadius: 999,
+  minWidth: 0,
+  whiteSpace: 'nowrap',
   backgroundColor: theme.palette.background.paper,
-  boxShadow: theme.shadows[1],
+  color: theme.palette.text.primary,
   '&:hover': {
     backgroundColor: theme.palette.grey[100],
   },
 }));
 
-const UploadCard = styled(Card)(({ theme }) => ({
-  border: `2px dashed ${theme.palette.divider}`,
-  backgroundColor: 'transparent',
-  cursor: 'pointer',
+const PlaylistCard = styled(Card)(({ theme }) => ({
+  borderRadius: theme.spacing(2),
+  overflow: 'hidden',
+}));
+
+const SectionHeader = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  padding: theme.spacing(1.5, 2),
+  borderBottom: `1px solid ${theme.palette.divider}`,
+}));
+
+const MenuButton = styled(IconButton)(({ theme }) => ({
+  marginLeft: 'auto',
   '&:hover': {
-    borderColor: theme.palette.primary.main,
     backgroundColor: theme.palette.action.hover,
   },
 }));
 
-const UploadContent = styled(Box)(({ theme }) => ({
-  height: 180,
+const TrackRow = styled(ButtonBase)(({ theme }) => ({
+  width: '100%',
   display: 'flex',
-  flexDirection: 'column',
+  alignItems: 'center',
+  justifyContent: 'flex-start',
+  gap: theme.spacing(1.5),
+  padding: theme.spacing(1.25, 2),
+  textAlign: 'left',
+  borderBottom: `1px solid ${theme.palette.divider}`,
+  '&:hover': {
+    backgroundColor: theme.palette.action.hover,
+  },
+}));
+
+const TrackIconWrap = styled(Box)(({ theme }) => ({
+  width: 40,
+  height: 40,
+  borderRadius: 999,
+  backgroundColor: theme.palette.primary.main,
+  color: theme.palette.primary.contrastText,
+  display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  gap: theme.spacing(1),
+  flexShrink: 0,
+}));
+
+const MetaText = styled(Typography)(({ theme }) => ({
   color: theme.palette.text.secondary,
-  [theme.breakpoints.up('sm')]: {
-    height: 220,
+  fontSize: '0.8rem',
+}));
+
+const ProcessingList = styled(Box)(({ theme }) => ({
+  borderRadius: theme.spacing(2),
+  border: `1px solid ${theme.palette.divider}`,
+  overflow: 'hidden',
+}));
+
+const ProcessingRow = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  alignItems: 'center',
+  gap: theme.spacing(1.5),
+  padding: theme.spacing(1.25, 2),
+  borderBottom: `1px solid ${theme.palette.divider}`,
+  '&:last-child': {
+    borderBottom: 0,
   },
 }));
 
 const EmptyState = styled(Box)(({ theme }) => ({
   textAlign: 'center',
-  padding: theme.spacing(6),
+  padding: theme.spacing(5, 2),
   color: theme.palette.text.secondary,
 }));
 
@@ -137,6 +172,10 @@ function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = Math.floor(seconds % 60);
   return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+function formatCreatedDate(timestamp: number): string {
+  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(timestamp);
 }
 
 export function AudioLibraryPage() {
@@ -247,41 +286,94 @@ export function AudioLibraryPage() {
 
   return (
     <PageContainer>
-      <Header>
-        <Typography variant="h5" fontWeight={500}>
-          Audio
-        </Typography>
-      </Header>
-
-      <ItemsGrid>
-        <UploadCard onClick={() => fileInputRef.current?.click()}>
-          <UploadContent>
-            <AddIcon sx={{ fontSize: 40 }} />
-            <Typography variant="body2">Upload Audio</Typography>
-            <Typography variant="caption" color="text.disabled">
-              MP3, WAV, OGG, FLAC, M4A
+      <HeroCard>
+        <HeroRow>
+          <Box>
+            <Typography variant="overline" sx={{ opacity: 0.8, letterSpacing: 1.2 }}>
+              Your Listening Queue
             </Typography>
-          </UploadContent>
-        </UploadCard>
+            <Typography variant="h5" fontWeight={700}>
+              Audio Library
+            </Typography>
+            <Typography variant="body2" sx={{ opacity: 0.9, mt: 0.5 }}>
+              Upload files, then tap an audio to open player + transcript.
+            </Typography>
+          </Box>
+          <UploadButton
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            Add Audio
+          </UploadButton>
+        </HeroRow>
+        <Stack direction="row" spacing={1} sx={{ mt: 2, flexWrap: 'wrap', rowGap: 1 }}>
+          <Chip
+            icon={<GraphicEqRoundedIcon />}
+            label={`${readyItems.length} ready`}
+            size="small"
+            sx={{ bgcolor: 'rgba(255,255,255,0.22)', color: 'inherit' }}
+          />
+          <Chip
+            icon={<AccessTimeIcon />}
+            label={`${processingItems.length} processing`}
+            size="small"
+            sx={{ bgcolor: 'rgba(255,255,255,0.22)', color: 'inherit' }}
+          />
+        </Stack>
+      </HeroCard>
 
-        {processingItems.map((item) => (
-          <AudioCard key={item.id}>
-            <AudioCover>
-              <CircularProgress size={32} sx={{ color: 'inherit' }} />
-            </AudioCover>
-            <CardContent sx={{ py: 1.5 }}>
-              <Typography variant="body2" noWrap>
-                Transcribing...
-              </Typography>
-              <Typography variant="caption" color="text.secondary" noWrap>
-                {item.fileName}
-              </Typography>
-            </CardContent>
-          </AudioCard>
-        ))}
+      {processingItems.length > 0 && (
+        <ProcessingList>
+          <SectionHeader>
+            <Typography variant="subtitle2" fontWeight={700}>
+              Processing Queue
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Transcribing
+            </Typography>
+          </SectionHeader>
+          {processingItems.map((item) => (
+            <ProcessingRow key={item.id}>
+              <CircularProgress size={20} />
+              <Box sx={{ minWidth: 0 }}>
+                <Typography variant="body2" fontWeight={600} noWrap>
+                  {item.title || item.fileName}
+                </Typography>
+                <MetaText noWrap>{item.fileName}</MetaText>
+              </Box>
+            </ProcessingRow>
+          ))}
+        </ProcessingList>
+      )}
+
+      <PlaylistCard>
+        <SectionHeader>
+          <Typography variant="subtitle1" fontWeight={700}>
+            Audios
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            {readyItems.length} audios
+          </Typography>
+        </SectionHeader>
 
         {readyItems.map((item) => (
-          <AudioCard key={item.id}>
+          <TrackRow key={item.id} onClick={() => navigate(`/audio/${item.id}`)}>
+            <TrackIconWrap>
+              <PlayArrowIcon />
+            </TrackIconWrap>
+            <Box sx={{ minWidth: 0, flex: 1 }}>
+              <Typography variant="body2" fontWeight={700} noWrap>
+                {item.title}
+              </Typography>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <MetaText noWrap>{formatDuration(item.duration)}</MetaText>
+                <Typography variant="caption" color="text.disabled">
+                  •
+                </Typography>
+                <MetaText noWrap>{formatCreatedDate(item.createdAt)}</MetaText>
+              </Stack>
+            </Box>
             <MenuButton
               size="small"
               onClick={(e) => {
@@ -291,43 +383,21 @@ export function AudioLibraryPage() {
             >
               <MoreVertIcon fontSize="small" />
             </MenuButton>
-            <CardActionArea onClick={() => navigate(`/audio/${item.id}`)}>
-              <AudioCover>
-                <HeadphonesIcon sx={{ fontSize: 48 }} />
-                <Typography variant="caption" sx={{ opacity: 0.8 }}>
-                  {formatDuration(item.duration)}
-                </Typography>
-              </AudioCover>
-              <CardContent sx={{ py: 1.5 }}>
-                <Typography
-                  variant="subtitle1"
-                  fontWeight={600}
-                  sx={{
-                    display: '-webkit-box',
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: 'vertical',
-                    overflow: 'hidden',
-                  }}
-                >
-                  {item.title}
-                </Typography>
-              </CardContent>
-            </CardActionArea>
-          </AudioCard>
+          </TrackRow>
         ))}
-      </ItemsGrid>
 
-      {items.length === 0 && (
-        <EmptyState>
-          <HeadphonesIcon sx={{ fontSize: 64, mb: 2, opacity: 0.3 }} />
-          <Typography variant="h6" gutterBottom>
-            No audio yet
-          </Typography>
-          <Typography variant="body2">
-            Upload a Polish audio file to get an auto-generated transcript
-          </Typography>
-        </EmptyState>
-      )}
+        {readyItems.length === 0 && processingItems.length === 0 && (
+          <EmptyState>
+            <HeadphonesIcon sx={{ fontSize: 48, mb: 1.5, opacity: 0.35 }} />
+            <Typography variant="subtitle1" gutterBottom fontWeight={700}>
+              No audios yet
+            </Typography>
+            <Typography variant="body2">
+              Upload a Polish audio file to build your audio library and transcript queue.
+            </Typography>
+          </EmptyState>
+        )}
+      </PlaylistCard>
 
       <input
         ref={fileInputRef}
@@ -392,8 +462,8 @@ export function AudioLibraryPage() {
         <DialogTitle>Delete Audio</DialogTitle>
         <DialogContent>
           <Typography>
-            Are you sure you want to delete &quot;{deleteConfirm?.title}&quot;? This will remove
-            the audio file and its transcript.
+            Are you sure you want to delete &quot;{deleteConfirm?.title}&quot;? This will remove the
+            audio file and its transcript.
           </Typography>
         </DialogContent>
         <DialogActions>

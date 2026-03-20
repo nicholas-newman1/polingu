@@ -147,10 +147,12 @@ interface FormData {
   examples: ExampleSentence[];
 }
 
+type SaveResult = void | boolean | Promise<void | boolean>;
+
 interface AddVocabularyModalProps {
   open: boolean;
   onClose: () => void;
-  onSave: (word: Omit<CustomVocabularyWord, 'id' | 'isCustom' | 'createdAt'>) => void;
+  onSave: (word: Omit<CustomVocabularyWord, 'id' | 'isCustom' | 'createdAt'>) => SaveResult;
   editWord?: CustomVocabularyWord | VocabularyWord | null;
   initialValues?: { polish: string; english: string };
   onAudioUpdated?: (audioUrl: string) => void;
@@ -362,10 +364,10 @@ export function AddVocabularyModal({
 
   useBackClose(open, handleClose);
 
-  const onSubmit = (data: FormData) => {
+  const onSubmit = async (data: FormData) => {
     const validExamples = data.examples.filter((ex) => ex.polish.trim() && ex.english.trim());
 
-    onSave({
+    const result = await onSave({
       polish: data.polish.trim(),
       english: data.english.trim(),
       partOfSpeech: data.partOfSpeech || undefined,
@@ -373,6 +375,7 @@ export function AddVocabularyModal({
       notes: data.notes.trim() || undefined,
       examples: validExamples.length > 0 ? validExamples : undefined,
     });
+    if (result === false) return;
     handleClose();
   };
 

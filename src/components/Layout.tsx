@@ -73,6 +73,10 @@ const HeaderRow = styled(Box)(({ theme }) => ({
   padding: theme.spacing(0, 2),
   borderBottom: `1px solid ${theme.palette.divider}`,
   height: HEADER_HEIGHT,
+  position: 'sticky',
+  top: 0,
+  zIndex: theme.zIndex.appBar + 1,
+  backgroundColor: theme.palette.background.default,
   [theme.breakpoints.up('md')]: {
     justifyContent: 'flex-end',
     padding: theme.spacing(0, 3),
@@ -356,7 +360,6 @@ function LayoutContent() {
 
   const defaultTitle = PAGE_TITLES[location.pathname];
   const pageTitle = pageTitleContext?.customTitle || defaultTitle;
-
   return (
     <AddToVocabularyProvider>
       <AddSentenceProvider>

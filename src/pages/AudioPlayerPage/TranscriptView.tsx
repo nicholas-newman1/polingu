@@ -1,9 +1,8 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
 import { Box, Button, IconButton, Typography } from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
-import SyncIcon from '@mui/icons-material/Sync';
+import GraphicEqRoundedIcon from '@mui/icons-material/GraphicEqRounded';
 import { styled } from '../../lib/styled';
-import { CONTROLS_HEIGHT } from './AudioControls';
 import { TranslatableWord } from '../../components/TranslatableWord';
 import { TranslatableText } from '../../components/TranslatableText';
 import type { TranscriptSegment } from '../../types/audio';
@@ -12,7 +11,7 @@ const TranscriptContainer = styled(Box)(({ theme }) => ({
   flex: 1,
   minWidth: 0,
   overflow: 'auto',
-  padding: theme.spacing(3, 2),
+  padding: theme.spacing(3, 0),
   display: 'flex',
   flexDirection: 'column',
   gap: theme.spacing(2.5),
@@ -22,11 +21,14 @@ const TranscriptContainer = styled(Box)(({ theme }) => ({
   width: '100%',
   textAlign: 'left',
   position: 'relative',
+  [theme.breakpoints.up('sm')]: {
+    padding: theme.spacing(3, 2),
+  },
 }));
 
-const SyncButton = styled(Button)(({ theme }) => ({
+const SyncButton = styled(Button)<{ $controlsHeight: number }>(({ theme, $controlsHeight }) => ({
   position: 'fixed',
-  bottom: CONTROLS_HEIGHT + 16,
+  bottom: $controlsHeight + 16,
   right: theme.spacing(2),
   zIndex: 1000,
 }));
@@ -56,26 +58,34 @@ const SegmentText = styled(Box)({
 interface TranscriptViewProps {
   transcript: TranscriptSegment[];
   activeSegmentIndex: number;
+  controlsHeight: number;
+  hasStartedPlayback: boolean;
   onDailyLimitReached?: (resetTime: string) => void;
   onWordTap?: () => void;
   onSeekToSegment?: (time: number) => void;
+  onSyncToCurrent?: () => void;
 }
 
 export function TranscriptView({
   transcript,
   activeSegmentIndex,
+  controlsHeight,
+  hasStartedPlayback,
   onDailyLimitReached,
   onWordTap,
   onSeekToSegment,
+  onSyncToCurrent,
 }: TranscriptViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const segmentRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const [showSyncButton, setShowSyncButton] = useState(false);
   const prevActiveSegmentRef = useRef(-1);
+  const skipNextAutoSyncRef = useRef(false);
 
   const handleUserScroll = useCallback(() => {
+    if (!hasStartedPlayback) return;
     setShowSyncButton(true);
-  }, []);
+  }, [hasStartedPlayback]);
 
   const isElementInView = useCallback((el: HTMLElement, container: HTMLElement): boolean => {
     const elRect = el.getBoundingClientRect();
@@ -90,18 +100,30 @@ export function TranscriptView({
       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
     setShowSyncButton(false);
-  }, [activeSegmentIndex]);
+    onSyncToCurrent?.();
+  }, [activeSegmentIndex, onSyncToCurrent]);
+
+  const handleSeekToSegmentClick = useCallback(
+    (segIdx: number, time: number) => {
+      skipNextAutoSyncRef.current = true;
+      const el = segmentRefs.current.get(segIdx);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      setShowSyncButton(false);
+      onSeekToSegment?.(time);
+    },
+    [onSeekToSegment]
+  );
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    container.addEventListener('touchstart', handleUserScroll, { passive: true });
     container.addEventListener('wheel', handleUserScroll, { passive: true });
     container.addEventListener('scroll', handleUserScroll, { passive: true });
 
     return () => {
-      container.removeEventListener('touchstart', handleUserScroll);
       container.removeEventListener('wheel', handleUserScroll);
       container.removeEventListener('scroll', handleUserScroll);
     };
@@ -121,6 +143,10 @@ export function TranscriptView({
     }
 
     if (showSyncButton) return;
+    if (skipNextAutoSyncRef.current) {
+      skipNextAutoSyncRef.current = false;
+      return;
+    }
 
     const el = segmentRefs.current.get(activeSegmentIndex);
     if (el) {
@@ -162,7 +188,7 @@ export function TranscriptView({
             {onSeekToSegment && (
               <IconButton
                 size="medium"
-                onClick={() => onSeekToSegment(segment.startTime)}
+                onClick={() => handleSeekToSegmentClick(segIdx, segment.startTime)}
                 sx={{ mt: 1.5, flexShrink: 0 }}
                 data-qa={`segment-seek-${segIdx}`}
                 aria-label="Jump to this line"
@@ -180,12 +206,13 @@ export function TranscriptView({
           </SegmentRow>
         );
       })}
-      {showSyncButton && (
+      {showSyncButton && hasStartedPlayback && (
         <SyncButton
+          $controlsHeight={controlsHeight}
           variant="contained"
           size="small"
           onClick={handleSync}
-          startIcon={<SyncIcon />}
+          startIcon={<GraphicEqRoundedIcon />}
           data-qa="transcript-sync-button"
         >
           Sync

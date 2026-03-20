@@ -23,6 +23,7 @@ import type {
 import type { TranslationDirection } from '../../types/common';
 import getOrCreateVocabularyCardReviewData from '../../lib/storage/getOrCreateVocabularyCardReviewData';
 import { saveCustomVocabulary } from '../../lib/storage/customVocabulary';
+import { findCustomWordWithSamePolish } from '../../lib/utils/findDuplicateCustomVocabularyPolish';
 import {
   updateSystemVocabularyWord,
   deleteSystemVocabularyWord,
@@ -287,6 +288,10 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
   };
 
   const handleAddWord = (wordData: Omit<CustomVocabularyWord, 'id' | 'isCustom' | 'createdAt'>) => {
+    if (findCustomWordWithSamePolish(customWords, wordData.polish)) {
+      showSnackbar('This Polish word is already in your custom vocabulary.', 'error');
+      return false;
+    }
     const newWord: CustomVocabularyWord = {
       ...wordData,
       id: `custom_${Date.now()}`,
@@ -359,7 +364,12 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
         await updateSystemVocabularyWord(wordId as number, wordData);
         setContextSystemWords(newSystemWords);
       });
+      updateWordInQueues(wordId, wordData);
     } else {
+      if (findCustomWordWithSamePolish(customWords, wordData.polish, wordId)) {
+        showSnackbar('This Polish word is already in your custom vocabulary.', 'error');
+        return false;
+      }
       const newCustomWords = customWords.map((w) => (w.id === wordId ? mergeWordData(w) : w));
       setEditingWord(null);
 
@@ -367,9 +377,8 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
         await saveCustomVocabulary(newCustomWords);
         setContextCustomWords(newCustomWords);
       });
+      updateWordInQueues(wordId, wordData);
     }
-
-    updateWordInQueues(wordId, wordData);
   };
 
   const handleDeleteWord = () => {

@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { Box, CircularProgress, Typography } from '@mui/material';
 import { styled } from '../../lib/styled';
 import { subscribeToAudioItem, getAudioDownloadUrl } from '../../lib/audio';
 import { useTranscriptPlayer } from '../../hooks/useTranscriptPlayer';
 import { useTranslationContext } from '../../hooks/useTranslationContext';
+import { usePageTitle } from '../../hooks/usePageTitle';
 import { TranscriptView } from './TranscriptView';
 import { AudioControls, CONTROLS_HEIGHT } from './AudioControls';
 import type { AudioItem } from '../../types/audio';
@@ -16,13 +17,13 @@ const PlayerContainer = styled(Box)({
   minHeight: 0,
 });
 
-const TranscriptArea = styled(Box)({
+const TranscriptArea = styled(Box)<{ $controlsHeight: number }>(({ $controlsHeight }) => ({
   flex: 1,
   minHeight: 0,
   display: 'flex',
   flexDirection: 'column',
-  paddingBottom: CONTROLS_HEIGHT,
-});
+  paddingBottom: $controlsHeight,
+}));
 
 const CenterBox = styled(Box)({
   flex: 1,
@@ -37,7 +38,11 @@ export function AudioPlayerPage() {
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [controlsHeight, setControlsHeight] = useState(CONTROLS_HEIGHT);
+  const [hasStartedPlayback, setHasStartedPlayback] = useState(false);
+  const wasPlayingBeforeSeekRef = useRef(false);
   const { handleDailyLimitReached } = useTranslationContext();
+  usePageTitle(audioItem?.title || 'Audio');
 
   const {
     audioRef,
@@ -59,28 +64,55 @@ export function AudioPlayerPage() {
   const handleSeekToSegment = useCallback(
     (time: number) => {
       seek(time);
-      if (!isPlaying) play();
+      if (!isPlaying) {
+        setHasStartedPlayback(true);
+        play();
+      }
     },
     [seek, play, isPlaying]
   );
+
+  const handleSyncToCurrent = useCallback(() => {
+    if (!isPlaying) {
+      setHasStartedPlayback(true);
+      play();
+    }
+  }, [isPlaying, play]);
+
+  const handleTogglePlay = useCallback(() => {
+    if (!isPlaying) {
+      setHasStartedPlayback(true);
+    }
+    togglePlay();
+  }, [isPlaying, togglePlay]);
+
+  const handleSeekStart = useCallback(() => {
+    wasPlayingBeforeSeekRef.current = isPlaying;
+    if (isPlaying) {
+      pause();
+    }
+  }, [isPlaying, pause]);
+
+  const handleSeekEnd = useCallback(() => {
+    if (wasPlayingBeforeSeekRef.current) {
+      play();
+    }
+    wasPlayingBeforeSeekRef.current = false;
+  }, [play]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.code !== 'Space' && e.key !== ' ') return;
       const target = e.target as HTMLElement;
-      if (
-        target.tagName === 'INPUT' ||
-        target.tagName === 'TEXTAREA' ||
-        target.isContentEditable
-      ) {
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
         return;
       }
       e.preventDefault();
-      togglePlay();
+      handleTogglePlay();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [togglePlay]);
+  }, [handleTogglePlay]);
 
   useEffect(() => {
     if (!audioId) return;
@@ -140,17 +172,18 @@ export function AudioPlayerPage() {
 
   return (
     <PlayerContainer>
-      {audioUrl && (
-        <audio ref={audioRef} src={audioUrl} preload="auto" />
-      )}
+      {audioUrl && <audio ref={audioRef} src={audioUrl} preload="auto" />}
 
-      <TranscriptArea>
+      <TranscriptArea $controlsHeight={controlsHeight}>
         <TranscriptView
           transcript={audioItem?.transcript ?? []}
           activeSegmentIndex={activeSegmentIndex}
+          hasStartedPlayback={hasStartedPlayback}
           onDailyLimitReached={handleDailyLimitReached}
           onWordTap={pause}
           onSeekToSegment={handleSeekToSegment}
+          onSyncToCurrent={handleSyncToCurrent}
+          controlsHeight={controlsHeight}
         />
       </TranscriptArea>
 
@@ -159,9 +192,12 @@ export function AudioPlayerPage() {
         currentTime={currentTime}
         duration={duration}
         playbackRate={playbackRate}
-        onTogglePlay={togglePlay}
+        onTogglePlay={handleTogglePlay}
         onSeek={seek}
+        onSeekStart={handleSeekStart}
+        onSeekEnd={handleSeekEnd}
         onSetPlaybackRate={setPlaybackRate}
+        onHeightChange={setControlsHeight}
       />
     </PlayerContainer>
   );

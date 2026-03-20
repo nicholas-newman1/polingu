@@ -18,6 +18,7 @@ import { styled } from '../lib/styled';
 import { alpha } from '../lib/theme';
 import { AddVocabularyModal } from '../components/AddVocabularyModal';
 import { loadCustomVocabulary, saveCustomVocabulary } from '../lib/storage/customVocabulary';
+import { findCustomWordWithSamePolish } from '../lib/utils/findDuplicateCustomVocabularyPolish';
 import type { CustomVocabularyWord, PartOfSpeech, NounGender } from '../types/vocabulary';
 import { useAuthContext } from '../hooks/useAuthContext';
 import { useOptimistic } from '../hooks/useOptimistic';
@@ -94,6 +95,10 @@ export function CustomVocabularyPage() {
   }, [user]);
 
   const handleAddWord = (wordData: Omit<CustomVocabularyWord, 'id' | 'isCustom' | 'createdAt'>) => {
+    if (findCustomWordWithSamePolish(customWords, wordData.polish)) {
+      showSnackbar('This Polish word is already in your custom vocabulary.', 'error');
+      return false;
+    }
     const newWord: CustomVocabularyWord = {
       ...wordData,
       id: `custom_${Date.now()}`,
@@ -112,6 +117,10 @@ export function CustomVocabularyPage() {
     wordData: Omit<CustomVocabularyWord, 'id' | 'isCustom' | 'createdAt'>
   ) => {
     if (!editingWord) return;
+    if (findCustomWordWithSamePolish(customWords, wordData.polish, editingWord.id)) {
+      showSnackbar('This Polish word is already in your custom vocabulary.', 'error');
+      return false;
+    }
     const newCustomWords = customWords.map((w) =>
       w.id === editingWord.id ? { ...w, ...wordData } : w
     );

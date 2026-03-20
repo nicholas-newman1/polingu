@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Box, IconButton, Slider, Typography, ButtonBase, Menu } from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import PauseIcon from '@mui/icons-material/Pause';
@@ -6,16 +6,17 @@ import Replay10Icon from '@mui/icons-material/Replay10';
 import Forward10Icon from '@mui/icons-material/Forward10';
 import { styled } from '../../lib/styled';
 import { DRAWER_WIDTH } from '../../components/Layout';
+import { BOTTOM_MENU_BAR_HEIGHT } from '../../components/BottomMenu/BottomMenuBar';
 
 const ControlsBar = styled(Box)(({ theme }) => ({
   position: 'fixed',
-  bottom: 0,
+  bottom: BOTTOM_MENU_BAR_HEIGHT,
   left: 0,
   right: 0,
   backgroundColor: theme.palette.background.paper,
   borderTop: `1px solid ${theme.palette.divider}`,
   padding: theme.spacing(1, 2, 2),
-  zIndex: theme.zIndex.appBar,
+  zIndex: theme.zIndex.appBar + 1,
   [theme.breakpoints.up('md')]: {
     left: DRAWER_WIDTH,
   },
@@ -78,7 +79,10 @@ interface AudioControlsProps {
   playbackRate: number;
   onTogglePlay: () => void;
   onSeek: (time: number) => void;
+  onSeekStart?: () => void;
+  onSeekEnd?: () => void;
   onSetPlaybackRate: (rate: number) => void;
+  onHeightChange?: (height: number) => void;
 }
 
 export function AudioControls({
@@ -88,12 +92,53 @@ export function AudioControls({
   playbackRate,
   onTogglePlay,
   onSeek,
+  onSeekStart,
+  onSeekEnd,
   onSetPlaybackRate,
+  onHeightChange,
 }: AudioControlsProps) {
   const [speedMenuAnchor, setSpeedMenuAnchor] = useState<HTMLElement | null>(null);
+  const [isSeeking, setIsSeeking] = useState(false);
+  const [seekValue, setSeekValue] = useState(0);
+  const controlsRef = useRef<HTMLDivElement>(null);
+  const lastHeightRef = useRef(0);
+
+  useEffect(() => {
+    if (!onHeightChange || !controlsRef.current) return;
+
+    const notifyHeight = () => {
+      if (!controlsRef.current) return;
+      const nextHeight = Math.round(controlsRef.current.getBoundingClientRect().height);
+      if (!nextHeight || nextHeight === lastHeightRef.current) return;
+      lastHeightRef.current = nextHeight;
+      onHeightChange(nextHeight + BOTTOM_MENU_BAR_HEIGHT);
+    };
+
+    notifyHeight();
+
+    const observer = new ResizeObserver(() => {
+      notifyHeight();
+    });
+
+    observer.observe(controlsRef.current);
+    return () => observer.disconnect();
+  }, [onHeightChange]);
 
   const handleSeekChange = (_: Event, value: number | number[]) => {
-    onSeek(value as number);
+    const nextTime = value as number;
+    if (!isSeeking) {
+      setIsSeeking(true);
+      onSeekStart?.();
+    }
+    setSeekValue(nextTime);
+  };
+
+  const handleSeekCommit = (_: unknown, value: number | number[]) => {
+    const nextTime = value as number;
+    onSeek(nextTime);
+    setSeekValue(nextTime);
+    setIsSeeking(false);
+    onSeekEnd?.();
   };
 
   const handleSpeedChange = (_: Event, value: number | number[]) => {
@@ -101,11 +146,12 @@ export function AudioControls({
   };
 
   return (
-    <ControlsBar>
+    <ControlsBar ref={controlsRef}>
       <Slider
-        value={currentTime}
+        value={isSeeking ? seekValue : currentTime}
         max={duration || 1}
         onChange={handleSeekChange}
+        onChangeCommitted={handleSeekCommit}
         size="small"
         sx={{
           p: 0,
@@ -212,4 +258,4 @@ export function AudioControls({
   );
 }
 
-export const CONTROLS_HEIGHT = 120;
+export const CONTROLS_HEIGHT = 120 + BOTTOM_MENU_BAR_HEIGHT;
