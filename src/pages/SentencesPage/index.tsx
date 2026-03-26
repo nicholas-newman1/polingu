@@ -556,10 +556,10 @@ export function SentencesPage({ mode }: SentencesPageProps) {
               }}
             >
               {practiceMode ? (
-                `Practice Mode · ${practiceCards.length} sentences`
+                `Drill Mode · ${practiceCards.length} sentences`
               ) : isFinished ? null : isPracticeAhead ? (
                 <>
-                  Practice Ahead · <ReviewCountBadge count={totalRemaining} /> remaining
+                  Drill Ahead · <ReviewCountBadge count={totalRemaining} /> remaining
                 </>
               ) : (
                 <>

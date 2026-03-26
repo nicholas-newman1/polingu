@@ -358,8 +358,9 @@ export function AddVocabularyModal({
     (audioUrl: string) => {
       setPendingAudioUrl(audioUrl);
       onAudioUpdated?.(audioUrl);
+      handleClose();
     },
-    [onAudioUpdated]
+    [onAudioUpdated, handleClose]
   );
 
   useBackClose(open, handleClose);

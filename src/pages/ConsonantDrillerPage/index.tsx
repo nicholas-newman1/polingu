@@ -183,7 +183,7 @@ export function ConsonantDrillerPage() {
                 '&:hover': { backgroundColor: 'consonants.dark' },
               }}
             >
-              Practice Again
+              Drill Again
             </Button>
           </FinishedBox>
         ) : currentCard ? (

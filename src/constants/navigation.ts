@@ -1,7 +1,16 @@
-import { Abc, School, Translate, AutoStories, CompareArrows } from '@mui/icons-material';
+import {
+  Abc,
+  School,
+  Translate,
+  AutoStories,
+  CompareArrows,
+  MusicNote,
+  MenuBook,
+  Headphones,
+} from '@mui/icons-material';
 import type { ReviewCounts } from '../contexts/review';
 
-type ColorKey = 'primary' | 'info' | 'success' | 'warning' | 'secondary';
+type ColorKey = 'primary' | 'info' | 'success' | 'warning' | 'secondary' | 'error';
 
 export interface FeatureNavItem {
   path: string;
@@ -32,8 +41,8 @@ export const FEATURE_NAV_ITEMS: FeatureNavItem[] = [
     path: '/declension',
     icon: School,
     label: 'Declension',
-    description: 'Practice noun declensions',
-    fullDescription: 'Practice noun and pronoun declensions with spaced repetition flashcards',
+    description: 'Drill noun declensions',
+    fullDescription: 'Drill noun and pronoun declensions with spaced repetition flashcards',
     colorKey: 'primary',
     statsKey: 'declension',
   },
@@ -51,7 +60,7 @@ export const FEATURE_NAV_ITEMS: FeatureNavItem[] = [
     icon: Translate,
     label: 'Sentences',
     description: 'Translate full sentences',
-    fullDescription: 'Translate full sentences and practice with spaced repetition',
+    fullDescription: 'Translate full sentences and drill with spaced repetition',
     colorKey: 'success',
     statsKey: 'sentences',
   },
@@ -60,8 +69,44 @@ export const FEATURE_NAV_ITEMS: FeatureNavItem[] = [
     icon: CompareArrows,
     label: 'Aspect Pairs',
     description: 'Perfective / imperfective pairs',
-    fullDescription: 'Practice identifying verb aspects and their pairs',
+    fullDescription: 'Drill verb aspects and their pairs',
     colorKey: 'secondary',
     statsKey: 'aspectPairs',
+  },
+];
+
+export interface ExtraNavItem {
+  path: string;
+  icon: typeof School;
+  label: string;
+  description: string;
+  fullDescription: string;
+  colorKey: ColorKey;
+}
+
+export const EXTRA_NAV_ITEMS: ExtraNavItem[] = [
+  {
+    path: '/consonant-driller',
+    icon: MusicNote,
+    label: 'Consonant Driller',
+    description: 'Hard/soft consonants',
+    fullDescription: 'Drill hard and soft Polish consonants',
+    colorKey: 'error',
+  },
+  {
+    path: '/library',
+    icon: MenuBook,
+    label: 'Library',
+    description: 'Read books & PDFs',
+    fullDescription: 'Read Polish books and PDFs with built-in translation tools',
+    colorKey: 'warning',
+  },
+  {
+    path: '/audio',
+    icon: Headphones,
+    label: 'Audio',
+    description: 'Listen & learn',
+    fullDescription: 'Listen to Polish audio content and drill comprehension',
+    colorKey: 'info',
   },
 ];

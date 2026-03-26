@@ -224,7 +224,7 @@ export function CustomDeclensionPage() {
       {customCards.length === 0 ? (
         <CustomItemEmptyState
           title="No custom declension cards yet"
-          description="Add your own declension cards to practice alongside the standard card set."
+          description="Add your own declension cards to drill alongside the standard card set."
           addLabel="Add Your First Card"
           onAdd={() => setShowAddModal(true)}
         />

@@ -585,10 +585,10 @@ export function DeclensionPage() {
           }}
         >
           {practiceMode ? (
-            `Practice Mode · ${practiceCards.length} cards`
+            `Drill Mode · ${practiceCards.length} cards`
           ) : isFinished ? null : isPracticeAhead ? (
             <>
-              Practice Ahead · <ReviewCountBadge count={totalRemaining} /> remaining
+              Drill Ahead · <ReviewCountBadge count={totalRemaining} /> remaining
             </>
           ) : (
             <>

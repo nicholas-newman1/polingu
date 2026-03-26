@@ -37,7 +37,7 @@ export function PracticeModeButton({ active, onClick, disabled }: PracticeModeBu
       size="small"
       disabled={disabled}
     >
-      {active ? '✓ Practice' : 'Practice'}
+      {active ? '✓ Drill' : 'Drill'}
     </StyledButton>
   );
 }

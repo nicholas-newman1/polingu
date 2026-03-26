@@ -4,15 +4,16 @@ import {
   Button,
   Card,
   Divider,
+  IconButton,
   Stack,
-  Tooltip,
   Typography,
   styled,
 } from '@mui/material';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
-import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
+import AddIcon from '@mui/icons-material/Add';
+import RemoveIcon from '@mui/icons-material/Remove';
+import PlayArrowRoundedIcon from '@mui/icons-material/PlayArrowRounded';
 import { alpha } from '../lib/theme';
-import { NumberInput } from './NumberInput';
 
 const CardWrapper = styled(Box)({
   width: '100%',
@@ -68,14 +69,44 @@ const FeatureButton = styled(Button)(({ theme }) => ({
   },
 }));
 
-const SecondaryActionButton = styled(Button)(({ theme }) => ({
-  flex: 1,
-  backgroundColor: theme.palette.background.default,
-  color: theme.palette.text.secondary,
-  borderColor: alpha(theme.palette.divider, 0.5),
+const ActionRow = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  alignItems: 'center',
+  padding: theme.spacing(1.25, 1.5),
+  borderRadius: Number(theme.shape.borderRadius) * 1.5,
+  backgroundColor: alpha(theme.palette.background.default, 0.6),
+  border: `1px solid ${alpha(theme.palette.divider, 0.25)}`,
+  gap: theme.spacing(1),
+  transition: 'border-color 0.2s',
   '&:hover': {
-    backgroundColor: alpha(theme.palette.action.hover, 0.5),
-    borderColor: theme.palette.divider,
+    borderColor: alpha(theme.palette.divider, 0.5),
+  },
+}));
+
+const StepperButton = styled(IconButton)(({ theme }) => ({
+  width: 28,
+  height: 28,
+  borderRadius: theme.shape.borderRadius,
+  backgroundColor: alpha(theme.palette.action.active, 0.06),
+  '&:hover': {
+    backgroundColor: alpha(theme.palette.action.active, 0.14),
+  },
+  '& .MuiSvgIcon-root': {
+    fontSize: '1rem',
+  },
+}));
+
+const GoButton = styled(IconButton)(({ theme }) => ({
+  width: 34,
+  height: 34,
+  borderRadius: Number(theme.shape.borderRadius) * 1.5,
+  backgroundColor: alpha(theme.palette.primary.main, 0.1),
+  color: theme.palette.primary.main,
+  '&:hover': {
+    backgroundColor: alpha(theme.palette.primary.main, 0.2),
+  },
+  '& .MuiSvgIcon-root': {
+    fontSize: '1.25rem',
   },
 }));
 
@@ -163,7 +194,7 @@ export function FinishedState({
             <Typography variant="body2" color="text.disabled">
               {hasNextActions
                 ? 'You finished this section'
-                : 'Come back tomorrow for more practice'}
+                : 'Come back tomorrow for more drills'}
             </Typography>
           </Box>
 
@@ -213,80 +244,79 @@ export function FinishedState({
             </Divider>
           )}
 
-          {/* Tertiary: Condensed add new / review early */}
-          <Stack direction="row" spacing={1.5} alignItems="center">
-            <Stack direction="row" alignItems="center" spacing={0.5} sx={{ flex: 1 }}>
-              <SecondaryActionButton
-                variant="outlined"
-                size="medium"
-                onClick={onLearnExtra}
-                disableElevation
+          {/* Actions: learn new / review early */}
+          <Stack spacing={1}>
+            <ActionRow>
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Typography variant="body2" fontWeight={500} noWrap>
+                  Learn new
+                </Typography>
+                <Typography variant="caption" color="text.disabled" noWrap>
+                  Cards you haven't seen
+                </Typography>
+              </Box>
+              <StepperButton
+                size="small"
+                onClick={() => setExtraNewCardsCount(Math.max(1, extraNewCardsCount - 1))}
+                disabled={extraNewCardsCount <= 1}
               >
-                +{extraNewCardsCount} new
-              </SecondaryActionButton>
-              <Tooltip title="Learn cards you haven't seen yet" arrow placement="top">
-                <HelpOutlineIcon
-                  sx={{
-                    fontSize: 16,
-                    color: 'text.disabled',
-                    cursor: 'help',
-                    flexShrink: 0,
-                  }}
-                />
-              </Tooltip>
-            </Stack>
-            <Stack direction="row" alignItems="center" spacing={0.5} sx={{ flex: 1 }}>
-              <SecondaryActionButton
-                variant="outlined"
-                size="medium"
-                onClick={onPracticeAhead}
-                disableElevation
+                <RemoveIcon />
+              </StepperButton>
+              <Typography
+                variant="body2"
+                sx={{
+                  minWidth: 26,
+                  textAlign: 'center',
+                  fontWeight: 600,
+                  fontFamily: '"JetBrains Mono", monospace',
+                  fontSize: '0.85rem',
+                }}
               >
-                Review {practiceAheadCount}
-              </SecondaryActionButton>
-              <Tooltip title="Review cards before they're due" arrow placement="top">
-                <HelpOutlineIcon
-                  sx={{
-                    fontSize: 16,
-                    color: 'text.disabled',
-                    cursor: 'help',
-                    flexShrink: 0,
-                  }}
-                />
-              </Tooltip>
-            </Stack>
-          </Stack>
+                {extraNewCardsCount}
+              </Typography>
+              <StepperButton size="small" onClick={() => setExtraNewCardsCount(extraNewCardsCount + 1)}>
+                <AddIcon />
+              </StepperButton>
+              <GoButton size="small" onClick={onLearnExtra}>
+                <PlayArrowRoundedIcon />
+              </GoButton>
+            </ActionRow>
 
-          {/* Number inputs row */}
-          <Stack
-            direction="row"
-            spacing={1.5}
-            alignItems="center"
-            justifyContent="center"
-            sx={{ mt: 1.5 }}
-          >
-            <Stack direction="row" alignItems="center" spacing={0.5}>
-              <Typography variant="caption" color="text.disabled">
-                New:
+            <ActionRow>
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Typography variant="body2" fontWeight={500} noWrap>
+                  Review early
+                </Typography>
+                <Typography variant="caption" color="text.disabled" noWrap>
+                  Practice before they're due
+                </Typography>
+              </Box>
+              <StepperButton
+                size="small"
+                onClick={() => setPracticeAheadCount(Math.max(1, practiceAheadCount - 1))}
+                disabled={practiceAheadCount <= 1}
+              >
+                <RemoveIcon />
+              </StepperButton>
+              <Typography
+                variant="body2"
+                sx={{
+                  minWidth: 26,
+                  textAlign: 'center',
+                  fontWeight: 600,
+                  fontFamily: '"JetBrains Mono", monospace',
+                  fontSize: '0.85rem',
+                }}
+              >
+                {practiceAheadCount}
               </Typography>
-              <NumberInput
-                value={extraNewCardsCount}
-                onChange={setExtraNewCardsCount}
-                min={1}
-                width={56}
-              />
-            </Stack>
-            <Stack direction="row" alignItems="center" spacing={0.5}>
-              <Typography variant="caption" color="text.disabled">
-                Early:
-              </Typography>
-              <NumberInput
-                value={practiceAheadCount}
-                onChange={setPracticeAheadCount}
-                min={1}
-                width={56}
-              />
-            </Stack>
+              <StepperButton size="small" onClick={() => setPracticeAheadCount(practiceAheadCount + 1)}>
+                <AddIcon />
+              </StepperButton>
+              <GoButton size="small" onClick={onPracticeAhead}>
+                <PlayArrowRoundedIcon />
+              </GoButton>
+            </ActionRow>
           </Stack>
         </StyledCard>
       </Box>

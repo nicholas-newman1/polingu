@@ -144,23 +144,13 @@ interface NavItemProps {
   path: string;
   icon: React.ReactNode;
   label: string;
-  description: string;
   active: boolean;
   reviewCount?: number;
   loading?: boolean;
   onNavigate: (path: string) => void;
 }
 
-function NavItem({
-  path,
-  icon,
-  label,
-  description,
-  active,
-  reviewCount,
-  loading,
-  onNavigate,
-}: NavItemProps) {
+function NavItem({ path, icon, label, active, reviewCount, loading, onNavigate }: NavItemProps) {
   const hasBadge = reviewCount !== undefined || loading;
   const isComplete = reviewCount === 0;
 
@@ -168,11 +158,7 @@ function NavItem({
     <ListItem disablePadding>
       <StyledNavItem $active={active} onClick={() => onNavigate(path)}>
         <ListItemIcon sx={{ minWidth: 40 }}>{icon}</ListItemIcon>
-        <ListItemText
-          primary={label}
-          secondary={description}
-          slotProps={{ primary: { fontWeight: active ? 600 : 400 } }}
-        />
+        <ListItemText primary={label} slotProps={{ primary: { fontWeight: active ? 600 : 400 } }} />
         {hasBadge &&
           (loading ? (
             <Skeleton variant="rounded" width={24} height={24} sx={{ borderRadius: 12 }} />
@@ -190,7 +176,6 @@ const NAV_ITEMS: Array<{
   path: string;
   icon: typeof Home;
   label: string;
-  description: string;
   reviewCountKey?: keyof ReviewCounts;
   adminOnly?: boolean;
 }> = [
@@ -198,45 +183,38 @@ const NAV_ITEMS: Array<{
     path: '/dashboard',
     icon: Home,
     label: 'Dashboard',
-    description: 'Home',
   },
   ...FEATURE_NAV_ITEMS.map((item) => ({
     path: item.path,
     icon: item.icon,
     label: item.label,
-    description: item.description,
     reviewCountKey: item.statsKey,
   })),
   {
     path: '/consonant-driller',
     icon: MusicNote,
     label: 'Consonant Driller',
-    description: 'Hard/soft consonants',
   },
   {
     path: '/library',
     icon: MenuBook,
     label: 'Library',
-    description: 'Read books & PDFs',
   },
   {
     path: '/audio',
     icon: Headphones,
     label: 'Audio',
-    description: 'Listen & learn',
   },
   {
     path: '/admin/content',
     icon: Storage,
     label: 'Content',
-    description: 'Manage system content',
     adminOnly: true,
   },
   {
     path: '/admin/generator',
     icon: AutoAwesome,
     label: 'Generator',
-    description: 'AI sentence generator',
     adminOnly: true,
   },
 ];
@@ -322,7 +300,6 @@ function DrawerContent({
               path={item.path}
               icon={<item.icon color={active ? 'primary' : 'inherit'} />}
               label={item.label}
-              description={item.description}
               active={active}
               reviewCount={reviewCount}
               loading={item.reviewCountKey ? loading : undefined}

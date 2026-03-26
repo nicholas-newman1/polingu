@@ -538,10 +538,10 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
               }}
             >
               {practiceMode ? (
-                `Practice Mode · ${practiceCards.length} words`
+                `Drill Mode · ${practiceCards.length} words`
               ) : isFinished ? null : isPracticeAhead ? (
                 <>
-                  Practice Ahead · <ReviewCountBadge count={totalRemaining} /> remaining
+                  Drill Ahead · <ReviewCountBadge count={totalRemaining} /> remaining
                 </>
               ) : (
                 <>

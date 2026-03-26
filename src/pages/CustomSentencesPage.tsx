@@ -208,7 +208,7 @@ export function CustomSentencesPage() {
       {customSentences.length === 0 ? (
         <CustomItemEmptyState
           title="No custom sentences yet"
-          description="Add your own sentences to practice alongside the standard sentence set. Custom sentences are prioritized first!"
+          description="Add your own sentences to drill alongside the standard sentence set. Custom sentences are prioritized first!"
           addLabel="Add Your First Sentence"
           onAdd={() => setShowAddModal(true)}
         />

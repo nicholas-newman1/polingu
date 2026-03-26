@@ -165,6 +165,7 @@ export function EditVerbModal({
   const handleAudioSaved = (audioUrl: string) => {
     setPendingAudioUrl(audioUrl);
     onAudioUpdated?.(audioUrl);
+    handleClose();
   };
 
   useBackClose(open, handleClose);

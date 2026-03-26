@@ -86,7 +86,7 @@ export function ModeSelector({ stats, loading, onSelectMode, renderStats }: Mode
     <Container>
       <Header>
         <Typography variant="h5" color="text.primary" sx={{ fontWeight: 500, mb: 1 }}>
-          Choose Your Practice Mode
+          Choose Your Drill Mode
         </Typography>
         <Typography variant="body2" color="text.secondary">
           Each mode tracks progress independently

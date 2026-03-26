@@ -7,7 +7,7 @@ import { FeatureCard } from '../components/FeatureCard';
 import { ProgressStats } from '../components/ProgressStats';
 import { ReviewCountBadge } from '../components/ReviewCountBadge';
 import { SITE_NAME } from '../constants';
-import { FEATURE_NAV_ITEMS } from '../constants/navigation';
+import { FEATURE_NAV_ITEMS, EXTRA_NAV_ITEMS } from '../constants/navigation';
 import { SiteLogo } from '../components/SiteLogo';
 
 const PageContainer = styled(Box)(({ theme }) => ({
@@ -65,7 +65,7 @@ export function DashboardPage() {
           <SiteLogo size={40} /> {SITE_NAME}
         </Title>
         <Typography variant="body1" color="text.secondary">
-          Choose what you'd like to practice today
+          Choose what you'd like to drill today
         </Typography>
       </Header>
 
@@ -92,6 +92,19 @@ export function DashboardPage() {
                 loading={loading}
               />
             </FeatureCard>
+          );
+        })}
+        {EXTRA_NAV_ITEMS.map((item) => {
+          const color = theme.palette[item.colorKey].main;
+          return (
+            <FeatureCard
+              key={item.path}
+              color={color}
+              icon={<item.icon sx={{ fontSize: 28 }} />}
+              title={item.label}
+              description={isCompact ? item.description : item.fullDescription}
+              onClick={() => navigate(item.path)}
+            />
           );
         })}
       </CardsGrid>

@@ -381,7 +381,7 @@ export function AspectPairsPage() {
   if (aspectPairCards.length === 0 && !isLoading) {
     return (
       <MainContent>
-        <EmptyState message="No aspect pairs available. Verbs need aspectPair data to practice." />
+        <EmptyState message="No aspect pairs available. Verbs need aspectPair data to drill." />
       </MainContent>
     );
   }
@@ -430,10 +430,10 @@ export function AspectPairsPage() {
               }}
             >
               {practiceMode ? (
-                `Practice Mode · ${practiceCards.length} pairs`
+                `Drill Mode · ${practiceCards.length} pairs`
               ) : isFinished ? null : isPracticeAhead ? (
                 <>
-                  Practice Ahead · <ReviewCountBadge count={totalRemaining} /> remaining
+                  Drill Ahead · <ReviewCountBadge count={totalRemaining} /> remaining
                 </>
               ) : (
                 <>

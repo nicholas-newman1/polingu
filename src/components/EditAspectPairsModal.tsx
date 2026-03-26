@@ -150,11 +150,13 @@ export function EditAspectPairsModal({
   const handleVerb1AudioSaved = (audioUrl: string) => {
     setPendingVerb1AudioUrl(audioUrl);
     onVerb1AudioUpdated?.(audioUrl);
+    handleClose();
   };
 
   const handleVerb2AudioSaved = (audioUrl: string) => {
     setPendingVerb2AudioUrl(audioUrl);
     onVerb2AudioUpdated?.(audioUrl);
+    handleClose();
   };
 
   useBackClose(open, handleClose);

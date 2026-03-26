@@ -222,7 +222,7 @@ export function CustomVocabularyPage() {
       {customWords.length === 0 ? (
         <CustomItemEmptyState
           title="No custom words yet"
-          description="Add your own vocabulary words to practice alongside the standard word list."
+          description="Add your own vocabulary words to drill alongside the standard word list."
           addLabel="Add Your First Word"
           onAdd={() => setShowAddModal(true)}
         />

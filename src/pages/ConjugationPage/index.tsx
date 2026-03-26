@@ -565,10 +565,10 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
               }}
             >
               {practiceMode ? (
-                `Practice Mode · ${practiceCards.length} forms`
+                `Drill Mode · ${practiceCards.length} forms`
               ) : isFinished ? null : isPracticeAhead ? (
                 <>
-                  Practice Ahead · <ReviewCountBadge count={totalRemaining} /> remaining
+                  Drill Ahead · <ReviewCountBadge count={totalRemaining} /> remaining
                 </>
               ) : (
                 <>
