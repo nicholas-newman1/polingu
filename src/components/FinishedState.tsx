@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import {
   Avatar,
   Box,
@@ -5,6 +6,7 @@ import {
   Card,
   Divider,
   IconButton,
+  InputBase,
   Stack,
   Typography,
   styled,
@@ -110,6 +112,22 @@ const GoButton = styled(IconButton)(({ theme }) => ({
   },
 }));
 
+const CountInput = styled(InputBase)(({ theme }) => ({
+  width: 40,
+  '& input': {
+    textAlign: 'center',
+    fontWeight: 600,
+    fontFamily: '"JetBrains Mono", monospace',
+    fontSize: '0.85rem',
+    padding: theme.spacing(0.25, 0),
+    MozAppearance: 'textfield',
+    '&::-webkit-outer-spin-button, &::-webkit-inner-spin-button': {
+      WebkitAppearance: 'none',
+      margin: 0,
+    },
+  },
+}));
+
 const CountBadge = styled(Box)(({ theme }) => ({
   display: 'inline-flex',
   alignItems: 'center',
@@ -128,6 +146,32 @@ const FeatureCountBadge = styled(CountBadge)(({ theme }) => ({
   backgroundColor: alpha(theme.palette.primary.main, 0.15),
   color: theme.palette.primary.main,
 }));
+
+function useEditableCount(value: number, setValue: (n: number) => void) {
+  const [draft, setDraft] = useState(String(value));
+
+  useEffect(() => {
+    setDraft(String(value));
+  }, [value]);
+
+  const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value;
+    if (raw === '' || /^\d+$/.test(raw)) {
+      setDraft(raw);
+      const parsed = parseInt(raw, 10);
+      if (!isNaN(parsed) && parsed >= 1) setValue(parsed);
+    }
+  };
+
+  const onBlur = () => {
+    const parsed = parseInt(draft, 10);
+    const clamped = isNaN(parsed) || parsed < 1 ? 1 : parsed;
+    setValue(clamped);
+    setDraft(String(clamped));
+  };
+
+  return { draft, onChange, onBlur };
+}
 
 export type FeatureType = 'vocabulary' | 'sentences' | 'conjugation' | 'declension' | 'aspectPairs';
 export type Direction = 'pl-to-en' | 'en-to-pl';
@@ -175,6 +219,9 @@ export function FinishedState({
   onPracticeAhead,
   onLearnExtra,
 }: FinishedStateProps) {
+  const extraNew = useEditableCount(extraNewCardsCount, setExtraNewCardsCount);
+  const practiceAhead = useEditableCount(practiceAheadCount, setPracticeAheadCount);
+
   const hasOtherDirection = otherDirectionDueCount !== undefined && otherDirectionDueCount > 0;
   const featuresWithDue = otherFeaturesDue.filter((f) => f.dueCount > 0).slice(0, 2);
   const hasOtherFeatures = featuresWithDue.length > 0;
@@ -192,9 +239,7 @@ export function FinishedState({
               {hasNextActions ? "What's next?" : 'All done!'}
             </Typography>
             <Typography variant="body2" color="text.disabled">
-              {hasNextActions
-                ? 'You finished this section'
-                : 'Come back tomorrow for more drills'}
+              {hasNextActions ? 'You finished this section' : 'Come back tomorrow for more drills'}
             </Typography>
           </Box>
 
@@ -262,19 +307,16 @@ export function FinishedState({
               >
                 <RemoveIcon />
               </StepperButton>
-              <Typography
-                variant="body2"
-                sx={{
-                  minWidth: 26,
-                  textAlign: 'center',
-                  fontWeight: 600,
-                  fontFamily: '"JetBrains Mono", monospace',
-                  fontSize: '0.85rem',
-                }}
+              <CountInput
+                value={extraNew.draft}
+                onChange={extraNew.onChange}
+                onBlur={extraNew.onBlur}
+                inputProps={{ inputMode: 'numeric', pattern: '[0-9]*' }}
+              />
+              <StepperButton
+                size="small"
+                onClick={() => setExtraNewCardsCount(extraNewCardsCount + 1)}
               >
-                {extraNewCardsCount}
-              </Typography>
-              <StepperButton size="small" onClick={() => setExtraNewCardsCount(extraNewCardsCount + 1)}>
                 <AddIcon />
               </StepperButton>
               <GoButton size="small" onClick={onLearnExtra}>
@@ -298,19 +340,16 @@ export function FinishedState({
               >
                 <RemoveIcon />
               </StepperButton>
-              <Typography
-                variant="body2"
-                sx={{
-                  minWidth: 26,
-                  textAlign: 'center',
-                  fontWeight: 600,
-                  fontFamily: '"JetBrains Mono", monospace',
-                  fontSize: '0.85rem',
-                }}
+              <CountInput
+                value={practiceAhead.draft}
+                onChange={practiceAhead.onChange}
+                onBlur={practiceAhead.onBlur}
+                inputProps={{ inputMode: 'numeric', pattern: '[0-9]*' }}
+              />
+              <StepperButton
+                size="small"
+                onClick={() => setPracticeAheadCount(practiceAheadCount + 1)}
               >
-                {practiceAheadCount}
-              </Typography>
-              <StepperButton size="small" onClick={() => setPracticeAheadCount(practiceAheadCount + 1)}>
                 <AddIcon />
               </StepperButton>
               <GoButton size="small" onClick={onPracticeAhead}>
