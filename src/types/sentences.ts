@@ -30,6 +30,7 @@ export interface CustomSentence extends CustomItemBase {
   level: CEFRLevel;
   tags: string[];
   translations?: Record<string, string>;
+  audioUrl?: string;
 }
 
 export interface SentenceBank {

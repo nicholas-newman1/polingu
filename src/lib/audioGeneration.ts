@@ -3,7 +3,15 @@ import { app } from './firebase';
 
 const functions = getFunctions(app);
 
-export type AudioType = 'sentence' | 'declension' | 'vocabulary' | 'conjugation' | 'verb-infinitive';
+export type AudioType =
+  | 'sentence'
+  | 'declension'
+  | 'vocabulary'
+  | 'conjugation'
+  | 'verb-infinitive'
+  | 'custom-sentence'
+  | 'custom-vocabulary'
+  | 'custom-declension';
 
 interface GenerateAudioPreviewRequest {
   text: string;
@@ -36,10 +44,7 @@ const saveAudioFn = httpsCallable<SaveAudioRequest, SaveAudioResponse>(functions
  * Generate an audio preview for the given text.
  * Returns base64 encoded audio data for preview playback.
  */
-export async function generateAudioPreview(
-  text: string,
-  type: AudioType
-): Promise<string> {
+export async function generateAudioPreview(text: string, type: AudioType): Promise<string> {
   const result = await generateAudioPreviewFn({ text, type });
   return result.data.audioBase64;
 }

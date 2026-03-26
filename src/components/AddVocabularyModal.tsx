@@ -403,7 +403,7 @@ export function AddVocabularyModal({
             <>
               <AudioRegenerator
                 text={polishWord}
-                type="vocabulary"
+                type={editWord.isCustom ? 'custom-vocabulary' : 'vocabulary'}
                 id={String(editWord.id)}
                 currentAudioUrl={
                   pendingAudioUrl || ('audioUrl' in editWord ? editWord.audioUrl : undefined)

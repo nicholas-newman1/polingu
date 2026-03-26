@@ -147,7 +147,7 @@ export function EditSentenceModal({
           <>
             <AudioRegenerator
               text={polishText}
-              type="sentence"
+              type={sentence.isCustom ? 'custom-sentence' : 'sentence'}
               id={sentence.id}
               currentAudioUrl={pendingAudioUrl || sentence.audioUrl}
               onAudioSaved={handleAudioSaved}

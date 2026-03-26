@@ -41,6 +41,7 @@ export interface CustomVocabularyWord extends CustomItemBase {
   gender?: NounGender;
   notes?: string;
   examples?: ExampleSentence[];
+  audioUrl?: string;
 }
 
 import type { TranslationDirection } from './common';

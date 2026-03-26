@@ -178,7 +178,7 @@ export function EditDeclensionModal({
           <>
             <AudioRegenerator
               text={backText}
-              type="declension"
+              type={card.isCustom ? 'custom-declension' : 'declension'}
               id={String(card.id)}
               currentAudioUrl={pendingAudioUrl || card.audioUrl}
               onAudioSaved={handleAudioSaved}

@@ -682,7 +682,15 @@ export const processSentence = onCall<ProcessSentenceRequest, Promise<ProcessSen
 );
 
 // Audio generation types
-type AudioType = 'sentence' | 'declension' | 'vocabulary' | 'conjugation' | 'verb-infinitive';
+type AudioType =
+  | 'sentence'
+  | 'declension'
+  | 'vocabulary'
+  | 'conjugation'
+  | 'verb-infinitive'
+  | 'custom-sentence'
+  | 'custom-vocabulary'
+  | 'custom-declension';
 
 interface GenerateAudioPreviewRequest {
   text: string;
@@ -743,7 +751,7 @@ interface SaveAudioResponse {
   audioUrl: string;
 }
 
-function getAudioPath(type: AudioType, id: string, subPath?: string): string {
+function getAudioPath(type: AudioType, id: string, subPath?: string, userId?: string): string {
   switch (type) {
     case 'sentence':
       return `sentences/${id}.mp3`;
@@ -755,16 +763,42 @@ function getAudioPath(type: AudioType, id: string, subPath?: string): string {
       return `conjugation/${subPath || id}.mp3`;
     case 'verb-infinitive':
       return `verb-infinitives/${id}.mp3`;
+    case 'custom-sentence':
+      return `custom/${userId}/sentences/${id}.mp3`;
+    case 'custom-vocabulary':
+      return `custom/${userId}/vocabulary/${id}.mp3`;
+    case 'custom-declension':
+      return `custom/${userId}/declension/${id}.mp3`;
     default:
       throw new Error(`Unknown audio type: ${type}`);
   }
+}
+
+async function updateCustomCardAudioUrl(
+  userId: string,
+  storeName: string,
+  documentKey: string,
+  cardId: string,
+  audioUrl: string
+): Promise<void> {
+  const docRef = db.collection('users').doc(userId).collection('data').doc(storeName);
+  const docSnap = await docRef.get();
+  if (!docSnap.exists) return;
+
+  const data = docSnap.data() as Record<string, Array<{ id: string; audioUrl?: string }>>;
+  const items = data[documentKey];
+  if (!Array.isArray(items)) return;
+
+  const updated = items.map((item) => (item.id === cardId ? { ...item, audioUrl } : item));
+  await docRef.update({ [documentKey]: updated });
 }
 
 async function updateFirestoreAudioUrl(
   type: AudioType,
   id: string,
   audioUrl: string,
-  subPath?: string
+  subPath?: string,
+  userId?: string
 ): Promise<void> {
   switch (type) {
     case 'sentence':
@@ -778,7 +812,6 @@ async function updateFirestoreAudioUrl(
       break;
     case 'conjugation':
       if (subPath) {
-        // subPath format: "{verbId}_{tense}_{formKey}"
         const parts = subPath.split('_');
         const verbId = parts[0];
         const tense = parts[1];
@@ -792,6 +825,16 @@ async function updateFirestoreAudioUrl(
     case 'verb-infinitive':
       await db.collection('verbs').doc(id).update({ infinitiveAudioUrl: audioUrl });
       break;
+    case 'custom-sentence':
+      if (userId)
+        await updateCustomCardAudioUrl(userId, 'customSentences', 'sentences', id, audioUrl);
+      break;
+    case 'custom-vocabulary':
+      if (userId) await updateCustomCardAudioUrl(userId, 'customVocabulary', 'words', id, audioUrl);
+      break;
+    case 'custom-declension':
+      if (userId) await updateCustomCardAudioUrl(userId, 'customDeclension', 'items', id, audioUrl);
+      break;
   }
 }
 
@@ -801,6 +844,7 @@ export const saveAudio = onCall<SaveAudioRequest, Promise<SaveAudioResponse>>(as
   }
 
   const { audioBase64, type, id, subPath } = request.data;
+  const userId = request.auth.uid;
 
   if (!audioBase64 || typeof audioBase64 !== 'string') {
     throw new HttpsError('invalid-argument', 'Audio data required.');
@@ -812,7 +856,7 @@ export const saveAudio = onCall<SaveAudioRequest, Promise<SaveAudioResponse>>(as
 
   try {
     const audioBuffer = Buffer.from(audioBase64, 'base64');
-    const filePath = getAudioPath(type, id, subPath);
+    const filePath = getAudioPath(type, id, subPath, userId);
     const bucket = storage.bucket(AUDIO_BUCKET);
     const file = bucket.file(filePath);
 
@@ -825,8 +869,7 @@ export const saveAudio = onCall<SaveAudioRequest, Promise<SaveAudioResponse>>(as
 
     const audioUrl = `https://storage.googleapis.com/${AUDIO_BUCKET}/${filePath}?v=${Date.now()}`;
 
-    // Update Firestore with the new audio URL
-    await updateFirestoreAudioUrl(type, id, audioUrl, subPath);
+    await updateFirestoreAudioUrl(type, id, audioUrl, subPath, userId);
 
     return { audioUrl };
   } catch (error) {
