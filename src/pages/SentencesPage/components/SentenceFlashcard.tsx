@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import type { Grade } from 'ts-fsrs';
-import { Box, Chip, Stack, Typography } from '@mui/material';
+import { Box, Chip, Stack } from '@mui/material';
 import { styled } from '../../../lib/styled';
 import { FlashcardShell } from '../../../components/FlashcardShell';
 import type { RatingIntervals } from '../../../components/RatingButtons';
