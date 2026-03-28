@@ -25,23 +25,11 @@ interface VocabularyFlashcardProps {
   onDelete?: () => void;
 }
 
-const DirectionLabel = styled(Typography)(({ theme }) => ({
-  color: theme.palette.text.disabled,
-  fontSize: '0.75rem',
-  textTransform: 'uppercase',
-  letterSpacing: '0.1em',
-}));
-
 const CustomLabel = styled(Typography)(({ theme }) => ({
   color: theme.palette.primary.main,
   fontSize: '0.75rem',
   textTransform: 'uppercase',
   letterSpacing: '0.1em',
-}));
-
-const HeaderLabels = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  gap: theme.spacing(1.5),
 }));
 
 const QuestionText = styled(Typography)({
@@ -128,19 +116,14 @@ export function VocabularyFlashcard({
 
   const questionWord = isPolishToEnglish ? word.polish : word.english;
   const answerWord = isPolishToEnglish ? word.english : word.polish;
-  const directionLabel = isPolishToEnglish ? 'Polish → English' : 'English → Polish';
   const isCustomWord = word.isCustom === true;
   const canEditOrDelete = isCustomWord || isAdmin;
 
-  const header = (
-    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-      <HeaderLabels>
-        <DirectionLabel>{directionLabel}</DirectionLabel>
-        {isCustomWord && <CustomLabel>Custom</CustomLabel>}
-      </HeaderLabels>
-      {hasAudio && <AudioButton isPlaying={isPlaying} onToggle={toggleAudio} />}
-    </Box>
-  );
+  const header = isCustomWord ? <CustomLabel>Custom</CustomLabel> : undefined;
+
+  const headerActions = hasAudio ? (
+    <AudioButton isPlaying={isPlaying} onToggle={toggleAudio} />
+  ) : undefined;
 
   const question = (
     <>
@@ -214,6 +197,7 @@ export function VocabularyFlashcard({
       onEdit={onEdit}
       onDelete={onDelete}
       header={header}
+      headerActions={headerActions}
       question={question}
       answer={answer}
     />

@@ -38,18 +38,6 @@ interface ConjugationFlashcardProps {
   onDelete?: () => void;
 }
 
-const DirectionLabel = styled(Typography)(({ theme }) => ({
-  color: theme.palette.text.disabled,
-  fontSize: '0.75rem',
-  textTransform: 'uppercase',
-  letterSpacing: '0.1em',
-}));
-
-const HeaderLabels = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  gap: theme.spacing(1.5),
-}));
-
 const QuestionText = styled(Typography)({
   fontWeight: 400,
   lineHeight: 1.4,
@@ -146,8 +134,6 @@ export function ConjugationFlashcard({
     revealed,
   });
 
-  const directionLabel = isPolishToEnglish ? 'Polish → English' : 'English → Polish';
-
   const questionDisplay = getQuestionDisplay(form, direction);
   const answerData = getAnswerDisplay(form, direction);
 
@@ -155,14 +141,9 @@ export function ConjugationFlashcard({
     ? getCorrespondingAspectPairForm(form, aspectPairVerb)
     : null;
 
-  const header = (
-    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-      <HeaderLabels>
-        <DirectionLabel>{directionLabel}</DirectionLabel>
-      </HeaderLabels>
-      {hasAudio && <AudioButton isPlaying={isPlaying} onToggle={toggleAudio} />}
-    </Box>
-  );
+  const headerActions = hasAudio ? (
+    <AudioButton isPlaying={isPlaying} onToggle={toggleAudio} />
+  ) : undefined;
 
   const question = (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
@@ -260,7 +241,7 @@ export function ConjugationFlashcard({
       onContinue={onContinue}
       onEdit={onEdit}
       onDelete={onDelete}
-      header={header}
+      headerActions={headerActions}
       question={question}
       answer={answer}
     />

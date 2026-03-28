@@ -26,11 +26,6 @@ interface AspectPairsFlashcardProps {
   onUnlink?: () => void;
 }
 
-const HeaderLabels = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  gap: theme.spacing(1.5),
-}));
-
 const DirectionLabel = styled(Typography)(({ theme }) => ({
   color: theme.palette.text.disabled,
   fontSize: '0.75rem',
@@ -184,16 +179,11 @@ export function AspectPairsFlashcard({
     }
   }, [revealed, backAudioUrl, playAudio, isBiaspectual, appSettings.autoPlayAudio]);
 
-  const header = (
-    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-      <HeaderLabels>
-        <DirectionLabel>Aspect Pairs</DirectionLabel>
-      </HeaderLabels>
-      {frontAudioUrl && (
-        <AudioButton isPlaying={playingAudio === 'front'} onToggle={toggleFrontAudio} />
-      )}
-    </Box>
-  );
+  const header = <DirectionLabel>Aspect Pairs</DirectionLabel>;
+
+  const headerActions = frontAudioUrl ? (
+    <AudioButton isPlaying={playingAudio === 'front'} onToggle={toggleFrontAudio} />
+  ) : undefined;
 
   const question = (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
@@ -255,6 +245,7 @@ export function AspectPairsFlashcard({
       onEdit={onEdit}
       onDelete={onUnlink}
       header={header}
+      headerActions={headerActions}
       question={question}
       answer={answer}
     />

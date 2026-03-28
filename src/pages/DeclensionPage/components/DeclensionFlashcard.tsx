@@ -104,12 +104,11 @@ export function DeclensionFlashcard({
     ]
   );
 
-  const header = (
-    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-      {card.isCustom ? <CustomLabel>Custom</CustomLabel> : <Box />}
-      {hasAudio && <AudioButton isPlaying={isPlaying} onToggle={toggleAudio} />}
-    </Box>
-  );
+  const header = card.isCustom ? <CustomLabel>Custom</CustomLabel> : undefined;
+
+  const headerActions = hasAudio ? (
+    <AudioButton isPlaying={isPlaying} onToggle={toggleAudio} />
+  ) : undefined;
 
   const question = (
     <QuestionText>{renderTappableText(card.front, tappableTextOptions)}</QuestionText>
@@ -151,6 +150,7 @@ export function DeclensionFlashcard({
       onContinue={onContinue}
       onEdit={onEdit}
       header={header}
+      headerActions={headerActions}
       question={question}
       answer={answer}
     />

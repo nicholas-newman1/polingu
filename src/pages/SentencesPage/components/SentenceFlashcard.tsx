@@ -29,13 +29,6 @@ interface SentenceFlashcardProps {
   onUpdateTranslation?: (word: string, translation: string) => void;
 }
 
-const DirectionLabel = styled(Typography)(({ theme }) => ({
-  color: theme.palette.text.disabled,
-  fontSize: '0.75rem',
-  textTransform: 'uppercase',
-  letterSpacing: '0.1em',
-}));
-
 const LevelChip = styled(Chip)<{ $level: CEFRLevel }>(({ theme, $level }) => ({
   backgroundColor: theme.palette.levels[$level],
   color: theme.palette.common.white,
@@ -101,8 +94,6 @@ export function SentenceFlashcard({
     revealed,
   });
 
-  const directionLabel = isPolishToEnglish ? 'Polish → English' : 'English → Polish';
-
   const tappableTextOptions = useMemo(
     () => ({
       translations: sentence.translations,
@@ -136,22 +127,11 @@ export function SentenceFlashcard({
     }
   };
 
-  const header = (
-    <Box
-      sx={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        mb: 1.5,
-      }}
-    >
-      <DirectionLabel>{directionLabel}</DirectionLabel>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-        <LevelChip $level={sentence.level} label={sentence.level} />
-        {hasAudio && <AudioButton isPlaying={isPlaying} onToggle={toggleAudio} />}
-      </Box>
-    </Box>
-  );
+  const header = <LevelChip $level={sentence.level} label={sentence.level} />;
+
+  const headerActions = hasAudio ? (
+    <AudioButton isPlaying={isPlaying} onToggle={toggleAudio} />
+  ) : undefined;
 
   const question = <SentenceText sx={{ mb: 2 }}>{questionContent}</SentenceText>;
 
@@ -185,6 +165,7 @@ export function SentenceFlashcard({
       onEdit={onEdit}
       onDelete={handleDelete}
       header={header}
+      headerActions={headerActions}
       question={question}
       answer={answer}
     />

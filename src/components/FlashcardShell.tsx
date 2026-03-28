@@ -27,6 +27,7 @@ interface FlashcardShellProps {
   onEdit?: () => void;
   onDelete?: () => void;
   header?: ReactNode;
+  headerActions?: ReactNode;
   question: ReactNode;
   answer: ReactNode;
 }
@@ -68,17 +69,19 @@ const RevealButton = styled(Button)<{ $accentColor: AccentColor }>(({ theme, $ac
   },
 }));
 
-const CardHeader = styled(Box)({
+const CardHeader = styled(Box)(({ theme }) => ({
   display: 'flex',
   justifyContent: 'space-between',
-  alignItems: 'flex-start',
-});
+  alignItems: 'center',
+  marginBottom: theme.spacing(1),
+}));
 
 const ActionButtons = styled(Box)(({ theme }) => ({
   display: 'flex',
+  alignItems: 'center',
   gap: theme.spacing(0.5),
-  marginTop: theme.spacing(-1),
-  marginRight: theme.spacing(-1),
+  marginLeft: theme.spacing(-1),
+  flexShrink: 0,
 }));
 
 const ActionButton = styled(IconButton)(({ theme }) => ({
@@ -131,6 +134,7 @@ export function FlashcardShell({
   onEdit,
   onDelete,
   header,
+  headerActions,
   question,
   answer,
 }: FlashcardShellProps) {
@@ -201,17 +205,22 @@ export function FlashcardShell({
       <StyledCard $accentColor={accentColor}>
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
           <CardHeader>
-            <Box sx={{ flex: 1 }}>{header}</Box>
-            {canEdit && (
+            {(headerActions || canEdit) && (
               <ActionButtons>
-                <ActionButton onClick={onEdit} size="small" aria-label="edit">
-                  <EditIcon fontSize="small" />
-                </ActionButton>
-                <DeleteButton onClick={onDelete} size="small" aria-label="delete">
-                  <DeleteIcon fontSize="small" />
-                </DeleteButton>
+                {headerActions}
+                {canEdit && (
+                  <>
+                    <ActionButton onClick={onEdit} size="small" aria-label="edit">
+                      <EditIcon fontSize="small" />
+                    </ActionButton>
+                    <DeleteButton onClick={onDelete} size="small" aria-label="delete">
+                      <DeleteIcon fontSize="small" />
+                    </DeleteButton>
+                  </>
+                )}
               </ActionButtons>
             )}
+            <Box sx={{ flex: 1 }}>{header}</Box>
           </CardHeader>
 
           {question}
