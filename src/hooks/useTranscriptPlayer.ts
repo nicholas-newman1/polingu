@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, startTransition } from 'react';
 import type { TranscriptSegment } from '../types/audio';
 
 interface UseTranscriptPlayerOptions {
@@ -21,10 +21,7 @@ interface UseTranscriptPlayerReturn {
   setPlaybackRate: (rate: number) => void;
 }
 
-function binarySearchSegment(
-  segments: TranscriptSegment[],
-  time: number
-): number {
+function binarySearchSegment(segments: TranscriptSegment[], time: number): number {
   let lo = 0;
   let hi = segments.length - 1;
   let result = -1;
@@ -45,10 +42,7 @@ function binarySearchSegment(
   return -1;
 }
 
-function findActiveWord(
-  segment: TranscriptSegment,
-  time: number
-): number {
+function findActiveWord(segment: TranscriptSegment, time: number): number {
   const { words } = segment;
   if (words.length === 0) return -1;
 
@@ -85,39 +79,37 @@ export function useTranscriptPlayer({
   const [playbackRate, setPlaybackRateState] = useState(1);
   const rafRef = useRef<number>(0);
 
-  const updateActiveIndices = useCallback(
-    (time: number) => {
-      const segIdx = binarySearchSegment(transcript, time);
-      setActiveSegmentIndex(segIdx);
-
-      if (segIdx >= 0) {
-        const wordIdx = findActiveWord(transcript[segIdx], time);
-        setActiveWordIndex(wordIdx);
-      } else {
-        setActiveWordIndex(-1);
-      }
-    },
-    [transcript]
-  );
-
-  const tick = useCallback(() => {
-    const audio = audioRef.current;
-    if (!audio || audio.paused) return;
-
-    const time = audio.currentTime;
-    setCurrentTime(time);
-    updateActiveIndices(time);
-
-    rafRef.current = requestAnimationFrame(tick);
-  }, [updateActiveIndices]);
+  const transcriptRef = useRef(transcript);
+  useEffect(() => {
+    transcriptRef.current = transcript;
+  }, [transcript]);
 
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
+    function computeIndices(time: number) {
+      const segments = transcriptRef.current;
+      const segIdx = binarySearchSegment(segments, time);
+      const wordIdx = segIdx >= 0 ? findActiveWord(segments[segIdx], time) : -1;
+      return { segIdx, wordIdx };
+    }
+
+    function loop() {
+      if (!audio || audio.paused) return;
+      const time = audio.currentTime;
+      const { segIdx, wordIdx } = computeIndices(time);
+      startTransition(() => {
+        setCurrentTime(time);
+        setActiveSegmentIndex(segIdx);
+        setActiveWordIndex(wordIdx);
+      });
+      rafRef.current = requestAnimationFrame(loop);
+    }
+
     const onPlay = () => {
       setIsPlaying(true);
-      rafRef.current = requestAnimationFrame(tick);
+      rafRef.current = requestAnimationFrame(loop);
     };
     const onPause = () => {
       setIsPlaying(false);
@@ -131,8 +123,11 @@ export function useTranscriptPlayer({
       setDuration(audio.duration);
     };
     const onSeeked = () => {
-      setCurrentTime(audio.currentTime);
-      updateActiveIndices(audio.currentTime);
+      const time = audio.currentTime;
+      const { segIdx, wordIdx } = computeIndices(time);
+      setCurrentTime(time);
+      setActiveSegmentIndex(segIdx);
+      setActiveWordIndex(wordIdx);
     };
 
     audio.addEventListener('play', onPlay);
@@ -152,8 +147,9 @@ export function useTranscriptPlayer({
       audio.removeEventListener('loadedmetadata', onLoadedMetadata);
       audio.removeEventListener('seeked', onSeeked);
       cancelAnimationFrame(rafRef.current);
+      audio.pause();
     };
-  }, [audioUrl, tick, updateActiveIndices]);
+  }, [audioUrl]);
 
   const play = useCallback(() => {
     audioRef.current?.play().catch(() => {});

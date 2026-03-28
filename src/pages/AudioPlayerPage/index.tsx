@@ -172,7 +172,15 @@ export function AudioPlayerPage() {
 
   return (
     <PlayerContainer>
-      {audioUrl && <audio ref={audioRef} src={audioUrl} preload="auto" />}
+      {audioUrl && (
+        <audio
+          ref={audioRef}
+          src={audioUrl}
+          preload="auto"
+          autoPlay
+          onPlay={() => setHasStartedPlayback(true)}
+        />
+      )}
 
       <TranscriptArea $controlsHeight={controlsHeight}>
         <TranscriptView
