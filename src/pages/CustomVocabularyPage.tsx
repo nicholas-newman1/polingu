@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Typography,
   Chip,
@@ -17,6 +17,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import { styled } from '../lib/styled';
 import { alpha } from '../lib/theme';
 import { AddVocabularyModal } from '../components/AddVocabularyModal';
+import { InlineAudioRegenerator } from '../components/AudioRegenerator';
 import { loadCustomVocabulary, saveCustomVocabulary } from '../lib/storage/customVocabulary';
 import { findCustomWordWithSamePolish } from '../lib/utils/findDuplicateCustomVocabularyPolish';
 import type { CustomVocabularyWord, PartOfSpeech, NounGender } from '../types/vocabulary';
@@ -68,7 +69,7 @@ const PARTS_OF_SPEECH: PartOfSpeech[] = [
 const GENDERS: NounGender[] = ['masculine', 'feminine', 'neuter'];
 
 export function CustomVocabularyPage() {
-  const { user } = useAuthContext();
+  const { user, isAdmin } = useAuthContext();
   const { showSnackbar } = useSnackbar();
   const [isLoading, setIsLoading] = useState(true);
   const [customWordsBase, setCustomWordsBase] = useState<CustomVocabularyWord[]>([]);
@@ -158,6 +159,18 @@ export function CustomVocabularyPage() {
       setSortDirection('asc');
     }
   };
+
+  const handleAudioSaved = useCallback(
+    (wordId: string, audioUrl: string) => {
+      const newCustomWords = customWords.map((w) => (w.id === wordId ? { ...w, audioUrl } : w));
+
+      applyOptimisticCustomWords(newCustomWords, async () => {
+        await saveCustomVocabulary(newCustomWords);
+        setCustomWordsBase(newCustomWords);
+      });
+    },
+    [customWords, applyOptimisticCustomWords]
+  );
 
   const filteredAndSortedWords = useMemo(() => {
     let result = [...customWords];
@@ -290,6 +303,7 @@ export function CustomVocabularyPage() {
               <TableHead>
                 <TableRow>
                   <TableCell>Actions</TableCell>
+                  {isAdmin && <TableCell>Audio</TableCell>}
                   <TableCell>
                     <TableSortLabel
                       active={sortField === 'polish'}
@@ -349,6 +363,17 @@ export function CustomVocabularyPage() {
                         deleteLabel="delete word"
                       />
                     </TableCell>
+                    {isAdmin && (
+                      <TableCell>
+                        <InlineAudioRegenerator
+                          text={word.polish}
+                          type="custom-vocabulary"
+                          id={word.id}
+                          currentAudioUrl={word.audioUrl}
+                          onAudioSaved={(audioUrl) => handleAudioSaved(word.id, audioUrl)}
+                        />
+                      </TableCell>
+                    )}
                     <TableCell>
                       <PrimaryCell>{word.polish}</PrimaryCell>
                     </TableCell>
@@ -373,7 +398,7 @@ export function CustomVocabularyPage() {
                 ))}
                 {filteredAndSortedWords.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
+                    <TableCell colSpan={isAdmin ? 8 : 7} align="center" sx={{ py: 4 }}>
                       <Typography color="text.secondary">No words match your filters</Typography>
                     </TableCell>
                   </TableRow>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Typography,
   Chip,
@@ -17,6 +17,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import { styled } from '../lib/styled';
 import { alpha } from '../lib/theme';
 import { EditSentenceModal } from '../components/EditSentenceModal';
+import { InlineAudioRegenerator } from '../components/AudioRegenerator';
 import { loadCustomSentences, saveCustomSentences } from '../lib/storage/customSentences';
 import type { CustomSentence, CEFRLevel, Sentence } from '../types/sentences';
 import { ALL_LEVELS } from '../types/sentences';
@@ -60,7 +61,7 @@ const LevelChip = styled(Chip)<{ $level: CEFRLevel }>(({ theme, $level }) => {
 });
 
 export function CustomSentencesPage() {
-  const { user } = useAuthContext();
+  const { user, isAdmin } = useAuthContext();
   const { showSnackbar } = useSnackbar();
   const { setCustomSentences: setContextCustomSentences } = useReviewData();
   const [isLoading, setIsLoading] = useState(true);
@@ -152,6 +153,21 @@ export function CustomSentencesPage() {
       setSortDirection('asc');
     }
   };
+
+  const handleAudioSaved = useCallback(
+    (sentenceId: string, audioUrl: string) => {
+      const newCustomSentences = customSentences.map((s) =>
+        s.id === sentenceId ? { ...s, audioUrl } : s
+      );
+
+      applyOptimisticCustomSentences(newCustomSentences, async () => {
+        await saveCustomSentences(newCustomSentences);
+        setCustomSentencesBase(newCustomSentences);
+        setContextCustomSentences(newCustomSentences);
+      });
+    },
+    [customSentences, applyOptimisticCustomSentences, setContextCustomSentences]
+  );
 
   const filteredAndSortedSentences = useMemo(() => {
     let result = [...customSentences];
@@ -259,6 +275,7 @@ export function CustomSentencesPage() {
               <TableHead>
                 <TableRow>
                   <TableCell>Actions</TableCell>
+                  {isAdmin && <TableCell>Audio</TableCell>}
                   <TableCell>
                     <TableSortLabel
                       active={sortField === 'polish'}
@@ -308,6 +325,17 @@ export function CustomSentencesPage() {
                         deleteLabel="delete sentence"
                       />
                     </TableCell>
+                    {isAdmin && (
+                      <TableCell>
+                        <InlineAudioRegenerator
+                          text={sentence.polish}
+                          type="custom-sentence"
+                          id={sentence.id}
+                          currentAudioUrl={sentence.audioUrl}
+                          onAudioSaved={(audioUrl) => handleAudioSaved(sentence.id, audioUrl)}
+                        />
+                      </TableCell>
+                    )}
                     <TableCell>
                       <TruncatedCell title={sentence.polish}>{sentence.polish}</TruncatedCell>
                     </TableCell>
@@ -326,7 +354,7 @@ export function CustomSentencesPage() {
                 ))}
                 {filteredAndSortedSentences.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
+                    <TableCell colSpan={isAdmin ? 6 : 5} align="center" sx={{ py: 4 }}>
                       <Typography color="text.secondary">
                         No sentences match your filters
                       </Typography>

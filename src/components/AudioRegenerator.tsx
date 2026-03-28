@@ -221,16 +221,6 @@ export function AudioRegenerator({
     }
   }, [previewAudioBase64, type, id, subPath, onAudioSaved]);
 
-  const handleDiscard = useCallback(() => {
-    if (previewAudioRef.current) {
-      previewAudioRef.current.pause();
-      previewAudioRef.current = null;
-    }
-    setPreviewAudioBase64(null);
-    setIsPlayingPreview(false);
-    setError(null);
-  }, []);
-
   return (
     <AudioSection>
       <Typography variant="body2" fontWeight={500} color="text.secondary">
@@ -296,9 +286,6 @@ export function AudioRegenerator({
               disabled={isGenerating || isSaving}
             >
               Regenerate
-            </Button>
-            <Button size="small" color="inherit" onClick={handleDiscard} disabled={isSaving}>
-              Discard
             </Button>
           </PreviewActions>
         </AudioPreview>

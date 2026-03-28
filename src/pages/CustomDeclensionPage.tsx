@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Typography,
   Chip,
@@ -17,6 +17,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import { styled } from '../lib/styled';
 import { alpha } from '../lib/theme';
 import { EditDeclensionModal } from '../components/EditDeclensionModal';
+import { InlineAudioRegenerator } from '../components/AudioRegenerator';
 import { loadCustomDeclension, saveCustomDeclension } from '../lib/storage/customDeclension';
 import type { CustomDeclensionCard, Case, Gender, Number, DeclensionCard } from '../types';
 import { useAuthContext } from '../hooks/useAuthContext';
@@ -71,7 +72,7 @@ const GENDERS: Gender[] = ['Masculine', 'Feminine', 'Neuter', 'Pronoun'];
 const NUMBERS: Number[] = ['Singular', 'Plural'];
 
 export function CustomDeclensionPage() {
-  const { user } = useAuthContext();
+  const { user, isAdmin } = useAuthContext();
   const { showSnackbar } = useSnackbar();
   const [isLoading, setIsLoading] = useState(true);
   const [customCardsBase, setCustomCardsBase] = useState<CustomDeclensionCard[]>([]);
@@ -152,6 +153,20 @@ export function CustomDeclensionPage() {
       setSortDirection('asc');
     }
   };
+
+  const handleAudioSaved = useCallback(
+    (cardId: string, audioUrl: string) => {
+      const newCustomCards = customCards.map((c) =>
+        c.id === cardId ? { ...c, audioUrl } : c
+      );
+
+      applyOptimisticCustomCards(newCustomCards, async () => {
+        await saveCustomDeclension(newCustomCards);
+        setCustomCardsBase(newCustomCards);
+      });
+    },
+    [customCards, applyOptimisticCustomCards]
+  );
 
   const filteredAndSortedCards = useMemo(() => {
     let result = [...customCards];
@@ -309,6 +324,7 @@ export function CustomDeclensionPage() {
               <TableHead>
                 <TableRow>
                   <TableCell>Actions</TableCell>
+                  {isAdmin && <TableCell>Audio</TableCell>}
                   <TableCell>
                     <TableSortLabel
                       active={sortField === 'front'}
@@ -376,6 +392,17 @@ export function CustomDeclensionPage() {
                         deleteLabel="delete card"
                       />
                     </TableCell>
+                    {isAdmin && (
+                      <TableCell>
+                        <InlineAudioRegenerator
+                          text={card.back}
+                          type="custom-declension"
+                          id={card.id}
+                          currentAudioUrl={card.audioUrl}
+                          onAudioSaved={(audioUrl) => handleAudioSaved(card.id, audioUrl)}
+                        />
+                      </TableCell>
+                    )}
                     <TableCell>
                       <TruncatedCell title={card.front}>{card.front}</TruncatedCell>
                     </TableCell>
@@ -400,7 +427,7 @@ export function CustomDeclensionPage() {
                 ))}
                 {filteredAndSortedCards.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
+                    <TableCell colSpan={isAdmin ? 8 : 7} align="center" sx={{ py: 4 }}>
                       <Typography color="text.secondary">No cards match your filters</Typography>
                     </TableCell>
                   </TableRow>
