@@ -127,15 +127,17 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<AudioItem[]>([]);
   const [libraryLoading, setLibraryLoading] = useState(true);
 
-  function updatePositionState() {
+  function syncMediaSession(state?: 'playing' | 'paused' | 'none') {
     if (!('mediaSession' in navigator)) return;
+    if (state) navigator.mediaSession.playbackState = state;
     const audio = audioRef.current;
-    if (!audio || !audio.duration) return;
+    if (!audio || !audio.duration || isNaN(audio.duration)) return;
+    const pos = Math.max(0, Math.min(audio.currentTime, audio.duration));
     try {
       navigator.mediaSession.setPositionState({
         duration: audio.duration,
         playbackRate: audio.playbackRate,
-        position: Math.min(audio.currentTime, audio.duration),
+        position: pos,
       });
     } catch {
       // ignore invalid state errors
@@ -379,17 +381,18 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       setIsPlaying(true);
       setHasStartedPlayback(true);
       rafRef.current = requestAnimationFrame(loop);
-      updatePositionState();
+      syncMediaSession('playing');
     };
     const onPause = () => {
       setIsPlaying(false);
       cancelAnimationFrame(rafRef.current);
       persistTime(audio.currentTime);
-      updatePositionState();
+      syncMediaSession('paused');
     };
     const onEnded = () => {
       setIsPlaying(false);
       cancelAnimationFrame(rafRef.current);
+      syncMediaSession('paused');
       playNextRef.current?.();
     };
     const onLoadedMetadata = () => {
@@ -399,7 +402,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
         setCurrentTime(restoreTimeRef.current);
         restoreTimeRef.current = 0;
       }
-      updatePositionState();
+      syncMediaSession();
     };
     const onSeeked = () => {
       const time = audio.currentTime;
@@ -407,7 +410,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       setCurrentTime(time);
       setActiveSegmentIndex(segIdx);
       setActiveWordIndex(wordIdx);
-      updatePositionState();
+      syncMediaSession();
     };
     const onCanPlay = () => {
       if (autoPlayRef.current) {
@@ -437,7 +440,10 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     if (!isPlaying || !activeAudioId) return;
     const interval = setInterval(() => {
       const time = audioRef.current?.currentTime;
-      if (time !== undefined) persistTime(time);
+      if (time !== undefined) {
+        persistTime(time);
+        syncMediaSession('playing');
+      }
     }, 1000);
     return () => clearInterval(interval);
   }, [isPlaying, activeAudioId, persistTime]);
@@ -484,7 +490,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     if (audio) {
       audio.playbackRate = rate;
     }
-    updatePositionState();
+    syncMediaSession();
   }, []);
 
   const nextTrackRef = useRef(nextTrack);
@@ -527,6 +533,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       title: audioItem.title,
       artist: 'Polingu',
     });
+    syncMediaSession();
   }, [audioItem]);
 
   const value: AudioPlayerContextType = {
