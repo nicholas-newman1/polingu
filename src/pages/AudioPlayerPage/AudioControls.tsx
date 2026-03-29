@@ -15,7 +15,7 @@ const ControlsBar = styled(Box)(({ theme }) => ({
   right: 0,
   backgroundColor: theme.palette.background.paper,
   borderTop: `1px solid ${theme.palette.divider}`,
-  padding: theme.spacing(1, 2, 2),
+  padding: theme.spacing(0.5, 2, 1),
   zIndex: theme.zIndex.appBar + 1,
   [theme.breakpoints.up('md')]: {
     left: DRAWER_WIDTH,
@@ -40,6 +40,17 @@ const PlaybackGroup = styled(Box)({
   justifyContent: 'center',
   gap: 16,
   flex: 1,
+});
+
+const ProgressSlider = styled(Slider)({
+  '&.MuiSlider-root': {
+    padding: 0,
+    marginBottom: 4,
+  },
+  '& .MuiSlider-thumb': {
+    width: 12,
+    height: 12,
+  },
 });
 
 const SpeedButtonSpacer = styled(Box)({
@@ -147,17 +158,12 @@ export function AudioControls({
 
   return (
     <ControlsBar ref={controlsRef}>
-      <Slider
+      <ProgressSlider
         value={isSeeking ? seekValue : currentTime}
         max={duration || 1}
         onChange={handleSeekChange}
         onChangeCommitted={handleSeekCommit}
         size="small"
-        sx={{
-          p: 0,
-          mb: 0.5,
-          '& .MuiSlider-thumb': { width: 12, height: 12 },
-        }}
       />
       <TimeRow>
         <Typography variant="caption" color="text.secondary">
@@ -191,11 +197,11 @@ export function AudioControls({
               bgcolor: 'primary.main',
               color: 'primary.contrastText',
               '&:hover': { bgcolor: 'primary.dark' },
-              width: 48,
-              height: 48,
+              width: 40,
+              height: 40,
             }}
           >
-            {isPlaying ? <PauseIcon /> : <PlayArrowIcon />}
+            {isPlaying ? <PauseIcon fontSize="small" /> : <PlayArrowIcon fontSize="small" />}
           </IconButton>
           <IconButton
             onClick={() => onSeek(Math.min(duration, currentTime + 10))}
@@ -258,4 +264,4 @@ export function AudioControls({
   );
 }
 
-export const CONTROLS_HEIGHT = 120 + BOTTOM_MENU_BAR_HEIGHT;
+export const CONTROLS_HEIGHT = 108 + BOTTOM_MENU_BAR_HEIGHT;

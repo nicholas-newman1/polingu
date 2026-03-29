@@ -21,7 +21,7 @@ import { useCheatSheetContext } from '../../hooks/useCheatSheetContext';
 import { alpha } from '../../lib/theme';
 import { DRAWER_WIDTH } from '../Layout';
 
-export const BOTTOM_MENU_BAR_HEIGHT = 97;
+export const BOTTOM_MENU_BAR_HEIGHT = 77;
 
 const MenuBarContainer = styled(Box)(({ theme }) => ({
   position: 'fixed',
@@ -32,7 +32,8 @@ const MenuBarContainer = styled(Box)(({ theme }) => ({
   display: 'flex',
   justifyContent: 'center',
   gap: theme.spacing(3),
-  padding: theme.spacing(1.5),
+  padding: `0 ${theme.spacing(1.5)}`,
+  paddingTop: theme.spacing(0.5),
   backgroundColor: theme.palette.background.paper,
   borderTop: `1px solid ${theme.palette.divider}`,
   [theme.breakpoints.up('md')]: { left: DRAWER_WIDTH },
