@@ -140,12 +140,15 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       return;
     }
     const pos = Math.max(0, Math.min(audio.currentTime, audio.duration));
-    const info = `pos=${pos.toFixed(1)} dur=${audio.duration.toFixed(1)} rate=${audio.playbackRate} pbState=${navigator.mediaSession.playbackState}`;
+    const playing = !audio.paused && !audio.ended;
+    const info = `pos=${pos.toFixed(1)} dur=${audio.duration.toFixed(1)} rate=${audio.playbackRate} p=${playing}`;
     _setDebugPosState(info);
     try {
+      navigator.mediaSession.playbackState = playing ? 'playing' : 'paused';
+      navigator.mediaSession.setPositionState();
       navigator.mediaSession.setPositionState({
         duration: audio.duration,
-        playbackRate: audio.playbackRate,
+        playbackRate: playing ? audio.playbackRate : 0,
         position: pos,
       });
     } catch (e) {
@@ -390,6 +393,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       setIsPlaying(true);
       setHasStartedPlayback(true);
       rafRef.current = requestAnimationFrame(loop);
+      syncMediaSession();
     };
     const onPause = () => {
       setIsPlaying(false);
