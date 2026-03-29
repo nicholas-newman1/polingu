@@ -57,8 +57,15 @@ function formatDuration(seconds: number): string {
 
 export function MiniPlayerBar() {
   const navigate = useNavigate();
-  const { activeAudioId, audioItem, isPlaying, currentTime, duration, togglePlay } =
-    useAudioPlayerContext();
+  const {
+    activeAudioId,
+    audioItem,
+    isPlaying,
+    currentTime,
+    duration,
+    togglePlay,
+    _debugPosState,
+  } = useAudioPlayerContext();
   const [queueOpen, setQueueOpen] = useState(false);
 
   if (!activeAudioId || !audioItem) return null;
@@ -112,6 +119,25 @@ export function MiniPlayerBar() {
         </IconButton>
       </Bar>
       <QueueDrawer open={queueOpen} onClose={() => setQueueOpen(false)} />
+      {_debugPosState && (
+        <Box
+          sx={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bgcolor: 'rgba(0,0,0,0.85)',
+            color: '#0f0',
+            fontSize: 11,
+            fontFamily: 'monospace',
+            p: 0.5,
+            zIndex: 99999,
+            textAlign: 'center',
+          }}
+        >
+          MS: {_debugPosState}
+        </Box>
+      )}
     </>
   );
 }

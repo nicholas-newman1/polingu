@@ -89,7 +89,7 @@ interface AudioLibraryState {
 type AudioPlayerContextType = AudioPlayerState &
   AudioPlayerActions &
   AudioLibraryState &
-  QueueManager;
+  QueueManager & { _debugPosState: string };
 
 const AudioPlayerContext = createContext<AudioPlayerContextType | null>(null);
 
@@ -127,20 +127,30 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<AudioItem[]>([]);
   const [libraryLoading, setLibraryLoading] = useState(true);
 
+  const [_debugPosState, _setDebugPosState] = useState('');
+
   function syncMediaSession(state?: 'playing' | 'paused' | 'none') {
-    if (!('mediaSession' in navigator)) return;
+    if (!('mediaSession' in navigator)) {
+      _setDebugPosState('no mediaSession API');
+      return;
+    }
     if (state) navigator.mediaSession.playbackState = state;
     const audio = audioRef.current;
-    if (!audio || !audio.duration || isNaN(audio.duration)) return;
+    if (!audio || !audio.duration || isNaN(audio.duration)) {
+      _setDebugPosState(`skip: audio=${!!audio} dur=${audio?.duration} ct=${audio?.currentTime}`);
+      return;
+    }
     const pos = Math.max(0, Math.min(audio.currentTime, audio.duration));
+    const info = `pos=${pos.toFixed(1)} dur=${audio.duration.toFixed(1)} rate=${audio.playbackRate} state=${state ?? '-'}`;
+    _setDebugPosState(info);
     try {
       navigator.mediaSession.setPositionState({
         duration: audio.duration,
         playbackRate: audio.playbackRate,
         position: pos,
       });
-    } catch {
-      // ignore invalid state errors
+    } catch (e) {
+      _setDebugPosState(`ERR: ${e} | ${info}`);
     }
   }
 
@@ -562,6 +572,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     previousTrack,
     playFromLibrary,
     ...queueManager,
+    _debugPosState,
   };
 
   return (
