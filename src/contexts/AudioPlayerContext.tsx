@@ -496,26 +496,31 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!('mediaSession' in navigator)) return;
-    navigator.mediaSession.setActionHandler('play', () => audioRef.current?.play().catch(() => {}));
-    navigator.mediaSession.setActionHandler('pause', () => audioRef.current?.pause());
-    navigator.mediaSession.setActionHandler('seekto', (details) => {
-      if (audioRef.current && details.seekTime !== undefined) {
-        audioRef.current.currentTime = details.seekTime;
-      }
-    });
-    navigator.mediaSession.setActionHandler('seekbackward', () => {
+    const seekBack = () => {
       if (audioRef.current) {
         audioRef.current.currentTime = Math.max(0, audioRef.current.currentTime - 10);
       }
-    });
-    navigator.mediaSession.setActionHandler('seekforward', () => {
+    };
+    const seekFwd = () => {
       if (audioRef.current) {
         audioRef.current.currentTime = Math.min(
           audioRef.current.duration || 0,
           audioRef.current.currentTime + 10
         );
       }
+    };
+
+    navigator.mediaSession.setActionHandler('play', () => audioRef.current?.play().catch(() => {}));
+    navigator.mediaSession.setActionHandler('pause', () => audioRef.current?.pause());
+    navigator.mediaSession.setActionHandler('previoustrack', seekBack);
+    navigator.mediaSession.setActionHandler('nexttrack', seekFwd);
+    navigator.mediaSession.setActionHandler('seekto', (details) => {
+      if (audioRef.current && details.seekTime !== undefined) {
+        audioRef.current.currentTime = details.seekTime;
+      }
     });
+    navigator.mediaSession.setActionHandler('seekbackward', seekBack);
+    navigator.mediaSession.setActionHandler('seekforward', seekFwd);
   }, []);
 
   useEffect(() => {
