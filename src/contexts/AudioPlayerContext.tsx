@@ -219,19 +219,24 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     (audioId: string, force = false, autoPlay = true) => {
       if (audioId === activeAudioIdRef.current && !force) return;
       autoPlayRef.current = autoPlay;
-
       unsubItemRef.current?.();
-      resetPlayerState();
-      setActiveAudioId(audioId);
-      setLoading(true);
 
       const cachedItem = items.find((i) => i.id === audioId);
 
       if (cachedItem?.status === 'ready' && cachedItem.storagePath) {
+        setActiveAudioId(audioId);
         setAudioItem(cachedItem);
         transcriptRef.current = cachedItem.transcript ?? [];
+        setLoading(true);
+
         resolveAudioUrl(audioId, cachedItem.storagePath)
           .then((url) => {
+            cancelAnimationFrame(rafRef.current);
+            setCurrentTime(0);
+            setDuration(0);
+            setActiveSegmentIndex(-1);
+            setActiveWordIndex(-1);
+            setError(null);
             setAudioUrl(url);
             setLoading(false);
           })
@@ -249,6 +254,10 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
         unsubItemRef.current = unsubscribe;
         return;
       }
+
+      resetPlayerState();
+      setActiveAudioId(audioId);
+      setLoading(true);
 
       const unsubscribe = subscribeToAudioItem(audioId, async (item) => {
         setAudioItem(item);
