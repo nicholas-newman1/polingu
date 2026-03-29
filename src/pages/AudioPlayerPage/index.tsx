@@ -1,14 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useParams } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { Box, CircularProgress, Typography } from '@mui/material';
 import { styled } from '../../lib/styled';
-import { subscribeToAudioItem, getAudioDownloadUrl } from '../../lib/audio';
-import { useTranscriptPlayer } from '../../hooks/useTranscriptPlayer';
+import { useAudioPlayerContext } from '../../contexts/AudioPlayerContext';
 import { useTranslationContext } from '../../hooks/useTranslationContext';
 import { usePageTitle } from '../../hooks/usePageTitle';
 import { TranscriptView } from './TranscriptView';
 import { AudioControls, CONTROLS_HEIGHT } from './AudioControls';
-import type { AudioItem } from '../../types/audio';
 
 const PlayerContainer = styled(Box)({
   display: 'flex',
@@ -33,33 +31,28 @@ const CenterBox = styled(Box)({
 });
 
 export function AudioPlayerPage() {
-  const { audioId } = useParams<{ audioId: string }>();
-  const [audioItem, setAudioItem] = useState<AudioItem | null>(null);
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [controlsHeight, setControlsHeight] = useState(CONTROLS_HEIGHT);
-  const [hasStartedPlayback, setHasStartedPlayback] = useState(false);
-  const wasPlayingBeforeSeekRef = useRef(false);
-  const { handleDailyLimitReached } = useTranslationContext();
-  usePageTitle(audioItem?.title || 'Audio');
-
   const {
-    audioRef,
+    activeAudioId,
+    audioItem,
     isPlaying,
     currentTime,
     duration,
     activeSegmentIndex,
     playbackRate,
-    pause,
+    hasStartedPlayback,
+    loading,
+    error,
     play,
+    pause,
     togglePlay,
     seek,
     setPlaybackRate,
-  } = useTranscriptPlayer({
-    audioUrl,
-    transcript: audioItem?.transcript ?? [],
-  });
+    setHasStartedPlayback,
+  } = useAudioPlayerContext();
+  const [controlsHeight, setControlsHeight] = useState(CONTROLS_HEIGHT);
+  const wasPlayingBeforeSeekRef = useRef(false);
+  const { handleDailyLimitReached } = useTranslationContext();
+  usePageTitle(audioItem?.title || 'Audio');
 
   const handleSeekToSegment = useCallback(
     (time: number) => {
@@ -69,7 +62,7 @@ export function AudioPlayerPage() {
         play();
       }
     },
-    [seek, play, isPlaying]
+    [seek, play, isPlaying, setHasStartedPlayback]
   );
 
   const handleSyncToCurrent = useCallback(() => {
@@ -77,14 +70,14 @@ export function AudioPlayerPage() {
       setHasStartedPlayback(true);
       play();
     }
-  }, [isPlaying, play]);
+  }, [isPlaying, play, setHasStartedPlayback]);
 
   const handleTogglePlay = useCallback(() => {
     if (!isPlaying) {
       setHasStartedPlayback(true);
     }
     togglePlay();
-  }, [isPlaying, togglePlay]);
+  }, [isPlaying, togglePlay, setHasStartedPlayback]);
 
   const handleSeekStart = useCallback(() => {
     wasPlayingBeforeSeekRef.current = isPlaying;
@@ -114,31 +107,9 @@ export function AudioPlayerPage() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [handleTogglePlay]);
 
-  useEffect(() => {
-    if (!audioId) return;
-
-    const unsubscribe = subscribeToAudioItem(audioId, async (item) => {
-      setAudioItem(item);
-
-      if (item?.status === 'ready' && item.storagePath && !audioUrl) {
-        try {
-          const url = await getAudioDownloadUrl(item.storagePath);
-          setAudioUrl(url);
-        } catch (err) {
-          console.error('Failed to get audio URL:', err);
-          setError('Failed to load audio file.');
-        }
-      } else if (item?.status === 'error') {
-        setError(item.error || 'Processing failed.');
-      } else if (!item) {
-        setError('Audio item not found.');
-      }
-
-      setLoading(false);
-    });
-
-    return unsubscribe;
-  }, [audioId, audioUrl]);
+  if (!activeAudioId) {
+    return <Navigate to="/audio" replace />;
+  }
 
   if (loading) {
     return (
@@ -172,16 +143,6 @@ export function AudioPlayerPage() {
 
   return (
     <PlayerContainer>
-      {audioUrl && (
-        <audio
-          ref={audioRef}
-          src={audioUrl}
-          preload="auto"
-          autoPlay
-          onPlay={() => setHasStartedPlayback(true)}
-        />
-      )}
-
       <TranscriptArea $controlsHeight={controlsHeight}>
         <TranscriptView
           transcript={audioItem?.transcript ?? []}

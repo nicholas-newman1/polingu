@@ -35,6 +35,7 @@ import { AudioLibraryPage } from './pages/AudioLibraryPage';
 import { AudioPlayerPage } from './pages/AudioPlayerPage';
 import { AppSettingsProvider } from './contexts/AppSettingsContext';
 import { UserFiltersProvider } from './contexts/UserFiltersContext';
+import { AudioPlayerProvider } from './contexts/AudioPlayerContext';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -48,8 +49,9 @@ createRoot(document.getElementById('root')!).render(
                 <UserFiltersProvider>
                   <TranslationProvider>
                     <CheatSheetProvider>
-                      <BrowserRouter>
-                        <Routes>
+                      <AudioPlayerProvider>
+                        <BrowserRouter>
+                          <Routes>
                           <Route path="/login" element={<SignIn />} />
                           <Route element={<Layout />}>
                             <Route path="/dashboard" element={<DashboardPage />} />
@@ -97,7 +99,7 @@ createRoot(document.getElementById('root')!).render(
                             <Route path="/library" element={<LibraryPage />} />
                             <Route path="/reader/:bookId" element={<ReaderPage />} />
                             <Route path="/audio" element={<AudioLibraryPage />} />
-                            <Route path="/audio/:audioId" element={<AudioPlayerPage />} />
+                            <Route path="/audio/player" element={<AudioPlayerPage />} />
                             <Route path="/admin/generator" element={<SentenceGeneratorPage />} />
                             <Route
                               path="/admin/content"
@@ -106,8 +108,9 @@ createRoot(document.getElementById('root')!).render(
                             <Route path="/admin/content/:tab" element={<AdminContentPage />} />
                           </Route>
                           <Route path="*" element={<Navigate to="/dashboard" replace />} />
-                        </Routes>
-                      </BrowserRouter>
+                          </Routes>
+                        </BrowserRouter>
+                      </AudioPlayerProvider>
                     </CheatSheetProvider>
                   </TranslationProvider>
                 </UserFiltersProvider>

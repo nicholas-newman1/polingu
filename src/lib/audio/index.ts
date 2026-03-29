@@ -8,3 +8,4 @@ export {
   deleteAudioItem,
   updateAudioItem,
 } from './audioItems';
+export { getCachedAudioBlob, cacheAudioBlob, removeCachedAudioBlob } from './audioCache';

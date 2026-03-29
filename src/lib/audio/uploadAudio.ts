@@ -2,6 +2,7 @@ import { ref, uploadBytesResumable } from 'firebase/storage';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { storage, db } from '../firebase';
 import { getUserId } from '../storage/helpers';
+import { cacheAudioBlob } from './audioCache';
 import type { AudioUploadProgress, AudioItem } from '../../types/audio';
 
 const MAX_FILE_SIZE = 25 * 1024 * 1024;
@@ -66,6 +67,7 @@ export async function uploadAudio(
       },
       () => {
         onProgress({ status: 'processing', audioId });
+        cacheAudioBlob(audioId, file).catch(() => {});
 
         const audioRef = doc(db, 'users', userId, 'audioItems', audioId);
         const unsubscribe = onSnapshot(audioRef, (snapshot) => {
