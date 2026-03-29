@@ -345,6 +345,16 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  const { userQueue, autoQueue } = queueManager;
+  const nextQueueTrackId = userQueue[0] ?? autoQueue[0] ?? null;
+
+  useEffect(() => {
+    if (!nextQueueTrackId) return;
+    const item = items.find((i) => i.id === nextQueueTrackId);
+    if (!item?.storagePath || item.status !== 'ready') return;
+    resolveAudioUrl(nextQueueTrackId, item.storagePath).catch(() => {});
+  }, [nextQueueTrackId, items, resolveAudioUrl]);
+
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio || !audioUrl) return;
