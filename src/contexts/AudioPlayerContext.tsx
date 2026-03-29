@@ -89,7 +89,7 @@ interface AudioLibraryState {
 type AudioPlayerContextType = AudioPlayerState &
   AudioPlayerActions &
   AudioLibraryState &
-  QueueManager & { _debugPosState: string };
+  QueueManager;
 
 const AudioPlayerContext = createContext<AudioPlayerContextType | null>(null);
 
@@ -127,32 +127,18 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<AudioItem[]>([]);
   const [libraryLoading, setLibraryLoading] = useState(true);
 
-  const [_debugPosState, _setDebugPosState] = useState('');
-
-  function syncMediaSession() {
-    if (!('mediaSession' in navigator)) {
-      _setDebugPosState('no mediaSession API');
-      return;
-    }
+  function syncPositionState() {
+    if (!('mediaSession' in navigator)) return;
     const audio = audioRef.current;
-    if (!audio || !audio.duration || isNaN(audio.duration)) {
-      _setDebugPosState(`skip: audio=${!!audio} dur=${audio?.duration} ct=${audio?.currentTime}`);
-      return;
-    }
-    const pos = Math.max(0, Math.min(audio.currentTime, audio.duration));
-    const playing = !audio.paused && !audio.ended;
-    const info = `pos=${pos.toFixed(1)} dur=${audio.duration.toFixed(1)} rate=${audio.playbackRate} p=${playing}`;
-    _setDebugPosState(info);
+    if (!audio || !audio.duration || isNaN(audio.duration)) return;
     try {
-      navigator.mediaSession.playbackState = playing ? 'playing' : 'paused';
-      navigator.mediaSession.setPositionState();
       navigator.mediaSession.setPositionState({
         duration: audio.duration,
-        playbackRate: playing ? audio.playbackRate : 0,
-        position: pos,
+        playbackRate: audio.playbackRate,
+        position: Math.min(audio.currentTime, audio.duration),
       });
-    } catch (e) {
-      _setDebugPosState(`ERR: ${e} | ${info}`);
+    } catch {
+      // ignore
     }
   }
 
@@ -393,13 +379,13 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       setIsPlaying(true);
       setHasStartedPlayback(true);
       rafRef.current = requestAnimationFrame(loop);
-      syncMediaSession();
+      syncPositionState();
     };
     const onPause = () => {
       setIsPlaying(false);
       cancelAnimationFrame(rafRef.current);
       persistTime(audio.currentTime);
-      syncMediaSession();
+      syncPositionState();
     };
     const onEnded = () => {
       setIsPlaying(false);
@@ -413,6 +399,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
         setCurrentTime(restoreTimeRef.current);
         restoreTimeRef.current = 0;
       }
+      syncPositionState();
     };
     const onSeeked = () => {
       const time = audio.currentTime;
@@ -420,10 +407,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       setCurrentTime(time);
       setActiveSegmentIndex(segIdx);
       setActiveWordIndex(wordIdx);
-      syncMediaSession();
-    };
-    const onTimeUpdate = () => {
-      syncMediaSession();
+      syncPositionState();
     };
     const onCanPlay = () => {
       if (autoPlayRef.current) {
@@ -436,7 +420,6 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     audio.addEventListener('ended', onEnded);
     audio.addEventListener('loadedmetadata', onLoadedMetadata);
     audio.addEventListener('seeked', onSeeked);
-    audio.addEventListener('timeupdate', onTimeUpdate);
     audio.addEventListener('canplay', onCanPlay, { once: true });
 
     return () => {
@@ -445,7 +428,6 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       audio.removeEventListener('ended', onEnded);
       audio.removeEventListener('loadedmetadata', onLoadedMetadata);
       audio.removeEventListener('seeked', onSeeked);
-      audio.removeEventListener('timeupdate', onTimeUpdate);
       audio.removeEventListener('canplay', onCanPlay);
       cancelAnimationFrame(rafRef.current);
     };
@@ -501,7 +483,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     const audio = audioRef.current;
     if (audio) {
       audio.playbackRate = rate;
-      syncMediaSession();
+      syncPositionState();
     }
   }, []);
 
@@ -573,7 +555,6 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     previousTrack,
     playFromLibrary,
     ...queueManager,
-    _debugPosState,
   };
 
   return (
