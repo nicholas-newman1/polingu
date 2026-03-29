@@ -175,10 +175,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     cancelAnimationFrame(rafRef.current);
     if (audioRef.current) {
       audioRef.current.pause();
-      audioRef.current.src = '';
-      audioRef.current.load();
     }
-    setAudioItem(null);
     setAudioUrl(null);
     setIsPlaying(autoPlayRef.current);
     setHasStartedPlayback(autoPlayRef.current);
