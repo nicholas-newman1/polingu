@@ -42,12 +42,16 @@ export function AudioPlayerPage() {
     hasStartedPlayback,
     loading,
     error,
+    hasNext,
+    hasPrevious,
     play,
     pause,
     togglePlay,
     seek,
     setPlaybackRate,
     setHasStartedPlayback,
+    nextTrack,
+    previousTrack,
   } = useAudioPlayerContext();
   const [controlsHeight, setControlsHeight] = useState(CONTROLS_HEIGHT);
   const wasPlayingBeforeSeekRef = useRef(false);
@@ -161,11 +165,15 @@ export function AudioPlayerPage() {
         currentTime={currentTime}
         duration={duration}
         playbackRate={playbackRate}
+        hasNext={hasNext}
+        hasPrevious={hasPrevious}
         onTogglePlay={handleTogglePlay}
         onSeek={seek}
         onSeekStart={handleSeekStart}
         onSeekEnd={handleSeekEnd}
         onSetPlaybackRate={setPlaybackRate}
+        onNextTrack={nextTrack}
+        onPreviousTrack={previousTrack}
         onHeightChange={setControlsHeight}
       />
     </PlayerContainer>

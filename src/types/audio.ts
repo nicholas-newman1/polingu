@@ -32,3 +32,12 @@ export interface AudioUploadProgress {
   error?: string;
   audioId?: string;
 }
+
+export interface AudioQueue {
+  currentTrackId: string | null;
+  userQueue: string[];
+  autoQueue: string[];
+  history: string[];
+  savedTime: number;
+  updatedAt: number;
+}

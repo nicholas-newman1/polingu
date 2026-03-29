@@ -17,6 +17,7 @@ import {
   cacheAudioBlob,
 } from '../lib/audio';
 import type { AudioItem, TranscriptSegment } from '../types/audio';
+import { useQueueManager, type QueueManager } from '../hooks/useQueueManager';
 
 function binarySearchSegment(segments: TranscriptSegment[], time: number): number {
   let lo = 0;
@@ -75,6 +76,9 @@ interface AudioPlayerActions {
   seek: (time: number) => void;
   setPlaybackRate: (rate: number) => void;
   setHasStartedPlayback: (value: boolean) => void;
+  nextTrack: () => void;
+  previousTrack: () => void;
+  playFromLibrary: (trackId: string, readyItems: AudioItem[]) => void;
 }
 
 interface AudioLibraryState {
@@ -82,10 +86,14 @@ interface AudioLibraryState {
   libraryLoading: boolean;
 }
 
-type AudioPlayerContextType = AudioPlayerState & AudioPlayerActions & AudioLibraryState;
+type AudioPlayerContextType = AudioPlayerState &
+  AudioPlayerActions &
+  AudioLibraryState &
+  QueueManager;
 
 const AudioPlayerContext = createContext<AudioPlayerContextType | null>(null);
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAudioPlayerContext() {
   const ctx = useContext(AudioPlayerContext);
   if (!ctx) throw new Error('useAudioPlayerContext must be used within AudioPlayerProvider');
@@ -99,6 +107,8 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   const unsubItemRef = useRef<(() => void) | null>(null);
   const urlCacheRef = useRef<Map<string, string>>(new Map());
   const playNextRef = useRef<() => void>(null);
+  const autoPlayRef = useRef(true);
+  const restoredRef = useRef(false);
 
   const [activeAudioId, setActiveAudioId] = useState<string | null>(null);
   const [audioItem, setAudioItem] = useState<AudioItem | null>(null);
@@ -109,12 +119,19 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   const [activeSegmentIndex, setActiveSegmentIndex] = useState(-1);
   const [activeWordIndex, setActiveWordIndex] = useState(-1);
   const [playbackRate, setPlaybackRateState] = useState(1);
+  const playbackRateRef = useRef(1);
   const [hasStartedPlayback, setHasStartedPlayback] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [items, setItems] = useState<AudioItem[]>([]);
   const [libraryLoading, setLibraryLoading] = useState(true);
+
+  const queueManager = useQueueManager();
+  const { initializeQueue, advanceQueue, rewindQueue, persistTime } = queueManager;
+  const restoreTimeRef = useRef<number>(0);
+  const activeAudioIdRef = useRef<string | null>(null);
+  activeAudioIdRef.current = activeAudioId;
 
   useEffect(() => {
     let cancelled = false;
@@ -148,8 +165,8 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     }
     setAudioItem(null);
     setAudioUrl(null);
-    setIsPlaying(true);
-    setHasStartedPlayback(true);
+    setIsPlaying(autoPlayRef.current);
+    setHasStartedPlayback(autoPlayRef.current);
     setCurrentTime(0);
     setDuration(0);
     setActiveSegmentIndex(-1);
@@ -160,32 +177,36 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
 
   const blobUrlCacheRef = useRef<Map<string, string>>(new Map());
 
-  const resolveAudioUrl = useCallback(async (audioId: string, storagePath: string): Promise<string> => {
-    const existingBlobUrl = blobUrlCacheRef.current.get(audioId);
-    if (existingBlobUrl) return existingBlobUrl;
+  const resolveAudioUrl = useCallback(
+    async (audioId: string, storagePath: string): Promise<string> => {
+      const existingBlobUrl = blobUrlCacheRef.current.get(audioId);
+      if (existingBlobUrl) return existingBlobUrl;
 
-    const cachedBlob = await getCachedAudioBlob(audioId);
-    if (cachedBlob) {
-      const blobUrl = URL.createObjectURL(cachedBlob);
-      blobUrlCacheRef.current.set(audioId, blobUrl);
-      return blobUrl;
-    }
+      const cachedBlob = await getCachedAudioBlob(audioId);
+      if (cachedBlob) {
+        const blobUrl = URL.createObjectURL(cachedBlob);
+        blobUrlCacheRef.current.set(audioId, blobUrl);
+        return blobUrl;
+      }
 
-    const signedUrl = urlCacheRef.current.get(storagePath)
-      ?? await getAudioDownloadUrl(storagePath);
-    urlCacheRef.current.set(storagePath, signedUrl);
+      const signedUrl =
+        urlCacheRef.current.get(storagePath) ?? (await getAudioDownloadUrl(storagePath));
+      urlCacheRef.current.set(storagePath, signedUrl);
 
-    fetch(signedUrl)
-      .then((res) => res.blob())
-      .then((blob) => cacheAudioBlob(audioId, blob))
-      .catch(() => {});
+      fetch(signedUrl)
+        .then((res) => res.blob())
+        .then((blob) => cacheAudioBlob(audioId, blob))
+        .catch(() => {});
 
-    return signedUrl;
-  }, []);
+      return signedUrl;
+    },
+    []
+  );
 
-  const loadTrack = useCallback(
-    (audioId: string) => {
-      if (audioId === activeAudioId) return;
+  const loadTrackInternal = useCallback(
+    (audioId: string, force = false, autoPlay = true) => {
+      if (audioId === activeAudioIdRef.current && !force) return;
+      autoPlayRef.current = autoPlay;
 
       unsubItemRef.current?.();
       resetPlayerState();
@@ -242,14 +263,67 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
 
       unsubItemRef.current = unsubscribe;
     },
-    [activeAudioId, resetPlayerState, items, resolveAudioUrl]
+    [resetPlayerState, items, resolveAudioUrl]
   );
 
+  const loadTrack = useCallback(
+    (audioId: string) => {
+      loadTrackInternal(audioId);
+    },
+    [loadTrackInternal]
+  );
+
+  useEffect(() => {
+    if (restoredRef.current || libraryLoading || !queueManager.currentTrackId) return;
+    if (activeAudioIdRef.current) return;
+    const trackId = queueManager.currentTrackId;
+    const item = items.find((i) => i.id === trackId && i.status === 'ready');
+    if (!item) return;
+    restoredRef.current = true;
+    restoreTimeRef.current = queueManager.initialSavedTime;
+    loadTrackInternal(trackId, false, false);
+  }, [
+    libraryLoading,
+    items,
+    queueManager.currentTrackId,
+    queueManager.initialSavedTime,
+    loadTrackInternal,
+  ]);
+
+  const playFromLibrary = useCallback(
+    (trackId: string, readyItems: AudioItem[]) => {
+      const trackIds = readyItems.map((i) => i.id);
+      const startIndex = trackIds.indexOf(trackId);
+      if (startIndex === -1) return;
+      initializeQueue(trackIds, startIndex);
+      loadTrackInternal(trackId, true);
+    },
+    [loadTrackInternal, initializeQueue]
+  );
+
+  const nextTrack = useCallback(() => {
+    const nextId = advanceQueue();
+    if (nextId) {
+      loadTrackInternal(nextId, true);
+    }
+  }, [advanceQueue, loadTrackInternal]);
+
+  const previousTrack = useCallback(() => {
+    const audio = audioRef.current;
+    if (audio && audio.currentTime > 3) {
+      audio.currentTime = 0;
+      return;
+    }
+    const prevId = rewindQueue();
+    if (prevId) {
+      loadTrackInternal(prevId, true);
+    }
+  }, [rewindQueue, loadTrackInternal]);
+
   playNextRef.current = () => {
-    const readyItems = items.filter((i) => i.status === 'ready');
-    const currentIndex = readyItems.findIndex((i) => i.id === activeAudioId);
-    if (currentIndex >= 0 && currentIndex < readyItems.length - 1) {
-      loadTrack(readyItems[currentIndex + 1].id);
+    const nextId = advanceQueue();
+    if (nextId) {
+      loadTrackInternal(nextId, true);
     }
   };
 
@@ -264,7 +338,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     if (!audio || !audioUrl) return;
 
     audio.src = audioUrl;
-    audio.playbackRate = playbackRate;
+    audio.playbackRate = playbackRateRef.current;
     audio.load();
 
     function computeIndices(time: number) {
@@ -294,6 +368,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     const onPause = () => {
       setIsPlaying(false);
       cancelAnimationFrame(rafRef.current);
+      persistTime(audio.currentTime);
     };
     const onEnded = () => {
       setIsPlaying(false);
@@ -302,6 +377,11 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     };
     const onLoadedMetadata = () => {
       setDuration(audio.duration);
+      if (restoreTimeRef.current > 0 && restoreTimeRef.current < audio.duration) {
+        audio.currentTime = restoreTimeRef.current;
+        setCurrentTime(restoreTimeRef.current);
+        restoreTimeRef.current = 0;
+      }
     };
     const onSeeked = () => {
       const time = audio.currentTime;
@@ -311,7 +391,9 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       setActiveWordIndex(wordIdx);
     };
     const onCanPlay = () => {
-      audio.play().catch(() => {});
+      if (autoPlayRef.current) {
+        audio.play().catch(() => {});
+      }
     };
 
     audio.addEventListener('play', onPlay);
@@ -330,7 +412,27 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       audio.removeEventListener('canplay', onCanPlay);
       cancelAnimationFrame(rafRef.current);
     };
-  }, [audioUrl]);
+  }, [audioUrl, persistTime]);
+
+  useEffect(() => {
+    if (!isPlaying || !activeAudioId) return;
+    const interval = setInterval(() => {
+      const time = audioRef.current?.currentTime;
+      if (time !== undefined) persistTime(time);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isPlaying, activeAudioId, persistTime]);
+
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      const time = audioRef.current?.currentTime;
+      if (time !== undefined && activeAudioIdRef.current) {
+        persistTime(time);
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [persistTime]);
 
   const play = useCallback(() => {
     audioRef.current?.play().catch(() => {});
@@ -357,6 +459,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const setPlaybackRate = useCallback((rate: number) => {
+    playbackRateRef.current = rate;
     setPlaybackRateState(rate);
     const audio = audioRef.current;
     if (audio) {
@@ -386,6 +489,10 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     seek,
     setPlaybackRate,
     setHasStartedPlayback,
+    nextTrack,
+    previousTrack,
+    playFromLibrary,
+    ...queueManager,
   };
 
   return (

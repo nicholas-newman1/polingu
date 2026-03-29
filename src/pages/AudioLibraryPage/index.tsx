@@ -1,5 +1,4 @@
 import { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -17,30 +16,26 @@ import {
   ListItemIcon,
   ListItemText,
   TextField,
-  ButtonBase,
   Stack,
   Chip,
-  Slider,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import QueueMusicIcon from '@mui/icons-material/QueueMusic';
+import PlaylistPlayIcon from '@mui/icons-material/PlaylistPlay';
 import HeadphonesIcon from '@mui/icons-material/Headphones';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import PauseIcon from '@mui/icons-material/Pause';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import GraphicEqRoundedIcon from '@mui/icons-material/GraphicEqRounded';
 import { styled } from '../../lib/styled';
-import {
-  uploadAudio,
-  deleteAudioItem,
-  updateAudioItem,
-} from '../../lib/audio';
+import { uploadAudio, deleteAudioItem, updateAudioItem } from '../../lib/audio';
 import { useAudioPlayerContext } from '../../contexts/AudioPlayerContext';
+import { useSnackbar } from '../../hooks/useSnackbar';
 import type { AudioItem, AudioUploadProgress } from '../../types/audio';
-import { DRAWER_WIDTH } from '../../components/Layout';
-import { BOTTOM_MENU_BAR_HEIGHT } from '../../components/BottomMenu/BottomMenuBar';
+import { MiniPlayerBar, MINI_PLAYER_HEIGHT } from '../../components/MiniPlayerBar';
 
 const PageContainer = styled(Box)(({ theme }) => ({
   flex: 1,
@@ -104,7 +99,7 @@ const MenuButton = styled(IconButton)(({ theme }) => ({
   },
 }));
 
-const TrackRow = styled(ButtonBase)(({ theme }) => ({
+const TrackRow = styled(Box)(({ theme }) => ({
   width: '100%',
   display: 'flex',
   alignItems: 'center',
@@ -113,6 +108,7 @@ const TrackRow = styled(ButtonBase)(({ theme }) => ({
   padding: theme.spacing(1.25, 2),
   textAlign: 'left',
   borderBottom: `1px solid ${theme.palette.divider}`,
+  cursor: 'pointer',
   '&:hover': {
     backgroundColor: theme.palette.action.hover,
   },
@@ -171,32 +167,6 @@ const UploadProgressOverlay = styled(Box)(({ theme }) => ({
   zIndex: theme.zIndex.snackbar,
 }));
 
-const MINI_PLAYER_HEIGHT = 64;
-
-const MiniPlayerBar = styled(Box)(({ theme }) => ({
-  position: 'fixed',
-  bottom: BOTTOM_MENU_BAR_HEIGHT,
-  left: 0,
-  right: 0,
-  height: MINI_PLAYER_HEIGHT,
-  backgroundColor: theme.palette.background.paper,
-  borderTop: `1px solid ${theme.palette.divider}`,
-  display: 'flex',
-  alignItems: 'center',
-  gap: theme.spacing(1.5),
-  padding: theme.spacing(0, 2),
-  zIndex: theme.zIndex.appBar + 1,
-  cursor: 'pointer',
-  [theme.breakpoints.up('md')]: {
-    left: DRAWER_WIDTH,
-  },
-}));
-
-const MiniPlayerTrackInfo = styled(Box)({
-  flex: 1,
-  minWidth: 0,
-});
-
 function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = Math.floor(seconds % 60);
@@ -208,7 +178,6 @@ function formatCreatedDate(timestamp: number): string {
 }
 
 export function AudioLibraryPage() {
-  const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const {
     items,
@@ -217,11 +186,12 @@ export function AudioLibraryPage() {
     audioItem: activeItem,
     isPlaying,
     loading: trackLoading,
-    currentTime,
-    duration,
     togglePlay,
-    loadTrack,
+    playFromLibrary,
+    addToQueue,
+    insertNext,
   } = useAudioPlayerContext();
+  const { showSnackbar } = useSnackbar();
   const [uploadProgress, setUploadProgress] = useState<AudioUploadProgress | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<AudioItem | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -229,6 +199,9 @@ export function AudioLibraryPage() {
   const [editTitle, setEditTitle] = useState('');
   const [saving, setSaving] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<{ el: HTMLElement; item: AudioItem } | null>(null);
+
+  const readyItems = items.filter((i) => i.status === 'ready');
+  const processingItems = items.filter((i) => i.status === 'processing');
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -293,12 +266,21 @@ export function AudioLibraryPage() {
     if (item.id === activeAudioId) {
       togglePlay();
     } else {
-      loadTrack(item.id);
+      playFromLibrary(item.id, readyItems);
     }
   };
 
-  const processingItems = items.filter((i) => i.status === 'processing');
-  const readyItems = items.filter((i) => i.status === 'ready');
+  const handleAddToQueue = (item: AudioItem) => {
+    addToQueue(item.id);
+    showSnackbar('Added to queue', 'success');
+    setMenuAnchor(null);
+  };
+
+  const handlePlayNext = (item: AudioItem) => {
+    insertNext(item.id);
+    showSnackbar('Playing next', 'success');
+    setMenuAnchor(null);
+  };
 
   const showMiniPlayer = !!activeAudioId && !!activeItem;
 
@@ -412,7 +394,7 @@ export function AudioLibraryPage() {
                 <Stack direction="row" spacing={1} alignItems="center">
                   <MetaText noWrap>{formatDuration(item.duration)}</MetaText>
                   <Typography variant="caption" color="text.disabled">
-                    •
+                    &bull;
                   </Typography>
                   <MetaText noWrap>{formatCreatedDate(item.createdAt)}</MetaText>
                 </Stack>
@@ -466,6 +448,18 @@ export function AudioLibraryPage() {
       )}
 
       <Menu anchorEl={menuAnchor?.el} open={!!menuAnchor} onClose={() => setMenuAnchor(null)}>
+        <MenuItem onClick={() => menuAnchor && handlePlayNext(menuAnchor.item)}>
+          <ListItemIcon>
+            <PlaylistPlayIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Play Next</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={() => menuAnchor && handleAddToQueue(menuAnchor.item)}>
+          <ListItemIcon>
+            <QueueMusicIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Add to Queue</ListItemText>
+        </MenuItem>
         <MenuItem onClick={() => menuAnchor && openEditDialog(menuAnchor.item)}>
           <ListItemIcon>
             <EditIcon fontSize="small" />
@@ -520,50 +514,7 @@ export function AudioLibraryPage() {
         </DialogActions>
       </Dialog>
 
-      {showMiniPlayer && (
-        <MiniPlayerBar onClick={() => navigate('/audio/player')}>
-          <TrackIconWrap
-            sx={{
-              width: 36,
-              height: 36,
-              bgcolor: 'primary.main',
-            }}
-          >
-            <HeadphonesIcon sx={{ fontSize: 18 }} />
-          </TrackIconWrap>
-          <MiniPlayerTrackInfo>
-            <Typography variant="body2" fontWeight={700} noWrap>
-              {activeItem.title}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              {formatDuration(currentTime)} / {formatDuration(duration)}
-            </Typography>
-          </MiniPlayerTrackInfo>
-          <Slider
-            value={currentTime}
-            max={duration || 1}
-            size="small"
-            sx={{
-              width: 80,
-              mx: 1,
-              p: 0,
-              '& .MuiSlider-thumb': { display: 'none' },
-              '& .MuiSlider-track': { transition: 'none' },
-            }}
-            onClick={(e) => e.stopPropagation()}
-          />
-          <IconButton
-            size="small"
-            onClick={(e) => {
-              e.stopPropagation();
-              togglePlay();
-            }}
-            sx={{ color: 'text.primary' }}
-          >
-            {isPlaying ? <PauseIcon /> : <PlayArrowIcon />}
-          </IconButton>
-        </MiniPlayerBar>
-      )}
+      {showMiniPlayer && <MiniPlayerBar />}
     </PageContainer>
   );
 }

@@ -9,3 +9,9 @@ export {
   updateAudioItem,
 } from './audioItems';
 export { getCachedAudioBlob, cacheAudioBlob, removeCachedAudioBlob } from './audioCache';
+export {
+  getAudioQueue,
+  saveAudioQueue,
+  subscribeToAudioQueue,
+  updateQueueSavedTime,
+} from './audioQueue';

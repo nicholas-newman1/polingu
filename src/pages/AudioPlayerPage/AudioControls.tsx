@@ -4,6 +4,8 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import PauseIcon from '@mui/icons-material/Pause';
 import Replay10Icon from '@mui/icons-material/Replay10';
 import Forward10Icon from '@mui/icons-material/Forward10';
+import SkipNextIcon from '@mui/icons-material/SkipNext';
+import SkipPreviousIcon from '@mui/icons-material/SkipPrevious';
 import { styled } from '../../lib/styled';
 import { DRAWER_WIDTH } from '../../components/Layout';
 import { BOTTOM_MENU_BAR_HEIGHT } from '../../components/BottomMenu/BottomMenuBar';
@@ -38,7 +40,7 @@ const PlaybackGroup = styled(Box)({
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  gap: 16,
+  gap: 8,
   flex: 1,
 });
 
@@ -88,11 +90,15 @@ interface AudioControlsProps {
   currentTime: number;
   duration: number;
   playbackRate: number;
+  hasNext: boolean;
+  hasPrevious: boolean;
   onTogglePlay: () => void;
   onSeek: (time: number) => void;
   onSeekStart?: () => void;
   onSeekEnd?: () => void;
   onSetPlaybackRate: (rate: number) => void;
+  onNextTrack: () => void;
+  onPreviousTrack: () => void;
   onHeightChange?: (height: number) => void;
 }
 
@@ -101,11 +107,15 @@ export function AudioControls({
   currentTime,
   duration,
   playbackRate,
+  hasNext,
+  hasPrevious,
   onTogglePlay,
   onSeek,
   onSeekStart,
   onSeekEnd,
   onSetPlaybackRate,
+  onNextTrack,
+  onPreviousTrack,
   onHeightChange,
 }: AudioControlsProps) {
   const [speedMenuAnchor, setSpeedMenuAnchor] = useState<HTMLElement | null>(null);
@@ -185,11 +195,19 @@ export function AudioControls({
         </SpeedButton>
         <PlaybackGroup>
           <IconButton
+            onClick={onPreviousTrack}
+            disabled={!hasPrevious}
+            aria-label="Previous track"
+            sx={{ width: 36, height: 36, color: 'text.primary' }}
+          >
+            <SkipPreviousIcon />
+          </IconButton>
+          <IconButton
             onClick={() => onSeek(Math.max(0, currentTime - 10))}
             aria-label="Skip back 10 seconds"
-            sx={{ width: 40, height: 40, color: 'text.primary' }}
+            sx={{ width: 36, height: 36, color: 'text.primary' }}
           >
-            <Replay10Icon fontSize="large" />
+            <Replay10Icon />
           </IconButton>
           <IconButton
             onClick={onTogglePlay}
@@ -206,9 +224,17 @@ export function AudioControls({
           <IconButton
             onClick={() => onSeek(Math.min(duration, currentTime + 10))}
             aria-label="Skip ahead 10 seconds"
-            sx={{ width: 40, height: 40, color: 'text.primary' }}
+            sx={{ width: 36, height: 36, color: 'text.primary' }}
           >
-            <Forward10Icon fontSize="large" />
+            <Forward10Icon />
+          </IconButton>
+          <IconButton
+            onClick={onNextTrack}
+            disabled={!hasNext}
+            aria-label="Next track"
+            sx={{ width: 36, height: 36, color: 'text.primary' }}
+          >
+            <SkipNextIcon />
           </IconButton>
         </PlaybackGroup>
         <SpeedButtonSpacer />
