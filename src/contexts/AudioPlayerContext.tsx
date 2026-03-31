@@ -101,7 +101,12 @@ export function useAudioPlayerContext() {
 }
 
 export function AudioPlayerProvider({ children }: { children: ReactNode }) {
+  const audioElARef = useRef<HTMLAudioElement | null>(null);
+  const audioElBRef = useRef<HTMLAudioElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const preloadRef = useRef<HTMLAudioElement | null>(null);
+  const preloadedTrackRef = useRef<{ id: string; url: string } | null>(null);
+  const skipLoadRef = useRef(false);
   const rafRef = useRef<number>(0);
   const transcriptRef = useRef<TranscriptSegment[]>([]);
   const unsubItemRef = useRef<(() => void) | null>(null);
@@ -109,6 +114,11 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   const playNextRef = useRef<() => void>(null);
   const autoPlayRef = useRef(true);
   const restoredRef = useRef(false);
+
+  useEffect(() => {
+    audioRef.current = audioElARef.current;
+    preloadRef.current = audioElBRef.current;
+  }, []);
 
   const [activeAudioId, setActiveAudioId] = useState<string | null>(null);
   const [audioItem, setAudioItem] = useState<AudioItem | null>(null);
@@ -224,26 +234,43 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       const cachedItem = items.find((i) => i.id === audioId);
 
       if (cachedItem?.status === 'ready' && cachedItem.storagePath) {
+        const preloaded = preloadedTrackRef.current;
+        const preloadEl = preloadRef.current;
+        const isPreloaded = preloaded?.id === audioId && preloadEl && preloadEl.readyState >= 2;
+
+        if (isPreloaded) {
+          const oldAudio = audioRef.current;
+          audioRef.current = preloadEl;
+          preloadRef.current = oldAudio;
+          preloadedTrackRef.current = null;
+          skipLoadRef.current = true;
+        }
+
         setActiveAudioId(audioId);
         setAudioItem(cachedItem);
         transcriptRef.current = cachedItem.transcript ?? [];
-        setLoading(true);
+        cancelAnimationFrame(rafRef.current);
+        setCurrentTime(0);
+        setDuration(0);
+        setActiveSegmentIndex(-1);
+        setActiveWordIndex(-1);
+        setError(null);
 
-        resolveAudioUrl(audioId, cachedItem.storagePath)
-          .then((url) => {
-            cancelAnimationFrame(rafRef.current);
-            setCurrentTime(0);
-            setDuration(0);
-            setActiveSegmentIndex(-1);
-            setActiveWordIndex(-1);
-            setError(null);
-            setAudioUrl(url);
-            setLoading(false);
-          })
-          .catch(() => {
-            setError('Failed to load audio file.');
-            setLoading(false);
-          });
+        if (isPreloaded) {
+          setAudioUrl(preloaded!.url);
+          setLoading(false);
+        } else {
+          setLoading(true);
+          resolveAudioUrl(audioId, cachedItem.storagePath)
+            .then((url) => {
+              setAudioUrl(url);
+              setLoading(false);
+            })
+            .catch(() => {
+              setError('Failed to load audio file.');
+              setLoading(false);
+            });
+        }
 
         const unsubscribe = subscribeToAudioItem(audioId, (item) => {
           if (item) {
@@ -361,16 +388,36 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     if (!nextQueueTrackId) return;
     const item = items.find((i) => i.id === nextQueueTrackId);
     if (!item?.storagePath || item.status !== 'ready') return;
-    resolveAudioUrl(nextQueueTrackId, item.storagePath).catch(() => {});
+    let cancelled = false;
+    resolveAudioUrl(nextQueueTrackId, item.storagePath)
+      .then((url) => {
+        if (cancelled) return;
+        const el = preloadRef.current;
+        if (!el) return;
+        preloadedTrackRef.current = { id: nextQueueTrackId, url };
+        el.src = url;
+        el.load();
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, [nextQueueTrackId, items, resolveAudioUrl]);
 
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio || !audioUrl) return;
 
-    audio.src = audioUrl;
-    audio.playbackRate = playbackRateRef.current;
-    audio.load();
+    const alreadyLoaded = skipLoadRef.current;
+    skipLoadRef.current = false;
+
+    if (alreadyLoaded) {
+      audio.playbackRate = playbackRateRef.current;
+    } else {
+      audio.src = audioUrl;
+      audio.playbackRate = playbackRateRef.current;
+      audio.load();
+    }
 
     function computeIndices(time: number) {
       const segments = transcriptRef.current;
@@ -436,7 +483,16 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     audio.addEventListener('ended', onEnded);
     audio.addEventListener('loadedmetadata', onLoadedMetadata);
     audio.addEventListener('seeked', onSeeked);
-    audio.addEventListener('canplay', onCanPlay, { once: true });
+
+    if (alreadyLoaded && audio.readyState >= 3) {
+      setDuration(audio.duration);
+      syncPositionState();
+      if (autoPlayRef.current) {
+        audio.play().catch(() => {});
+      }
+    } else {
+      audio.addEventListener('canplay', onCanPlay, { once: true });
+    }
 
     return () => {
       audio.removeEventListener('play', onPlay);
@@ -446,6 +502,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       audio.removeEventListener('seeked', onSeeked);
       audio.removeEventListener('canplay', onCanPlay);
       cancelAnimationFrame(rafRef.current);
+      audio.pause();
     };
   }, [audioUrl, persistTime]);
 
@@ -570,7 +627,8 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
 
   return (
     <AudioPlayerContext.Provider value={value}>
-      <audio ref={audioRef} preload="auto" />
+      <audio ref={audioElARef} preload="auto" />
+      <audio ref={audioElBRef} preload="auto" />
       {children}
     </AudioPlayerContext.Provider>
   );
