@@ -7,6 +7,7 @@ import RemoveIcon from '@mui/icons-material/Remove';
 import BookmarkIcon from '@mui/icons-material/Bookmark';
 import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
 import * as pdfjsLib from 'pdfjs-dist';
+import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { styled } from '../../../lib/styled';
 import { alpha } from '../../../lib/theme';
 import { TranslatableWord } from '../../../components/TranslatableWord';
@@ -15,7 +16,7 @@ import { useTranslatableText } from '../../../hooks/useTranslatableText';
 import { DRAWER_WIDTH } from '../../../components/Layout';
 import { PageProgressBar } from './PageProgressBar';
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.mjs`;
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
 const BOTTOM_MENU_HEIGHT = 70;
 const PROGRESS_BAR_HEIGHT = 24;

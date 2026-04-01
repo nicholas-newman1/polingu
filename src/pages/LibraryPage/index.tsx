@@ -28,7 +28,6 @@ import MenuBookIcon from '@mui/icons-material/MenuBook';
 import { styled } from '../../lib/styled';
 import {
   uploadBook,
-  getBooks,
   subscribeToBooksUpdates,
   deleteBook,
   updateBook,
@@ -171,25 +170,25 @@ export function LibraryPage() {
   const [progressMap, setProgressMap] = useState<Record<string, ReadingProgress>>({});
 
   useEffect(() => {
-    const loadInitialData = async () => {
-      try {
-        const [booksData, usage] = await Promise.all([getBooks(), getStorageUsage()]);
-        setBooks(booksData);
-        setStorageUsage(usage);
-      } catch (error) {
-        console.error('Failed to load library:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadInitialData();
+    let cancelled = false;
 
     const unsubscribe = subscribeToBooksUpdates((updatedBooks: Book[]) => {
-      setBooks(updatedBooks);
+      if (!cancelled) {
+        setBooks(updatedBooks);
+        setLoading(false);
+      }
     });
 
-    return unsubscribe;
+    getStorageUsage()
+      .then((usage) => {
+        if (!cancelled) setStorageUsage(usage);
+      })
+      .catch((err) => console.error('Failed to load storage usage:', err));
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, []);
 
   useEffect(() => {

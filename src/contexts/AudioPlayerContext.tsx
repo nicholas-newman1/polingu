@@ -11,7 +11,6 @@ import {
 import {
   subscribeToAudioItem,
   getAudioDownloadUrl,
-  getAudioItems,
   subscribeToAudioItemsUpdates,
   getCachedAudioBlob,
   cacheAudioBlob,
@@ -153,23 +152,18 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   const { initializeQueue, advanceQueue, rewindQueue, persistTime } = queueManager;
   const restoreTimeRef = useRef<number>(0);
   const activeAudioIdRef = useRef<string | null>(null);
-  activeAudioIdRef.current = activeAudioId;
+  useEffect(() => {
+    activeAudioIdRef.current = activeAudioId;
+  }, [activeAudioId]);
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      try {
-        const data = await getAudioItems();
-        if (!cancelled) setItems(data);
-      } catch (err) {
-        console.error('Failed to load audio items:', err);
-      } finally {
-        if (!cancelled) setLibraryLoading(false);
-      }
-    })();
 
     const unsubscribe = subscribeToAudioItemsUpdates((updatedItems) => {
-      if (!cancelled) setItems(updatedItems);
+      if (!cancelled) {
+        setItems(updatedItems);
+        setLibraryLoading(false);
+      }
     });
 
     return () => {
@@ -325,7 +319,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     if (!item) return;
     restoredRef.current = true;
     restoreTimeRef.current = queueManager.initialSavedTime;
-    loadTrackInternal(trackId, false, false);
+    queueMicrotask(() => loadTrackInternal(trackId, false, false));
   }, [
     libraryLoading,
     items,
@@ -364,12 +358,14 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     }
   }, [rewindQueue, loadTrackInternal]);
 
-  playNextRef.current = () => {
-    const nextId = advanceQueue();
-    if (nextId) {
-      loadTrackInternal(nextId, true);
-    }
-  };
+  useEffect(() => {
+    playNextRef.current = () => {
+      const nextId = advanceQueue();
+      if (nextId) {
+        loadTrackInternal(nextId, true);
+      }
+    };
+  }, [advanceQueue, loadTrackInternal]);
 
   useEffect(() => {
     return () => {
@@ -557,8 +553,10 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
 
   const nextTrackRef = useRef(nextTrack);
   const previousTrackRef = useRef(previousTrack);
-  nextTrackRef.current = nextTrack;
-  previousTrackRef.current = previousTrack;
+  useEffect(() => {
+    nextTrackRef.current = nextTrack;
+    previousTrackRef.current = previousTrack;
+  }, [nextTrack, previousTrack]);
 
   useEffect(() => {
     if (!('mediaSession' in navigator)) return;
