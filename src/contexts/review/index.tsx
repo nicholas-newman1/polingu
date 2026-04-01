@@ -51,7 +51,6 @@ export function ReviewDataProvider({ children }: ReviewDataProviderProps) {
   const { user } = useAuthContext();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<LoadedData | null>(null);
-  const [dataVersion, setDataVersion] = useState(0);
 
   const fetchAllData = useCallback(async (): Promise<LoadedData> => {
     const userId = getUserId();
@@ -122,7 +121,6 @@ export function ReviewDataProvider({ children }: ReviewDataProviderProps) {
           .then((fresh) => {
             if (active && fresh) {
               setData(fresh);
-              setDataVersion((v) => v + 1);
             }
           })
           .catch((e) => console.error('Background sync failed:', e));
@@ -134,25 +132,20 @@ export function ReviewDataProvider({ children }: ReviewDataProviderProps) {
     };
   }, [user?.uid, fetchAllData]);
 
-  const key = data ? `loaded-${dataVersion}` : 'loading';
-
   return (
     <DeclensionProvider
-      key={`declension-${key}`}
       initialCustomCards={data?.declensionData?.customCards}
       initialSystemCards={data?.systemDeclensionCards}
       initialReviewStore={data?.declensionData?.reviewData}
       initialSettings={data?.declensionData?.settings}
     >
       <VocabularyProvider
-        key={`vocabulary-${key}`}
         initialCustomWords={data?.vocabularyData?.customWords}
         initialSystemWords={data?.systemWords}
         initialReviewStores={data?.vocabularyData?.reviewStores}
         initialSettings={data?.vocabularyData?.settings}
       >
         <SentenceProvider
-          key={`sentence-${key}`}
           initialCustomSentences={data?.sentenceData?.customSentences}
           initialSystemSentences={data?.systemSentences}
           initialReviewStores={data?.sentenceData?.reviewStores}
@@ -160,14 +153,12 @@ export function ReviewDataProvider({ children }: ReviewDataProviderProps) {
           initialTags={data?.sentenceData?.tags}
         >
           <ConjugationProvider
-            key={`conjugation-${key}`}
             initialVerbs={data?.verbs}
             initialReviewStores={data?.conjugationData?.reviewStores}
             initialSettings={data?.conjugationData?.settings}
           >
             <AspectPairsProvider
-              key={`aspectPairs-${key}`}
-              verbs={data?.verbs ?? []}
+              verbs={data?.verbs}
               initialReviewStore={data?.aspectPairsData?.reviewData}
               initialSettings={data?.aspectPairsData?.settings}
             >

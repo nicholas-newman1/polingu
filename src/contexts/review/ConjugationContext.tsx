@@ -16,6 +16,7 @@ import saveConjugationSettings from '../../lib/storage/saveConjugationSettings';
 import clearConjugationData from '../../lib/storage/clearConjugationData';
 import { getDefaultConjugationReviewStore } from '../../lib/storage/helpers';
 import { showSaveError } from '../../lib/storage/errorHandler';
+import { useSyncProps } from '../../hooks/useSyncProps';
 
 export interface ConjugationContextType {
   verbs: Verb[];
@@ -44,9 +45,11 @@ interface ConjugationProviderProps {
   initialSettings?: ConjugationSettings;
 }
 
+const EMPTY_VERBS: Verb[] = [];
+
 export function ConjugationProvider({
   children,
-  initialVerbs = [],
+  initialVerbs = EMPTY_VERBS,
   initialReviewStores,
   initialSettings = DEFAULT_CONJUGATION_SETTINGS,
 }: ConjugationProviderProps) {
@@ -61,6 +64,17 @@ export function ConjugationProvider({
   );
   const [conjugationSettings, setConjugationSettings] =
     useState<ConjugationSettings>(initialSettings);
+
+  useSyncProps({ initialVerbs, initialReviewStores, initialSettings }, () => {
+    setVerbs(initialVerbs);
+    setConjugationReviewStores(
+      initialReviewStores ?? {
+        'pl-to-en': getDefaultConjugationReviewStore(),
+        'en-to-pl': getDefaultConjugationReviewStore(),
+      }
+    );
+    setConjugationSettings(initialSettings);
+  });
 
   const updateConjugationReviewStore = useCallback(
     async (direction: TranslationDirection, store: ConjugationReviewDataStore) => {

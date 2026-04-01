@@ -19,6 +19,7 @@ import { loadCustomVocabulary } from '../../lib/storage/customVocabulary';
 import clearVocabularyData from '../../lib/storage/clearVocabularyData';
 import { getDefaultVocabularyReviewStore } from '../../lib/storage/helpers';
 import { showSaveError } from '../../lib/storage/errorHandler';
+import { useSyncProps } from '../../hooks/useSyncProps';
 
 export interface VocabularyContextType {
   vocabularyReviewStores: Record<TranslationDirection, VocabularyReviewDataStore>;
@@ -51,10 +52,13 @@ interface VocabularyProviderProps {
   initialSettings?: VocabularySettings;
 }
 
+const EMPTY_CUSTOM_WORDS: CustomVocabularyWord[] = [];
+const EMPTY_SYSTEM_WORDS: VocabularyWord[] = [];
+
 export function VocabularyProvider({
   children,
-  initialCustomWords = [],
-  initialSystemWords = [],
+  initialCustomWords = EMPTY_CUSTOM_WORDS,
+  initialSystemWords = EMPTY_SYSTEM_WORDS,
   initialReviewStores,
   initialSettings = DEFAULT_VOCABULARY_SETTINGS,
 }: VocabularyProviderProps) {
@@ -69,6 +73,21 @@ export function VocabularyProvider({
   const [vocabularySettings, setVocabularySettings] = useState<VocabularySettings>(initialSettings);
   const [customWords, setCustomWords] = useState<CustomVocabularyWord[]>(initialCustomWords);
   const [systemWords, setSystemWords] = useState<VocabularyWord[]>(initialSystemWords);
+
+  useSyncProps(
+    { initialReviewStores, initialSettings, initialCustomWords, initialSystemWords },
+    () => {
+      setVocabularyReviewStores(
+        initialReviewStores ?? {
+          'pl-to-en': getDefaultVocabularyReviewStore(),
+          'en-to-pl': getDefaultVocabularyReviewStore(),
+        }
+      );
+      setVocabularySettings(initialSettings);
+      setCustomWords(initialCustomWords);
+      setSystemWords(initialSystemWords);
+    }
+  );
 
   const vocabularyWords = useMemo<VocabularyWord[]>(
     () => [...customWords, ...systemWords],

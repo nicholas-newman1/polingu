@@ -24,6 +24,7 @@ import { loadCustomSentences } from '../../lib/storage/customSentences';
 import clearSentenceData from '../../lib/storage/clearSentenceData';
 import { getDefaultSentenceReviewStore } from '../../lib/storage/helpers';
 import { showSaveError } from '../../lib/storage/errorHandler';
+import { useSyncProps } from '../../hooks/useSyncProps';
 
 export interface SentenceContextType {
   sentenceReviewStores: Record<TranslationDirection, SentenceReviewDataStore>;
@@ -60,10 +61,13 @@ interface SentenceProviderProps {
   initialTags?: SentenceTagsData;
 }
 
+const EMPTY_CUSTOM_SENTENCES: CustomSentence[] = [];
+const EMPTY_SYSTEM_SENTENCES: Sentence[] = [];
+
 export function SentenceProvider({
   children,
-  initialCustomSentences = [],
-  initialSystemSentences = [],
+  initialCustomSentences = EMPTY_CUSTOM_SENTENCES,
+  initialSystemSentences = EMPTY_SYSTEM_SENTENCES,
   initialReviewStores,
   initialSettings = DEFAULT_SENTENCE_SETTINGS,
   initialTags = DEFAULT_TAGS,
@@ -80,6 +84,28 @@ export function SentenceProvider({
   const [customSentences, setCustomSentences] = useState<CustomSentence[]>(initialCustomSentences);
   const [systemSentences, setSystemSentences] = useState<Sentence[]>(initialSystemSentences);
   const [sentenceTags, setSentenceTags] = useState<SentenceTagsData>(initialTags);
+
+  useSyncProps(
+    {
+      initialReviewStores,
+      initialSettings,
+      initialCustomSentences,
+      initialSystemSentences,
+      initialTags,
+    },
+    () => {
+      setSentenceReviewStores(
+        initialReviewStores ?? {
+          'pl-to-en': getDefaultSentenceReviewStore(),
+          'en-to-pl': getDefaultSentenceReviewStore(),
+        }
+      );
+      setSentenceSettings(initialSettings);
+      setCustomSentences(initialCustomSentences);
+      setSystemSentences(initialSystemSentences);
+      setSentenceTags(initialTags);
+    }
+  );
 
   const sentences = useMemo<Sentence[]>(
     () => [...customSentences, ...systemSentences],

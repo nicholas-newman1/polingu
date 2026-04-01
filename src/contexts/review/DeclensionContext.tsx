@@ -14,6 +14,7 @@ import clearDeclensionData from '../../lib/storage/clearDeclensionData';
 import { getDefaultDeclensionReviewStore } from '../../lib/storage/helpers';
 import { showSaveError } from '../../lib/storage/errorHandler';
 import { DEFAULT_DECLENSION_SETTINGS } from '../../constants';
+import { useSyncProps } from '../../hooks/useSyncProps';
 
 export interface DeclensionContextType {
   declensionCards: DeclensionCard[];
@@ -39,10 +40,13 @@ interface DeclensionProviderProps {
   initialSettings?: DeclensionSettings;
 }
 
+const EMPTY_CUSTOM_CARDS: CustomDeclensionCard[] = [];
+const EMPTY_SYSTEM_CARDS: DeclensionCard[] = [];
+
 export function DeclensionProvider({
   children,
-  initialCustomCards = [],
-  initialSystemCards = [],
+  initialCustomCards = EMPTY_CUSTOM_CARDS,
+  initialSystemCards = EMPTY_SYSTEM_CARDS,
   initialReviewStore,
   initialSettings = DEFAULT_DECLENSION_SETTINGS,
 }: DeclensionProviderProps) {
@@ -54,6 +58,16 @@ export function DeclensionProvider({
     initialReviewStore ?? getDefaultDeclensionReviewStore()
   );
   const [declensionSettings, setDeclensionSettings] = useState<DeclensionSettings>(initialSettings);
+
+  useSyncProps(
+    { initialCustomCards, initialSystemCards, initialReviewStore, initialSettings },
+    () => {
+      setCustomDeclensionCards(initialCustomCards);
+      setSystemDeclensionCards(initialSystemCards);
+      setDeclensionReviewStore(initialReviewStore ?? getDefaultDeclensionReviewStore());
+      setDeclensionSettings(initialSettings);
+    }
+  );
 
   const declensionCards = useMemo<DeclensionCard[]>(
     () => [...customDeclensionCards, ...systemDeclensionCards],

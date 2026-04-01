@@ -13,6 +13,7 @@ import saveAspectPairsSettings from '../../lib/storage/saveAspectPairsSettings';
 import clearAspectPairsData from '../../lib/storage/clearAspectPairsData';
 import { getDefaultAspectPairsReviewStore } from '../../lib/storage/helpers';
 import { showSaveError } from '../../lib/storage/errorHandler';
+import { useSyncProps } from '../../hooks/useSyncProps';
 
 export interface AspectPairsContextType {
   aspectPairCards: AspectPairCard[];
@@ -26,16 +27,18 @@ export interface AspectPairsContextType {
 // eslint-disable-next-line react-refresh/only-export-components
 export const AspectPairsContext = createContext<AspectPairsContextType | null>(null);
 
+const EMPTY_VERBS: Verb[] = [];
+
 interface AspectPairsProviderProps {
   children: ReactNode;
-  verbs: Verb[];
+  verbs?: Verb[];
   initialReviewStore?: AspectPairsReviewDataStore;
   initialSettings?: AspectPairsSettings;
 }
 
 export function AspectPairsProvider({
   children,
-  verbs,
+  verbs = EMPTY_VERBS,
   initialReviewStore,
   initialSettings = DEFAULT_ASPECT_PAIRS_SETTINGS,
 }: AspectPairsProviderProps) {
@@ -44,6 +47,11 @@ export function AspectPairsProvider({
   );
   const [aspectPairsSettings, setAspectPairsSettings] =
     useState<AspectPairsSettings>(initialSettings);
+
+  useSyncProps({ initialReviewStore, initialSettings }, () => {
+    setAspectPairsReviewStore(initialReviewStore ?? getDefaultAspectPairsReviewStore());
+    setAspectPairsSettings(initialSettings);
+  });
 
   const aspectPairCards = useMemo<AspectPairCard[]>(() => {
     const verbsById = new Map(verbs.map((v) => [v.id, v]));
