@@ -1,11 +1,17 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
-import { Box, Button, IconButton, Typography } from '@mui/material';
+import { Box, IconButton, Typography } from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
-import GraphicEqRoundedIcon from '@mui/icons-material/GraphicEqRounded';
 import { styled } from '../../lib/styled';
 import { TranslatableWord } from '../../components/TranslatableWord';
 import { TranslatableText } from '../../components/TranslatableText';
 import type { TranscriptSegment } from '../../types/audio';
+import type { TranscriptFontSize } from '../../types/appSettings';
+
+const FONT_SIZE_MAP: Record<TranscriptFontSize, { base: string; sm: string }> = {
+  small: { base: '1rem', sm: '1.2rem' },
+  medium: { base: '1.3rem', sm: '1.5rem' },
+  large: { base: '1.9rem', sm: '2.1rem' },
+};
 
 const TranscriptContainer = styled(Box)(({ theme }) => ({
   flex: 1,
@@ -26,29 +32,24 @@ const TranscriptContainer = styled(Box)(({ theme }) => ({
   },
 }));
 
-const SyncButton = styled(Button)<{ $controlsHeight: number }>(({ theme, $controlsHeight }) => ({
-  position: 'fixed',
-  bottom: $controlsHeight + 16,
-  right: theme.spacing(2),
-  zIndex: 1000,
-}));
-
-const SegmentRow = styled(Box)<{ $isActive: boolean }>(({ theme, $isActive }) => ({
-  display: 'flex',
-  alignItems: 'flex-start',
-  gap: theme.spacing(1),
-  minWidth: 0,
-  transition: 'opacity 0.3s ease',
-  opacity: $isActive ? 1 : 0.4,
-  lineHeight: 1.8,
-  fontWeight: 900,
-  fontSize: '1.9rem',
-  overflowWrap: 'normal',
-  wordBreak: 'normal',
-  [theme.breakpoints.up('sm')]: {
-    fontSize: '2.1rem',
-  },
-}));
+const SegmentRow = styled(Box)<{ $isActive: boolean; $fontSize: TranscriptFontSize }>(
+  ({ theme, $isActive, $fontSize }) => ({
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: theme.spacing(1),
+    minWidth: 0,
+    transition: 'opacity 0.3s ease, font-size 0.2s ease',
+    opacity: $isActive ? 1 : 0.4,
+    lineHeight: 1.8,
+    fontWeight: 900,
+    fontSize: FONT_SIZE_MAP[$fontSize].base,
+    overflowWrap: 'normal',
+    wordBreak: 'normal',
+    [theme.breakpoints.up('sm')]: {
+      fontSize: FONT_SIZE_MAP[$fontSize].sm,
+    },
+  })
+);
 
 const SegmentText = styled(Box)({
   flex: 1,
@@ -58,101 +59,41 @@ const SegmentText = styled(Box)({
 interface TranscriptViewProps {
   transcript: TranscriptSegment[];
   activeSegmentIndex: number;
-  controlsHeight: number;
-  hasStartedPlayback: boolean;
+  fontSize: TranscriptFontSize;
   onDailyLimitReached?: (resetTime: string) => void;
   onWordTap?: () => void;
   onSeekToSegment?: (time: number) => void;
-  onSyncToCurrent?: () => void;
 }
 
 export function TranscriptView({
   transcript,
   activeSegmentIndex,
-  controlsHeight,
-  hasStartedPlayback,
+  fontSize,
   onDailyLimitReached,
   onWordTap,
   onSeekToSegment,
-  onSyncToCurrent,
 }: TranscriptViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const segmentRefs = useRef<Map<number, HTMLDivElement>>(new Map());
-  const [showSyncButton, setShowSyncButton] = useState(false);
-  const prevActiveSegmentRef = useRef(-1);
-  const skipNextAutoSyncRef = useRef(false);
-
-  const handleUserScroll = useCallback(() => {
-    if (!hasStartedPlayback) return;
-    setShowSyncButton(true);
-  }, [hasStartedPlayback]);
-
-  const isElementInView = useCallback((el: HTMLElement, container: HTMLElement): boolean => {
-    const elRect = el.getBoundingClientRect();
-    const containerRect = container.getBoundingClientRect();
-    return elRect.top < containerRect.bottom && elRect.bottom > containerRect.top;
-  }, []);
-
-  const handleSync = useCallback(() => {
-    if (activeSegmentIndex < 0) return;
-    const el = segmentRefs.current.get(activeSegmentIndex);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-    setShowSyncButton(false);
-    onSyncToCurrent?.();
-  }, [activeSegmentIndex, onSyncToCurrent]);
 
   const handleSeekToSegmentClick = useCallback(
     (segIdx: number, time: number) => {
-      skipNextAutoSyncRef.current = true;
       const el = segmentRefs.current.get(segIdx);
       if (el) {
         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
-      setShowSyncButton(false);
       onSeekToSegment?.(time);
     },
     [onSeekToSegment]
   );
 
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    container.addEventListener('wheel', handleUserScroll, { passive: true });
-    container.addEventListener('scroll', handleUserScroll, { passive: true });
-
-    return () => {
-      container.removeEventListener('wheel', handleUserScroll);
-      container.removeEventListener('scroll', handleUserScroll);
-    };
-  }, [handleUserScroll]);
-
-  useEffect(() => {
     if (activeSegmentIndex < 0) return;
-
-    const prevIndex = prevActiveSegmentRef.current;
-    prevActiveSegmentRef.current = activeSegmentIndex;
-
-    if (prevIndex >= 0 && prevIndex !== activeSegmentIndex) {
-      const prevEl = segmentRefs.current.get(prevIndex);
-      if (prevEl && containerRef.current && !isElementInView(prevEl, containerRef.current)) {
-        queueMicrotask(() => setShowSyncButton(true));
-      }
-    }
-
-    if (showSyncButton) return;
-    if (skipNextAutoSyncRef.current) {
-      skipNextAutoSyncRef.current = false;
-      return;
-    }
-
     const el = segmentRefs.current.get(activeSegmentIndex);
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
-  }, [activeSegmentIndex, isElementInView, showSyncButton]);
+  }, [activeSegmentIndex]);
 
   const setSegmentRef = useCallback(
     (index: number) => (el: HTMLDivElement | null) => {
@@ -184,7 +125,12 @@ export function TranscriptView({
         const isActive = segIdx === activeSegmentIndex;
 
         return (
-          <SegmentRow key={segIdx} ref={setSegmentRef(segIdx)} $isActive={isActive}>
+          <SegmentRow
+            key={segIdx}
+            ref={setSegmentRef(segIdx)}
+            $isActive={isActive}
+            $fontSize={fontSize}
+          >
             {onSeekToSegment && (
               <IconButton
                 size="medium"
@@ -206,18 +152,6 @@ export function TranscriptView({
           </SegmentRow>
         );
       })}
-      {showSyncButton && hasStartedPlayback && (
-        <SyncButton
-          $controlsHeight={controlsHeight}
-          variant="contained"
-          size="small"
-          onClick={handleSync}
-          startIcon={<GraphicEqRoundedIcon />}
-          data-qa="transcript-sync-button"
-        >
-          Sync
-        </SyncButton>
-      )}
     </TranscriptContainer>
   );
 }

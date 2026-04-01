@@ -63,15 +63,21 @@ const HeroCard = styled(Card)(({ theme }) => ({
 
 const HeroRow = styled(Box)(({ theme }) => ({
   display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'flex-start',
-  gap: theme.spacing(2),
+  flexDirection: 'column',
+  gap: theme.spacing(1.5),
+  [theme.breakpoints.up('sm')]: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: theme.spacing(2),
+  },
 }));
 
 const UploadButton = styled(Button)(({ theme }) => ({
   borderRadius: 999,
   minWidth: 0,
   whiteSpace: 'nowrap',
+  alignSelf: 'flex-start',
   backgroundColor: theme.palette.background.paper,
   color: theme.palette.text.primary,
   '&:hover': {

@@ -4,9 +4,11 @@ import { Box, CircularProgress, Typography } from '@mui/material';
 import { styled } from '../../lib/styled';
 import { useAudioPlayerContext } from '../../contexts/AudioPlayerContext';
 import { useTranslationContext } from '../../hooks/useTranslationContext';
+import { useAppSettings } from '../../contexts/AppSettingsContext';
 import { usePageTitle } from '../../hooks/usePageTitle';
 import { TranscriptView } from './TranscriptView';
 import { AudioControls, CONTROLS_HEIGHT } from './AudioControls';
+import type { TranscriptFontSize } from '../../types/appSettings';
 
 const PlayerContainer = styled(Box)({
   display: 'flex',
@@ -39,7 +41,6 @@ export function AudioPlayerPage() {
     duration,
     activeSegmentIndex,
     playbackRate,
-    hasStartedPlayback,
     loading,
     error,
     hasNext,
@@ -49,39 +50,33 @@ export function AudioPlayerPage() {
     togglePlay,
     seek,
     setPlaybackRate,
-    setHasStartedPlayback,
     nextTrack,
     previousTrack,
   } = useAudioPlayerContext();
   const [controlsHeight, setControlsHeight] = useState(CONTROLS_HEIGHT);
   const wasPlayingBeforeSeekRef = useRef(false);
   const { handleDailyLimitReached } = useTranslationContext();
+  const { settings, updateSettings } = useAppSettings();
+
+  const handleFontSizeChange = useCallback(
+    (size: TranscriptFontSize) => {
+      updateSettings({ transcriptFontSize: size });
+    },
+    [updateSettings]
+  );
   usePageTitle(audioItem?.title || 'Audio');
 
   const handleSeekToSegment = useCallback(
     (time: number) => {
       seek(time);
-      if (!isPlaying) {
-        setHasStartedPlayback(true);
-        play();
-      }
+      if (!isPlaying) play();
     },
-    [seek, play, isPlaying, setHasStartedPlayback]
+    [seek, play, isPlaying]
   );
 
-  const handleSyncToCurrent = useCallback(() => {
-    if (!isPlaying) {
-      setHasStartedPlayback(true);
-      play();
-    }
-  }, [isPlaying, play, setHasStartedPlayback]);
-
   const handleTogglePlay = useCallback(() => {
-    if (!isPlaying) {
-      setHasStartedPlayback(true);
-    }
     togglePlay();
-  }, [isPlaying, togglePlay, setHasStartedPlayback]);
+  }, [togglePlay]);
 
   const handleSeekStart = useCallback(() => {
     wasPlayingBeforeSeekRef.current = isPlaying;
@@ -151,12 +146,10 @@ export function AudioPlayerPage() {
         <TranscriptView
           transcript={audioItem?.transcript ?? []}
           activeSegmentIndex={activeSegmentIndex}
-          hasStartedPlayback={hasStartedPlayback}
+          fontSize={settings.transcriptFontSize}
           onDailyLimitReached={handleDailyLimitReached}
           onWordTap={pause}
           onSeekToSegment={handleSeekToSegment}
-          onSyncToCurrent={handleSyncToCurrent}
-          controlsHeight={controlsHeight}
         />
       </TranscriptArea>
 
@@ -167,6 +160,7 @@ export function AudioPlayerPage() {
         playbackRate={playbackRate}
         hasNext={hasNext}
         hasPrevious={hasPrevious}
+        fontSize={settings.transcriptFontSize}
         onTogglePlay={handleTogglePlay}
         onSeek={seek}
         onSeekStart={handleSeekStart}
@@ -174,6 +168,7 @@ export function AudioPlayerPage() {
         onSetPlaybackRate={setPlaybackRate}
         onNextTrack={nextTrack}
         onPreviousTrack={previousTrack}
+        onFontSizeChange={handleFontSizeChange}
         onHeightChange={setControlsHeight}
       />
     </PlayerContainer>

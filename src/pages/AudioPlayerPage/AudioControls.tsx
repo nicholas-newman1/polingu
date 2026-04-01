@@ -1,14 +1,27 @@
 import { useEffect, useRef, useState } from 'react';
-import { Box, IconButton, Slider, Typography, ButtonBase, Menu } from '@mui/material';
+import {
+  Box,
+  IconButton,
+  Slider,
+  Typography,
+  ButtonBase,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
+} from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import PauseIcon from '@mui/icons-material/Pause';
 import Replay10Icon from '@mui/icons-material/Replay10';
 import Forward10Icon from '@mui/icons-material/Forward10';
 import SkipNextIcon from '@mui/icons-material/SkipNext';
 import SkipPreviousIcon from '@mui/icons-material/SkipPrevious';
+import FormatSizeIcon from '@mui/icons-material/FormatSize';
+import CheckIcon from '@mui/icons-material/Check';
 import { styled } from '../../lib/styled';
 import { DRAWER_WIDTH } from '../../components/Layout';
 import { BOTTOM_MENU_BAR_HEIGHT } from '../../components/BottomMenu/BottomMenuBar';
+import type { TranscriptFontSize } from '../../types/appSettings';
 
 const ControlsBar = styled(Box)(({ theme }) => ({
   position: 'fixed',
@@ -55,11 +68,17 @@ const ProgressSlider = styled(Slider)({
   },
 });
 
-const SpeedButtonSpacer = styled(Box)({
+const FontSizeButton = styled(ButtonBase)(({ theme }) => ({
   width: 48,
   minWidth: 48,
+  height: 32,
+  borderRadius: theme.shape.borderRadius,
+  color: theme.palette.text.secondary,
   flexShrink: 0,
-});
+  '&:hover': {
+    backgroundColor: theme.palette.action.hover,
+  },
+}));
 
 const SpeedButton = styled(ButtonBase)(({ theme }) => ({
   fontSize: '0.8rem',
@@ -92,6 +111,7 @@ interface AudioControlsProps {
   playbackRate: number;
   hasNext: boolean;
   hasPrevious: boolean;
+  fontSize: TranscriptFontSize;
   onTogglePlay: () => void;
   onSeek: (time: number) => void;
   onSeekStart?: () => void;
@@ -99,8 +119,15 @@ interface AudioControlsProps {
   onSetPlaybackRate: (rate: number) => void;
   onNextTrack: () => void;
   onPreviousTrack: () => void;
+  onFontSizeChange: (size: TranscriptFontSize) => void;
   onHeightChange?: (height: number) => void;
 }
+
+const FONT_SIZE_OPTIONS: { value: TranscriptFontSize; label: string }[] = [
+  { value: 'small', label: 'Small' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'large', label: 'Large' },
+];
 
 export function AudioControls({
   isPlaying,
@@ -109,6 +136,7 @@ export function AudioControls({
   playbackRate,
   hasNext,
   hasPrevious,
+  fontSize,
   onTogglePlay,
   onSeek,
   onSeekStart,
@@ -116,9 +144,11 @@ export function AudioControls({
   onSetPlaybackRate,
   onNextTrack,
   onPreviousTrack,
+  onFontSizeChange,
   onHeightChange,
 }: AudioControlsProps) {
   const [speedMenuAnchor, setSpeedMenuAnchor] = useState<HTMLElement | null>(null);
+  const [fontSizeMenuAnchor, setFontSizeMenuAnchor] = useState<HTMLElement | null>(null);
   const [isSeeking, setIsSeeking] = useState(false);
   const [seekValue, setSeekValue] = useState(0);
   const controlsRef = useRef<HTMLDivElement>(null);
@@ -237,7 +267,41 @@ export function AudioControls({
             <SkipNextIcon />
           </IconButton>
         </PlaybackGroup>
-        <SpeedButtonSpacer />
+        <FontSizeButton
+          onClick={(e) => setFontSizeMenuAnchor(e.currentTarget)}
+          aria-controls={fontSizeMenuAnchor ? 'font-size-menu' : undefined}
+          aria-haspopup="true"
+          aria-expanded={!!fontSizeMenuAnchor}
+          aria-label="Change font size"
+        >
+          <FormatSizeIcon fontSize="small" />
+        </FontSizeButton>
+        <Menu
+          id="font-size-menu"
+          anchorEl={fontSizeMenuAnchor}
+          open={!!fontSizeMenuAnchor}
+          onClose={() => setFontSizeMenuAnchor(null)}
+          anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+          transformOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        >
+          {FONT_SIZE_OPTIONS.map((option) => (
+            <MenuItem
+              key={option.value}
+              selected={fontSize === option.value}
+              onClick={() => {
+                onFontSizeChange(option.value);
+                setFontSizeMenuAnchor(null);
+              }}
+            >
+              {fontSize === option.value && (
+                <ListItemIcon>
+                  <CheckIcon fontSize="small" />
+                </ListItemIcon>
+              )}
+              <ListItemText inset={fontSize !== option.value}>{option.label}</ListItemText>
+            </MenuItem>
+          ))}
+        </Menu>
         <Menu
           id="speed-menu"
           anchorEl={speedMenuAnchor}

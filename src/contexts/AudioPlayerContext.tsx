@@ -63,7 +63,6 @@ interface AudioPlayerState {
   activeSegmentIndex: number;
   activeWordIndex: number;
   playbackRate: number;
-  hasStartedPlayback: boolean;
   loading: boolean;
   error: string | null;
 }
@@ -75,7 +74,6 @@ interface AudioPlayerActions {
   togglePlay: () => void;
   seek: (time: number) => void;
   setPlaybackRate: (rate: number) => void;
-  setHasStartedPlayback: (value: boolean) => void;
   nextTrack: () => void;
   previousTrack: () => void;
   playFromLibrary: (trackId: string, readyItems: AudioItem[]) => void;
@@ -130,7 +128,6 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   const [activeWordIndex, setActiveWordIndex] = useState(-1);
   const [playbackRate, setPlaybackRateState] = useState(1);
   const playbackRateRef = useRef(1);
-  const [hasStartedPlayback, setHasStartedPlayback] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -188,7 +185,6 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     }
     setAudioUrl(null);
     setIsPlaying(autoPlayRef.current);
-    setHasStartedPlayback(autoPlayRef.current);
     setCurrentTime(0);
     setDuration(0);
     setActiveSegmentIndex(-1);
@@ -440,7 +436,6 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
 
     const onPlay = () => {
       setIsPlaying(true);
-      setHasStartedPlayback(true);
       rafRef.current = requestAnimationFrame(loop);
       syncPositionState();
     };
@@ -560,6 +555,11 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const nextTrackRef = useRef(nextTrack);
+  const previousTrackRef = useRef(previousTrack);
+  nextTrackRef.current = nextTrack;
+  previousTrackRef.current = previousTrack;
+
   useEffect(() => {
     if (!('mediaSession' in navigator)) return;
     const seekBack = () => {
@@ -578,8 +578,8 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
 
     navigator.mediaSession.setActionHandler('play', () => audioRef.current?.play().catch(() => {}));
     navigator.mediaSession.setActionHandler('pause', () => audioRef.current?.pause());
-    navigator.mediaSession.setActionHandler('previoustrack', seekBack);
-    navigator.mediaSession.setActionHandler('nexttrack', seekFwd);
+    navigator.mediaSession.setActionHandler('previoustrack', () => previousTrackRef.current());
+    navigator.mediaSession.setActionHandler('nexttrack', () => nextTrackRef.current());
     navigator.mediaSession.setActionHandler('seekto', (details) => {
       if (audioRef.current && details.seekTime !== undefined) {
         audioRef.current.currentTime = details.seekTime;
@@ -607,7 +607,6 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     activeSegmentIndex,
     activeWordIndex,
     playbackRate,
-    hasStartedPlayback,
     loading,
     error,
     items,
@@ -618,7 +617,6 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     togglePlay,
     seek,
     setPlaybackRate,
-    setHasStartedPlayback,
     nextTrack,
     previousTrack,
     playFromLibrary,
