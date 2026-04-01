@@ -21,26 +21,21 @@ const EMPTY_CONTENT: ContentData = {
 };
 
 /**
- * Load content using online-first strategy:
- * 1. If online, fetch from Firestore and update IndexedDB cache
- * 2. If offline or Firestore fails, use IndexedDB cache
+ * Cache-first: serve from IndexedDB instantly, fall back to Firestore on cache miss.
+ * Background sync is handled separately by syncContentFromFirestore().
  */
 export async function loadContentData(): Promise<ContentData> {
+  const cached = await loadCachedContent();
+  if (cached.sentences.length > 0) return cached;
+
   if (navigator.onLine) {
     try {
       return await syncContentFromFirestore();
     } catch (e) {
-      console.error('Failed to load content from Firestore, falling back to cache:', e);
+      console.error('Failed to load content from Firestore:', e);
     }
   }
 
-  const cached = await loadCachedContent();
-  const hasCached = cached.sentences.length > 0;
-  if (hasCached) return cached;
-
-  if (!navigator.onLine) {
-    console.warn('Offline with no cached content');
-  }
   return EMPTY_CONTENT;
 }
 

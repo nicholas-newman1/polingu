@@ -5,7 +5,9 @@ import type { Sentence } from '../../types/sentences';
 import type { Verb } from '../../types/conjugation';
 import { getUserId } from '../../lib/storage/helpers';
 import { useAuthContext } from '../../hooks/useAuthContext';
-import { loadContentData } from '../../lib/offlineDb/contentSync';
+import { loadContentData, syncContentFromFirestore } from '../../lib/offlineDb/contentSync';
+import { refreshAllUserDataFromFirestore } from '../../lib/offlineDb/userDataWrapper';
+import { refreshSentenceTagsFromFirestore } from '../../lib/storage/sentenceTags';
 import { DeclensionProvider, DeclensionContext, loadDeclensionData } from './DeclensionContext';
 import { VocabularyProvider, VocabularyContext, loadVocabularyData } from './VocabularyContext';
 import { SentenceProvider, SentenceContext, loadSentenceData } from './SentenceContext';
@@ -49,6 +51,7 @@ export function ReviewDataProvider({ children }: ReviewDataProviderProps) {
   const { user } = useAuthContext();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<LoadedData | null>(null);
+  const [dataVersion, setDataVersion] = useState(0);
 
   const fetchAllData = useCallback(async (): Promise<LoadedData> => {
     const userId = getUserId();
@@ -103,9 +106,26 @@ export function ReviewDataProvider({ children }: ReviewDataProviderProps) {
     let active = true;
 
     fetchAllData().then((result) => {
-      if (active) {
-        setData(result);
-        setLoading(false);
+      if (!active) return;
+      setData(result);
+      setLoading(false);
+
+      if (navigator.onLine && getUserId()) {
+        Promise.all([
+          refreshAllUserDataFromFirestore(),
+          syncContentFromFirestore(),
+          refreshSentenceTagsFromFirestore(),
+        ])
+          .then(() => {
+            if (active) return fetchAllData();
+          })
+          .then((fresh) => {
+            if (active && fresh) {
+              setData(fresh);
+              setDataVersion((v) => v + 1);
+            }
+          })
+          .catch((e) => console.error('Background sync failed:', e));
       }
     });
 
@@ -114,8 +134,7 @@ export function ReviewDataProvider({ children }: ReviewDataProviderProps) {
     };
   }, [user?.uid, fetchAllData]);
 
-  // Use key to force remount when data loads, ensuring initial props take effect
-  const key = data ? 'loaded' : 'loading';
+  const key = data ? `loaded-${dataVersion}` : 'loading';
 
   return (
     <DeclensionProvider

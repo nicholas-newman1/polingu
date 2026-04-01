@@ -4,7 +4,8 @@
  *
  * The strategy is:
  * - SAVE: Save to IndexedDB immediately, then sync to Firestore in background
- * - LOAD: Fetch from Firestore first, fall back to IndexedDB cache if offline
+ * - LOAD: Serve from IndexedDB cache first, fall back to Firestore on cache miss
+ * - REFRESH: Background-refresh all cached data from Firestore after initial load
  */
 
 import { doc, getDoc, setDoc } from 'firebase/firestore';
@@ -50,8 +51,8 @@ export async function saveUserData<T>(
 }
 
 /**
- * 1. If online, fetch from Firestore (ensures cross-device sync)
- * 2. If offline, use IndexedDB cache
+ * Cache-first: serve from IndexedDB instantly, fall back to Firestore on cache miss.
+ * Background sync is handled separately by refreshAllUserDataFromFirestore().
  */
 export async function loadUserData<T>(
   docPath: string,
@@ -61,35 +62,59 @@ export async function loadUserData<T>(
   const userId = getUserId();
   if (!userId) return defaultValue;
 
-  // If online, always fetch fresh from Firestore
-  if (navigator.onLine) {
-    try {
-      const docRef = doc(db, 'users', userId, 'data', docPath);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        const rawData = docSnap.data();
-        // Update local cache
-        await userDb.userData.put({
-          key: docPath,
-          data: rawData,
-          lastModified: Date.now(),
-          pendingSync: 0,
-        });
-        return deserialize ? deserialize(rawData) : (rawData as T);
-      }
-    } catch (e) {
-      console.error(`Failed to load ${docPath} from Firestore, falling back to cache:`, e);
-      // Fall through to local cache on error
-    }
-  }
-
-  // Offline or Firestore failed - use local cache
   const localRecord = await userDb.userData.get(docPath);
   if (localRecord) {
     return deserialize ? deserialize(localRecord.data) : (localRecord.data as T);
   }
 
+  if (navigator.onLine) {
+    try {
+      const docRef = doc(db, 'users', userId, 'data', docPath);
+      const docSnap = await getDoc(docRef);
+      const rawData = docSnap.exists() ? docSnap.data() : defaultValue;
+      await userDb.userData.put({
+        key: docPath,
+        data: rawData,
+        lastModified: Date.now(),
+        pendingSync: 0,
+      });
+      return deserialize ? deserialize(rawData) : (rawData as T);
+    } catch (e) {
+      console.error(`Failed to load ${docPath} from Firestore:`, e);
+    }
+  }
+
   return defaultValue;
+}
+
+/**
+ * Refresh all cached user data from Firestore and update IndexedDB.
+ * Call this in the background after an initial cache-first load.
+ */
+export async function refreshAllUserDataFromFirestore(): Promise<void> {
+  const userId = getUserId();
+  if (!userId || !navigator.onLine) return;
+
+  const allRecords = await userDb.userData.toArray();
+  const userRecords = allRecords.filter((r) => !r.key.startsWith('__'));
+  await Promise.all(
+    userRecords.map(async (record) => {
+      try {
+        const docRef = doc(db, 'users', userId, 'data', record.key);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          await userDb.userData.put({
+            key: record.key,
+            data: docSnap.data(),
+            lastModified: Date.now(),
+            pendingSync: 0,
+          });
+        }
+      } catch (e) {
+        console.error(`Background refresh failed for ${record.key}:`, e);
+      }
+    })
+  );
 }
 
 /**
