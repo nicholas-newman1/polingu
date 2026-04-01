@@ -2,7 +2,6 @@ import type { Verb, ConjugationReviewDataStore, ConjugationFilters } from '../..
 import { getDrillableFormsForVerb, matchesFilters } from '../conjugationUtils';
 import getOrCreateConjugationFormReviewData from '../storage/getOrCreateConjugationFormReviewData';
 import { includesFormKey } from '../storage/helpers';
-import shuffleArray from '../utils/shuffleArray';
 import type { ConjugationSessionCard } from './types';
 
 export default function getConjugationExtraNewCards(
@@ -29,5 +28,5 @@ export default function getConjugationExtraNewCards(
     }
   }
 
-  return shuffleArray(allCards).slice(0, count);
+  return allCards.slice(0, count);
 }

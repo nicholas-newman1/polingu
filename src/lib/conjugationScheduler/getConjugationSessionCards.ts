@@ -8,7 +8,6 @@ import { getDrillableFormsForVerb, matchesFilters } from '../conjugationUtils';
 import getOrCreateConjugationFormReviewData from '../storage/getOrCreateConjugationFormReviewData';
 import { includesFormKey } from '../storage/helpers';
 import isDue from '../fsrsUtils/isDue';
-import shuffleArray from '../utils/shuffleArray';
 import type { ConjugationSessionCard } from './types';
 
 function sortByDueDate(a: ConjugationSessionCard, b: ConjugationSessionCard): number {
@@ -56,7 +55,7 @@ export default function getConjugationSessionCards(
   }
 
   reviewCards.sort(sortByDueDate);
-  const newCards = shuffleArray(allNewCards).slice(0, remainingNewFormsToday);
+  const newCards = allNewCards.slice(0, remainingNewFormsToday);
 
   return { reviewCards, newCards };
 }
