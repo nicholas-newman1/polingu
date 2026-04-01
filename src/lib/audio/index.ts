@@ -1,6 +1,6 @@
 export { uploadAudio } from './uploadAudio';
 export {
-  getAudioItems,
+  getCachedAudioItems,
   getAudioItem,
   getAudioDownloadUrl,
   subscribeToAudioItemsUpdates,

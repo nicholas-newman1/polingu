@@ -1,39 +1,30 @@
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  onSnapshot,
-  query,
-  orderBy,
-  updateDoc,
-} from 'firebase/firestore';
+import { collection, doc, getDoc, onSnapshot, query, orderBy, updateDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { getDownloadURL, ref } from 'firebase/storage';
 import { db, functions, storage } from '../firebase';
 import { getUserId } from '../storage/helpers';
+import { userDb } from '../offlineDb/userDb';
 import type { AudioItem } from '../../types/audio';
 
-export async function getAudioItems(): Promise<AudioItem[]> {
-  const userId = getUserId();
-  if (!userId) return [];
+const AUDIO_ITEMS_CACHE_KEY = '__audio-items-list';
 
-  const itemsRef = collection(db, 'users', userId, 'audioItems');
-  const q = query(itemsRef, orderBy('createdAt', 'desc'));
-  const snapshot = await getDocs(q);
-
-  return snapshot.docs.map((doc) => doc.data() as AudioItem);
+export async function getCachedAudioItems(): Promise<AudioItem[]> {
+  const record = await userDb.userData.get(AUDIO_ITEMS_CACHE_KEY);
+  return record ? (record.data as AudioItem[]) : [];
 }
 
-export function subscribeToAudioItemsUpdates(
-  callback: (items: AudioItem[]) => void,
-  onError?: (error: Error) => void
-): () => void {
+async function cacheAudioItems(items: AudioItem[]): Promise<void> {
+  await userDb.userData.put({
+    key: AUDIO_ITEMS_CACHE_KEY,
+    data: items,
+    lastModified: Date.now(),
+    pendingSync: 0,
+  });
+}
+
+export function subscribeToAudioItemsUpdates(callback: (items: AudioItem[]) => void): () => void {
   const userId = getUserId();
-  if (!userId) {
-    queueMicrotask(() => callback([]));
-    return () => {};
-  }
+  if (!userId) return () => {};
 
   const itemsRef = collection(db, 'users', userId, 'audioItems');
   const q = query(itemsRef, orderBy('createdAt', 'desc'));
@@ -42,11 +33,11 @@ export function subscribeToAudioItemsUpdates(
     q,
     (snapshot) => {
       const items = snapshot.docs.map((doc) => doc.data() as AudioItem);
+      cacheAudioItems(items);
       callback(items);
     },
     (error) => {
       console.error('Audio items subscription error:', error);
-      onError?.(error);
     }
   );
 }
@@ -93,10 +84,7 @@ export async function deleteAudioItem(audioId: string): Promise<void> {
   await deleteFn({ audioId });
 }
 
-export async function updateAudioItem(
-  audioId: string,
-  updates: { title?: string }
-): Promise<void> {
+export async function updateAudioItem(audioId: string, updates: { title?: string }): Promise<void> {
   const userId = getUserId();
   if (!userId) throw new Error('Not authenticated');
 

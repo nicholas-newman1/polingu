@@ -2,6 +2,7 @@ export { uploadBook } from './uploadBook';
 export {
   getBook,
   getBooks,
+  getCachedBooks,
   getBookDownloadUrl,
   getReadingProgress,
   getStorageUsage,

@@ -28,6 +28,7 @@ import MenuBookIcon from '@mui/icons-material/MenuBook';
 import { styled } from '../../lib/styled';
 import {
   uploadBook,
+  getCachedBooks,
   subscribeToBooksUpdates,
   deleteBook,
   updateBook,
@@ -172,17 +173,19 @@ export function LibraryPage() {
   useEffect(() => {
     let cancelled = false;
 
-    const unsubscribe = subscribeToBooksUpdates(
-      (updatedBooks: Book[]) => {
-        if (!cancelled) {
-          setBooks(updatedBooks);
-          setLoading(false);
-        }
-      },
-      () => {
-        if (!cancelled) setLoading(false);
+    getCachedBooks().then((cached) => {
+      if (!cancelled) {
+        setBooks(cached);
+        setLoading(false);
       }
-    );
+    });
+
+    const unsubscribe = subscribeToBooksUpdates((updatedBooks: Book[]) => {
+      if (!cancelled) {
+        setBooks(updatedBooks);
+        setLoading(false);
+      }
+    });
 
     getStorageUsage()
       .then((usage) => {

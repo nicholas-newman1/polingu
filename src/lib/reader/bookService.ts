@@ -19,7 +19,7 @@ import type { Book, BookColor, ReadingProgress } from '../../types/reader';
 
 const BOOKS_CACHE_KEY = '__books-list';
 
-async function getCachedBooks(): Promise<Book[]> {
+export async function getCachedBooks(): Promise<Book[]> {
   const record = await userDb.userData.get(BOOKS_CACHE_KEY);
   return record ? (record.data as Book[]) : [];
 }
@@ -54,15 +54,9 @@ export async function getBooks(): Promise<Book[]> {
   }
 }
 
-export function subscribeToBooksUpdates(
-  callback: (books: Book[]) => void,
-  onError?: (error: Error) => void
-): () => void {
+export function subscribeToBooksUpdates(callback: (books: Book[]) => void): () => void {
   const userId = getUserId();
-  if (!userId) {
-    queueMicrotask(() => callback([]));
-    return () => {};
-  }
+  if (!userId) return () => {};
 
   const booksRef = collection(db, 'users', userId, 'books');
   const q = query(booksRef, orderBy('uploadedAt', 'desc'));
@@ -76,7 +70,6 @@ export function subscribeToBooksUpdates(
     },
     (error) => {
       console.error('Books subscription error:', error);
-      onError?.(error);
     }
   );
 }

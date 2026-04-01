@@ -12,6 +12,7 @@ import {
   subscribeToAudioItem,
   getAudioDownloadUrl,
   subscribeToAudioItemsUpdates,
+  getCachedAudioItems,
   getCachedAudioBlob,
   cacheAudioBlob,
 } from '../lib/audio';
@@ -159,17 +160,19 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
 
-    const unsubscribe = subscribeToAudioItemsUpdates(
-      (updatedItems) => {
-        if (!cancelled) {
-          setItems(updatedItems);
-          setLibraryLoading(false);
-        }
-      },
-      () => {
-        if (!cancelled) setLibraryLoading(false);
+    getCachedAudioItems().then((cached) => {
+      if (!cancelled) {
+        setItems(cached);
+        setLibraryLoading(false);
       }
-    );
+    });
+
+    const unsubscribe = subscribeToAudioItemsUpdates((updatedItems) => {
+      if (!cancelled) {
+        setItems(updatedItems);
+        setLibraryLoading(false);
+      }
+    });
 
     return () => {
       cancelled = true;
