@@ -172,12 +172,17 @@ export function LibraryPage() {
   useEffect(() => {
     let cancelled = false;
 
-    const unsubscribe = subscribeToBooksUpdates((updatedBooks: Book[]) => {
-      if (!cancelled) {
-        setBooks(updatedBooks);
-        setLoading(false);
+    const unsubscribe = subscribeToBooksUpdates(
+      (updatedBooks: Book[]) => {
+        if (!cancelled) {
+          setBooks(updatedBooks);
+          setLoading(false);
+        }
+      },
+      () => {
+        if (!cancelled) setLoading(false);
       }
-    });
+    );
 
     getStorageUsage()
       .then((usage) => {

@@ -159,12 +159,17 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
 
-    const unsubscribe = subscribeToAudioItemsUpdates((updatedItems) => {
-      if (!cancelled) {
-        setItems(updatedItems);
-        setLibraryLoading(false);
+    const unsubscribe = subscribeToAudioItemsUpdates(
+      (updatedItems) => {
+        if (!cancelled) {
+          setItems(updatedItems);
+          setLibraryLoading(false);
+        }
+      },
+      () => {
+        if (!cancelled) setLibraryLoading(false);
       }
-    });
+    );
 
     return () => {
       cancelled = true;

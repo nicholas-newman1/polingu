@@ -26,18 +26,29 @@ export async function getAudioItems(): Promise<AudioItem[]> {
 }
 
 export function subscribeToAudioItemsUpdates(
-  callback: (items: AudioItem[]) => void
+  callback: (items: AudioItem[]) => void,
+  onError?: (error: Error) => void
 ): () => void {
   const userId = getUserId();
-  if (!userId) return () => {};
+  if (!userId) {
+    queueMicrotask(() => callback([]));
+    return () => {};
+  }
 
   const itemsRef = collection(db, 'users', userId, 'audioItems');
   const q = query(itemsRef, orderBy('createdAt', 'desc'));
 
-  return onSnapshot(q, (snapshot) => {
-    const items = snapshot.docs.map((doc) => doc.data() as AudioItem);
-    callback(items);
-  });
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const items = snapshot.docs.map((doc) => doc.data() as AudioItem);
+      callback(items);
+    },
+    (error) => {
+      console.error('Audio items subscription error:', error);
+      onError?.(error);
+    }
+  );
 }
 
 export async function getAudioItem(audioId: string): Promise<AudioItem | null> {

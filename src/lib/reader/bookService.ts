@@ -54,18 +54,31 @@ export async function getBooks(): Promise<Book[]> {
   }
 }
 
-export function subscribeToBooksUpdates(callback: (books: Book[]) => void): () => void {
+export function subscribeToBooksUpdates(
+  callback: (books: Book[]) => void,
+  onError?: (error: Error) => void
+): () => void {
   const userId = getUserId();
-  if (!userId) return () => {};
+  if (!userId) {
+    queueMicrotask(() => callback([]));
+    return () => {};
+  }
 
   const booksRef = collection(db, 'users', userId, 'books');
   const q = query(booksRef, orderBy('uploadedAt', 'desc'));
 
-  return onSnapshot(q, (snapshot) => {
-    const books = snapshot.docs.map((d) => d.data() as Book);
-    cacheBooks(books);
-    callback(books);
-  });
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const books = snapshot.docs.map((d) => d.data() as Book);
+      cacheBooks(books);
+      callback(books);
+    },
+    (error) => {
+      console.error('Books subscription error:', error);
+      onError?.(error);
+    }
+  );
 }
 
 export async function getBook(bookId: string): Promise<Book | null> {
