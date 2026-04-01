@@ -4,6 +4,10 @@ import checker from 'vite-plugin-checker';
 import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
+  define: {
+    __BUILD_VERSION__: JSON.stringify(process.env.BUILD_NUMBER || 'dev'),
+    __COMMIT_SHA__: JSON.stringify(process.env.COMMIT_SHA || 'local'),
+  },
   plugins: [
     react(),
     checker({

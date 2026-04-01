@@ -124,6 +124,9 @@ export function BottomMenuBar({ showTranslator = true }: BottomMenuBarProps) {
     </MenuButton>
   );
 
+  const versionLabel = __BUILD_VERSION__ === 'dev' ? 'dev' : `v${__BUILD_VERSION__}`;
+  const commitLabel = __COMMIT_SHA__ === 'local' ? '' : __COMMIT_SHA__.slice(0, 7);
+
   return (
     <MenuBarContainer>
       {showTranslator ? (
@@ -146,6 +149,22 @@ export function BottomMenuBar({ showTranslator = true }: BottomMenuBarProps) {
         </IconWrapper>
         <Label>Cheat Sheets</Label>
       </MenuButton>
+
+      <Tooltip title={commitLabel ? `Commit: ${commitLabel}` : ''} arrow>
+        <Typography
+          sx={{
+            position: 'absolute',
+            bottom: 4,
+            right: 8,
+            fontSize: '0.55rem',
+            color: 'text.disabled',
+            lineHeight: 1,
+            userSelect: 'none',
+          }}
+        >
+          {versionLabel}
+        </Typography>
+      </Tooltip>
 
       <Menu
         id="cheat-sheets-menu"
