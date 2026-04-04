@@ -24,6 +24,7 @@ import MoreVertIcon from '@mui/icons-material/MoreVert';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import QueueMusicIcon from '@mui/icons-material/QueueMusic';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import PlaylistPlayIcon from '@mui/icons-material/PlaylistPlay';
 import HeadphonesIcon from '@mui/icons-material/Headphones';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
@@ -288,6 +289,21 @@ export function AudioLibraryPage() {
     setMenuAnchor(null);
   };
 
+  const handleCopyTranscript = async (item: AudioItem) => {
+    setMenuAnchor(null);
+    const text = item.transcript.map((s) => s.text).join(' ');
+    if (!text) {
+      showSnackbar('No transcript available', 'warning');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      showSnackbar('Transcript copied to clipboard', 'success');
+    } catch {
+      showSnackbar('Failed to copy transcript', 'error');
+    }
+  };
+
   const showMiniPlayer = !!activeAudioId && !!activeItem;
 
   if (libraryLoading) {
@@ -465,6 +481,12 @@ export function AudioLibraryPage() {
             <QueueMusicIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText>Add to Queue</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={() => menuAnchor && handleCopyTranscript(menuAnchor.item)}>
+          <ListItemIcon>
+            <ContentCopyIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Copy Transcript</ListItemText>
         </MenuItem>
         <MenuItem onClick={() => menuAnchor && openEditDialog(menuAnchor.item)}>
           <ListItemIcon>
