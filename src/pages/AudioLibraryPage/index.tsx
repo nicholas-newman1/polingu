@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import {
   Box,
   Typography,
@@ -17,7 +17,6 @@ import {
   ListItemText,
   TextField,
   Stack,
-  Chip,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
@@ -29,14 +28,23 @@ import PlaylistPlayIcon from '@mui/icons-material/PlaylistPlay';
 import HeadphonesIcon from '@mui/icons-material/Headphones';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import PauseIcon from '@mui/icons-material/Pause';
-import AccessTimeIcon from '@mui/icons-material/AccessTime';
-import GraphicEqRoundedIcon from '@mui/icons-material/GraphicEqRounded';
 import { styled } from '../../lib/styled';
-import { uploadAudio, deleteAudioItem, updateAudioItem } from '../../lib/audio';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
+import {
+  uploadAudio,
+  deleteAudioItem,
+  updateAudioItem,
+  createSystemAudio,
+  deleteSystemAudioItem,
+  updateSystemAudioItem,
+} from '../../lib/audio';
 import { useAudioPlayerContext } from '../../contexts/AudioPlayerContext';
+import { useAuthContext } from '../../hooks/useAuthContext';
 import { useSnackbar } from '../../hooks/useSnackbar';
-import type { AudioItem, AudioUploadProgress } from '../../types/audio';
+import type { AudioItem, AudioUploadProgress, SystemAudioItem } from '../../types/audio';
 import { MiniPlayerBar, MINI_PLAYER_HEIGHT } from '../../components/MiniPlayerBar';
+
+type MergedItem = (AudioItem & { source: 'user' }) | (SystemAudioItem & { source: 'system' });
 
 const PageContainer = styled(Box)(({ theme }) => ({
   flex: 1,
@@ -49,40 +57,6 @@ const PageContainer = styled(Box)(({ theme }) => ({
   width: '100%',
   [theme.breakpoints.up('sm')]: {
     padding: theme.spacing(3, 2),
-  },
-}));
-
-const HeroCard = styled(Card)(({ theme }) => ({
-  borderRadius: theme.spacing(2),
-  padding: theme.spacing(2),
-  background: `linear-gradient(135deg, ${theme.palette.primary.light} 0%, ${theme.palette.primary.main} 100%)`,
-  color: theme.palette.primary.contrastText,
-  [theme.breakpoints.up('sm')]: {
-    padding: theme.spacing(2.5, 3),
-  },
-}));
-
-const HeroRow = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  flexDirection: 'column',
-  gap: theme.spacing(1.5),
-  [theme.breakpoints.up('sm')]: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: theme.spacing(2),
-  },
-}));
-
-const UploadButton = styled(Button)(({ theme }) => ({
-  borderRadius: 999,
-  minWidth: 0,
-  whiteSpace: 'nowrap',
-  alignSelf: 'flex-start',
-  backgroundColor: theme.palette.background.paper,
-  color: theme.palette.text.primary,
-  '&:hover': {
-    backgroundColor: theme.palette.grey[100],
   },
 }));
 
@@ -188,6 +162,7 @@ export function AudioLibraryPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const {
     items,
+    systemItems,
     libraryLoading,
     activeAudioId,
     audioItem: activeItem,
@@ -198,98 +173,68 @@ export function AudioLibraryPage() {
     addToQueue,
     insertNext,
   } = useAudioPlayerContext();
+  const { isAdmin } = useAuthContext();
   const { showSnackbar } = useSnackbar();
   const [uploadProgress, setUploadProgress] = useState<AudioUploadProgress | null>(null);
-  const [deleteConfirm, setDeleteConfirm] = useState<AudioItem | null>(null);
-  const [deleting, setDeleting] = useState(false);
-  const [editDialog, setEditDialog] = useState<AudioItem | null>(null);
+  const [menuAnchor, setMenuAnchor] = useState<{ el: HTMLElement; item: MergedItem } | null>(null);
+  const [editDialog, setEditDialog] = useState<MergedItem | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [saving, setSaving] = useState(false);
-  const [menuAnchor, setMenuAnchor] = useState<{ el: HTMLElement; item: AudioItem } | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<MergedItem | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [createTitle, setCreateTitle] = useState('');
+  const [createText, setCreateText] = useState('');
+  const [creating, setCreating] = useState(false);
 
-  const readyItems = items.filter((i) => i.status === 'ready');
-  const processingItems = items.filter((i) => i.status === 'processing');
+  const allReadyItems: MergedItem[] = useMemo(() => {
+    const user: MergedItem[] = items
+      .filter((i) => i.status === 'ready')
+      .map((i) => ({ ...i, source: 'user' as const }));
+    const system: MergedItem[] = systemItems
+      .filter((i) => i.status === 'ready')
+      .map((i) => ({ ...i, source: 'system' as const }));
+    return [...system, ...user].sort((a, b) => b.createdAt - a.createdAt);
+  }, [items, systemItems]);
 
-  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  const allProcessingItems: MergedItem[] = useMemo(() => {
+    const user: MergedItem[] = items
+      .filter((i) => i.status === 'processing')
+      .map((i) => ({ ...i, source: 'user' as const }));
+    const system: MergedItem[] = systemItems
+      .filter((i) => i.status === 'processing')
+      .map((i) => ({ ...i, source: 'system' as const }));
+    return [...user, ...system];
+  }, [items, systemItems]);
 
-    event.target.value = '';
+  const errorItems: MergedItem[] = useMemo(() => {
+    if (!isAdmin) return [];
+    return systemItems
+      .filter((i) => i.status === 'error')
+      .map((i) => ({ ...i, source: 'system' as const }));
+  }, [systemItems, isAdmin]);
 
-    try {
-      await uploadAudio(file, setUploadProgress);
-    } catch (error) {
-      console.error('Upload failed:', error);
-    } finally {
-      setUploadProgress(null);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!deleteConfirm) return;
-
-    setDeleting(true);
-    try {
-      await deleteAudioItem(deleteConfirm.id);
-    } catch (error) {
-      console.error('Delete failed:', error);
-    } finally {
-      setDeleting(false);
-      setDeleteConfirm(null);
-    }
-  };
-
-  const handleSaveEdit = async () => {
-    if (!editDialog || !editTitle.trim()) return;
-
-    setSaving(true);
-    try {
-      await updateAudioItem(editDialog.id, { title: editTitle.trim() });
-    } catch (error) {
-      console.error('Update failed:', error);
-    } finally {
-      setSaving(false);
-      closeEditDialog();
-    }
-  };
-
-  const openEditDialog = (item: AudioItem) => {
-    setEditTitle(item.title);
-    setEditDialog(item);
-    setMenuAnchor(null);
-  };
-
-  const closeEditDialog = () => {
-    setEditDialog(null);
-    setEditTitle('');
-  };
-
-  const openDeleteConfirm = (item: AudioItem) => {
-    setDeleteConfirm(item);
-    setMenuAnchor(null);
-  };
-
-  const handleTrackClick = (item: AudioItem) => {
+  const handleTrackClick = (item: MergedItem) => {
     if (item.id === activeAudioId) {
       togglePlay();
     } else {
-      playFromLibrary(item.id, readyItems);
+      playFromLibrary(item.id, allReadyItems);
     }
   };
 
-  const handleAddToQueue = (item: AudioItem) => {
-    addToQueue(item.id);
-    showSnackbar('Added to queue', 'success');
-    setMenuAnchor(null);
-  };
-
-  const handlePlayNext = (item: AudioItem) => {
+  const handlePlayNext = (item: MergedItem) => {
     insertNext(item.id);
     showSnackbar('Playing next', 'success');
     setMenuAnchor(null);
   };
 
-  const handleCopyTranscript = async (item: AudioItem) => {
+  const handleAddToQueue = (item: MergedItem) => {
+    addToQueue(item.id);
+    showSnackbar('Added to queue', 'success');
+    setMenuAnchor(null);
+  };
+
+  const handleCopyTranscript = async (item: MergedItem) => {
     setMenuAnchor(null);
     const text = item.transcript.map((s) => s.text).join(' ');
     if (!text) {
@@ -303,6 +248,89 @@ export function AudioLibraryPage() {
       showSnackbar('Failed to copy transcript', 'error');
     }
   };
+
+  const openEditDialog = (item: MergedItem) => {
+    setEditTitle(item.title);
+    setEditDialog(item);
+    setMenuAnchor(null);
+  };
+
+  const closeEditDialog = () => {
+    setEditDialog(null);
+    setEditTitle('');
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editDialog || !editTitle.trim()) return;
+    setSaving(true);
+    try {
+      if (editDialog.source === 'system') {
+        await updateSystemAudioItem(editDialog.id, { title: editTitle.trim() });
+      } else {
+        await updateAudioItem(editDialog.id, { title: editTitle.trim() });
+      }
+    } catch (error) {
+      console.error('Update failed:', error);
+    } finally {
+      setSaving(false);
+      closeEditDialog();
+    }
+  };
+
+  const openDeleteConfirm = (item: MergedItem) => {
+    setDeleteConfirm(item);
+    setMenuAnchor(null);
+  };
+
+  const handleDelete = async () => {
+    if (!deleteConfirm) return;
+    setDeleting(true);
+    try {
+      if (deleteConfirm.source === 'system') {
+        await deleteSystemAudioItem(deleteConfirm.id);
+      } else {
+        await deleteAudioItem(deleteConfirm.id);
+      }
+    } catch (error) {
+      console.error('Delete failed:', error);
+    } finally {
+      setDeleting(false);
+      setDeleteConfirm(null);
+    }
+  };
+
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    event.target.value = '';
+    try {
+      await uploadAudio(file, setUploadProgress);
+    } catch (error) {
+      console.error('Upload failed:', error);
+    } finally {
+      setUploadProgress(null);
+    }
+  };
+
+  const handleCreateSystemAudio = async () => {
+    if (!createTitle.trim() || !createText.trim()) return;
+    setCreating(true);
+    try {
+      await createSystemAudio({ title: createTitle.trim(), text: createText.trim() });
+      showSnackbar('System audio queued for processing', 'success');
+      setCreateDialogOpen(false);
+      setCreateTitle('');
+      setCreateText('');
+    } catch (error) {
+      console.error('Create failed:', error);
+      showSnackbar('Failed to create system audio', 'error');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const canEdit = (item: MergedItem) => item.source === 'user' || isAdmin;
+  const canDelete = (item: MergedItem) => item.source === 'user' || isAdmin;
 
   const showMiniPlayer = !!activeAudioId && !!activeItem;
 
@@ -318,61 +346,40 @@ export function AudioLibraryPage() {
 
   return (
     <PageContainer sx={showMiniPlayer ? { pb: `${MINI_PLAYER_HEIGHT + 8}px` } : undefined}>
-      <HeroCard>
-        <HeroRow>
-          <Box>
-            <Typography variant="overline" sx={{ opacity: 0.8, letterSpacing: 1.2 }}>
-              Your Listening Queue
-            </Typography>
-            <Typography variant="h5" fontWeight={700}>
-              Audio Library
-            </Typography>
-            <Typography variant="body2" sx={{ opacity: 0.9, mt: 0.5 }}>
-              Upload files, then tap an audio to open player + transcript.
-            </Typography>
-          </Box>
-          <UploadButton
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            Add Audio
-          </UploadButton>
-        </HeroRow>
-        <Stack direction="row" spacing={1} sx={{ mt: 2, flexWrap: 'wrap', rowGap: 1 }}>
-          <Chip
-            icon={<GraphicEqRoundedIcon />}
-            label={`${readyItems.length} ready`}
-            size="small"
-            sx={{ bgcolor: 'rgba(255,255,255,0.22)', color: 'inherit' }}
-          />
-          <Chip
-            icon={<AccessTimeIcon />}
-            label={`${processingItems.length} processing`}
-            size="small"
-            sx={{ bgcolor: 'rgba(255,255,255,0.22)', color: 'inherit' }}
-          />
-        </Stack>
-      </HeroCard>
-
-      {processingItems.length > 0 && (
+      {allProcessingItems.length > 0 && (
         <ProcessingList>
           <SectionHeader>
             <Typography variant="subtitle2" fontWeight={700}>
-              Processing Queue
+              Processing
             </Typography>
             <Typography variant="caption" color="text.secondary">
               Transcribing
             </Typography>
           </SectionHeader>
-          {processingItems.map((item) => (
+          {allProcessingItems.map((item) => (
             <ProcessingRow key={item.id}>
               <CircularProgress size={20} />
-              <Box sx={{ minWidth: 0 }}>
+              <Box sx={{ minWidth: 0, flex: 1 }}>
                 <Typography variant="body2" fontWeight={600} noWrap>
-                  {item.title || item.fileName}
+                  {item.title || ('fileName' in item ? item.fileName : '')}
                 </Typography>
-                <MetaText noWrap>{item.fileName}</MetaText>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <MetaText noWrap>
+                    {item.source === 'system'
+                      ? 'Generating audio & transcript...'
+                      : 'fileName' in item
+                        ? item.fileName
+                        : ''}
+                  </MetaText>
+                  {item.source === 'system' && (
+                    <>
+                      <Typography variant="caption" color="text.disabled">
+                        &bull;
+                      </Typography>
+                      <MetaText noWrap>System</MetaText>
+                    </>
+                  )}
+                </Stack>
               </Box>
             </ProcessingRow>
           ))}
@@ -384,12 +391,22 @@ export function AudioLibraryPage() {
           <Typography variant="subtitle1" fontWeight={700}>
             Audios
           </Typography>
-          <Typography variant="caption" color="text.secondary">
-            {readyItems.length} audios
-          </Typography>
+          <Box display="flex" alignItems="center" gap={1}>
+            <Typography variant="caption" color="text.secondary">
+              {allReadyItems.length} audios
+            </Typography>
+            {isAdmin && (
+              <IconButton size="small" onClick={() => setCreateDialogOpen(true)}>
+                <AddIcon fontSize="small" />
+              </IconButton>
+            )}
+            <IconButton size="small" onClick={() => fileInputRef.current?.click()}>
+              <AddIcon fontSize="small" />
+            </IconButton>
+          </Box>
         </SectionHeader>
 
-        {readyItems.map((item) => {
+        {allReadyItems.map((item) => {
           const isActive = item.id === activeAudioId;
           const isLoadingTrack = isActive && trackLoading;
 
@@ -419,6 +436,14 @@ export function AudioLibraryPage() {
                     &bull;
                   </Typography>
                   <MetaText noWrap>{formatCreatedDate(item.createdAt)}</MetaText>
+                  {item.source === 'system' && (
+                    <>
+                      <Typography variant="caption" color="text.disabled">
+                        &bull;
+                      </Typography>
+                      <MetaText noWrap>System</MetaText>
+                    </>
+                  )}
                 </Stack>
               </Box>
               <MenuButton
@@ -434,7 +459,40 @@ export function AudioLibraryPage() {
           );
         })}
 
-        {readyItems.length === 0 && processingItems.length === 0 && (
+        {errorItems.map((item) => (
+          <TrackRow key={item.id} sx={{ cursor: 'default' }}>
+            <TrackIconWrap sx={{ bgcolor: 'error.main' }}>
+              <ErrorOutlineIcon />
+            </TrackIconWrap>
+            <Box sx={{ minWidth: 0, flex: 1 }}>
+              <Typography variant="body2" fontWeight={700} noWrap>
+                {item.title}
+              </Typography>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <MetaText noWrap color="error.main">
+                  {item.source === 'system' && 'error' in item
+                    ? (item as SystemAudioItem).error || 'Processing failed'
+                    : 'Processing failed'}
+                </MetaText>
+                <Typography variant="caption" color="text.disabled">
+                  &bull;
+                </Typography>
+                <MetaText noWrap>System</MetaText>
+              </Stack>
+            </Box>
+            <MenuButton
+              size="small"
+              onClick={(e) => {
+                e.stopPropagation();
+                setMenuAnchor({ el: e.currentTarget, item });
+              }}
+            >
+              <MoreVertIcon fontSize="small" />
+            </MenuButton>
+          </TrackRow>
+        ))}
+
+        {allReadyItems.length === 0 && allProcessingItems.length === 0 && (
           <EmptyState>
             <HeadphonesIcon sx={{ fontSize: 48, mb: 1.5, opacity: 0.35 }} />
             <Typography variant="subtitle1" gutterBottom fontWeight={700}>
@@ -488,18 +546,22 @@ export function AudioLibraryPage() {
           </ListItemIcon>
           <ListItemText>Copy Transcript</ListItemText>
         </MenuItem>
-        <MenuItem onClick={() => menuAnchor && openEditDialog(menuAnchor.item)}>
-          <ListItemIcon>
-            <EditIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Rename</ListItemText>
-        </MenuItem>
-        <MenuItem onClick={() => menuAnchor && openDeleteConfirm(menuAnchor.item)}>
-          <ListItemIcon>
-            <DeleteIcon fontSize="small" color="error" />
-          </ListItemIcon>
-          <ListItemText sx={{ color: 'error.main' }}>Delete</ListItemText>
-        </MenuItem>
+        {menuAnchor && canEdit(menuAnchor.item) && (
+          <MenuItem onClick={() => menuAnchor && openEditDialog(menuAnchor.item)}>
+            <ListItemIcon>
+              <EditIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>Rename</ListItemText>
+          </MenuItem>
+        )}
+        {menuAnchor && canDelete(menuAnchor.item) && (
+          <MenuItem onClick={() => menuAnchor && openDeleteConfirm(menuAnchor.item)}>
+            <ListItemIcon>
+              <DeleteIcon fontSize="small" color="error" />
+            </ListItemIcon>
+            <ListItemText sx={{ color: 'error.main' }}>Delete</ListItemText>
+          </MenuItem>
+        )}
       </Menu>
 
       <Dialog open={!!editDialog} onClose={closeEditDialog} maxWidth="xs" fullWidth>
@@ -528,8 +590,10 @@ export function AudioLibraryPage() {
         <DialogTitle>Delete Audio</DialogTitle>
         <DialogContent>
           <Typography>
-            Are you sure you want to delete &quot;{deleteConfirm?.title}&quot;? This will remove the
-            audio file and its transcript.
+            Are you sure you want to delete &quot;{deleteConfirm?.title}&quot;?
+            {deleteConfirm?.source === 'system'
+              ? ' This will remove the audio for all users.'
+              : ' This will remove the audio file and its transcript.'}
           </Typography>
         </DialogContent>
         <DialogActions>
@@ -538,6 +602,47 @@ export function AudioLibraryPage() {
           </Button>
           <Button onClick={handleDelete} color="error" disabled={deleting}>
             {deleting ? 'Deleting...' : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={createDialogOpen}
+        onClose={() => !creating && setCreateDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Create System Audio</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            fullWidth
+            label="Title"
+            value={createTitle}
+            onChange={(e) => setCreateTitle(e.target.value)}
+            disabled={creating}
+            sx={{ mt: 1 }}
+          />
+          <TextField
+            fullWidth
+            label="Polish text"
+            value={createText}
+            onChange={(e) => setCreateText(e.target.value)}
+            disabled={creating}
+            multiline
+            minRows={4}
+            sx={{ mt: 2 }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCreateDialogOpen(false)} disabled={creating}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleCreateSystemAudio}
+            disabled={creating || !createTitle.trim() || !createText.trim()}
+          >
+            {creating ? 'Creating...' : 'Create'}
           </Button>
         </DialogActions>
       </Dialog>

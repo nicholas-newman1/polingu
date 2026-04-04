@@ -1,9 +1,11 @@
 import { setGlobalOptions } from 'firebase-functions';
 import { onCall, HttpsError } from 'firebase-functions/https';
+import { onTaskDispatched } from 'firebase-functions/tasks';
 import { defineSecret } from 'firebase-functions/params';
+import { getFunctions } from 'firebase-admin/functions';
 import { getFirestore } from 'firebase-admin/firestore';
 import { initializeApp } from 'firebase-admin/app';
-import OpenAI from 'openai';
+import OpenAI, { toFile } from 'openai';
 import { TextToSpeechClient, protos } from '@google-cloud/text-to-speech';
 import { Storage } from '@google-cloud/storage';
 
@@ -22,6 +24,7 @@ setGlobalOptions({ maxInstances: 10 });
 
 // Audio generation configuration
 const AUDIO_BUCKET = 'polingu-audio';
+const DEFAULT_BUCKET = 'polish-declension.firebasestorage.app';
 const AUDIO_CONFIG: protos.google.cloud.texttospeech.v1.IAudioConfig = {
   audioEncoding: 'MP3',
 };
@@ -877,3 +880,232 @@ export const saveAudio = onCall<SaveAudioRequest, Promise<SaveAudioResponse>>(as
     throw new HttpsError('internal', 'Failed to save audio.');
   }
 });
+
+// ---------------------------------------------------------------------------
+// System Audio (admin-curated audios visible to all users)
+// ---------------------------------------------------------------------------
+
+interface SystemTranscriptWord {
+  word: string;
+  startTime: number;
+  endTime: number;
+  confidence: number;
+}
+
+interface SystemTranscriptSegment {
+  text: string;
+  startTime: number;
+  endTime: number;
+  words: SystemTranscriptWord[];
+}
+
+interface CreateSystemAudioRequest {
+  title: string;
+  text: string;
+}
+
+export const createSystemAudio = onCall<CreateSystemAudioRequest, Promise<{ id: string }>>(
+  async (request) => {
+    if (!request.auth?.token.admin) {
+      throw new HttpsError('permission-denied', 'Admin access required.');
+    }
+
+    const { title, text } = request.data;
+    if (!title || typeof title !== 'string') {
+      throw new HttpsError('invalid-argument', 'Title is required.');
+    }
+    if (!text || typeof text !== 'string' || text.length > 50000) {
+      throw new HttpsError('invalid-argument', 'Valid text required (max 50,000 chars).');
+    }
+
+    const docRef = db.collection('systemAudioItems').doc();
+    const id = docRef.id;
+
+    await docRef.set({
+      id,
+      title,
+      text,
+      storagePath: '',
+      duration: 0,
+      status: 'processing',
+      transcript: [],
+      createdAt: Date.now(),
+    });
+
+    const queue = getFunctions().taskQueue('processSystemAudio');
+    await queue.enqueue({ id }, { dispatchDeadlineSeconds: 600 });
+
+    return { id };
+  }
+);
+
+interface ProcessSystemAudioTaskData {
+  id: string;
+}
+
+const TTS_BYTE_LIMIT = 3500;
+
+function chunkTextForTTS(text: string): string[] {
+  if (Buffer.byteLength(text, 'utf8') <= TTS_BYTE_LIMIT) return [text];
+
+  const sentences = text.match(/[^.!?]+[.!?]+\s*/g) || [text];
+  const chunks: string[] = [];
+  let current = '';
+
+  for (const sentence of sentences) {
+    const candidate = current + sentence;
+    if (Buffer.byteLength(candidate, 'utf8') > TTS_BYTE_LIMIT && current) {
+      chunks.push(current.trim());
+      current = sentence;
+    } else {
+      current = candidate;
+    }
+  }
+  if (current.trim()) chunks.push(current.trim());
+  return chunks;
+}
+
+export const processSystemAudio = onTaskDispatched(
+  {
+    secrets: [openaiApiKey],
+    retryConfig: { maxAttempts: 2, minBackoffSeconds: 30 },
+    rateLimits: { maxConcurrentDispatches: 2 },
+    memory: '1GiB',
+    timeoutSeconds: 540,
+  },
+  async (req) => {
+    const { id } = req.data as ProcessSystemAudioTaskData;
+    const docRef = db.collection('systemAudioItems').doc(id);
+
+    try {
+      const docSnap = await docRef.get();
+      if (!docSnap.exists) throw new Error('System audio doc not found.');
+      const { text } = docSnap.data() as { text: string };
+
+      const chunks = chunkTextForTTS(text);
+      const audioChunks: Buffer[] = [];
+
+      for (const chunk of chunks) {
+        const [ttsResponse] = await ttsClient.synthesizeSpeech({
+          input: { text: chunk, prompt: VOICE_PROMPT },
+          voice: GEMINI_VOICE,
+          audioConfig: AUDIO_CONFIG,
+        });
+        if (!ttsResponse.audioContent) throw new Error('TTS produced no audio.');
+        audioChunks.push(Buffer.from(ttsResponse.audioContent as Uint8Array));
+      }
+
+      const audioBuffer = Buffer.concat(audioChunks);
+      const finalPath = `audio/system/${id}/audio.mp3`;
+      const bucket = storage.bucket(DEFAULT_BUCKET);
+
+      await bucket.file(finalPath).save(audioBuffer, {
+        contentType: 'audio/mpeg',
+      });
+
+      const apiKey = openaiApiKey.value();
+      if (!apiKey) throw new Error('OpenAI API key not configured.');
+
+      const openai = new OpenAI({ apiKey });
+      const audioFile = await toFile(audioBuffer, 'system-audio.mp3');
+
+      const whisper = await openai.audio.transcriptions.create({
+        model: 'whisper-1',
+        file: audioFile,
+        language: 'pl',
+        response_format: 'verbose_json',
+        timestamp_granularities: ['word', 'segment'],
+      });
+
+      const duration = whisper.duration ?? 0;
+
+      const segments: SystemTranscriptSegment[] = (whisper.segments ?? []).map((seg) => ({
+        text: seg.text.trim(),
+        startTime: seg.start,
+        endTime: seg.end,
+        words: [],
+      }));
+
+      const words: SystemTranscriptWord[] = (whisper.words ?? []).map((w) => ({
+        word: w.word,
+        startTime: w.start,
+        endTime: w.end,
+        confidence: 1,
+      }));
+
+      for (const word of words) {
+        const seg = segments.find(
+          (s) => word.startTime >= s.startTime && word.startTime < s.endTime
+        );
+        if (seg) {
+          seg.words.push(word);
+        } else if (segments.length > 0) {
+          const closest = segments.reduce((prev, curr) =>
+            Math.abs(curr.startTime - word.startTime) < Math.abs(prev.startTime - word.startTime)
+              ? curr
+              : prev
+          );
+          closest.words.push(word);
+        }
+      }
+
+      await docRef.update({
+        storagePath: finalPath,
+        duration,
+        status: 'ready',
+        transcript: segments,
+      });
+
+      console.log(
+        `System audio ${id} ready: ${segments.length} segments, ${words.length} words, ${duration}s`
+      );
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Processing failed';
+      console.error(`System audio processing failed for ${id}:`, error);
+
+      await docRef.update({ status: 'error', error: errorMessage });
+
+      try {
+        const bucket = storage.bucket(DEFAULT_BUCKET);
+        await bucket.file(`audio/system/${id}/audio.mp3`).delete();
+      } catch {
+        // File might not exist yet
+      }
+
+      throw error;
+    }
+  }
+);
+
+interface DeleteSystemAudioRequest {
+  id: string;
+}
+
+export const deleteSystemAudio = onCall<DeleteSystemAudioRequest, Promise<{ success: boolean }>>(
+  async (request) => {
+    if (!request.auth?.token.admin) {
+      throw new HttpsError('permission-denied', 'Admin access required.');
+    }
+
+    const { id } = request.data;
+    if (!id) {
+      throw new HttpsError('invalid-argument', 'ID required.');
+    }
+
+    const docRef = db.collection('systemAudioItems').doc(id);
+    const docSnap = await docRef.get();
+    const storagePath = docSnap.data()?.storagePath;
+
+    if (storagePath) {
+      try {
+        await storage.bucket(DEFAULT_BUCKET).file(storagePath).delete();
+      } catch {
+        // File might not exist
+      }
+    }
+
+    await docRef.delete();
+
+    return { success: true };
+  }
+);

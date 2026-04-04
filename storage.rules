@@ -17,6 +17,12 @@ service firebase.storage {
       allow write: if false;
     }
 
+    // System audio - any authenticated user can read
+    match /audio/system/{audioId}/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
     // Books folder rules - pending uploads
     match /books/users/{userId}/pending/{bookId}/{fileName} {
       // Authenticated user can upload to their pending folder

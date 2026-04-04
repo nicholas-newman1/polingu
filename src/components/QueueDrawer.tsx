@@ -15,15 +15,13 @@ import {
   useSensors,
   type DragEndEvent,
 } from '@dnd-kit/core';
-import {
-  SortableContext,
-  verticalListSortingStrategy,
-  useSortable,
-} from '@dnd-kit/sortable';
+import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { styled } from '../lib/styled';
 import { useAudioPlayerContext } from '../contexts/AudioPlayerContext';
-import type { AudioItem } from '../types/audio';
+import type { AudioItem, SystemAudioItem } from '../types/audio';
+
+type AnyAudioItem = AudioItem | SystemAudioItem;
 import type { QueueSection } from '../hooks/useQueueManager';
 
 const DrawerContent = styled(Box)({
@@ -101,7 +99,7 @@ function formatDuration(seconds: number): string {
 
 interface SortableTrackRowProps {
   id: string;
-  item: AudioItem | null;
+  item: AnyAudioItem | null;
   section: QueueSection;
   sectionIndex: number;
   onRemove: (section: QueueSection, index: number) => void;
@@ -165,13 +163,20 @@ function SortableTrackRow({
 interface SectionProps {
   section: QueueSection;
   trackIds: string[];
-  itemMap: Map<string, AudioItem>;
+  itemMap: Map<string, AnyAudioItem>;
   onRemove: (section: QueueSection, index: number) => void;
   onReorder: (section: QueueSection, fromIndex: number, toIndex: number) => void;
   onSkipTo: (section: QueueSection, index: number) => void;
 }
 
-function SortableSection({ section, trackIds, itemMap, onRemove, onReorder, onSkipTo }: SectionProps) {
+function SortableSection({
+  section,
+  trackIds,
+  itemMap,
+  onRemove,
+  onReorder,
+  onSkipTo,
+}: SectionProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } })
@@ -222,6 +227,7 @@ export function QueueDrawer({ open, onClose }: QueueDrawerProps) {
     userQueue,
     autoQueue,
     items,
+    systemItems,
     audioItem: nowPlayingItem,
     isPlaying,
     togglePlay,
@@ -231,12 +237,11 @@ export function QueueDrawer({ open, onClose }: QueueDrawerProps) {
   } = useAudioPlayerContext();
 
   const itemMap = useMemo(() => {
-    const map = new Map<string, AudioItem>();
-    for (const item of items) {
-      map.set(item.id, item);
-    }
+    const map = new Map<string, AnyAudioItem>();
+    for (const item of items) map.set(item.id, item);
+    for (const item of systemItems) map.set(item.id, item);
     return map;
-  }, [items]);
+  }, [items, systemItems]);
 
   const handleSkipTo = (section: QueueSection, index: number) => {
     const trackId = skipToQueueItem(section, index);

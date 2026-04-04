@@ -15,8 +15,12 @@ import {
   getCachedAudioItems,
   getCachedAudioBlob,
   cacheAudioBlob,
+  subscribeToSystemAudioItems,
+  subscribeToSystemAudioItem,
 } from '../lib/audio';
-import type { AudioItem, TranscriptSegment } from '../types/audio';
+import type { AudioItem, SystemAudioItem, TranscriptSegment } from '../types/audio';
+
+type AnyAudioItem = AudioItem | SystemAudioItem;
 import { useQueueManager, type QueueManager } from '../hooks/useQueueManager';
 
 function binarySearchSegment(segments: TranscriptSegment[], time: number): number {
@@ -55,7 +59,7 @@ function findActiveWord(segment: TranscriptSegment, time: number): number {
 
 interface AudioPlayerState {
   activeAudioId: string | null;
-  audioItem: AudioItem | null;
+  audioItem: AnyAudioItem | null;
   audioUrl: string | null;
   isPlaying: boolean;
   currentTime: number;
@@ -76,11 +80,12 @@ interface AudioPlayerActions {
   setPlaybackRate: (rate: number) => void;
   nextTrack: () => void;
   previousTrack: () => void;
-  playFromLibrary: (trackId: string, readyItems: AudioItem[]) => void;
+  playFromLibrary: (trackId: string, readyItems: Array<{ id: string }>) => void;
 }
 
 interface AudioLibraryState {
   items: AudioItem[];
+  systemItems: SystemAudioItem[];
   libraryLoading: boolean;
 }
 
@@ -119,7 +124,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const [activeAudioId, setActiveAudioId] = useState<string | null>(null);
-  const [audioItem, setAudioItem] = useState<AudioItem | null>(null);
+  const [audioItem, setAudioItem] = useState<AnyAudioItem | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -132,6 +137,8 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
   const [items, setItems] = useState<AudioItem[]>([]);
+  const [systemItems, setSystemItems] = useState<SystemAudioItem[]>([]);
+  const systemItemsRef = useRef<SystemAudioItem[]>([]);
   const [libraryLoading, setLibraryLoading] = useState(true);
 
   function syncPositionState() {
@@ -167,16 +174,24 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       }
     });
 
-    const unsubscribe = subscribeToAudioItemsUpdates((updatedItems) => {
+    const unsubItems = subscribeToAudioItemsUpdates((updatedItems) => {
       if (!cancelled) {
         setItems(updatedItems);
         setLibraryLoading(false);
       }
     });
 
+    const unsubSystem = subscribeToSystemAudioItems((updatedItems) => {
+      if (!cancelled) {
+        setSystemItems(updatedItems);
+        systemItemsRef.current = updatedItems;
+      }
+    });
+
     return () => {
       cancelled = true;
-      unsubscribe();
+      unsubItems();
+      unsubSystem();
     };
   }, []);
 
@@ -229,7 +244,14 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       autoPlayRef.current = autoPlay;
       unsubItemRef.current?.();
 
-      const cachedItem = items.find((i) => i.id === audioId);
+      const cachedItem: AnyAudioItem | undefined =
+        items.find((i) => i.id === audioId) ?? systemItemsRef.current.find((i) => i.id === audioId);
+      const isSystemTrack = systemItemsRef.current.some((i) => i.id === audioId);
+
+      const subscribeFn = isSystemTrack
+        ? (id: string, cb: (item: AnyAudioItem | null) => void) =>
+            subscribeToSystemAudioItem(id, cb)
+        : subscribeToAudioItem;
 
       if (cachedItem?.status === 'ready' && cachedItem.storagePath) {
         const preloaded = preloadedTrackRef.current;
@@ -270,7 +292,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
             });
         }
 
-        const unsubscribe = subscribeToAudioItem(audioId, (item) => {
+        const unsubscribe = subscribeFn(audioId, (item) => {
           if (item) {
             setAudioItem(item);
             if (item.transcript) transcriptRef.current = item.transcript;
@@ -284,7 +306,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       setActiveAudioId(audioId);
       setLoading(true);
 
-      const unsubscribe = subscribeToAudioItem(audioId, async (item) => {
+      const unsubscribe = subscribeFn(audioId, async (item) => {
         setAudioItem(item);
         if (item?.transcript) {
           transcriptRef.current = item.transcript;
@@ -323,7 +345,9 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     if (restoredRef.current || libraryLoading || !queueManager.currentTrackId) return;
     if (activeAudioIdRef.current) return;
     const trackId = queueManager.currentTrackId;
-    const item = items.find((i) => i.id === trackId && i.status === 'ready');
+    const item =
+      items.find((i) => i.id === trackId && i.status === 'ready') ??
+      systemItems.find((i) => i.id === trackId && i.status === 'ready');
     if (!item) return;
     restoredRef.current = true;
     restoreTimeRef.current = queueManager.initialSavedTime;
@@ -331,13 +355,14 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   }, [
     libraryLoading,
     items,
+    systemItems,
     queueManager.currentTrackId,
     queueManager.initialSavedTime,
     loadTrackInternal,
   ]);
 
   const playFromLibrary = useCallback(
-    (trackId: string, readyItems: AudioItem[]) => {
+    (trackId: string, readyItems: Array<{ id: string }>) => {
       const trackIds = readyItems.map((i) => i.id);
       const startIndex = trackIds.indexOf(trackId);
       if (startIndex === -1) return;
@@ -386,7 +411,9 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!nextQueueTrackId) return;
-    const item = items.find((i) => i.id === nextQueueTrackId);
+    const item: AnyAudioItem | undefined =
+      items.find((i) => i.id === nextQueueTrackId) ??
+      systemItems.find((i) => i.id === nextQueueTrackId);
     if (!item?.storagePath || item.status !== 'ready') return;
     let cancelled = false;
     resolveAudioUrl(nextQueueTrackId, item.storagePath)
@@ -402,7 +429,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [nextQueueTrackId, items, resolveAudioUrl]);
+  }, [nextQueueTrackId, items, systemItems, resolveAudioUrl]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -616,6 +643,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     loading,
     error,
     items,
+    systemItems,
     libraryLoading,
     loadTrack,
     play,
