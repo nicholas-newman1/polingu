@@ -1,10 +1,12 @@
 import { setGlobalOptions } from 'firebase-functions';
 import { onCall, HttpsError } from 'firebase-functions/https';
+import { onDocumentWritten } from 'firebase-functions/firestore';
 import { onTaskDispatched } from 'firebase-functions/tasks';
 import { defineSecret } from 'firebase-functions/params';
 import { getFunctions } from 'firebase-admin/functions';
 import { getFirestore } from 'firebase-admin/firestore';
 import { initializeApp } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
 import OpenAI, { toFile } from 'openai';
 import { TextToSpeechClient, protos } from '@google-cloud/text-to-speech';
 import { Storage } from '@google-cloud/storage';
@@ -1109,3 +1111,100 @@ export const deleteSystemAudio = onCall<DeleteSystemAudioRequest, Promise<{ succ
     return { success: true };
   }
 );
+
+// ---------------------------------------------------------------------------
+// Auto-generate audio for new custom cards (admin only)
+// ---------------------------------------------------------------------------
+
+interface CustomCardItem {
+  id: string;
+  audioUrl?: string;
+  polish?: string;
+  back?: string;
+  [key: string]: unknown;
+}
+
+const CUSTOM_DOC_CONFIG: Record<
+  string,
+  { documentKey: string; audioType: AudioType; getTextForTTS: (item: CustomCardItem) => string }
+> = {
+  customSentences: {
+    documentKey: 'sentences',
+    audioType: 'custom-sentence',
+    getTextForTTS: (item) => item.polish ?? '',
+  },
+  customVocabulary: {
+    documentKey: 'words',
+    audioType: 'custom-vocabulary',
+    getTextForTTS: (item) => item.polish ?? '',
+  },
+  customDeclension: {
+    documentKey: 'items',
+    audioType: 'custom-declension',
+    getTextForTTS: (item) => item.back ?? '',
+  },
+};
+
+export const onCustomCardWrite = onDocumentWritten('users/{userId}/data/{docId}', async (event) => {
+  const { userId, docId } = event.params;
+
+  const config = CUSTOM_DOC_CONFIG[docId];
+  if (!config) return;
+
+  try {
+    const user = await getAuth().getUser(userId);
+    if (!user.customClaims?.admin) return;
+  } catch {
+    return;
+  }
+
+  const beforeData = event.data?.before?.data() as Record<string, CustomCardItem[]> | undefined;
+  const afterData = event.data?.after?.data() as Record<string, CustomCardItem[]> | undefined;
+  if (!afterData) return;
+
+  const beforeItems = beforeData?.[config.documentKey] ?? [];
+  const afterItems = afterData[config.documentKey] ?? [];
+
+  const beforeIds = new Set(beforeItems.map((item) => item.id));
+  const newItems = afterItems.filter(
+    (item) => !beforeIds.has(item.id) && !item.audioUrl && config.getTextForTTS(item).trim()
+  );
+
+  if (newItems.length === 0) return;
+
+  const docRef = db.collection('users').doc(userId).collection('data').doc(docId);
+
+  for (const item of newItems) {
+    const text = config.getTextForTTS(item);
+    try {
+      const [response] = await ttsClient.synthesizeSpeech({
+        input: { text, prompt: VOICE_PROMPT },
+        voice: GEMINI_VOICE,
+        audioConfig: AUDIO_CONFIG,
+      });
+
+      if (!response.audioContent) continue;
+
+      const audioBuffer = Buffer.from(response.audioContent as Uint8Array);
+      const filePath = getAudioPath(config.audioType, item.id, undefined, userId);
+      const bucket = storage.bucket(AUDIO_BUCKET);
+      await bucket.file(filePath).save(audioBuffer, {
+        contentType: 'audio/mpeg',
+        metadata: { cacheControl: 'public, max-age=31536000' },
+      });
+
+      const audioUrl = `https://storage.googleapis.com/${AUDIO_BUCKET}/${filePath}?v=${Date.now()}`;
+
+      const freshSnap = await docRef.get();
+      if (!freshSnap.exists) break;
+      const freshData = freshSnap.data() as Record<string, CustomCardItem[]>;
+      const freshItems = freshData[config.documentKey] ?? [];
+      const updated = freshItems.map((i) => (i.id === item.id ? { ...i, audioUrl } : i));
+      await docRef.update({ [config.documentKey]: updated });
+
+      console.log(`Auto-generated audio for ${docId} item ${item.id} (user ${userId})`);
+    } catch (error) {
+      console.error(`Failed to auto-generate audio for ${docId} item ${item.id}:`, error);
+    }
+  }
+});
