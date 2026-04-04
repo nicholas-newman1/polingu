@@ -154,7 +154,6 @@ export function SentenceFlashcard({
       isViewingHistory={isViewingHistory}
       canGoBack={canGoBack}
       intervals={intervals}
-      accentColor="primary"
       maxWidth={520}
       canEdit={canEdit}
       onReveal={() => setRevealed(true)}

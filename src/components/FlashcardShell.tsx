@@ -8,15 +8,12 @@ import { alpha } from '../lib/theme';
 import type { Grade } from 'ts-fsrs';
 import { RatingButtons, type RatingIntervals } from './RatingButtons';
 
-type AccentColor = 'primary' | 'warning' | 'success' | 'info' | 'error' | 'secondary';
-
 interface FlashcardShellProps {
   revealed: boolean;
   practiceMode?: boolean;
   isViewingHistory?: boolean;
   canGoBack?: boolean;
   intervals?: RatingIntervals;
-  accentColor?: AccentColor;
   maxWidth?: number;
   canEdit?: boolean;
   onReveal: () => void;
@@ -38,14 +35,14 @@ const CardWrapper = styled(Box)<{ $maxWidth: number }>(({ $maxWidth }) => ({
   margin: '0 auto',
 }));
 
-const StyledCard = styled(Card)<{ $accentColor: AccentColor }>(({ theme, $accentColor }) => ({
+const StyledCard = styled(Card)(({ theme }) => ({
   padding: theme.spacing(3),
   minHeight: 420,
   display: 'flex',
   flexDirection: 'column',
   backgroundColor: alpha(theme.palette.background.paper, 0.95),
   backdropFilter: 'blur(8px)',
-  boxShadow: `0 8px 32px ${alpha(theme.palette[$accentColor].main, 0.4)}`,
+  boxShadow: `0 8px 32px ${alpha(theme.palette.primary.main, 0.4)}`,
   [theme.breakpoints.up('sm')]: {
     padding: theme.spacing(4),
     minHeight: 460,
@@ -60,12 +57,12 @@ const NextButton = styled(Button)(({ theme }) => ({
   },
 }));
 
-const RevealButton = styled(Button)<{ $accentColor: AccentColor }>(({ theme, $accentColor }) => ({
+const RevealButton = styled(Button)(({ theme }) => ({
   marginTop: 'auto',
-  backgroundColor: theme.palette[$accentColor].main,
-  boxShadow: `0 4px 14px ${alpha(theme.palette[$accentColor].main, 0.3)}`,
+  backgroundColor: theme.palette.primary.main,
+  boxShadow: `0 4px 14px ${alpha(theme.palette.primary.main, 0.3)}`,
   '&:hover': {
-    backgroundColor: theme.palette[$accentColor].dark,
+    backgroundColor: theme.palette.primary.dark,
   },
 }));
 
@@ -123,7 +120,6 @@ export function FlashcardShell({
   isViewingHistory = false,
   canGoBack = false,
   intervals,
-  accentColor = 'primary',
   maxWidth = 420,
   canEdit = false,
   onReveal,
@@ -144,13 +140,7 @@ export function FlashcardShell({
     if (!revealed) {
       return (
         <Stack spacing={1}>
-          <RevealButton
-            $accentColor={accentColor}
-            fullWidth
-            size="large"
-            variant="contained"
-            onClick={onReveal}
-          >
+          <RevealButton fullWidth size="large" variant="contained" onClick={onReveal}>
             Reveal Answer
           </RevealButton>
           {showBackButton && (
@@ -202,7 +192,7 @@ export function FlashcardShell({
 
   return (
     <CardWrapper $maxWidth={maxWidth} className="animate-fade-up">
-      <StyledCard $accentColor={accentColor}>
+      <StyledCard>
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
           <CardHeader>
             {(headerActions || canEdit) && (

@@ -232,7 +232,6 @@ export function ConjugationFlashcard({
       isViewingHistory={isViewingHistory}
       canGoBack={canGoBack}
       intervals={intervals}
-      accentColor="warning"
       canEdit={canEdit}
       onReveal={() => setRevealed(true)}
       onRate={onRate}

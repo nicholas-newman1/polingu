@@ -187,7 +187,6 @@ export function VocabularyFlashcard({
       isViewingHistory={isViewingHistory}
       canGoBack={canGoBack}
       intervals={intervals}
-      accentColor="primary"
       canEdit={canEditOrDelete}
       onReveal={() => setRevealed(true)}
       onRate={onRate}

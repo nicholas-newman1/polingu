@@ -235,7 +235,6 @@ export function AspectPairsFlashcard({
       isViewingHistory={isViewingHistory}
       canGoBack={canGoBack}
       intervals={intervals}
-      accentColor="secondary"
       canEdit={canEdit}
       onReveal={() => setRevealed(true)}
       onRate={onRate}

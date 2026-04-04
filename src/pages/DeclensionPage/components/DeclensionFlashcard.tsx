@@ -141,7 +141,6 @@ export function DeclensionFlashcard({
       isViewingHistory={isViewingHistory}
       canGoBack={canGoBack}
       intervals={intervals}
-      accentColor="primary"
       canEdit={canEdit}
       onReveal={() => setRevealed(true)}
       onRate={onRate}
