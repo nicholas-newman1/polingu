@@ -13,6 +13,7 @@ export interface QueueManager {
   autoQueue: string[];
   hasNext: boolean;
   hasPrevious: boolean;
+  previousTrackId: string | null;
   initialSavedTime: number;
   initializeQueue: (trackIds: string[], startIndex: number) => void;
   addToQueue: (trackId: string) => void;
@@ -105,6 +106,7 @@ export function useQueueManager(): QueueManager {
   const { currentTrackId, userQueue, autoQueue, history } = state;
   const hasNext = userQueue.length > 0 || autoQueue.length > 0;
   const hasPrevious = history.length > 0;
+  const previousTrackId = history.length > 0 ? history[history.length - 1] : null;
 
   const initializeQueue = useCallback(
     (trackIds: string[], startIndex: number) => {
@@ -190,9 +192,7 @@ export function useQueueManager(): QueueManager {
 
     const newHistory = [...s.history];
     const prev = newHistory.pop()!;
-    const newUserQueue = s.currentTrackId
-      ? [s.currentTrackId, ...s.userQueue]
-      : s.userQueue;
+    const newUserQueue = s.currentTrackId ? [s.currentTrackId, ...s.userQueue] : s.userQueue;
 
     set({
       ...s,
@@ -252,6 +252,7 @@ export function useQueueManager(): QueueManager {
     autoQueue,
     hasNext,
     hasPrevious,
+    previousTrackId,
     initialSavedTime,
     initializeQueue,
     addToQueue,
