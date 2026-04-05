@@ -4,11 +4,10 @@ import { Box, CircularProgress, Typography } from '@mui/material';
 import { styled } from '../../lib/styled';
 import { useAudioPlayerContext } from '../../contexts/AudioPlayerContext';
 import { useTranslationContext } from '../../hooks/useTranslationContext';
-import { useAppSettings } from '../../contexts/AppSettingsContext';
+import { useTranscriptFontSize } from '../../hooks/useTranscriptFontSize';
 import { usePageTitle } from '../../hooks/usePageTitle';
 import { TranscriptView } from './TranscriptView';
 import { AudioControls, CONTROLS_HEIGHT } from './AudioControls';
-import type { TranscriptFontSize } from '../../types/appSettings';
 
 const PlayerContainer = styled(Box)({
   display: 'flex',
@@ -56,14 +55,7 @@ export function AudioPlayerPage() {
   const [controlsHeight, setControlsHeight] = useState(CONTROLS_HEIGHT);
   const wasPlayingBeforeSeekRef = useRef(false);
   const { handleDailyLimitReached } = useTranslationContext();
-  const { settings, updateSettings } = useAppSettings();
-
-  const handleFontSizeChange = useCallback(
-    (size: TranscriptFontSize) => {
-      updateSettings({ transcriptFontSize: size });
-    },
-    [updateSettings]
-  );
+  const [transcriptFontSize, setTranscriptFontSize] = useTranscriptFontSize();
   usePageTitle(audioItem?.title || 'Audio');
 
   const handleSeekToSegment = useCallback(
@@ -146,7 +138,7 @@ export function AudioPlayerPage() {
         <TranscriptView
           transcript={audioItem?.transcript ?? []}
           activeSegmentIndex={activeSegmentIndex}
-          fontSize={settings.transcriptFontSize}
+          fontSize={transcriptFontSize}
           onDailyLimitReached={handleDailyLimitReached}
           onWordTap={pause}
           onSeekToSegment={handleSeekToSegment}
@@ -160,7 +152,7 @@ export function AudioPlayerPage() {
         playbackRate={playbackRate}
         hasNext={hasNext}
         hasPrevious={hasPrevious}
-        fontSize={settings.transcriptFontSize}
+        fontSize={transcriptFontSize}
         onTogglePlay={handleTogglePlay}
         onSeek={seek}
         onSeekStart={handleSeekStart}
@@ -168,7 +160,7 @@ export function AudioPlayerPage() {
         onSetPlaybackRate={setPlaybackRate}
         onNextTrack={nextTrack}
         onPreviousTrack={previousTrack}
-        onFontSizeChange={handleFontSizeChange}
+        onFontSizeChange={setTranscriptFontSize}
         onHeightChange={setControlsHeight}
       />
     </PlayerContainer>
