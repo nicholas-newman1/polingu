@@ -30,12 +30,10 @@ const DEFAULT_BUCKET = 'polish-declension.firebasestorage.app';
 const AUDIO_CONFIG: protos.google.cloud.texttospeech.v1.IAudioConfig = {
   audioEncoding: 'MP3',
 };
-const GEMINI_VOICE = {
+const TTS_VOICE = {
   languageCode: 'pl-PL',
-  name: 'Achird',
-  modelName: 'gemini-2.5-pro-tts',
+  name: 'pl-PL-Wavenet-B',
 };
-const VOICE_PROMPT = 'Read aloud in a normal, neutral tone.';
 
 const MAX_TEXT_LENGTH = 500;
 const MAX_REQUESTS_PER_MINUTE = 120;
@@ -722,11 +720,8 @@ export const generateAudioPreview = onCall<
 
   try {
     const ttsRequest = {
-      input: {
-        text,
-        prompt: VOICE_PROMPT,
-      },
-      voice: GEMINI_VOICE,
+      input: { text },
+      voice: TTS_VOICE,
       audioConfig: AUDIO_CONFIG,
     };
 
@@ -989,8 +984,8 @@ export const processSystemAudio = onTaskDispatched(
 
       for (const chunk of chunks) {
         const [ttsResponse] = await ttsClient.synthesizeSpeech({
-          input: { text: chunk, prompt: VOICE_PROMPT },
-          voice: GEMINI_VOICE,
+          input: { text: chunk },
+          voice: TTS_VOICE,
           audioConfig: AUDIO_CONFIG,
         });
         if (!ttsResponse.audioContent) throw new Error('TTS produced no audio.');
@@ -1178,8 +1173,8 @@ export const onCustomCardWrite = onDocumentWritten('users/{userId}/data/{docId}'
     const text = config.getTextForTTS(item);
     try {
       const [response] = await ttsClient.synthesizeSpeech({
-        input: { text, prompt: VOICE_PROMPT },
-        voice: GEMINI_VOICE,
+        input: { text },
+        voice: TTS_VOICE,
         audioConfig: AUDIO_CONFIG,
       });
 

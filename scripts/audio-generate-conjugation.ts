@@ -40,13 +40,10 @@ const AUDIO_CONFIG: protos.google.cloud.texttospeech.v1.IAudioConfig = {
   audioEncoding: 'MP3',
 };
 
-// Gemini TTS configuration
-const GEMINI_VOICE = {
+const TTS_VOICE = {
   languageCode: 'pl-PL',
-  name: 'Achird',
-  modelName: 'gemini-2.5-pro-tts',
+  name: 'pl-PL-Wavenet-B',
 };
-const VOICE_PROMPT = 'Read aloud in a normal, neutral tone.';
 
 // Test phrases for verification
 const TEST_PHRASES = [
@@ -82,11 +79,8 @@ const TENSES: Tense[] = ['present', 'past', 'future', 'imperative', 'conditional
 
 async function generateAudio(text: string): Promise<Buffer> {
   const request = {
-    input: {
-      text,
-      prompt: VOICE_PROMPT,
-    },
-    voice: GEMINI_VOICE,
+    input: { text },
+    voice: TTS_VOICE,
     audioConfig: AUDIO_CONFIG,
   };
 
