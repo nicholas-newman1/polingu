@@ -17,6 +17,9 @@ import {
   ListItemText,
   TextField,
   Stack,
+  FormControl,
+  InputLabel,
+  Select,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
@@ -37,7 +40,10 @@ import {
   createSystemAudio,
   deleteSystemAudioItem,
   updateSystemAudioItem,
+  POLISH_WAVENET_SYSTEM_AUDIO_VOICES,
+  DEFAULT_SYSTEM_AUDIO_VOICE,
 } from '../../lib/audio';
+import type { PolishWavenetSystemAudioVoice } from '../../lib/audio';
 import { useAudioPlayerContext } from '../../contexts/AudioPlayerContext';
 import { useAuthContext } from '../../hooks/useAuthContext';
 import { useSnackbar } from '../../hooks/useSnackbar';
@@ -185,7 +191,16 @@ export function AudioLibraryPage() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [createTitle, setCreateTitle] = useState('');
   const [createText, setCreateText] = useState('');
+  const [createVoice, setCreateVoice] = useState<PolishWavenetSystemAudioVoice>(
+    DEFAULT_SYSTEM_AUDIO_VOICE
+  );
   const [creating, setCreating] = useState(false);
+
+  const resetCreateSystemAudioForm = () => {
+    setCreateTitle('');
+    setCreateText('');
+    setCreateVoice(DEFAULT_SYSTEM_AUDIO_VOICE);
+  };
 
   const allReadyItems: MergedItem[] = useMemo(() => {
     const user: MergedItem[] = items
@@ -316,11 +331,14 @@ export function AudioLibraryPage() {
     if (!createTitle.trim() || !createText.trim()) return;
     setCreating(true);
     try {
-      await createSystemAudio({ title: createTitle.trim(), text: createText.trim() });
+      await createSystemAudio({
+        title: createTitle.trim(),
+        text: createText.trim(),
+        voiceName: createVoice,
+      });
       showSnackbar('System audio queued for processing', 'success');
       setCreateDialogOpen(false);
-      setCreateTitle('');
-      setCreateText('');
+      resetCreateSystemAudioForm();
     } catch (error) {
       console.error('Create failed:', error);
       showSnackbar('Failed to create system audio', 'error');
@@ -608,7 +626,12 @@ export function AudioLibraryPage() {
 
       <Dialog
         open={createDialogOpen}
-        onClose={() => !creating && setCreateDialogOpen(false)}
+        onClose={() => {
+          if (!creating) {
+            resetCreateSystemAudioForm();
+            setCreateDialogOpen(false);
+          }
+        }}
         maxWidth="sm"
         fullWidth
       >
@@ -633,9 +656,32 @@ export function AudioLibraryPage() {
             minRows={4}
             sx={{ mt: 2 }}
           />
+          <FormControl fullWidth sx={{ mt: 2 }}>
+            <InputLabel id="system-audio-voice-label">Voice</InputLabel>
+            <Select
+              labelId="system-audio-voice-label"
+              label="Voice"
+              value={createVoice}
+              onChange={(e) => setCreateVoice(e.target.value as PolishWavenetSystemAudioVoice)}
+              disabled={creating}
+              data-qa="system-audio-voice-select"
+            >
+              {POLISH_WAVENET_SYSTEM_AUDIO_VOICES.map((v) => (
+                <MenuItem key={v.value} value={v.value}>
+                  {v.label}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setCreateDialogOpen(false)} disabled={creating}>
+          <Button
+            onClick={() => {
+              resetCreateSystemAudioForm();
+              setCreateDialogOpen(false);
+            }}
+            disabled={creating}
+          >
             Cancel
           </Button>
           <Button

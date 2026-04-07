@@ -21,4 +21,7 @@ export {
   createSystemAudio,
   deleteSystemAudioItem,
   updateSystemAudioItem,
+  POLISH_WAVENET_SYSTEM_AUDIO_VOICES,
+  DEFAULT_SYSTEM_AUDIO_VOICE,
 } from './systemAudioItems';
+export type { PolishWavenetSystemAudioVoice } from './systemAudioItems';
