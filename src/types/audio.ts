@@ -30,7 +30,6 @@ export interface SystemAudioItem {
   id: string;
   title: string;
   text: string;
-  voiceName?: string;
   storagePath: string;
   duration: number;
   status: 'processing' | 'ready' | 'error';

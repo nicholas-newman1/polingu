@@ -35,20 +35,6 @@ const TTS_VOICE = {
   name: 'pl-PL-Wavenet-B',
 };
 
-const POLISH_WAVENET_VOICE_NAMES = [
-  'pl-PL-Wavenet-A',
-  'pl-PL-Wavenet-B',
-  'pl-PL-Wavenet-C',
-  'pl-PL-Wavenet-D',
-  'pl-PL-Wavenet-E',
-] as const;
-
-function isPolishWavenetVoiceName(
-  name: string
-): name is (typeof POLISH_WAVENET_VOICE_NAMES)[number] {
-  return (POLISH_WAVENET_VOICE_NAMES as readonly string[]).includes(name);
-}
-
 const MAX_TEXT_LENGTH = 500;
 const MAX_REQUESTS_PER_MINUTE = 120;
 const MAX_CHARS_PER_DAY = 1500;
@@ -913,7 +899,6 @@ interface SystemTranscriptSegment {
 interface CreateSystemAudioRequest {
   title: string;
   text: string;
-  voiceName?: string;
 }
 
 export const createSystemAudio = onCall<CreateSystemAudioRequest, Promise<{ id: string }>>(
@@ -922,23 +907,12 @@ export const createSystemAudio = onCall<CreateSystemAudioRequest, Promise<{ id: 
       throw new HttpsError('permission-denied', 'Admin access required.');
     }
 
-    const { title, text, voiceName: voiceNameRaw } = request.data;
+    const { title, text } = request.data;
     if (!title || typeof title !== 'string') {
       throw new HttpsError('invalid-argument', 'Title is required.');
     }
     if (!text || typeof text !== 'string' || text.length > 50000) {
       throw new HttpsError('invalid-argument', 'Valid text required (max 50,000 chars).');
-    }
-
-    let voiceName = TTS_VOICE.name;
-    if (voiceNameRaw !== undefined && voiceNameRaw !== '') {
-      if (typeof voiceNameRaw !== 'string' || !isPolishWavenetVoiceName(voiceNameRaw)) {
-        throw new HttpsError(
-          'invalid-argument',
-          'Voice must be pl-PL-Wavenet-A through pl-PL-Wavenet-E.'
-        );
-      }
-      voiceName = voiceNameRaw;
     }
 
     const docRef = db.collection('systemAudioItems').doc();
@@ -948,7 +922,6 @@ export const createSystemAudio = onCall<CreateSystemAudioRequest, Promise<{ id: 
       id,
       title,
       text,
-      voiceName,
       storagePath: '',
       duration: 0,
       status: 'processing',
@@ -1004,10 +977,8 @@ export const processSystemAudio = onTaskDispatched(
     try {
       const docSnap = await docRef.get();
       if (!docSnap.exists) throw new Error('System audio doc not found.');
-      const row = docSnap.data() as { text: string; voiceName?: string };
+      const row = docSnap.data() as { text: string };
       const { text } = row;
-      const voiceName =
-        row.voiceName && isPolishWavenetVoiceName(row.voiceName) ? row.voiceName : TTS_VOICE.name;
 
       const chunks = chunkTextForTTS(text);
       const audioChunks: Buffer[] = [];
@@ -1015,7 +986,7 @@ export const processSystemAudio = onTaskDispatched(
       for (const chunk of chunks) {
         const [ttsResponse] = await ttsClient.synthesizeSpeech({
           input: { text: chunk },
-          voice: { languageCode: 'pl-PL', name: voiceName },
+          voice: TTS_VOICE,
           audioConfig: AUDIO_CONFIG,
         });
         if (!ttsResponse.audioContent) throw new Error('TTS produced no audio.');

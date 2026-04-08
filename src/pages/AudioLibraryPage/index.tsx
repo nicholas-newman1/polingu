@@ -17,9 +17,6 @@ import {
   ListItemText,
   TextField,
   Stack,
-  FormControl,
-  InputLabel,
-  Select,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
@@ -40,10 +37,7 @@ import {
   createSystemAudio,
   deleteSystemAudioItem,
   updateSystemAudioItem,
-  POLISH_WAVENET_SYSTEM_AUDIO_VOICES,
-  DEFAULT_SYSTEM_AUDIO_VOICE,
 } from '../../lib/audio';
-import type { PolishWavenetSystemAudioVoice } from '../../lib/audio';
 import { useAudioPlayerContext } from '../../contexts/AudioPlayerContext';
 import { useAuthContext } from '../../hooks/useAuthContext';
 import { useSnackbar } from '../../hooks/useSnackbar';
@@ -191,15 +185,11 @@ export function AudioLibraryPage() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [createTitle, setCreateTitle] = useState('');
   const [createText, setCreateText] = useState('');
-  const [createVoice, setCreateVoice] = useState<PolishWavenetSystemAudioVoice>(
-    DEFAULT_SYSTEM_AUDIO_VOICE
-  );
   const [creating, setCreating] = useState(false);
 
   const resetCreateSystemAudioForm = () => {
     setCreateTitle('');
     setCreateText('');
-    setCreateVoice(DEFAULT_SYSTEM_AUDIO_VOICE);
   };
 
   const allReadyItems: MergedItem[] = useMemo(() => {
@@ -334,7 +324,6 @@ export function AudioLibraryPage() {
       await createSystemAudio({
         title: createTitle.trim(),
         text: createText.trim(),
-        voiceName: createVoice,
       });
       showSnackbar('System audio queued for processing', 'success');
       setCreateDialogOpen(false);
@@ -656,23 +645,6 @@ export function AudioLibraryPage() {
             minRows={4}
             sx={{ mt: 2 }}
           />
-          <FormControl fullWidth sx={{ mt: 2 }}>
-            <InputLabel id="system-audio-voice-label">Voice</InputLabel>
-            <Select
-              labelId="system-audio-voice-label"
-              label="Voice"
-              value={createVoice}
-              onChange={(e) => setCreateVoice(e.target.value as PolishWavenetSystemAudioVoice)}
-              disabled={creating}
-              data-qa="system-audio-voice-select"
-            >
-              {POLISH_WAVENET_SYSTEM_AUDIO_VOICES.map((v) => (
-                <MenuItem key={v.value} value={v.value}>
-                  {v.label}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
         </DialogContent>
         <DialogActions>
           <Button
