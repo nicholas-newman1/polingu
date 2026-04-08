@@ -316,7 +316,7 @@ export function AddVocabularyModal({
         try {
           const result = await translate(trimmed, 'EN');
           if (!userEditedWordEnglish.current) {
-            setValue('english', result.translatedText);
+            setValue('english', result.translatedText, { shouldValidate: true });
           }
         } catch {
           // Silently fail
