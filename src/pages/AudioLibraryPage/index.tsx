@@ -28,15 +28,18 @@ import PlaylistPlayIcon from '@mui/icons-material/PlaylistPlay';
 import HeadphonesIcon from '@mui/icons-material/Headphones';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import PauseIcon from '@mui/icons-material/Pause';
+import TextFieldsIcon from '@mui/icons-material/TextFields';
+import FileUploadIcon from '@mui/icons-material/FileUpload';
 import { styled } from '../../lib/styled';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import {
   uploadAudio,
-  deleteAudioItem,
-  updateAudioItem,
+  deleteUserAudio,
+  updateUserAudio,
   createSystemAudio,
-  deleteSystemAudioItem,
-  updateSystemAudioItem,
+  createUserAudio,
+  deleteSystemAudio,
+  updateSystemAudio,
 } from '../../lib/audio';
 import { useAudioPlayerContext } from '../../contexts/AudioPlayerContext';
 import { useAuthContext } from '../../hooks/useAuthContext';
@@ -182,12 +185,16 @@ export function AudioLibraryPage() {
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<MergedItem | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [addMenuAnchor, setAddMenuAnchor] = useState<HTMLElement | null>(null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [createMode, setCreateMode] = useState<'system' | 'user'>('user');
   const [createTitle, setCreateTitle] = useState('');
   const [createText, setCreateText] = useState('');
   const [creating, setCreating] = useState(false);
 
-  const resetCreateSystemAudioForm = () => {
+  const MAX_USER_TEXT_CHARS = 2000;
+
+  const resetCreateForm = () => {
     setCreateTitle('');
     setCreateText('');
   };
@@ -213,11 +220,16 @@ export function AudioLibraryPage() {
   }, [items, systemItems]);
 
   const errorItems: MergedItem[] = useMemo(() => {
-    if (!isAdmin) return [];
-    return systemItems
+    const userErrors: MergedItem[] = items
       .filter((i) => i.status === 'error')
-      .map((i) => ({ ...i, source: 'system' as const }));
-  }, [systemItems, isAdmin]);
+      .map((i) => ({ ...i, source: 'user' as const }));
+    const systemErrors: MergedItem[] = isAdmin
+      ? systemItems
+          .filter((i) => i.status === 'error')
+          .map((i) => ({ ...i, source: 'system' as const }))
+      : [];
+    return [...userErrors, ...systemErrors];
+  }, [items, systemItems, isAdmin]);
 
   const handleTrackClick = (item: MergedItem) => {
     if (item.id === activeAudioId) {
@@ -270,9 +282,9 @@ export function AudioLibraryPage() {
     setSaving(true);
     try {
       if (editDialog.source === 'system') {
-        await updateSystemAudioItem(editDialog.id, { title: editTitle.trim() });
+        await updateSystemAudio(editDialog.id, { title: editTitle.trim() });
       } else {
-        await updateAudioItem(editDialog.id, { title: editTitle.trim() });
+        await updateUserAudio(editDialog.id, { title: editTitle.trim() });
       }
     } catch (error) {
       console.error('Update failed:', error);
@@ -292,9 +304,9 @@ export function AudioLibraryPage() {
     setDeleting(true);
     try {
       if (deleteConfirm.source === 'system') {
-        await deleteSystemAudioItem(deleteConfirm.id);
+        await deleteSystemAudio(deleteConfirm.id);
       } else {
-        await deleteAudioItem(deleteConfirm.id);
+        await deleteUserAudio(deleteConfirm.id);
       }
     } catch (error) {
       console.error('Delete failed:', error);
@@ -317,20 +329,28 @@ export function AudioLibraryPage() {
     }
   };
 
-  const handleCreateSystemAudio = async () => {
+  const handleCreateAudio = async () => {
     if (!createTitle.trim() || !createText.trim()) return;
     setCreating(true);
     try {
-      await createSystemAudio({
-        title: createTitle.trim(),
-        text: createText.trim(),
-      });
-      showSnackbar('System audio queued for processing', 'success');
+      if (createMode === 'system') {
+        await createSystemAudio({ title: createTitle.trim(), text: createText.trim() });
+        showSnackbar('System audio queued for processing', 'success');
+      } else {
+        await createUserAudio({ title: createTitle.trim(), text: createText.trim() });
+        showSnackbar('Audio queued for processing', 'success');
+      }
       setCreateDialogOpen(false);
-      resetCreateSystemAudioForm();
-    } catch (error) {
+      resetCreateForm();
+    } catch (error: unknown) {
       console.error('Create failed:', error);
-      showSnackbar('Failed to create system audio', 'error');
+      const message =
+        error instanceof Error
+          ? error.message
+          : createMode === 'system'
+            ? 'Failed to create system audio'
+            : 'Failed to generate audio';
+      showSnackbar(message, 'error');
     } finally {
       setCreating(false);
     }
@@ -372,7 +392,8 @@ export function AudioLibraryPage() {
                 </Typography>
                 <Stack direction="row" spacing={1} alignItems="center">
                   <MetaText noWrap>
-                    {item.source === 'system'
+                    {item.source === 'system' ||
+                    ('fileSize' in item && item.fileSize === 0)
                       ? 'Generating audio & transcript...'
                       : 'fileName' in item
                         ? item.fileName
@@ -402,12 +423,7 @@ export function AudioLibraryPage() {
             <Typography variant="caption" color="text.secondary">
               {allReadyItems.length} audios
             </Typography>
-            {isAdmin && (
-              <IconButton size="small" onClick={() => setCreateDialogOpen(true)}>
-                <AddIcon fontSize="small" />
-              </IconButton>
-            )}
-            <IconButton size="small" onClick={() => fileInputRef.current?.click()}>
+            <IconButton size="small" onClick={(e) => setAddMenuAnchor(e.currentTarget)}>
               <AddIcon fontSize="small" />
             </IconButton>
           </Box>
@@ -477,14 +493,16 @@ export function AudioLibraryPage() {
               </Typography>
               <Stack direction="row" spacing={1} alignItems="center">
                 <MetaText noWrap color="error.main">
-                  {item.source === 'system' && 'error' in item
-                    ? (item as SystemAudioItem).error || 'Processing failed'
-                    : 'Processing failed'}
+                  {'error' in item && item.error ? item.error : 'Processing failed'}
                 </MetaText>
-                <Typography variant="caption" color="text.disabled">
-                  &bull;
-                </Typography>
-                <MetaText noWrap>System</MetaText>
+                {item.source === 'system' && (
+                  <>
+                    <Typography variant="caption" color="text.disabled">
+                      &bull;
+                    </Typography>
+                    <MetaText noWrap>System</MetaText>
+                  </>
+                )}
               </Stack>
             </Box>
             <MenuButton
@@ -506,7 +524,7 @@ export function AudioLibraryPage() {
               No audios yet
             </Typography>
             <Typography variant="body2">
-              Upload a Polish audio file to build your audio library and transcript queue.
+              Upload a Polish audio file or generate audio from text to build your library.
             </Typography>
           </EmptyState>
         )}
@@ -533,6 +551,59 @@ export function AudioLibraryPage() {
           {uploadProgress.status === 'processing' && <LinearProgress />}
         </UploadProgressOverlay>
       )}
+
+      <Menu
+        anchorEl={addMenuAnchor}
+        open={!!addMenuAnchor}
+        onClose={() => setAddMenuAnchor(null)}
+      >
+        <MenuItem
+          onClick={() => {
+            setAddMenuAnchor(null);
+            fileInputRef.current?.click();
+          }}
+        >
+          <ListItemIcon>
+            <FileUploadIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText
+            primary="Upload Audio"
+            secondary="Upload an MP3, WAV, or other audio file"
+          />
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            setAddMenuAnchor(null);
+            setCreateMode('user');
+            setCreateDialogOpen(true);
+          }}
+        >
+          <ListItemIcon>
+            <TextFieldsIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText
+            primary="Generate from Text"
+            secondary="Enter Polish text to generate audio with transcript"
+          />
+        </MenuItem>
+        {isAdmin && (
+          <MenuItem
+            onClick={() => {
+              setAddMenuAnchor(null);
+              setCreateMode('system');
+              setCreateDialogOpen(true);
+            }}
+          >
+            <ListItemIcon>
+              <AddIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText
+              primary="Create System Audio"
+              secondary="Create audio visible to all users"
+            />
+          </MenuItem>
+        )}
+      </Menu>
 
       <Menu anchorEl={menuAnchor?.el} open={!!menuAnchor} onClose={() => setMenuAnchor(null)}>
         <MenuItem onClick={() => menuAnchor && handlePlayNext(menuAnchor.item)}>
@@ -617,14 +688,16 @@ export function AudioLibraryPage() {
         open={createDialogOpen}
         onClose={() => {
           if (!creating) {
-            resetCreateSystemAudioForm();
+            resetCreateForm();
             setCreateDialogOpen(false);
           }
         }}
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>Create System Audio</DialogTitle>
+        <DialogTitle>
+          {createMode === 'system' ? 'Create System Audio' : 'Generate Audio from Text'}
+        </DialogTitle>
         <DialogContent>
           <TextField
             autoFocus
@@ -639,17 +712,25 @@ export function AudioLibraryPage() {
             fullWidth
             label="Polish text"
             value={createText}
-            onChange={(e) => setCreateText(e.target.value)}
+            onChange={(e) => {
+              if (createMode === 'user' && e.target.value.length > MAX_USER_TEXT_CHARS) return;
+              setCreateText(e.target.value);
+            }}
             disabled={creating}
             multiline
             minRows={4}
             sx={{ mt: 2 }}
+            helperText={
+              createMode === 'user'
+                ? `${createText.length}/${MAX_USER_TEXT_CHARS}`
+                : undefined
+            }
           />
         </DialogContent>
         <DialogActions>
           <Button
             onClick={() => {
-              resetCreateSystemAudioForm();
+              resetCreateForm();
               setCreateDialogOpen(false);
             }}
             disabled={creating}
@@ -657,7 +738,7 @@ export function AudioLibraryPage() {
             Cancel
           </Button>
           <Button
-            onClick={handleCreateSystemAudio}
+            onClick={handleCreateAudio}
             disabled={creating || !createTitle.trim() || !createText.trim()}
           >
             {creating ? 'Creating...' : 'Create'}

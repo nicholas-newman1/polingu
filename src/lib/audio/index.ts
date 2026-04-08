@@ -5,8 +5,9 @@ export {
   getAudioDownloadUrl,
   subscribeToAudioItemsUpdates,
   subscribeToAudioItem,
-  deleteAudioItem,
-  updateAudioItem,
+  deleteUserAudio,
+  updateUserAudio,
+  createUserAudio,
 } from './audioItems';
 export { getCachedAudioBlob, cacheAudioBlob, removeCachedAudioBlob } from './audioCache';
 export {
@@ -19,6 +20,6 @@ export {
   subscribeToSystemAudioItems,
   subscribeToSystemAudioItem,
   createSystemAudio,
-  deleteSystemAudioItem,
-  updateSystemAudioItem,
+  deleteSystemAudio,
+  updateSystemAudio,
 } from './systemAudioItems';

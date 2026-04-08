@@ -50,11 +50,11 @@ const deleteFn = httpsCallable<{ id: string }, { success: boolean }>(
   'deleteSystemAudio'
 );
 
-export async function deleteSystemAudioItem(id: string): Promise<void> {
+export async function deleteSystemAudio(id: string): Promise<void> {
   await deleteFn({ id });
 }
 
-export async function updateSystemAudioItem(
+export async function updateSystemAudio(
   id: string,
   updates: { title?: string }
 ): Promise<void> {

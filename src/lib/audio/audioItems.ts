@@ -76,15 +76,24 @@ export async function getAudioDownloadUrl(storagePath: string): Promise<string> 
   return getDownloadURL(storageRef);
 }
 
-export async function deleteAudioItem(audioId: string): Promise<void> {
+export async function deleteUserAudio(audioId: string): Promise<void> {
   const deleteFn = httpsCallable<{ audioId: string }, { success: boolean }>(
     functions,
-    'deleteAudioItem'
+    'deleteUserAudio'
   );
   await deleteFn({ audioId });
 }
 
-export async function updateAudioItem(audioId: string, updates: { title?: string }): Promise<void> {
+export async function createUserAudio(data: { title: string; text: string }): Promise<string> {
+  const createFn = httpsCallable<{ title: string; text: string }, { id: string }>(
+    functions,
+    'createUserAudio'
+  );
+  const result = await createFn(data);
+  return result.data.id;
+}
+
+export async function updateUserAudio(audioId: string, updates: { title?: string }): Promise<void> {
   const userId = getUserId();
   if (!userId) throw new Error('Not authenticated');
 
