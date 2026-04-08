@@ -230,6 +230,16 @@ export function AddVocabularyModal({
   const translationTimeouts = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
   const userEditedEnglish = useRef<Set<number>>(new Set());
 
+  const [isTranslatingWord, setIsTranslatingWord] = useState(false);
+  const wordTranslationTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const userEditedWordEnglish = useRef(false);
+
+  useEffect(() => {
+    if (open) {
+      userEditedWordEnglish.current = !!(editWord || initialValues?.english);
+    }
+  }, [open, editWord, initialValues]);
+
   const [aiContext, setAiContext] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedExamples, setGeneratedExamples] = useState<GeneratedExample[]>([]);
@@ -240,6 +250,7 @@ export function AddVocabularyModal({
     const timeouts = translationTimeouts.current;
     return () => {
       timeouts.forEach((timeout) => clearTimeout(timeout));
+      if (wordTranslationTimeout.current) clearTimeout(wordTranslationTimeout.current);
     };
   }, []);
 
@@ -289,6 +300,33 @@ export function AddVocabularyModal({
   const handleEnglishManualEdit = useCallback((index: number) => {
     userEditedEnglish.current.add(index);
   }, []);
+
+  const handleWordPolishChange = useCallback(
+    (value: string) => {
+      if (wordTranslationTimeout.current) {
+        clearTimeout(wordTranslationTimeout.current);
+      }
+
+      const trimmed = value.trim();
+      if (!trimmed) return;
+
+      wordTranslationTimeout.current = setTimeout(async () => {
+        if (userEditedWordEnglish.current) return;
+        setIsTranslatingWord(true);
+        try {
+          const result = await translate(trimmed, 'EN');
+          if (!userEditedWordEnglish.current) {
+            setValue('english', result.translatedText);
+          }
+        } catch {
+          // Silently fail
+        } finally {
+          setIsTranslatingWord(false);
+        }
+      }, 500);
+    },
+    [setValue]
+  );
 
   const handleGenerateExample = useCallback(async () => {
     if (!polishWord?.trim() || !englishWord?.trim()) return;
@@ -344,6 +382,12 @@ export function AddVocabularyModal({
     translationTimeouts.current.forEach((timeout) => clearTimeout(timeout));
     translationTimeouts.current.clear();
     userEditedEnglish.current.clear();
+    if (wordTranslationTimeout.current) {
+      clearTimeout(wordTranslationTimeout.current);
+      wordTranslationTimeout.current = null;
+    }
+    userEditedWordEnglish.current = false;
+    setIsTranslatingWord(false);
     setTranslatingIndexes(new Set());
     setAiContext('');
     setGeneratedExamples([]);
@@ -422,6 +466,10 @@ export function AddVocabularyModal({
             render={({ field }) => (
               <TextField
                 {...field}
+                onChange={(e) => {
+                  field.onChange(e);
+                  handleWordPolishChange(e.target.value);
+                }}
                 label="Polish"
                 fullWidth
                 autoFocus={!editWord}
@@ -436,7 +484,28 @@ export function AddVocabularyModal({
             control={control}
             rules={{ required: true, validate: (v) => v.trim().length > 0 }}
             render={({ field }) => (
-              <TextField {...field} label="English" fullWidth required placeholder="e.g., cat" />
+              <TextField
+                {...field}
+                onChange={(e) => {
+                  field.onChange(e);
+                  if (e.target.value.trim()) {
+                    userEditedWordEnglish.current = true;
+                  }
+                }}
+                label="English"
+                fullWidth
+                required
+                placeholder="e.g., cat"
+                slotProps={{
+                  input: {
+                    endAdornment: isTranslatingWord ? (
+                      <InputAdornment position="end">
+                        <CircularProgress size={16} />
+                      </InputAdornment>
+                    ) : null,
+                  },
+                }}
+              />
             )}
           />
 
