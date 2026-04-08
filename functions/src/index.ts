@@ -1,6 +1,6 @@
 import { setGlobalOptions } from 'firebase-functions';
 import { onCall, HttpsError } from 'firebase-functions/https';
-import { onDocumentWritten } from 'firebase-functions/firestore';
+import { onDocumentWritten, onDocumentUpdated } from 'firebase-functions/firestore';
 import { onTaskDispatched } from 'firebase-functions/tasks';
 import { defineSecret } from 'firebase-functions/params';
 import { getFunctions } from 'firebase-admin/functions';
@@ -844,6 +844,32 @@ async function updateFirestoreAudioUrl(
   }
 }
 
+async function synthesizeAndUploadAudio(
+  text: string,
+  audioType: AudioType,
+  id: string,
+  subPath?: string,
+  userId?: string
+): Promise<string | null> {
+  const [response] = await ttsClient.synthesizeSpeech({
+    input: { text },
+    voice: TTS_VOICE,
+    audioConfig: AUDIO_CONFIG,
+  });
+
+  if (!response.audioContent) return null;
+
+  const audioBuffer = Buffer.from(response.audioContent as Uint8Array);
+  const filePath = getAudioPath(audioType, id, subPath, userId);
+  const bucket = storage.bucket(AUDIO_BUCKET);
+  await bucket.file(filePath).save(audioBuffer, {
+    contentType: 'audio/mpeg',
+    metadata: { cacheControl: 'public, max-age=31536000' },
+  });
+
+  return `https://storage.googleapis.com/${AUDIO_BUCKET}/${filePath}?v=${Date.now()}`;
+}
+
 export const saveAudio = onCall<SaveAudioRequest, Promise<SaveAudioResponse>>(async (request) => {
   if (!request.auth?.token.admin) {
     throw new HttpsError('permission-denied', 'Admin access required.');
@@ -1115,7 +1141,7 @@ export const deleteSystemAudio = onCall<DeleteSystemAudioRequest, Promise<{ succ
 );
 
 // ---------------------------------------------------------------------------
-// Auto-generate audio for new custom cards (admin only)
+// Auto-generate audio for new / edited custom cards (admin only)
 // ---------------------------------------------------------------------------
 
 interface CustomCardItem {
@@ -1167,35 +1193,32 @@ export const onCustomCardWrite = onDocumentWritten('users/{userId}/data/{docId}'
   const beforeItems = beforeData?.[config.documentKey] ?? [];
   const afterItems = afterData[config.documentKey] ?? [];
 
-  const beforeIds = new Set(beforeItems.map((item) => item.id));
-  const newItems = afterItems.filter(
-    (item) => !beforeIds.has(item.id) && !item.audioUrl && config.getTextForTTS(item).trim()
-  );
+  const beforeById = new Map(beforeItems.map((item) => [item.id, item]));
 
-  if (newItems.length === 0) return;
+  const itemsNeedingAudio = afterItems.filter((item) => {
+    const text = config.getTextForTTS(item).trim();
+    if (!text) return false;
+
+    const prev = beforeById.get(item.id);
+    if (!prev) return !item.audioUrl;
+    return config.getTextForTTS(prev).trim() !== text;
+  });
+
+  if (itemsNeedingAudio.length === 0) return;
 
   const docRef = db.collection('users').doc(userId).collection('data').doc(docId);
 
-  for (const item of newItems) {
+  for (const item of itemsNeedingAudio) {
     const text = config.getTextForTTS(item);
     try {
-      const [response] = await ttsClient.synthesizeSpeech({
-        input: { text },
-        voice: TTS_VOICE,
-        audioConfig: AUDIO_CONFIG,
-      });
-
-      if (!response.audioContent) continue;
-
-      const audioBuffer = Buffer.from(response.audioContent as Uint8Array);
-      const filePath = getAudioPath(config.audioType, item.id, undefined, userId);
-      const bucket = storage.bucket(AUDIO_BUCKET);
-      await bucket.file(filePath).save(audioBuffer, {
-        contentType: 'audio/mpeg',
-        metadata: { cacheControl: 'public, max-age=31536000' },
-      });
-
-      const audioUrl = `https://storage.googleapis.com/${AUDIO_BUCKET}/${filePath}?v=${Date.now()}`;
+      const audioUrl = await synthesizeAndUploadAudio(
+        text,
+        config.audioType,
+        item.id,
+        undefined,
+        userId
+      );
+      if (!audioUrl) continue;
 
       const freshSnap = await docRef.get();
       if (!freshSnap.exists) break;
@@ -1208,5 +1231,131 @@ export const onCustomCardWrite = onDocumentWritten('users/{userId}/data/{docId}'
     } catch (error) {
       console.error(`Failed to auto-generate audio for ${docId} item ${item.id}:`, error);
     }
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Auto-regenerate audio when Polish text changes on system cards
+// ---------------------------------------------------------------------------
+
+export const onVocabularyUpdate = onDocumentUpdated('vocabulary/{docId}', async (event) => {
+  const before = event.data?.before?.data();
+  const after = event.data?.after?.data();
+  if (!before || !after) return;
+
+  const beforePolish = ((before.polish as string) ?? '').trim();
+  const afterPolish = ((after.polish as string) ?? '').trim();
+  if (!afterPolish || beforePolish === afterPolish) return;
+
+  const { docId } = event.params;
+  try {
+    const audioUrl = await synthesizeAndUploadAudio(afterPolish, 'vocabulary', docId);
+    if (audioUrl) {
+      await db.collection('vocabulary').doc(docId).update({ audioUrl });
+      console.log(`Regenerated audio for vocabulary/${docId}`);
+    }
+  } catch (error) {
+    console.error(`Failed to regenerate audio for vocabulary/${docId}:`, error);
+  }
+});
+
+export const onSentenceUpdate = onDocumentUpdated('sentences/{docId}', async (event) => {
+  const before = event.data?.before?.data();
+  const after = event.data?.after?.data();
+  if (!before || !after) return;
+
+  const beforePolish = ((before.polish as string) ?? '').trim();
+  const afterPolish = ((after.polish as string) ?? '').trim();
+  if (!afterPolish || beforePolish === afterPolish) return;
+
+  const { docId } = event.params;
+  try {
+    const audioUrl = await synthesizeAndUploadAudio(afterPolish, 'sentence', docId);
+    if (audioUrl) {
+      await db.collection('sentences').doc(docId).update({ audioUrl });
+      console.log(`Regenerated audio for sentences/${docId}`);
+    }
+  } catch (error) {
+    console.error(`Failed to regenerate audio for sentences/${docId}:`, error);
+  }
+});
+
+export const onDeclensionCardUpdate = onDocumentUpdated(
+  'declensionCards/{docId}',
+  async (event) => {
+    const before = event.data?.before?.data();
+    const after = event.data?.after?.data();
+    if (!before || !after) return;
+
+    const beforeBack = ((before.back as string) ?? '').trim();
+    const afterBack = ((after.back as string) ?? '').trim();
+    if (!afterBack || beforeBack === afterBack) return;
+
+    const { docId } = event.params;
+    try {
+      const audioUrl = await synthesizeAndUploadAudio(afterBack, 'declension', docId);
+      if (audioUrl) {
+        await db.collection('declensionCards').doc(docId).update({ audioUrl });
+        console.log(`Regenerated audio for declensionCards/${docId}`);
+      }
+    } catch (error) {
+      console.error(`Failed to regenerate audio for declensionCards/${docId}:`, error);
+    }
+  }
+);
+
+interface ConjugationFormData {
+  pl?: string;
+  audioUrl?: string;
+  [key: string]: unknown;
+}
+
+type ConjugationsData = Record<string, Record<string, ConjugationFormData>>;
+
+export const onVerbUpdate = onDocumentUpdated('verbs/{docId}', async (event) => {
+  const before = event.data?.before?.data();
+  const after = event.data?.after?.data();
+  if (!before || !after) return;
+
+  const { docId } = event.params;
+  const updates: Record<string, string> = {};
+
+  const beforeInf = ((before.infinitive as string) ?? '').trim();
+  const afterInf = ((after.infinitive as string) ?? '').trim();
+  if (afterInf && beforeInf !== afterInf) {
+    try {
+      const audioUrl = await synthesizeAndUploadAudio(afterInf, 'verb-infinitive', docId);
+      if (audioUrl) updates.infinitiveAudioUrl = audioUrl;
+    } catch (error) {
+      console.error(`Failed to regenerate infinitive audio for verbs/${docId}:`, error);
+    }
+  }
+
+  const beforeConj = (before.conjugations ?? {}) as ConjugationsData;
+  const afterConj = (after.conjugations ?? {}) as ConjugationsData;
+
+  for (const [tense, forms] of Object.entries(afterConj)) {
+    for (const [formKey, form] of Object.entries(forms)) {
+      const afterPl = (form.pl ?? '').trim();
+      const beforePl = (beforeConj[tense]?.[formKey]?.pl ?? '').trim();
+      if (!afterPl || beforePl === afterPl) continue;
+
+      const subPath = `${docId}_${tense}_${formKey}`;
+      try {
+        const audioUrl = await synthesizeAndUploadAudio(afterPl, 'conjugation', docId, subPath);
+        if (audioUrl) updates[`conjugations.${tense}.${formKey}.audioUrl`] = audioUrl;
+      } catch (error) {
+        console.error(`Failed to regenerate audio for verbs/${docId} ${tense}.${formKey}:`, error);
+      }
+    }
+  }
+
+  if (Object.keys(updates).length === 0) return;
+
+  try {
+    await db.collection('verbs').doc(docId).update(updates);
+    console.log(`Regenerated audio for verbs/${docId}: ${Object.keys(updates).join(', ')}`);
+  } catch (error) {
+    console.error(`Failed to update audio URLs for verbs/${docId}:`, error);
   }
 });
