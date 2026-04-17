@@ -1142,6 +1142,7 @@ export const deleteSystemAudio = onCall<DeleteSystemAudioRequest, Promise<{ succ
 
 // ---------------------------------------------------------------------------
 // Auto-generate audio for new / edited custom cards (admin only)
+// Firestore path: users/{userId}/{collection}/{cardId}
 // ---------------------------------------------------------------------------
 
 interface CustomCardItem {
@@ -1152,125 +1153,122 @@ interface CustomCardItem {
   [key: string]: unknown;
 }
 
-const CUSTOM_DOC_CONFIG: Record<
-  string,
-  { documentKey: string; audioType: AudioType; getTextForTTS: (item: CustomCardItem) => string }
+interface PerCardTriggerConfig {
+  audioType: AudioType;
+  getText: (item: CustomCardItem) => string;
+}
+
+const PER_CARD_CONFIGS: Record<
+  'customSentences' | 'customVocabulary' | 'customDeclension',
+  PerCardTriggerConfig
 > = {
-  customSentences: {
-    documentKey: 'sentences',
-    audioType: 'custom-sentence',
-    getTextForTTS: (item) => item.polish ?? '',
-  },
-  customVocabulary: {
-    documentKey: 'words',
-    audioType: 'custom-vocabulary',
-    getTextForTTS: (item) => item.polish ?? '',
-  },
-  customDeclension: {
-    documentKey: 'items',
-    audioType: 'custom-declension',
-    getTextForTTS: (item) => item.back ?? '',
-  },
+  customSentences: { audioType: 'custom-sentence', getText: (i) => i.polish ?? '' },
+  customVocabulary: { audioType: 'custom-vocabulary', getText: (i) => i.polish ?? '' },
+  customDeclension: { audioType: 'custom-declension', getText: (i) => i.back ?? '' },
 };
 
-export const onCustomCardWrite = onDocumentWritten('users/{userId}/data/{docId}', async (event) => {
-  const { userId, docId } = event.params;
-
-  const config = CUSTOM_DOC_CONFIG[docId];
-  if (!config) return;
+async function handlePerCardWrite(
+  collectionName: keyof typeof PER_CARD_CONFIGS,
+  userId: string,
+  cardId: string,
+  before: CustomCardItem | undefined,
+  after: CustomCardItem | undefined,
+  afterRef: FirebaseFirestore.DocumentReference
+): Promise<void> {
+  if (!after) return;
 
   let isAdmin = false;
   try {
     const user = await getAuth().getUser(userId);
     isAdmin = !!user.customClaims?.admin;
   } catch (error) {
-    console.warn(`onCustomCardWrite: Auth check failed for ${docId} (user ${userId}):`, error);
+    console.warn(
+      `onCustomCardWrite: Auth check failed for ${collectionName}/${cardId} (user ${userId}):`,
+      error
+    );
     return;
   }
-
   if (!isAdmin) return;
 
-  const beforeData = event.data?.before?.data() as
-    | (Record<string, unknown> & { _audioUrls?: Record<string, string> })
-    | undefined;
-  const afterData = event.data?.after?.data() as
-    | (Record<string, unknown> & { _audioUrls?: Record<string, string> })
-    | undefined;
-  if (!afterData) {
-    console.warn(`onCustomCardWrite: No afterData for ${docId} (user ${userId})`);
-    return;
-  }
+  const config = PER_CARD_CONFIGS[collectionName];
+  const beforeText = before ? config.getText(before).trim() : '';
+  const afterText = config.getText(after).trim();
+  if (!afterText) return;
 
-  const beforeItems = (beforeData?.[config.documentKey] ?? []) as CustomCardItem[];
-  const afterItems = (afterData[config.documentKey] ?? []) as CustomCardItem[];
-
-  const existingAudioUrls = (afterData._audioUrls ?? {}) as Record<string, string>;
-
-  const beforeById = new Map(beforeItems.map((item) => [item.id, item]));
-
-  const itemsNeedingAudio = afterItems.filter((item) => {
-    const text = config.getTextForTTS(item).trim();
-    if (!text) return false;
-
-    if (existingAudioUrls[item.id]) return false;
-
-    const prev = beforeById.get(item.id);
-    if (!prev) return true;
-    return config.getTextForTTS(prev).trim() !== text;
-  });
-
-  if (itemsNeedingAudio.length === 0) return;
-
-  console.log(
-    `onCustomCardWrite: ${docId} has ${itemsNeedingAudio.length} item(s) needing audio ` +
-      `(${afterItems.length} total, ${beforeItems.length} before) for user ${userId}`
-  );
-
-  const docRef = db.collection('users').doc(userId).collection('data').doc(docId);
-  const newAudioUrls: Record<string, string> = {};
-
-  for (const item of itemsNeedingAudio) {
-    const text = config.getTextForTTS(item);
-    try {
-      const audioUrl = await synthesizeAndUploadAudio(
-        text,
-        config.audioType,
-        item.id,
-        undefined,
-        userId
-      );
-      if (!audioUrl) continue;
-
-      newAudioUrls[item.id] = audioUrl;
-      console.log(`Auto-generated audio for ${docId} item ${item.id} (user ${userId})`);
-    } catch (error) {
-      console.error(`Failed to auto-generate audio for ${docId} item ${item.id}:`, error);
-    }
-  }
-
-  if (Object.keys(newAudioUrls).length === 0) return;
+  const isCreate = !before;
+  if (isCreate && after.audioUrl) return;
+  if (!isCreate && beforeText === afterText) return;
 
   try {
-    const freshSnap = await docRef.get();
-    if (!freshSnap.exists) return;
-    const freshData = freshSnap.data() as Record<string, CustomCardItem[]> & {
-      _audioUrls?: Record<string, string>;
-    };
-    const freshItems = freshData[config.documentKey] ?? [];
-    const mergedAudioUrls = { ...(freshData._audioUrls ?? {}), ...newAudioUrls };
-
-    const updated = freshItems.map((i) =>
-      newAudioUrls[i.id] ? { ...i, audioUrl: newAudioUrls[i.id] } : i
+    const audioUrl = await synthesizeAndUploadAudio(
+      afterText,
+      config.audioType,
+      cardId,
+      undefined,
+      userId
     );
+    if (!audioUrl) return;
 
-    await docRef.update({
-      [config.documentKey]: updated,
-      _audioUrls: mergedAudioUrls,
-    });
+    await afterRef.update({ audioUrl });
+    console.log(`Generated audio for ${collectionName}/${cardId} (user ${userId})`);
   } catch (error) {
-    console.error(`Failed to persist audio URLs for ${docId} (user ${userId}):`, error);
+    console.error(
+      `Failed to generate audio for ${collectionName}/${cardId} (user ${userId}):`,
+      error
+    );
   }
-});
+}
+
+export const onCustomSentenceWrite = onDocumentWritten(
+  'users/{userId}/customSentences/{cardId}',
+  async (event) => {
+    const { userId, cardId } = event.params;
+    const after = event.data?.after;
+    if (!after?.exists) return;
+    await handlePerCardWrite(
+      'customSentences',
+      userId,
+      cardId,
+      event.data?.before?.data() as CustomCardItem | undefined,
+      after.data() as CustomCardItem | undefined,
+      after.ref
+    );
+  }
+);
+
+export const onCustomVocabularyWrite = onDocumentWritten(
+  'users/{userId}/customVocabulary/{cardId}',
+  async (event) => {
+    const { userId, cardId } = event.params;
+    const after = event.data?.after;
+    if (!after?.exists) return;
+    await handlePerCardWrite(
+      'customVocabulary',
+      userId,
+      cardId,
+      event.data?.before?.data() as CustomCardItem | undefined,
+      after.data() as CustomCardItem | undefined,
+      after.ref
+    );
+  }
+);
+
+export const onCustomDeclensionWrite = onDocumentWritten(
+  'users/{userId}/customDeclension/{cardId}',
+  async (event) => {
+    const { userId, cardId } = event.params;
+    const after = event.data?.after;
+    if (!after?.exists) return;
+    await handlePerCardWrite(
+      'customDeclension',
+      userId,
+      cardId,
+      event.data?.before?.data() as CustomCardItem | undefined,
+      after.data() as CustomCardItem | undefined,
+      after.ref
+    );
+  }
+);
 
 // ---------------------------------------------------------------------------
 // Auto-regenerate audio when Polish text changes on system cards

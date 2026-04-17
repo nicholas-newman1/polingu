@@ -89,6 +89,7 @@ export async function pullAllUserDataFromFirestore(keys: string[]): Promise<void
  */
 export async function clearUserData(): Promise<void> {
   await userDb.userData.clear();
+  await userDb.customCards.clear();
 }
 
 /**

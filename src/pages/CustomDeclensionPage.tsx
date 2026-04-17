@@ -18,7 +18,7 @@ import { styled } from '../lib/styled';
 import { alpha } from '../lib/theme';
 import { EditDeclensionModal } from '../components/EditDeclensionModal';
 import { InlineAudioRegenerator } from '../components/AudioRegenerator';
-import { loadCustomDeclension, saveCustomDeclension } from '../lib/storage/customDeclension';
+import { saveCustomDeclension, subscribeCustomDeclension } from '../lib/storage/customDeclension';
 import type { CustomDeclensionCard, Case, Gender, Number, DeclensionCard } from '../types';
 import { useAuthContext } from '../hooks/useAuthContext';
 import { useOptimistic } from '../hooks/useOptimistic';
@@ -89,14 +89,20 @@ export function CustomDeclensionPage() {
   const [sortField, setSortField] = useState<SortField>('createdAt');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
+  const [prevUid, setPrevUid] = useState(user?.uid);
+  if (prevUid !== user?.uid) {
+    setPrevUid(user?.uid);
+    setIsLoading(true);
+    setCustomCardsBase([]);
+  }
+
   useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(true);
-      const loadedCustomCards = await loadCustomDeclension();
-      setCustomCardsBase(loadedCustomCards);
+    if (!user) return;
+    const unsub = subscribeCustomDeclension((items) => {
+      setCustomCardsBase(items);
       setIsLoading(false);
-    };
-    loadData();
+    });
+    return unsub;
   }, [user]);
 
   const handleAddCard = (cardData: Omit<DeclensionCard, 'id' | 'isCustom'>) => {
@@ -156,9 +162,7 @@ export function CustomDeclensionPage() {
 
   const handleAudioSaved = useCallback(
     (cardId: string, audioUrl: string) => {
-      const newCustomCards = customCards.map((c) =>
-        c.id === cardId ? { ...c, audioUrl } : c
-      );
+      const newCustomCards = customCards.map((c) => (c.id === cardId ? { ...c, audioUrl } : c));
 
       applyOptimisticCustomCards(newCustomCards, async () => {
         await saveCustomDeclension(newCustomCards);

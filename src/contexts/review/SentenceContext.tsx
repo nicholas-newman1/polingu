@@ -1,4 +1,4 @@
-import { createContext, useState, useCallback, useMemo, type ReactNode } from 'react';
+import { createContext, useState, useCallback, useMemo, useEffect, type ReactNode } from 'react';
 import type {
   Sentence,
   CustomSentence,
@@ -20,7 +20,8 @@ import loadSentenceSettings, {
 } from '../../lib/storage/loadSentenceSettings';
 import saveSentenceReviewData from '../../lib/storage/saveSentenceReviewData';
 import saveSentenceSettings from '../../lib/storage/saveSentenceSettings';
-import { loadCustomSentences } from '../../lib/storage/customSentences';
+import { loadCustomSentences, subscribeCustomSentences } from '../../lib/storage/customSentences';
+import { useAuthContext } from '../../hooks/useAuthContext';
 import clearSentenceData from '../../lib/storage/clearSentenceData';
 import { getDefaultSentenceReviewStore } from '../../lib/storage/helpers';
 import { showSaveError } from '../../lib/storage/errorHandler';
@@ -111,6 +112,15 @@ export function SentenceProvider({
     () => [...customSentences, ...systemSentences],
     [customSentences, systemSentences]
   );
+
+  const { user } = useAuthContext();
+  useEffect(() => {
+    if (!user) return;
+    const unsub = subscribeCustomSentences((items) => {
+      setCustomSentences(items);
+    });
+    return unsub;
+  }, [user]);
 
   const updateSentenceReviewStore = useCallback(
     async (direction: TranslationDirection, store: SentenceReviewDataStore) => {

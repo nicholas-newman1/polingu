@@ -18,7 +18,7 @@ import { styled } from '../lib/styled';
 import { alpha } from '../lib/theme';
 import { EditSentenceModal } from '../components/EditSentenceModal';
 import { InlineAudioRegenerator } from '../components/AudioRegenerator';
-import { loadCustomSentences, saveCustomSentences } from '../lib/storage/customSentences';
+import { saveCustomSentences, subscribeCustomSentences } from '../lib/storage/customSentences';
 import type { CustomSentence, CEFRLevel, Sentence } from '../types/sentences';
 import { ALL_LEVELS } from '../types/sentences';
 import { useAuthContext } from '../hooks/useAuthContext';
@@ -77,14 +77,20 @@ export function CustomSentencesPage() {
   const [sortField, setSortField] = useState<SortField>('createdAt');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
+  const [prevUid, setPrevUid] = useState(user?.uid);
+  if (prevUid !== user?.uid) {
+    setPrevUid(user?.uid);
+    setIsLoading(true);
+    setCustomSentencesBase([]);
+  }
+
   useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(true);
-      const loadedCustomSentences = await loadCustomSentences();
-      setCustomSentencesBase(loadedCustomSentences);
+    if (!user) return;
+    const unsub = subscribeCustomSentences((items) => {
+      setCustomSentencesBase(items);
       setIsLoading(false);
-    };
-    loadData();
+    });
+    return unsub;
   }, [user]);
 
   const handleAddSentence = (sentenceData: Omit<Sentence, 'id'>) => {

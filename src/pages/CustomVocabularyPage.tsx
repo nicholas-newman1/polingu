@@ -18,7 +18,7 @@ import { styled } from '../lib/styled';
 import { alpha } from '../lib/theme';
 import { AddVocabularyModal } from '../components/AddVocabularyModal';
 import { InlineAudioRegenerator } from '../components/AudioRegenerator';
-import { loadCustomVocabulary, saveCustomVocabulary } from '../lib/storage/customVocabulary';
+import { saveCustomVocabulary, subscribeCustomVocabulary } from '../lib/storage/customVocabulary';
 import { findCustomWordWithSamePolish } from '../lib/utils/findDuplicateCustomVocabularyPolish';
 import type { CustomVocabularyWord, PartOfSpeech, NounGender } from '../types/vocabulary';
 import { useAuthContext } from '../hooks/useAuthContext';
@@ -85,14 +85,20 @@ export function CustomVocabularyPage() {
   const [sortField, setSortField] = useState<SortField>('createdAt');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
+  const [prevUid, setPrevUid] = useState(user?.uid);
+  if (prevUid !== user?.uid) {
+    setPrevUid(user?.uid);
+    setIsLoading(true);
+    setCustomWordsBase([]);
+  }
+
   useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(true);
-      const loadedCustomWords = await loadCustomVocabulary();
-      setCustomWordsBase(loadedCustomWords);
+    if (!user) return;
+    const unsub = subscribeCustomVocabulary((items) => {
+      setCustomWordsBase(items);
       setIsLoading(false);
-    };
-    loadData();
+    });
+    return unsub;
   }, [user]);
 
   const handleAddWord = (wordData: Omit<CustomVocabularyWord, 'id' | 'isCustom' | 'createdAt'>) => {

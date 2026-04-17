@@ -1,4 +1,4 @@
-import { createContext, useState, useCallback, useMemo, type ReactNode } from 'react';
+import { createContext, useState, useCallback, useMemo, useEffect, type ReactNode } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import type {
@@ -15,7 +15,11 @@ import loadVocabularySettings, {
 } from '../../lib/storage/loadVocabularySettings';
 import saveVocabularyReviewData from '../../lib/storage/saveVocabularyReviewData';
 import saveVocabularySettings from '../../lib/storage/saveVocabularySettings';
-import { loadCustomVocabulary } from '../../lib/storage/customVocabulary';
+import {
+  loadCustomVocabulary,
+  subscribeCustomVocabulary,
+} from '../../lib/storage/customVocabulary';
+import { useAuthContext } from '../../hooks/useAuthContext';
 import clearVocabularyData from '../../lib/storage/clearVocabularyData';
 import { getDefaultVocabularyReviewStore } from '../../lib/storage/helpers';
 import { showSaveError } from '../../lib/storage/errorHandler';
@@ -93,6 +97,15 @@ export function VocabularyProvider({
     () => [...customWords, ...systemWords],
     [customWords, systemWords]
   );
+
+  const { user } = useAuthContext();
+  useEffect(() => {
+    if (!user) return;
+    const unsub = subscribeCustomVocabulary((items) => {
+      setCustomWords(items);
+    });
+    return unsub;
+  }, [user]);
 
   const updateVocabularyReviewStore = useCallback(
     async (direction: TranslationDirection, store: VocabularyReviewDataStore) => {

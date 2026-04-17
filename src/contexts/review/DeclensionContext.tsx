@@ -1,4 +1,4 @@
-import { createContext, useState, useCallback, useMemo, type ReactNode } from 'react';
+import { createContext, useState, useCallback, useMemo, useEffect, type ReactNode } from 'react';
 import type {
   DeclensionCard,
   CustomDeclensionCard,
@@ -9,7 +9,11 @@ import loadDeclensionReviewData from '../../lib/storage/loadDeclensionReviewData
 import loadDeclensionSettings from '../../lib/storage/loadDeclensionSettings';
 import saveDeclensionReviewData from '../../lib/storage/saveDeclensionReviewData';
 import saveDeclensionSettings from '../../lib/storage/saveDeclensionSettings';
-import { loadCustomDeclension } from '../../lib/storage/customDeclension';
+import {
+  loadCustomDeclension,
+  subscribeCustomDeclension,
+} from '../../lib/storage/customDeclension';
+import { useAuthContext } from '../../hooks/useAuthContext';
 import clearDeclensionData from '../../lib/storage/clearDeclensionData';
 import { getDefaultDeclensionReviewStore } from '../../lib/storage/helpers';
 import { showSaveError } from '../../lib/storage/errorHandler';
@@ -73,6 +77,15 @@ export function DeclensionProvider({
     () => [...customDeclensionCards, ...systemDeclensionCards],
     [customDeclensionCards, systemDeclensionCards]
   );
+
+  const { user } = useAuthContext();
+  useEffect(() => {
+    if (!user) return;
+    const unsub = subscribeCustomDeclension((items) => {
+      setCustomDeclensionCards(items);
+    });
+    return unsub;
+  }, [user]);
 
   const updateDeclensionReviewStore = useCallback(async (store: DeclensionReviewDataStore) => {
     setDeclensionReviewStore(store);
