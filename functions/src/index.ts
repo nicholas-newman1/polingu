@@ -1179,19 +1179,32 @@ export const onCustomCardWrite = onDocumentWritten('users/{userId}/data/{docId}'
   const config = CUSTOM_DOC_CONFIG[docId];
   if (!config) return;
 
+  let isAdmin = false;
   try {
     const user = await getAuth().getUser(userId);
-    if (!user.customClaims?.admin) return;
-  } catch {
+    isAdmin = !!user.customClaims?.admin;
+  } catch (error) {
+    console.warn(`onCustomCardWrite: Auth check failed for ${docId} (user ${userId}):`, error);
     return;
   }
 
-  const beforeData = event.data?.before?.data() as Record<string, CustomCardItem[]> | undefined;
-  const afterData = event.data?.after?.data() as Record<string, CustomCardItem[]> | undefined;
-  if (!afterData) return;
+  if (!isAdmin) return;
 
-  const beforeItems = beforeData?.[config.documentKey] ?? [];
-  const afterItems = afterData[config.documentKey] ?? [];
+  const beforeData = event.data?.before?.data() as
+    | (Record<string, unknown> & { _audioUrls?: Record<string, string> })
+    | undefined;
+  const afterData = event.data?.after?.data() as
+    | (Record<string, unknown> & { _audioUrls?: Record<string, string> })
+    | undefined;
+  if (!afterData) {
+    console.warn(`onCustomCardWrite: No afterData for ${docId} (user ${userId})`);
+    return;
+  }
+
+  const beforeItems = (beforeData?.[config.documentKey] ?? []) as CustomCardItem[];
+  const afterItems = (afterData[config.documentKey] ?? []) as CustomCardItem[];
+
+  const existingAudioUrls = (afterData._audioUrls ?? {}) as Record<string, string>;
 
   const beforeById = new Map(beforeItems.map((item) => [item.id, item]));
 
@@ -1199,14 +1212,22 @@ export const onCustomCardWrite = onDocumentWritten('users/{userId}/data/{docId}'
     const text = config.getTextForTTS(item).trim();
     if (!text) return false;
 
+    if (existingAudioUrls[item.id]) return false;
+
     const prev = beforeById.get(item.id);
-    if (!prev) return !item.audioUrl;
+    if (!prev) return true;
     return config.getTextForTTS(prev).trim() !== text;
   });
 
   if (itemsNeedingAudio.length === 0) return;
 
+  console.log(
+    `onCustomCardWrite: ${docId} has ${itemsNeedingAudio.length} item(s) needing audio ` +
+      `(${afterItems.length} total, ${beforeItems.length} before) for user ${userId}`
+  );
+
   const docRef = db.collection('users').doc(userId).collection('data').doc(docId);
+  const newAudioUrls: Record<string, string> = {};
 
   for (const item of itemsNeedingAudio) {
     const text = config.getTextForTTS(item);
@@ -1220,17 +1241,34 @@ export const onCustomCardWrite = onDocumentWritten('users/{userId}/data/{docId}'
       );
       if (!audioUrl) continue;
 
-      const freshSnap = await docRef.get();
-      if (!freshSnap.exists) break;
-      const freshData = freshSnap.data() as Record<string, CustomCardItem[]>;
-      const freshItems = freshData[config.documentKey] ?? [];
-      const updated = freshItems.map((i) => (i.id === item.id ? { ...i, audioUrl } : i));
-      await docRef.update({ [config.documentKey]: updated });
-
+      newAudioUrls[item.id] = audioUrl;
       console.log(`Auto-generated audio for ${docId} item ${item.id} (user ${userId})`);
     } catch (error) {
       console.error(`Failed to auto-generate audio for ${docId} item ${item.id}:`, error);
     }
+  }
+
+  if (Object.keys(newAudioUrls).length === 0) return;
+
+  try {
+    const freshSnap = await docRef.get();
+    if (!freshSnap.exists) return;
+    const freshData = freshSnap.data() as Record<string, CustomCardItem[]> & {
+      _audioUrls?: Record<string, string>;
+    };
+    const freshItems = freshData[config.documentKey] ?? [];
+    const mergedAudioUrls = { ...(freshData._audioUrls ?? {}), ...newAudioUrls };
+
+    const updated = freshItems.map((i) =>
+      newAudioUrls[i.id] ? { ...i, audioUrl: newAudioUrls[i.id] } : i
+    );
+
+    await docRef.update({
+      [config.documentKey]: updated,
+      _audioUrls: mergedAudioUrls,
+    });
+  } catch (error) {
+    console.error(`Failed to persist audio URLs for ${docId} (user ${userId}):`, error);
   }
 });
 

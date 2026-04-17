@@ -9,9 +9,12 @@
  */
 
 import { doc, getDoc, setDoc } from 'firebase/firestore';
+import type { SetOptions } from 'firebase/firestore';
 import { db } from '../firebase';
 import { userDb } from './userDb';
 import { getUserId } from '../storage/helpers';
+
+const MERGE_DOCS = new Set(['customSentences', 'customVocabulary', 'customDeclension']);
 
 /**
  * 1. Save to IndexedDB immediately (works offline)
@@ -27,7 +30,6 @@ export async function saveUserData<T>(
 
   const serializedData = serialize ? serialize(data) : data;
 
-  // Save to IndexedDB immediately
   await userDb.userData.put({
     key: docPath,
     data: serializedData,
@@ -35,17 +37,18 @@ export async function saveUserData<T>(
     pendingSync: 1,
   });
 
-  // Sync to Firestore if online (don't await - fire and forget)
   if (navigator.onLine) {
     const docRef = doc(db, 'users', userId, 'data', docPath);
-    setDoc(docRef, serializedData as object)
+    const opts: SetOptions | undefined = MERGE_DOCS.has(docPath) ? { merge: true } : undefined;
+    const promise = opts
+      ? setDoc(docRef, serializedData as object, opts)
+      : setDoc(docRef, serializedData as object);
+    promise
       .then(() => {
-        // Mark as synced
         userDb.userData.update(docPath, { pendingSync: 0 });
       })
       .catch((e) => {
         console.error(`Failed to sync ${docPath} to Firestore:`, e);
-        // Keep pendingSync = 1 so we retry later
       });
   }
 }
@@ -131,7 +134,11 @@ export async function syncAllPendingToFirestore(): Promise<number> {
   for (const record of pending) {
     try {
       const docRef = doc(db, 'users', userId, 'data', record.key);
-      await setDoc(docRef, record.data as object);
+      if (MERGE_DOCS.has(record.key)) {
+        await setDoc(docRef, record.data as object, { merge: true });
+      } else {
+        await setDoc(docRef, record.data as object);
+      }
       await userDb.userData.update(record.key, { pendingSync: 0 });
       synced++;
     } catch (e) {

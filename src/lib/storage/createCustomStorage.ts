@@ -16,8 +16,15 @@ export function createCustomStorage<T extends CustomItemBase>(
   return {
     async load(): Promise<T[]> {
       return loadUserData<T[]>(storeName, [], (data) => {
-        const record = data as Record<string, T[]>;
-        return record[documentKey] || [];
+        const record = data as Record<string, unknown>;
+        const items = (record[documentKey] || []) as T[];
+        const audioUrls = (record._audioUrls || {}) as Record<string, string>;
+        if (Object.keys(audioUrls).length === 0) return items;
+        return items.map((item) =>
+          audioUrls[item.id] && !(item as Record<string, unknown>).audioUrl
+            ? ({ ...item, audioUrl: audioUrls[item.id] } as T)
+            : item
+        );
       });
     },
 
