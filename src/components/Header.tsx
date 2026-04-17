@@ -5,7 +5,6 @@ import {
   Typography,
   Chip,
   Button,
-  IconButton,
   Menu,
   MenuItem,
   ListItemIcon,
@@ -13,6 +12,7 @@ import {
   Divider,
   styled,
 } from '@mui/material';
+import { BoxIconButton } from './BoxIconButton';
 import {
   Person,
   Abc,
@@ -45,19 +45,8 @@ const GuestChip = styled(Chip)(({ theme }) => ({
   fontWeight: 500,
 }));
 
-const UserIconButton = styled(IconButton)(({ theme }) => ({
-  backgroundColor: theme.palette.action.hover,
-  '&:hover': {
-    backgroundColor: theme.palette.action.selected,
-  },
-}));
-
-const BackButton = styled(IconButton)(({ theme }) => ({
+const BackButton = styled(BoxIconButton)(({ theme }) => ({
   marginRight: theme.spacing(1),
-  backgroundColor: theme.palette.action.hover,
-  '&:hover': {
-    backgroundColor: theme.palette.action.selected,
-  },
 }));
 
 interface HeaderProps {
@@ -155,9 +144,9 @@ export function Header({ user, onSignOut, pageTitle, backPath }: HeaderProps) {
       <Stack direction="row" alignItems="center" spacing={1}>
         {user ? (
           <>
-            <UserIconButton size="small" onClick={handleQuickAddOpen}>
+            <BoxIconButton size="small" onClick={handleQuickAddOpen} aria-label="Quick add">
               <Add />
-            </UserIconButton>
+            </BoxIconButton>
             <Menu
               anchorEl={quickAddAnchorEl}
               open={quickAddOpen}
@@ -183,9 +172,9 @@ export function Header({ user, onSignOut, pageTitle, backPath }: HeaderProps) {
                 <ListItemText>Sentence</ListItemText>
               </MenuItem>
             </Menu>
-            <UserIconButton size="small" onClick={handleMenuOpen}>
+            <BoxIconButton size="small" onClick={handleMenuOpen} aria-label="Account menu">
               <Person />
-            </UserIconButton>
+            </BoxIconButton>
             <Menu
               anchorEl={anchorEl}
               open={menuOpen}

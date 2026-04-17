@@ -16,6 +16,7 @@ import {
   useTheme,
 } from '@mui/material';
 import { styled } from '../lib/styled';
+import { BoxIconButton } from './BoxIconButton';
 import {
   Menu,
   Close,
@@ -95,12 +96,7 @@ const ContentArea = styled(Box)(({ theme }) => ({
   },
 }));
 
-const MenuButton = styled(IconButton)(({ theme }) => ({
-  backgroundColor: theme.palette.background.paper,
-  border: `1px solid ${theme.palette.divider}`,
-  '&:hover': {
-    backgroundColor: theme.palette.action.hover,
-  },
+const MenuButton = styled(BoxIconButton)(({ theme }) => ({
   [theme.breakpoints.up('md')]: {
     display: 'none',
   },
@@ -244,12 +240,22 @@ const PAGE_TITLES: Record<string, string> = {
 };
 
 const BACK_ROUTES: Record<string, string> = {
+  '/vocabulary': '/dashboard',
   '/vocabulary/recognition': '/vocabulary',
   '/vocabulary/production': '/vocabulary',
+  '/declension': '/dashboard',
+  '/sentences': '/dashboard',
   '/sentences/recognition': '/sentences',
   '/sentences/production': '/sentences',
+  '/conjugation': '/dashboard',
   '/conjugation/recognition': '/conjugation',
   '/conjugation/production': '/conjugation',
+  '/aspect-pairs': '/dashboard',
+  '/consonant-driller': '/dashboard',
+  '/library': '/dashboard',
+  '/audio': '/dashboard',
+  '/admin/content': '/dashboard',
+  '/admin/generator': '/dashboard',
 };
 
 const BACK_ROUTE_PATTERNS: Array<{ pattern: RegExp; backPath: string }> = [
@@ -392,7 +398,12 @@ function LayoutContent() {
 
           <MainArea>
             <HeaderRow>
-              <MenuButton onClick={() => setMobileDrawerOpen(true)} size="small">
+              <MenuButton
+                variant="outlined"
+                onClick={() => setMobileDrawerOpen(true)}
+                size="small"
+                aria-label="Open navigation menu"
+              >
                 <Menu />
               </MenuButton>
               <Box sx={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>

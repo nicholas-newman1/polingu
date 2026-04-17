@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Box, Button, Card, Divider, IconButton, Stack } from '@mui/material';
+import { Box, Button, Card, Divider, Stack } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -7,6 +7,7 @@ import { styled } from '../lib/styled';
 import { alpha } from '../lib/theme';
 import type { Grade } from 'ts-fsrs';
 import { RatingButtons, type RatingIntervals } from './RatingButtons';
+import { BoxIconButton } from './BoxIconButton';
 
 interface FlashcardShellProps {
   revealed: boolean;
@@ -77,24 +78,7 @@ const ActionButtons = styled(Box)(({ theme }) => ({
   display: 'flex',
   alignItems: 'center',
   gap: theme.spacing(0.5),
-  marginLeft: theme.spacing(-1),
   flexShrink: 0,
-}));
-
-const ActionButton = styled(IconButton)(({ theme }) => ({
-  color: theme.palette.text.disabled,
-  padding: theme.spacing(0.75),
-  '&:hover': {
-    color: theme.palette.text.secondary,
-    backgroundColor: alpha(theme.palette.text.primary, 0.05),
-  },
-}));
-
-const DeleteButton = styled(ActionButton)(({ theme }) => ({
-  '&:hover': {
-    color: theme.palette.error.main,
-    backgroundColor: alpha(theme.palette.error.main, 0.1),
-  },
 }));
 
 const BackButton = styled(Button)(({ theme }) => ({
@@ -200,12 +184,17 @@ export function FlashcardShell({
                 {headerActions}
                 {canEdit && (
                   <>
-                    <ActionButton onClick={onEdit} size="small" aria-label="edit">
+                    <BoxIconButton onClick={onEdit} size="small" aria-label="edit">
                       <EditIcon fontSize="small" />
-                    </ActionButton>
-                    <DeleteButton onClick={onDelete} size="small" aria-label="delete">
+                    </BoxIconButton>
+                    <BoxIconButton
+                      tone="danger"
+                      onClick={onDelete}
+                      size="small"
+                      aria-label="delete"
+                    >
                       <DeleteIcon fontSize="small" />
-                    </DeleteButton>
+                    </BoxIconButton>
                   </>
                 )}
               </ActionButtons>
