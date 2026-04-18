@@ -13,6 +13,7 @@ import { AddButton } from '../../../components/AddButton';
 import { ClearButton } from '../../../components/ClearButton';
 import { PracticeModeButton } from '../../../components/PracticeModeButton';
 import { SettingsButton } from '../../../components/SettingsButton';
+import { ListenButton } from '../../../components/ListenButton';
 import type { Case, Gender, Number } from '../../../types';
 import { CASES, GENDERS, NUMBERS } from '../../../constants';
 
@@ -40,6 +41,7 @@ interface DeclensionFilterControlsProps {
   onTogglePractice: () => void;
   onToggleSettings: () => void;
   onAddCard?: () => void;
+  onStartListening?: () => void;
 }
 
 export function DeclensionFilterControls({
@@ -54,6 +56,7 @@ export function DeclensionFilterControls({
   onTogglePractice,
   onToggleSettings,
   onAddCard,
+  onStartListening,
 }: DeclensionFilterControlsProps) {
   const hasActiveFilters =
     caseFilter.length > 0 || genderFilter.length > 0 || numberFilter !== 'All';
@@ -74,6 +77,10 @@ export function DeclensionFilterControls({
         <PracticeModeButton active={practiceMode} onClick={onTogglePractice} />
 
         <SettingsButton active={showSettings} onClick={onToggleSettings} />
+
+        {onStartListening && (
+          <ListenButton onClick={onStartListening} aria-label="Start listening mode" />
+        )}
 
         {onAddCard && <AddButton onClick={onAddCard} aria-label="Add custom card" />}
       </Stack>

@@ -109,4 +109,12 @@ export const EXTRA_NAV_ITEMS: ExtraNavItem[] = [
     fullDescription: 'Listen to Polish audio content and drill comprehension',
     colorKey: 'info',
   },
+  {
+    path: '/listen',
+    icon: Headphones,
+    label: 'Listening',
+    description: 'Passive audio drill',
+    fullDescription: 'Passively listen to sentences, vocabulary, or declensions for reinforcement',
+    colorKey: 'success',
+  },
 ];

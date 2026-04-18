@@ -44,6 +44,8 @@ import { useCardHistory } from '../../hooks/useCardHistory';
 import { useUserFilters } from '../../contexts/UserFiltersContext';
 import { DEFAULT_DECLENSION_SETTINGS } from '../../constants';
 import shuffleArray from '../../lib/utils/shuffleArray';
+import { useListening } from '../../contexts/ListeningContext';
+import { buildDeclensionListeningQueue } from '../../lib/listeningScheduler';
 
 const LoadingContainer = styled(Box)({
   flex: 1,
@@ -99,6 +101,8 @@ export function DeclensionPage() {
 
   const { filters: userFilters, filtersLoading, updateDeclensionFilters } = useUserFilters();
   const { cases: caseFilter, genders: genderFilter, number: numberFilter } = userFilters.declension;
+
+  const { start: startListening, settings: listeningSettings } = useListening();
 
   const [showSettings, setShowSettings] = useState(false);
   const [practiceMode, setPracticeMode] = useState(false);
@@ -560,6 +564,26 @@ export function DeclensionPage() {
         onTogglePractice={togglePracticeMode}
         onToggleSettings={() => setShowSettings(!showSettings)}
         onAddCard={user ? handleOpenCreateModal : undefined}
+        onStartListening={() => {
+          const queue = buildDeclensionListeningQueue({
+            cards: allDeclensionCards,
+            reviewStore,
+            ordering: listeningSettings.ordering,
+            filters: {
+              cases: caseFilter,
+              genders: genderFilter,
+              number: numberFilter,
+            },
+          });
+          if (queue.length === 0) {
+            showSnackbar('No declensions with audio for the current filters.', 'info');
+            return;
+          }
+          startListening(queue, {
+            meta: { feature: 'declension', title: 'Declension' },
+          });
+          navigate('/listen/play');
+        }}
       />
 
       {showSettings && !practiceMode && (

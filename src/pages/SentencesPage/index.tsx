@@ -6,6 +6,9 @@ import { styled } from '../../lib/styled';
 import { AddButton } from '../../components/AddButton';
 import { PracticeModeButton } from '../../components/PracticeModeButton';
 import { SettingsButton } from '../../components/SettingsButton';
+import { ListenButton } from '../../components/ListenButton';
+import { useListening } from '../../contexts/ListeningContext';
+import { buildSentenceListeningQueue } from '../../lib/listeningScheduler';
 import { SentenceFlashcard, type RatingIntervals } from './components/SentenceFlashcard';
 import { SentenceModeSelector } from './components/SentenceModeSelector';
 import { FinishedState } from '../../components/FinishedState';
@@ -89,6 +92,8 @@ export function SentencesPage({ mode }: SentencesPageProps) {
   const [customSentences, applyOptimisticCustomSentences] = useOptimistic(contextCustomSentences, {
     onError: () => showSnackbar('Failed to save. Please try again.', 'error'),
   });
+
+  const { start: startListening, settings: listeningSettings } = useListening();
 
   const [showSettings, setShowSettings] = useState(false);
   const [practiceMode, setPracticeMode] = useState(false);
@@ -495,6 +500,31 @@ export function SentencesPage({ mode }: SentencesPageProps) {
             disabled={isLoading}
           />
         )}
+
+        <ListenButton
+          onClick={() => {
+            const queue = buildSentenceListeningQueue({
+              sentences: contextSentences,
+              reviewStore: sentenceReviewStores[currentDirection],
+              ordering: listeningSettings.ordering,
+              levels: directionSettings.selectedLevels,
+            });
+            if (queue.length === 0) {
+              showSnackbar('No sentences with audio for the current filters.', 'info');
+              return;
+            }
+            startListening(queue, {
+              meta: {
+                feature: 'sentences',
+                title: 'Sentences',
+                subtitle: directionSettings.selectedLevels.join(', '),
+              },
+            });
+            navigate('/listen/play');
+          }}
+          disabled={isLoading}
+          aria-label="Start listening mode"
+        />
 
         {user && (
           <AddButton

@@ -47,6 +47,7 @@ import { SiteLogo } from './SiteLogo';
 import { PageTitleContext, PageTitleProvider } from '../contexts/PageTitleContext';
 import { AddToVocabularyProvider } from '../contexts/AddToVocabularyContext';
 import { AddSentenceProvider } from '../contexts/AddSentenceContext';
+import { ListeningMiniBar } from './ListeningMiniBar';
 
 export const DRAWER_WIDTH = 260;
 
@@ -202,6 +203,11 @@ const NAV_ITEMS: Array<{
     label: 'Audio',
   },
   {
+    path: '/listen',
+    icon: Headphones,
+    label: 'Listening',
+  },
+  {
     path: '/admin/content',
     icon: Storage,
     label: 'Content',
@@ -235,6 +241,8 @@ const PAGE_TITLES: Record<string, string> = {
   '/library': 'Library',
   '/reader': 'Reader',
   '/audio': 'Audio',
+  '/listen': 'Listening',
+  '/listen/play': 'Listening',
   '/stats': 'Statistics',
   '/admin/generator': 'Sentence Generator',
 };
@@ -254,6 +262,8 @@ const BACK_ROUTES: Record<string, string> = {
   '/consonant-driller': '/dashboard',
   '/library': '/dashboard',
   '/audio': '/dashboard',
+  '/listen': '/dashboard',
+  '/listen/play': '/listen',
   '/admin/content': '/dashboard',
   '/admin/generator': '/dashboard',
 };
@@ -431,6 +441,7 @@ function LayoutContent() {
           <TranslatorModal />
           <LimitReachedDialog />
 
+          <ListeningMiniBar />
           <BottomMenuBar showTranslator={!!user} />
         </PageContainer>
       </AddSentenceProvider>

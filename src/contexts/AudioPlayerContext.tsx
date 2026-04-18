@@ -22,6 +22,7 @@ import type { AudioItem, SystemAudioItem, TranscriptSegment } from '../types/aud
 
 type AnyAudioItem = AudioItem | SystemAudioItem;
 import { useQueueManager, type QueueManager } from '../hooks/useQueueManager';
+import { emitAudioModeEvent, subscribeAudioModeEvent } from '../lib/audio/audioModeBus';
 
 function binarySearchSegment(segments: TranscriptSegment[], time: number): number {
   let lo = 0;
@@ -530,6 +531,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
 
     const onPlay = () => {
       setIsPlaying(true);
+      emitAudioModeEvent('audio-started');
       rafRef.current = requestAnimationFrame(loop);
       syncPositionState();
     };
@@ -631,6 +633,12 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
 
   const pause = useCallback(() => {
     audioRef.current?.pause();
+  }, []);
+
+  useEffect(() => {
+    return subscribeAudioModeEvent('listening-started', () => {
+      audioRef.current?.pause();
+    });
   }, []);
 
   const togglePlay = useCallback(() => {

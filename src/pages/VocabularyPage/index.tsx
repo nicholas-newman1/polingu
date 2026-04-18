@@ -6,6 +6,9 @@ import { styled } from '../../lib/styled';
 import { AddButton } from '../../components/AddButton';
 import { PracticeModeButton } from '../../components/PracticeModeButton';
 import { SettingsButton } from '../../components/SettingsButton';
+import { ListenButton } from '../../components/ListenButton';
+import { useListening } from '../../contexts/ListeningContext';
+import { buildVocabularyListeningQueue } from '../../lib/listeningScheduler';
 import { VocabularyFlashcard, type RatingIntervals } from './components/VocabularyFlashcard';
 import { VocabularyModeSelector } from './components/VocabularyModeSelector';
 import { FinishedState } from '../../components/FinishedState';
@@ -85,6 +88,8 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
   const [customWords, applyOptimisticCustomWords] = useOptimistic(contextCustomWords, {
     onError: () => showSnackbar('Failed to save. Please try again.', 'error'),
   });
+
+  const { start: startListening, settings: listeningSettings } = useListening();
 
   const [showSettings, setShowSettings] = useState(false);
   const [practiceMode, setPracticeMode] = useState(false);
@@ -499,6 +504,26 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
           active={showSettings}
           onClick={() => setShowSettings(!showSettings)}
           disabled={isLoading}
+        />
+
+        <ListenButton
+          onClick={() => {
+            const queue = buildVocabularyListeningQueue({
+              words: allWords,
+              reviewStore: vocabularyReviewStores[currentDirection],
+              ordering: listeningSettings.ordering,
+            });
+            if (queue.length === 0) {
+              showSnackbar('No vocabulary with audio available.', 'info');
+              return;
+            }
+            startListening(queue, {
+              meta: { feature: 'vocabulary', title: 'Vocabulary' },
+            });
+            navigate('/listen/play');
+          }}
+          disabled={isLoading}
+          aria-label="Start listening mode"
         />
 
         {user && (

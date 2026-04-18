@@ -36,6 +36,9 @@ import { AudioPlayerPage } from './pages/AudioPlayerPage';
 import { AppSettingsProvider } from './contexts/AppSettingsContext';
 import { UserFiltersProvider } from './contexts/UserFiltersContext';
 import { AudioPlayerProvider } from './contexts/AudioPlayerContext';
+import { ListeningProvider } from './contexts/ListeningContext';
+import { ListeningHubPage } from './pages/ListeningHubPage';
+import { ListeningPlayerPage } from './pages/ListeningPlayerPage';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -50,66 +53,76 @@ createRoot(document.getElementById('root')!).render(
                   <TranslationProvider>
                     <CheatSheetProvider>
                       <AudioPlayerProvider>
-                        <BrowserRouter>
-                          <Routes>
-                          <Route path="/login" element={<SignIn />} />
-                          <Route element={<Layout />}>
-                            <Route path="/dashboard" element={<DashboardPage />} />
-                            <Route path="/declension" element={<DeclensionPage />} />
-                            <Route path="/vocabulary">
-                              <Route index element={<VocabularyPage />} />
-                              <Route
-                                path="recognition"
-                                element={<VocabularyPage mode="pl-to-en" />}
-                              />
-                              <Route
-                                path="production"
-                                element={<VocabularyPage mode="en-to-pl" />}
-                              />
-                            </Route>
-                            <Route path="/sentences">
-                              <Route index element={<SentencesPage />} />
-                              <Route
-                                path="recognition"
-                                element={<SentencesPage mode="pl-to-en" />}
-                              />
-                              <Route
-                                path="production"
-                                element={<SentencesPage mode="en-to-pl" />}
-                              />
-                            </Route>
-                            <Route path="/conjugation">
-                              <Route index element={<ConjugationPage />} />
-                              <Route
-                                path="recognition"
-                                element={<ConjugationPage mode="pl-to-en" />}
-                              />
-                              <Route
-                                path="production"
-                                element={<ConjugationPage mode="en-to-pl" />}
-                              />
-                            </Route>
-                            <Route path="/aspect-pairs" element={<AspectPairsPage />} />
-                            <Route path="/consonant-driller" element={<ConsonantDrillerPage />} />
-                            <Route path="/my-vocabulary" element={<CustomVocabularyPage />} />
-                            <Route path="/my-declensions" element={<CustomDeclensionPage />} />
-                            <Route path="/my-sentences" element={<CustomSentencesPage />} />
-                            <Route path="/stats" element={<StatsPage />} />
-                            <Route path="/settings" element={<SettingsPage />} />
-                            <Route path="/library" element={<LibraryPage />} />
-                            <Route path="/reader/:bookId" element={<ReaderPage />} />
-                            <Route path="/audio" element={<AudioLibraryPage />} />
-                            <Route path="/audio/player" element={<AudioPlayerPage />} />
-                            <Route path="/admin/generator" element={<SentenceGeneratorPage />} />
-                            <Route
-                              path="/admin/content"
-                              element={<Navigate to="/admin/content/vocabulary" replace />}
-                            />
-                            <Route path="/admin/content/:tab" element={<AdminContentPage />} />
-                          </Route>
-                          <Route path="*" element={<Navigate to="/dashboard" replace />} />
-                          </Routes>
-                        </BrowserRouter>
+                        <ListeningProvider>
+                          <BrowserRouter>
+                            <Routes>
+                              <Route path="/login" element={<SignIn />} />
+                              <Route element={<Layout />}>
+                                <Route path="/dashboard" element={<DashboardPage />} />
+                                <Route path="/declension" element={<DeclensionPage />} />
+                                <Route path="/vocabulary">
+                                  <Route index element={<VocabularyPage />} />
+                                  <Route
+                                    path="recognition"
+                                    element={<VocabularyPage mode="pl-to-en" />}
+                                  />
+                                  <Route
+                                    path="production"
+                                    element={<VocabularyPage mode="en-to-pl" />}
+                                  />
+                                </Route>
+                                <Route path="/sentences">
+                                  <Route index element={<SentencesPage />} />
+                                  <Route
+                                    path="recognition"
+                                    element={<SentencesPage mode="pl-to-en" />}
+                                  />
+                                  <Route
+                                    path="production"
+                                    element={<SentencesPage mode="en-to-pl" />}
+                                  />
+                                </Route>
+                                <Route path="/conjugation">
+                                  <Route index element={<ConjugationPage />} />
+                                  <Route
+                                    path="recognition"
+                                    element={<ConjugationPage mode="pl-to-en" />}
+                                  />
+                                  <Route
+                                    path="production"
+                                    element={<ConjugationPage mode="en-to-pl" />}
+                                  />
+                                </Route>
+                                <Route path="/aspect-pairs" element={<AspectPairsPage />} />
+                                <Route
+                                  path="/consonant-driller"
+                                  element={<ConsonantDrillerPage />}
+                                />
+                                <Route path="/my-vocabulary" element={<CustomVocabularyPage />} />
+                                <Route path="/my-declensions" element={<CustomDeclensionPage />} />
+                                <Route path="/my-sentences" element={<CustomSentencesPage />} />
+                                <Route path="/stats" element={<StatsPage />} />
+                                <Route path="/settings" element={<SettingsPage />} />
+                                <Route path="/library" element={<LibraryPage />} />
+                                <Route path="/reader/:bookId" element={<ReaderPage />} />
+                                <Route path="/audio" element={<AudioLibraryPage />} />
+                                <Route path="/audio/player" element={<AudioPlayerPage />} />
+                                <Route path="/listen" element={<ListeningHubPage />} />
+                                <Route path="/listen/play" element={<ListeningPlayerPage />} />
+                                <Route
+                                  path="/admin/generator"
+                                  element={<SentenceGeneratorPage />}
+                                />
+                                <Route
+                                  path="/admin/content"
+                                  element={<Navigate to="/admin/content/vocabulary" replace />}
+                                />
+                                <Route path="/admin/content/:tab" element={<AdminContentPage />} />
+                              </Route>
+                              <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                            </Routes>
+                          </BrowserRouter>
+                        </ListeningProvider>
                       </AudioPlayerProvider>
                     </CheatSheetProvider>
                   </TranslationProvider>
