@@ -154,18 +154,11 @@ export const processBookUpload = onObjectFinalized(
         throw new Error('File too large. Maximum size is 50MB.');
       }
 
-      const currentUsage = await getUserStorageUsage(userId);
-      if (currentUsage + fileSize > MAX_USER_STORAGE) {
-        throw new Error('Storage quota exceeded. Maximum is 1GB.');
-      }
-
       const bucket = storage.bucket(event.data.bucket);
       const file = bucket.file(filePath);
       const [buffer] = await file.download();
 
       const finalPath = `books/users/${userId}/${bookId}/${fileName}`;
-      await file.move(finalPath);
-
       const extracted = await extractPdfMetadata(buffer);
       const color = await getUnusedColor(userId);
 
@@ -184,7 +177,26 @@ export const processBookUpload = onObjectFinalized(
         color,
       };
 
-      await bookRef.set(bookData);
+      await db.runTransaction(async (tx) => {
+        const booksSnap = await tx.get(
+          db
+            .collection('users')
+            .doc(userId)
+            .collection('books')
+            .where('status', '==', 'ready')
+        );
+        let totalSize = 0;
+        booksSnap.forEach((doc) => {
+          const book = doc.data() as BookMetadata;
+          totalSize += book.fileSize || 0;
+        });
+        if (totalSize + fileSize > MAX_USER_STORAGE) {
+          throw new Error('Storage quota exceeded. Maximum is 1GB.');
+        }
+        tx.set(bookRef, bookData);
+      });
+
+      await file.move(finalPath);
 
       await db
         .collection('users')

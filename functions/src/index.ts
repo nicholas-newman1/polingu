@@ -90,45 +90,45 @@ function getNextMidnightUTC(): string {
   return tomorrow.toISOString();
 }
 
-async function getRateLimitDoc(userId: string): Promise<RateLimitDoc> {
-  const docRef = db.collection('userRateLimits').doc(userId);
-  const doc = await docRef.get();
-
-  if (!doc.exists) {
-    return {
-      dailyCharsUsed: 0,
-      dailyCharsDate: getUTCDateString(),
-      recentRequests: [],
-    };
-  }
-
-  const data = doc.data() as RateLimitDoc;
-  const today = getUTCDateString();
-
-  if (data.dailyCharsDate !== today) {
-    return {
-      dailyCharsUsed: 0,
-      dailyCharsDate: today,
-      recentRequests: data.recentRequests || [],
-    };
-  }
-
-  return {
-    dailyCharsUsed: data.dailyCharsUsed || 0,
-    dailyCharsDate: data.dailyCharsDate,
-    recentRequests: data.recentRequests || [],
-  };
-}
-
-function checkMinuteRateLimit(recentRequests: number[]): boolean {
-  const oneMinuteAgo = Date.now() - 60000;
-  const recentCount = recentRequests.filter((ts) => ts > oneMinuteAgo).length;
-  return recentCount < MAX_REQUESTS_PER_MINUTE;
-}
-
 function filterRecentRequests(recentRequests: number[]): number[] {
   const oneMinuteAgo = Date.now() - 60000;
   return recentRequests.filter((ts) => ts > oneMinuteAgo);
+}
+
+async function reserveTranslationBudget(
+  userId: string,
+  charCount: number,
+  isAdmin: boolean,
+  resetTime: string
+): Promise<{ charsUsedAfter: number }> {
+  const ref = db.collection('userRateLimits').doc(userId);
+
+  return db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const today = getUTCDateString();
+    const data = snap.exists ? (snap.data() as RateLimitDoc | undefined) : undefined;
+
+    const dailyCharsUsed = !data || data.dailyCharsDate !== today ? 0 : data.dailyCharsUsed || 0;
+    const recentRequests = filterRecentRequests(data?.recentRequests || []);
+
+    if (!isAdmin) {
+      if (recentRequests.length >= MAX_REQUESTS_PER_MINUTE) {
+        throw new HttpsError('resource-exhausted', 'RATE_LIMIT_MINUTE');
+      }
+      if (dailyCharsUsed + charCount > MAX_CHARS_PER_DAY) {
+        throw new HttpsError('resource-exhausted', `RATE_LIMIT_DAILY:${resetTime}`);
+      }
+    }
+
+    const charsUsedAfter = dailyCharsUsed + charCount;
+    tx.set(ref, {
+      dailyCharsUsed: charsUsedAfter,
+      dailyCharsDate: today,
+      recentRequests: [...recentRequests, Date.now()],
+    } satisfies RateLimitDoc);
+
+    return { charsUsedAfter };
+  });
 }
 
 function cleanTextForCacheKey(text: string): string {
@@ -137,6 +137,13 @@ function cleanTextForCacheKey(text: string): string {
     .map((word) => word.replace(/[.,!?;:"""''()]/g, '').toLowerCase())
     .filter(Boolean)
     .join(' ');
+}
+
+function cacheKeyAppearsInSource(cacheKey: string, sourceText: string): boolean {
+  if (!cacheKey || !sourceText) return false;
+  const cleanedSource = cleanTextForCacheKey(sourceText);
+  if (!cleanedSource) return false;
+  return ` ${cleanedSource} `.includes(` ${cacheKey} `);
 }
 
 export const translate = onCall<TranslateRequest, Promise<TranslateResponse>>(
@@ -166,18 +173,14 @@ export const translate = onCall<TranslateRequest, Promise<TranslateResponse>>(
     }
 
     const isAdmin = !!request.auth?.token?.admin;
-    const rateLimitData = await getRateLimitDoc(userId);
     const resetTime = getNextMidnightUTC();
 
-    if (!isAdmin) {
-      if (!checkMinuteRateLimit(rateLimitData.recentRequests)) {
-        throw new HttpsError('resource-exhausted', 'RATE_LIMIT_MINUTE');
-      }
-
-      if (rateLimitData.dailyCharsUsed + text.length > MAX_CHARS_PER_DAY) {
-        throw new HttpsError('resource-exhausted', `RATE_LIMIT_DAILY:${resetTime}`);
-      }
-    }
+    const { charsUsedAfter } = await reserveTranslationBudget(
+      userId,
+      text.length,
+      isAdmin,
+      resetTime
+    );
 
     const apiKey = deeplApiKey.value();
     if (!apiKey) {
@@ -213,25 +216,20 @@ export const translate = onCall<TranslateRequest, Promise<TranslateResponse>>(
       throw new HttpsError('internal', 'No translation returned.');
     }
 
-    const newCharsUsed = rateLimitData.dailyCharsUsed + text.length;
-    const filteredRequests = filterRecentRequests(rateLimitData.recentRequests);
-
-    await db
-      .collection('userRateLimits')
-      .doc(userId)
-      .set({
-        dailyCharsUsed: newCharsUsed,
-        dailyCharsDate: getUTCDateString(),
-        recentRequests: [...filteredRequests, Date.now()],
-      });
-
     if (declensionCardId && typeof declensionCardId === 'number' && targetLang === 'EN') {
       const cacheKey = cleanTextForCacheKey(text);
       if (cacheKey) {
         const cardRef = db.collection('declensionCards').doc(String(declensionCardId));
-        await cardRef.update({
-          [`translations.${cacheKey}`]: translatedText,
-        });
+        const cardSnap = await cardRef.get();
+        const sourceText =
+          cardSnap.exists && typeof cardSnap.data()?.back === 'string'
+            ? (cardSnap.data()?.back as string)
+            : '';
+        if (cacheKeyAppearsInSource(cacheKey, sourceText)) {
+          await cardRef.update({
+            [`translations.${cacheKey}`]: translatedText,
+          });
+        }
       }
     }
 
@@ -239,15 +237,22 @@ export const translate = onCall<TranslateRequest, Promise<TranslateResponse>>(
       const cacheKey = cleanTextForCacheKey(text);
       if (cacheKey) {
         const sentenceRef = db.collection('sentences').doc(sentenceId);
-        await sentenceRef.update({
-          [`translations.${cacheKey}`]: translatedText,
-        });
+        const sentenceSnap = await sentenceRef.get();
+        const sourceText =
+          sentenceSnap.exists && typeof sentenceSnap.data()?.polish === 'string'
+            ? (sentenceSnap.data()?.polish as string)
+            : '';
+        if (cacheKeyAppearsInSource(cacheKey, sourceText)) {
+          await sentenceRef.update({
+            [`translations.${cacheKey}`]: translatedText,
+          });
+        }
       }
     }
 
     return {
       translatedText,
-      charsUsedToday: newCharsUsed,
+      charsUsedToday: charsUsedAfter,
       resetTime,
     };
   }

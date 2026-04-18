@@ -93,9 +93,42 @@ async function isAdmin(userId: string): Promise<boolean> {
   }
 }
 
-async function getUserAudioItemCount(userId: string): Promise<number> {
-  const snapshot = await db.collection('users').doc(userId).collection('audioItems').count().get();
-  return snapshot.data().count;
+async function parseAudioDurationSeconds(
+  buffer: Buffer,
+  mimeType?: string
+): Promise<number | null> {
+  try {
+    const { parseBuffer } = await import('music-metadata');
+    const metadata = await parseBuffer(buffer, mimeType ? { mimeType } : undefined, {
+      duration: true,
+    });
+    const duration = metadata.format.duration;
+    return typeof duration === 'number' && Number.isFinite(duration) ? duration : null;
+  } catch (error) {
+    console.warn('Failed to parse audio duration from header:', error);
+    return null;
+  }
+}
+
+async function reserveUserAudioSlot(
+  userId: string,
+  audioRef: FirebaseFirestore.DocumentReference,
+  data: AudioItemData,
+  userIsAdmin: boolean
+): Promise<void> {
+  if (userIsAdmin) {
+    await audioRef.set(data);
+    return;
+  }
+  await db.runTransaction(async (tx) => {
+    const existing = await tx.get(
+      db.collection('users').doc(userId).collection('audioItems').limit(MAX_ITEMS_REGULAR)
+    );
+    if (existing.size >= MAX_ITEMS_REGULAR) {
+      throw new Error('Audio limit reached. Delete your existing audio to create a new one.');
+    }
+    tx.set(audioRef, data);
+  });
 }
 
 function chunkTextForTTS(text: string): string[] {
@@ -147,27 +180,25 @@ export const processAudioUpload = onObjectFinalized(
         throw new Error('File too large. Maximum size is 25MB.');
       }
 
-      if (!userIsAdmin) {
-        const itemCount = await getUserAudioItemCount(userId);
-        if (itemCount >= MAX_ITEMS_REGULAR) {
-          throw new Error('Audio upload limit reached. Regular users can upload 1 audio file.');
-        }
-      }
-
       const title = fileName.replace(/\.[^.]+$/, '');
 
-      await audioRef.set({
-        id: audioId,
+      await reserveUserAudioSlot(
         userId,
-        title,
-        fileName,
-        duration: 0,
-        fileSize,
-        storagePath: '',
-        status: 'processing',
-        transcript: [],
-        createdAt: Date.now(),
-      } satisfies AudioItemData);
+        audioRef,
+        {
+          id: audioId,
+          userId,
+          title,
+          fileName,
+          duration: 0,
+          fileSize,
+          storagePath: '',
+          status: 'processing',
+          transcript: [],
+          createdAt: Date.now(),
+        },
+        userIsAdmin
+      );
 
       const queue = getFunctions().taskQueue('transcribeAudio');
       await queue.enqueue(
@@ -235,6 +266,22 @@ export const transcribeAudio = onTaskDispatched(
       const bucket = storage.bucket(bucketName);
       const file = bucket.file(filePath);
       const [buffer] = await file.download();
+      const [metadata] = await file.getMetadata();
+
+      const userIsAdmin = await isAdmin(userId);
+
+      if (!userIsAdmin) {
+        const headerDuration = await parseAudioDurationSeconds(
+          buffer,
+          typeof metadata.contentType === 'string' ? metadata.contentType : undefined
+        );
+        if (headerDuration === null) {
+          throw new Error('Could not determine audio duration. File may be corrupt.');
+        }
+        if (headerDuration > MAX_DURATION_SECONDS) {
+          throw new Error('Audio too long. Maximum duration is 10 minutes.');
+        }
+      }
 
       const apiKey = openaiApiKey.value();
       if (!apiKey) throw new Error('OpenAI API key not configured');
@@ -253,7 +300,6 @@ export const transcribeAudio = onTaskDispatched(
 
       const duration = response.duration ?? 0;
 
-      const userIsAdmin = await isAdmin(userId);
       if (!userIsAdmin && duration > MAX_DURATION_SECONDS) {
         throw new Error('Audio too long. Maximum duration is 10 minutes.');
       }
@@ -392,31 +438,32 @@ export const createUserAudio = onCall<CreateUserAudioRequest, Promise<{ id: stri
     }
 
     const userIsAdmin = await isAdmin(userId);
-    if (!userIsAdmin) {
-      const itemCount = await getUserAudioItemCount(userId);
-      if (itemCount >= MAX_ITEMS_REGULAR) {
-        throw new HttpsError(
-          'resource-exhausted',
-          'Audio limit reached. Delete your existing audio to create a new one.'
-        );
-      }
-    }
 
     const audioRef = db.collection('users').doc(userId).collection('audioItems').doc();
     const audioId = audioRef.id;
 
-    await audioRef.set({
-      id: audioId,
-      userId,
-      title,
-      fileName: 'audio.mp3',
-      duration: 0,
-      fileSize: 0,
-      storagePath: '',
-      status: 'processing',
-      transcript: [],
-      createdAt: Date.now(),
-    } satisfies AudioItemData);
+    try {
+      await reserveUserAudioSlot(
+        userId,
+        audioRef,
+        {
+          id: audioId,
+          userId,
+          title,
+          fileName: 'audio.mp3',
+          duration: 0,
+          fileSize: 0,
+          storagePath: '',
+          status: 'processing',
+          transcript: [],
+          createdAt: Date.now(),
+        },
+        userIsAdmin
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Audio limit reached.';
+      throw new HttpsError('resource-exhausted', message);
+    }
 
     const queue = getFunctions().taskQueue('processUserTextAudio');
     await queue.enqueue({ userId, audioId, text }, { dispatchDeadlineSeconds: 600 });
