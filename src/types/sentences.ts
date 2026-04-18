@@ -37,6 +37,9 @@ export interface CustomSentence extends CustomItemBase {
   tags: string[];
   translations?: Record<string, string>;
   audioUrl?: string;
+  source?: SentenceSource;
+  sourceVocabularyId?: string;
+  sourceExampleId?: string;
 }
 
 export interface SentenceBank {
