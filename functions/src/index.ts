@@ -133,8 +133,9 @@ async function reserveTranslationBudget(
 
 function cleanTextForCacheKey(text: string): string {
   return text
+    .toLowerCase()
+    .replace(/[^a-z0-9ąćęłńóśźż ]+/g, ' ')
     .split(/\s+/)
-    .map((word) => word.replace(/[.,!?;:"""''()]/g, '').toLowerCase())
     .filter(Boolean)
     .join(' ');
 }
