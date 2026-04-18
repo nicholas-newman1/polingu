@@ -780,31 +780,11 @@ function getAudioPath(type: AudioType, id: string, subPath?: string, userId?: st
   }
 }
 
-async function updateCustomCardAudioUrl(
-  userId: string,
-  storeName: string,
-  documentKey: string,
-  cardId: string,
-  audioUrl: string
-): Promise<void> {
-  const docRef = db.collection('users').doc(userId).collection('data').doc(storeName);
-  const docSnap = await docRef.get();
-  if (!docSnap.exists) return;
-
-  const data = docSnap.data() as Record<string, Array<{ id: string; audioUrl?: string }>>;
-  const items = data[documentKey];
-  if (!Array.isArray(items)) return;
-
-  const updated = items.map((item) => (item.id === cardId ? { ...item, audioUrl } : item));
-  await docRef.update({ [documentKey]: updated });
-}
-
 async function updateFirestoreAudioUrl(
   type: AudioType,
   id: string,
   audioUrl: string,
-  subPath?: string,
-  userId?: string
+  subPath?: string
 ): Promise<void> {
   switch (type) {
     case 'sentence':
@@ -832,14 +812,9 @@ async function updateFirestoreAudioUrl(
       await db.collection('verbs').doc(id).update({ infinitiveAudioUrl: audioUrl });
       break;
     case 'custom-sentence':
-      if (userId)
-        await updateCustomCardAudioUrl(userId, 'customSentences', 'sentences', id, audioUrl);
-      break;
     case 'custom-vocabulary':
-      if (userId) await updateCustomCardAudioUrl(userId, 'customVocabulary', 'words', id, audioUrl);
-      break;
     case 'custom-declension':
-      if (userId) await updateCustomCardAudioUrl(userId, 'customDeclension', 'items', id, audioUrl);
+      // Custom card audio URLs are written by the client after saveAudio resolves.
       break;
   }
 }
@@ -901,7 +876,7 @@ export const saveAudio = onCall<SaveAudioRequest, Promise<SaveAudioResponse>>(as
 
     const audioUrl = `https://storage.googleapis.com/${AUDIO_BUCKET}/${filePath}?v=${Date.now()}`;
 
-    await updateFirestoreAudioUrl(type, id, audioUrl, subPath, userId);
+    await updateFirestoreAudioUrl(type, id, audioUrl, subPath);
 
     return { audioUrl };
   } catch (error) {
