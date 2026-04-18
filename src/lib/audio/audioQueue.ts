@@ -27,12 +27,10 @@ export async function saveAudioQueue(queue: AudioQueue): Promise<void> {
 export async function updateQueueSavedTime(time: number): Promise<void> {
   const ref = getQueueDocRef();
   if (!ref) return;
-  await updateDoc(ref, { savedTime: time });
+  await updateDoc(ref, { savedTime: time, updatedAt: Date.now() });
 }
 
-export function subscribeToAudioQueue(
-  callback: (queue: AudioQueue | null) => void
-): () => void {
+export function subscribeToAudioQueue(callback: (queue: AudioQueue | null) => void): () => void {
   const ref = getQueueDocRef();
   if (!ref) return () => {};
 

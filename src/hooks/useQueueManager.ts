@@ -5,7 +5,50 @@ import type { AudioQueue } from '../types/audio';
 export type QueueSection = 'user' | 'auto';
 
 const MAX_HISTORY = 50;
-const SAVE_TIME_DEBOUNCE_MS = 1000;
+const LOCAL_WRITE_THROTTLE_S = 1;
+const FLUSH_DELTA_S = 2;
+const LOCAL_SAVED_TIME_KEY = 'polingu.audioSavedTime';
+
+interface LocalSavedTime {
+  trackId: string;
+  time: number;
+  updatedAt: number;
+}
+
+function readLocalSavedTime(): LocalSavedTime | null {
+  try {
+    const raw = localStorage.getItem(LOCAL_SAVED_TIME_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as LocalSavedTime;
+    if (
+      typeof parsed?.trackId !== 'string' ||
+      typeof parsed?.time !== 'number' ||
+      typeof parsed?.updatedAt !== 'number'
+    ) {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writeLocalSavedTime(trackId: string, time: number) {
+  try {
+    const payload: LocalSavedTime = { trackId, time, updatedAt: Date.now() };
+    localStorage.setItem(LOCAL_SAVED_TIME_KEY, JSON.stringify(payload));
+  } catch {
+    // localStorage can throw in private mode or when quota exceeded
+  }
+}
+
+function clearLocalSavedTime() {
+  try {
+    localStorage.removeItem(LOCAL_SAVED_TIME_KEY);
+  } catch {
+    // ignore
+  }
+}
 
 export interface QueueManager {
   currentTrackId: string | null;
@@ -25,6 +68,7 @@ export interface QueueManager {
   rewindQueue: () => string | null;
   skipToQueueItem: (section: QueueSection, index: number) => string | null;
   persistTime: (time: number) => void;
+  flushTime: () => void;
 }
 
 interface QueueState {
@@ -56,29 +100,35 @@ export function useQueueManager(): QueueManager {
   const [state, setState] = useState<QueueState>(EMPTY);
   const ref = useRef<QueueState>(EMPTY);
   const savedTimeRef = useRef(0);
+  const lastFlushedTimeRef = useRef(0);
+  const lastLocalWriteRef = useRef(0);
   const [initialSavedTime, setInitialSavedTime] = useState(0);
-  const saveTimeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const set = useCallback((next: QueueState, resetTime = true) => {
     ref.current = next;
     setState(next);
-    if (resetTime) savedTimeRef.current = 0;
+    if (resetTime) {
+      savedTimeRef.current = 0;
+      lastFlushedTimeRef.current = 0;
+      lastLocalWriteRef.current = 0;
+      clearLocalSavedTime();
+    }
     persist(next, resetTime ? 0 : savedTimeRef.current);
   }, []);
 
   const persistTime = useCallback((time: number) => {
     savedTimeRef.current = time;
-    if (saveTimeTimerRef.current) return;
-    saveTimeTimerRef.current = setTimeout(() => {
-      saveTimeTimerRef.current = null;
-      updateQueueSavedTime(savedTimeRef.current).catch(() => {});
-    }, SAVE_TIME_DEBOUNCE_MS);
+    if (Math.abs(time - lastLocalWriteRef.current) < LOCAL_WRITE_THROTTLE_S) return;
+    lastLocalWriteRef.current = time;
+    const trackId = ref.current.currentTrackId;
+    if (trackId) writeLocalSavedTime(trackId, time);
   }, []);
 
-  useEffect(() => {
-    return () => {
-      if (saveTimeTimerRef.current) clearTimeout(saveTimeTimerRef.current);
-    };
+  const flushTime = useCallback(() => {
+    const time = savedTimeRef.current;
+    if (Math.abs(time - lastFlushedTimeRef.current) < FLUSH_DELTA_S) return;
+    lastFlushedTimeRef.current = time;
+    updateQueueSavedTime(time).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -93,9 +143,22 @@ export function useQueueManager(): QueueManager {
           history: saved.history ?? [],
         };
         ref.current = loaded;
-        savedTimeRef.current = saved.savedTime ?? 0;
+
+        let restored = saved.savedTime ?? 0;
+        const local = readLocalSavedTime();
+        if (
+          local &&
+          local.trackId === saved.currentTrackId &&
+          local.updatedAt > (saved.updatedAt ?? 0)
+        ) {
+          restored = local.time;
+        }
+
+        savedTimeRef.current = restored;
+        lastFlushedTimeRef.current = restored;
+        lastLocalWriteRef.current = restored;
         setState(loaded);
-        setInitialSavedTime(saved.savedTime ?? 0);
+        setInitialSavedTime(restored);
       })
       .catch(() => {});
     return () => {
@@ -264,5 +327,6 @@ export function useQueueManager(): QueueManager {
     rewindQueue,
     skipToQueueItem,
     persistTime,
+    flushTime,
   };
 }

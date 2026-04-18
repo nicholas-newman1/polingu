@@ -166,7 +166,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   }, [audioUrl]);
 
   const queueManager = useQueueManager();
-  const { initializeQueue, advanceQueue, rewindQueue, persistTime } = queueManager;
+  const { initializeQueue, advanceQueue, rewindQueue, persistTime, flushTime } = queueManager;
   const restoreTimeRef = useRef<number>(0);
   const activeAudioIdRef = useRef<string | null>(null);
   useEffect(() => {
@@ -518,6 +518,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     function loop() {
       if (!audio || audio.paused) return;
       const time = audio.currentTime;
+      persistTime(time);
       const { segIdx, wordIdx } = computeIndices(time);
       startTransition(() => {
         setCurrentTime(time);
@@ -536,11 +537,13 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       setIsPlaying(false);
       cancelAnimationFrame(rafRef.current);
       persistTime(audio.currentTime);
+      flushTime();
       syncPositionState();
     };
     const onEnded = () => {
       setIsPlaying(false);
       cancelAnimationFrame(rafRef.current);
+      flushTime();
       playNextRef.current?.();
     };
     const onLoadedMetadata = () => {
@@ -592,27 +595,35 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       cancelAnimationFrame(rafRef.current);
       audio.pause();
     };
-  }, [audioUrl, persistTime]);
+  }, [audioUrl, persistTime, flushTime]);
 
   useEffect(() => {
     if (!isPlaying || !activeAudioId) return;
     const interval = setInterval(() => {
       const time = audioRef.current?.currentTime;
       if (time !== undefined) persistTime(time);
-    }, 1000);
+      flushTime();
+    }, 30000);
     return () => clearInterval(interval);
-  }, [isPlaying, activeAudioId, persistTime]);
+  }, [isPlaying, activeAudioId, persistTime, flushTime]);
 
   useEffect(() => {
-    const handleBeforeUnload = () => {
+    const handleHide = () => {
+      if (!activeAudioIdRef.current) return;
       const time = audioRef.current?.currentTime;
-      if (time !== undefined && activeAudioIdRef.current) {
-        persistTime(time);
-      }
+      if (time !== undefined) persistTime(time);
+      flushTime();
     };
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [persistTime]);
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') handleHide();
+    };
+    window.addEventListener('pagehide', handleHide);
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      window.removeEventListener('pagehide', handleHide);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [persistTime, flushTime]);
 
   const play = useCallback(() => {
     audioRef.current?.play().catch(() => {});
