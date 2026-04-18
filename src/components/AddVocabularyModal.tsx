@@ -158,6 +158,9 @@ interface AddVocabularyModalProps {
   onAudioUpdated?: (audioUrl: string) => void;
 }
 
+const ensureExampleIds = (examples: ExampleSentence[]): ExampleSentence[] =>
+  examples.map((ex) => (ex.id ? ex : { ...ex, id: crypto.randomUUID() }));
+
 const getDefaultValues = (
   editWord?: CustomVocabularyWord | VocabularyWord | null,
   initialValues?: { polish: string; english: string }
@@ -169,7 +172,7 @@ const getDefaultValues = (
       partOfSpeech: editWord.partOfSpeech || '',
       gender: editWord.gender || '',
       notes: editWord.notes || '',
-      examples: editWord.examples || [],
+      examples: ensureExampleIds(editWord.examples || []),
     };
   }
   if (initialValues) {
@@ -369,7 +372,7 @@ export function AddVocabularyModal({
   const handleAcceptSelected = useCallback(() => {
     const selected = generatedExamples
       .filter((_, i) => selectedExampleIndexes.has(i))
-      .map(({ polish, english }) => ({ polish, english }));
+      .map(({ polish, english }) => ({ id: crypto.randomUUID(), polish, english }));
 
     selected.forEach((ex) => append(ex));
     setGeneratedExamples([]);
@@ -425,7 +428,7 @@ export function AddVocabularyModal({
   };
 
   const handleAddExample = () => {
-    append({ polish: '', english: '' });
+    append({ id: crypto.randomUUID(), polish: '', english: '' });
     setTimeout(() => {
       newExamplePolishRef.current?.focus();
     }, 0);

@@ -12,6 +12,8 @@ export const TAG_CATEGORY_NAMES: Record<TagCategory, string> = {
   style: 'Style',
 };
 
+export type SentenceSource = 'vocab-example';
+
 export interface Sentence {
   id: string;
   polish: string;
@@ -22,6 +24,9 @@ export interface Sentence {
   audioUrl?: string;
   createdAt?: unknown;
   isCustom?: boolean;
+  source?: SentenceSource;
+  sourceVocabularyId?: string;
+  sourceExampleId?: string;
 }
 
 export interface CustomSentence extends CustomItemBase {

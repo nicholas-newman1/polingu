@@ -18,6 +18,7 @@ export type NounGender = 'masculine' | 'feminine' | 'neuter';
 export type VocabularyWordId = number | string;
 
 export interface ExampleSentence {
+  id?: string;
   polish: string;
   english: string;
 }

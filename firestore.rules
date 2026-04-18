@@ -91,6 +91,16 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
+    // Listening settings - only the owner can read/write
+    match /users/{userId}/data/listeningSettings {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Listening hub selections - only the owner can read/write
+    match /users/{userId}/data/listeningHubSelections {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
     // Reader progress, highlights, bookmarks - only the owner can read/write
     match /users/{userId}/data/{docId} {
       allow read, write: if request.auth != null 

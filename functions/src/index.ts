@@ -4,7 +4,7 @@ import { onDocumentWritten, onDocumentUpdated } from 'firebase-functions/firesto
 import { onTaskDispatched } from 'firebase-functions/tasks';
 import { defineSecret } from 'firebase-functions/params';
 import { getFunctions } from 'firebase-admin/functions';
-import { getFirestore } from 'firebase-admin/firestore';
+import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import OpenAI, { toFile } from 'openai';
@@ -1370,3 +1370,239 @@ export const onVerbUpdate = onDocumentUpdated('verbs/{docId}', async (event) => 
     console.error(`Failed to update audio URLs for verbs/${docId}:`, error);
   }
 });
+
+// ---------------------------------------------------------------------------
+// Sync vocabulary example sentences <-> sentences collection (bi-directional)
+// ---------------------------------------------------------------------------
+
+const VOCAB_EXAMPLE_TAG = 'vocab-example';
+const VOCAB_EXAMPLE_SOURCE = 'vocab-example';
+
+interface VocabExampleDoc {
+  id?: string;
+  polish?: string;
+  english?: string;
+}
+
+function mirrorSentenceIdFor(vocabId: string, exampleId: string): string {
+  return `vocab-${vocabId}-${exampleId}`;
+}
+
+async function assessSentenceCEFR(polish: string, apiKey: string): Promise<CEFRLevel | null> {
+  try {
+    const openai = new OpenAI({ apiKey });
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You assess Polish sentences for CEFR level. Respond with ONLY the level: A1, A2, B1, B2, C1, or C2.',
+        },
+        { role: 'user', content: polish },
+      ],
+      temperature: 0.2,
+      max_tokens: 10,
+    });
+    const levelResponse = completion.choices[0]?.message?.content?.trim().toUpperCase() ?? '';
+    if (['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].includes(levelResponse)) {
+      return levelResponse as CEFRLevel;
+    }
+    return null;
+  } catch (error) {
+    console.error('CEFR assessment failed:', error);
+    return null;
+  }
+}
+
+export const onVocabularyExamplesWrite = onDocumentWritten(
+  { document: 'vocabulary/{wordId}', secrets: [openaiApiKey] },
+  async (event) => {
+    const wordId = event.params.wordId;
+    const before = event.data?.before?.data();
+    const after = event.data?.after?.data();
+
+    if (!after) {
+      if (!before) return;
+      const examples = (before.examples ?? []) as VocabExampleDoc[];
+      for (const ex of examples) {
+        if (!ex.id) continue;
+        const sentenceId = mirrorSentenceIdFor(wordId, ex.id);
+        try {
+          await db.collection('sentences').doc(sentenceId).delete();
+        } catch (error) {
+          console.error(`Failed to delete mirror sentence ${sentenceId}:`, error);
+        }
+      }
+      return;
+    }
+
+    const beforeExamples = (before?.examples ?? []) as VocabExampleDoc[];
+    const afterExamples = (after.examples ?? []) as VocabExampleDoc[];
+
+    const beforeById = new Map<string, VocabExampleDoc>();
+    for (const ex of beforeExamples) {
+      if (ex.id) beforeById.set(ex.id, ex);
+    }
+    const afterById = new Map<string, VocabExampleDoc>();
+    for (const ex of afterExamples) {
+      if (ex.id) afterById.set(ex.id, ex);
+    }
+
+    for (const exId of beforeById.keys()) {
+      if (afterById.has(exId)) continue;
+      const sentenceId = mirrorSentenceIdFor(wordId, exId);
+      try {
+        await db.collection('sentences').doc(sentenceId).delete();
+      } catch (error) {
+        console.error(`Failed to delete mirror sentence ${sentenceId}:`, error);
+      }
+    }
+
+    for (const [exId, afterEx] of afterById) {
+      const polish = (afterEx.polish ?? '').trim();
+      const english = (afterEx.english ?? '').trim();
+      if (!polish || !english) continue;
+
+      const beforeEx = beforeById.get(exId);
+      const beforePolish = (beforeEx?.polish ?? '').trim();
+      const beforeEnglish = (beforeEx?.english ?? '').trim();
+
+      if (beforeEx && beforePolish === polish && beforeEnglish === english) continue;
+
+      const sentenceId = mirrorSentenceIdFor(wordId, exId);
+      const sentenceRef = db.collection('sentences').doc(sentenceId);
+      const sentenceSnap = await sentenceRef.get();
+      const existing = sentenceSnap.data();
+
+      if (
+        existing &&
+        ((existing.polish as string) ?? '') === polish &&
+        ((existing.english as string) ?? '') === english
+      ) {
+        continue;
+      }
+
+      const isCreate = !existing;
+      const polishChanged = isCreate || beforePolish !== polish;
+
+      let newLevel: CEFRLevel | null = null;
+      if (polishChanged) {
+        const apiKey = openaiApiKey.value();
+        if (apiKey) {
+          newLevel = await assessSentenceCEFR(polish, apiKey);
+        }
+      }
+
+      if (isCreate) {
+        if (!newLevel) {
+          console.warn(
+            `onVocabularyExamplesWrite: CEFR assessment failed for vocabulary/${wordId} example ${exId} - skipping mirror sentence creation`
+          );
+          continue;
+        }
+        try {
+          await sentenceRef.set({
+            id: sentenceId,
+            polish,
+            english,
+            level: newLevel,
+            tags: [VOCAB_EXAMPLE_TAG],
+            source: VOCAB_EXAMPLE_SOURCE,
+            sourceVocabularyId: wordId,
+            sourceExampleId: exId,
+            createdAt: FieldValue.serverTimestamp(),
+          });
+          console.log(`Created mirror sentence ${sentenceId}`);
+        } catch (error) {
+          console.error(`Failed to create mirror sentence ${sentenceId}:`, error);
+        }
+        continue;
+      }
+
+      const updates: Record<string, unknown> = { polish, english };
+      if (polishChanged && newLevel) {
+        updates.level = newLevel;
+      }
+      try {
+        await sentenceRef.update(updates);
+      } catch (error) {
+        console.error(`Failed to update mirror sentence ${sentenceId}:`, error);
+      }
+    }
+  }
+);
+
+export const onSentenceVocabLinkWrite = onDocumentWritten(
+  'sentences/{sentenceId}',
+  async (event) => {
+    const before = event.data?.before?.data();
+    const after = event.data?.after?.data();
+
+    if (!after) {
+      if (!before) return;
+      if (before.source !== VOCAB_EXAMPLE_SOURCE) return;
+      const vocabId = before.sourceVocabularyId as string | undefined;
+      const exampleId = before.sourceExampleId as string | undefined;
+      if (!vocabId || !exampleId) return;
+
+      const vocabRef = db.collection('vocabulary').doc(vocabId);
+      try {
+        await db.runTransaction(async (tx) => {
+          const snap = await tx.get(vocabRef);
+          if (!snap.exists) return;
+          const data = snap.data()!;
+          const examples = (data.examples ?? []) as VocabExampleDoc[];
+          const filtered = examples.filter((ex) => ex.id !== exampleId);
+          if (filtered.length === examples.length) return;
+          tx.update(vocabRef, { examples: filtered });
+        });
+      } catch (error) {
+        console.error(
+          `Failed to remove vocab example ${vocabId}/${exampleId} after sentence delete:`,
+          error
+        );
+      }
+      return;
+    }
+
+    if (after.source !== VOCAB_EXAMPLE_SOURCE) return;
+
+    const vocabId = after.sourceVocabularyId as string | undefined;
+    const exampleId = after.sourceExampleId as string | undefined;
+    if (!vocabId || !exampleId) return;
+
+    const afterPolish = ((after.polish as string) ?? '').trim();
+    const afterEnglish = ((after.english as string) ?? '').trim();
+    if (!afterPolish || !afterEnglish) return;
+
+    const beforePolish = ((before?.polish as string) ?? '').trim();
+    const beforeEnglish = ((before?.english as string) ?? '').trim();
+
+    if (before && beforePolish === afterPolish && beforeEnglish === afterEnglish) return;
+
+    const vocabRef = db.collection('vocabulary').doc(vocabId);
+    try {
+      await db.runTransaction(async (tx) => {
+        const snap = await tx.get(vocabRef);
+        if (!snap.exists) return;
+        const data = snap.data()!;
+        const examples = (data.examples ?? []) as VocabExampleDoc[];
+        const idx = examples.findIndex((ex) => ex.id === exampleId);
+        if (idx === -1) return;
+        const current = examples[idx];
+        const currentPolish = ((current.polish as string) ?? '').trim();
+        const currentEnglish = ((current.english as string) ?? '').trim();
+        if (currentPolish === afterPolish && currentEnglish === afterEnglish) return;
+        const next = [...examples];
+        next[idx] = { ...current, polish: afterPolish, english: afterEnglish };
+        tx.update(vocabRef, { examples: next });
+      });
+    } catch (error) {
+      console.error(
+        `Failed to propagate sentence edit back to vocabulary/${vocabId} example ${exampleId}:`,
+        error
+      );
+    }
+  }
+);
