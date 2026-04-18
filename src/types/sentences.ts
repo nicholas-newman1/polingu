@@ -1,6 +1,7 @@
 import type { Card as FSRSCard, ReviewLog } from 'ts-fsrs';
 import type { TranslationDirection } from './common';
 import type { CustomItemBase } from './customItems';
+import type { CardAudioFields } from './audio';
 
 export type CEFRLevel = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
 
@@ -14,7 +15,7 @@ export const TAG_CATEGORY_NAMES: Record<TagCategory, string> = {
 
 export type SentenceSource = 'vocab-example';
 
-export interface Sentence {
+export interface Sentence extends CardAudioFields {
   id: string;
   polish: string;
   english: string;

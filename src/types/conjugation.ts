@@ -1,5 +1,6 @@
 import type { Card as FSRSCard, ReviewLog } from 'ts-fsrs';
 import type { TranslationDirection } from './common';
+import type { CardAudioFields } from './audio';
 
 export type Aspect = 'Imperfective' | 'Perfective';
 
@@ -56,7 +57,7 @@ export interface ConjugationForm {
   audioUrl?: string;
 }
 
-export interface Verb {
+export interface Verb extends CardAudioFields {
   id: string;
   infinitive: string;
   infinitiveEn: string;

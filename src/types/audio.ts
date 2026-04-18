@@ -53,3 +53,10 @@ export interface AudioQueue {
   savedTime: number;
   updatedAt: number;
 }
+
+export type CardAudioStatus = 'generating' | 'ready' | 'error';
+
+export interface CardAudioFields {
+  audioStatus?: CardAudioStatus;
+  audioError?: string;
+}

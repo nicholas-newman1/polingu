@@ -1,6 +1,6 @@
 import { setGlobalOptions } from 'firebase-functions';
 import { onCall, HttpsError } from 'firebase-functions/https';
-import { onDocumentWritten, onDocumentUpdated } from 'firebase-functions/firestore';
+import { onDocumentWritten } from 'firebase-functions/firestore';
 import { onTaskDispatched } from 'firebase-functions/tasks';
 import { defineSecret } from 'firebase-functions/params';
 import { getFunctions } from 'firebase-admin/functions';
@@ -1246,74 +1246,124 @@ export const onCustomDeclensionWrite = onDocumentWritten(
 );
 
 // ---------------------------------------------------------------------------
-// Auto-regenerate audio when Polish text changes on system cards
+// Auto-generate / regenerate audio for system cards
+// Fires on create (when audio is missing) and on update (when the tracked
+// text field changes). Single-audio cards run inline; verbs enqueue a Cloud
+// Task because they may need 20+ TTS calls per doc.
+//
+// Loop prevention: each handler early-returns when only audio metadata
+// fields (audioUrl / audioStatus / audioError / conjugation audio URLs)
+// changed, by comparing only the source text field(s) of before vs after.
 // ---------------------------------------------------------------------------
 
-export const onVocabularyUpdate = onDocumentUpdated('vocabulary/{docId}', async (event) => {
-  const before = event.data?.before?.data();
-  const after = event.data?.after?.data();
-  if (!before || !after) return;
+type CardAudioStatus = 'generating' | 'ready' | 'error';
 
-  const beforePolish = ((before.polish as string) ?? '').trim();
-  const afterPolish = ((after.polish as string) ?? '').trim();
-  if (!afterPolish || beforePolish === afterPolish) return;
+interface SystemCardAudioConfig {
+  audioType: AudioType;
+  getText: (data: FirebaseFirestore.DocumentData) => string;
+}
 
-  const { docId } = event.params;
+const SYSTEM_CARD_AUDIO_CONFIGS = {
+  vocabulary: {
+    audioType: 'vocabulary',
+    getText: (d) => ((d.polish as string) ?? '').trim(),
+  },
+  sentences: {
+    audioType: 'sentence',
+    getText: (d) => ((d.polish as string) ?? '').trim(),
+  },
+  declensionCards: {
+    audioType: 'declension',
+    getText: (d) => ((d.back as string) ?? '').trim(),
+  },
+} satisfies Record<string, SystemCardAudioConfig>;
+
+type SystemCardCollection = keyof typeof SYSTEM_CARD_AUDIO_CONFIGS;
+
+async function handleSystemCardAudioWrite(
+  collectionName: SystemCardCollection,
+  docId: string,
+  before: FirebaseFirestore.DocumentData | undefined,
+  after: FirebaseFirestore.DocumentData | undefined
+): Promise<void> {
+  if (!after) return;
+
+  const config = SYSTEM_CARD_AUDIO_CONFIGS[collectionName];
+  const afterText = config.getText(after);
+  if (!afterText) return;
+
+  const isCreate = !before;
+  const beforeText = before ? config.getText(before) : '';
+
+  if (isCreate && (after.audioUrl as string | undefined)) return;
+  if (!isCreate && beforeText === afterText) return;
+
+  const docRef = db.collection(collectionName).doc(docId);
+
   try {
-    const audioUrl = await synthesizeAndUploadAudio(afterPolish, 'vocabulary', docId);
-    if (audioUrl) {
-      await db.collection('vocabulary').doc(docId).update({ audioUrl });
-      console.log(`Regenerated audio for vocabulary/${docId}`);
-    }
+    await docRef.update({
+      audioStatus: 'generating' satisfies CardAudioStatus,
+      audioError: FieldValue.delete(),
+    });
   } catch (error) {
-    console.error(`Failed to regenerate audio for vocabulary/${docId}:`, error);
+    console.error(`Failed to mark ${collectionName}/${docId} generating:`, error);
   }
-});
 
-export const onSentenceUpdate = onDocumentUpdated('sentences/{docId}', async (event) => {
-  const before = event.data?.before?.data();
-  const after = event.data?.after?.data();
-  if (!before || !after) return;
-
-  const beforePolish = ((before.polish as string) ?? '').trim();
-  const afterPolish = ((after.polish as string) ?? '').trim();
-  if (!afterPolish || beforePolish === afterPolish) return;
-
-  const { docId } = event.params;
   try {
-    const audioUrl = await synthesizeAndUploadAudio(afterPolish, 'sentence', docId);
-    if (audioUrl) {
-      await db.collection('sentences').doc(docId).update({ audioUrl });
-      console.log(`Regenerated audio for sentences/${docId}`);
-    }
+    const audioUrl = await synthesizeAndUploadAudio(afterText, config.audioType, docId);
+    if (!audioUrl) throw new Error('TTS returned no audio content.');
+
+    await docRef.update({
+      audioUrl,
+      audioStatus: 'ready' satisfies CardAudioStatus,
+      audioError: FieldValue.delete(),
+    });
+    console.log(`Generated audio for ${collectionName}/${docId}`);
   } catch (error) {
-    console.error(`Failed to regenerate audio for sentences/${docId}:`, error);
-  }
-});
-
-export const onDeclensionCardUpdate = onDocumentUpdated(
-  'declensionCards/{docId}',
-  async (event) => {
-    const before = event.data?.before?.data();
-    const after = event.data?.after?.data();
-    if (!before || !after) return;
-
-    const beforeBack = ((before.back as string) ?? '').trim();
-    const afterBack = ((after.back as string) ?? '').trim();
-    if (!afterBack || beforeBack === afterBack) return;
-
-    const { docId } = event.params;
+    const message = error instanceof Error ? error.message : 'Audio generation failed';
+    console.error(`Failed to generate audio for ${collectionName}/${docId}:`, error);
     try {
-      const audioUrl = await synthesizeAndUploadAudio(afterBack, 'declension', docId);
-      if (audioUrl) {
-        await db.collection('declensionCards').doc(docId).update({ audioUrl });
-        console.log(`Regenerated audio for declensionCards/${docId}`);
-      }
-    } catch (error) {
-      console.error(`Failed to regenerate audio for declensionCards/${docId}:`, error);
+      await docRef.update({
+        audioStatus: 'error' satisfies CardAudioStatus,
+        audioError: message,
+      });
+    } catch (updateErr) {
+      console.error(`Failed to record audio error for ${collectionName}/${docId}:`, updateErr);
     }
   }
-);
+}
+
+export const onVocabularyWrite = onDocumentWritten('vocabulary/{docId}', async (event) => {
+  await handleSystemCardAudioWrite(
+    'vocabulary',
+    event.params.docId,
+    event.data?.before?.data(),
+    event.data?.after?.data()
+  );
+});
+
+export const onSentenceWrite = onDocumentWritten('sentences/{docId}', async (event) => {
+  await handleSystemCardAudioWrite(
+    'sentences',
+    event.params.docId,
+    event.data?.before?.data(),
+    event.data?.after?.data()
+  );
+});
+
+export const onDeclensionCardWrite = onDocumentWritten('declensionCards/{docId}', async (event) => {
+  await handleSystemCardAudioWrite(
+    'declensionCards',
+    event.params.docId,
+    event.data?.before?.data(),
+    event.data?.after?.data()
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Verbs: compound cards with many audio fields -> enqueue a Cloud Task so we
+// stay within per-invocation time budgets and get free retry/backoff.
+// ---------------------------------------------------------------------------
 
 interface ConjugationFormData {
   pl?: string;
@@ -1323,53 +1373,160 @@ interface ConjugationFormData {
 
 type ConjugationsData = Record<string, Record<string, ConjugationFormData>>;
 
-export const onVerbUpdate = onDocumentUpdated('verbs/{docId}', async (event) => {
-  const before = event.data?.before?.data();
-  const after = event.data?.after?.data();
-  if (!before || !after) return;
+interface VerbAudioJob {
+  fieldPath: string;
+  text: string;
+  audioType: 'verb-infinitive' | 'conjugation';
+  subPath?: string;
+}
 
-  const { docId } = event.params;
-  const updates: Record<string, string> = {};
+interface GenerateVerbAudioTaskData {
+  docId: string;
+  jobs: VerbAudioJob[];
+}
 
-  const beforeInf = ((before.infinitive as string) ?? '').trim();
+function collectVerbAudioJobs(
+  docId: string,
+  before: FirebaseFirestore.DocumentData | undefined,
+  after: FirebaseFirestore.DocumentData
+): VerbAudioJob[] {
+  const isCreate = !before;
+  const jobs: VerbAudioJob[] = [];
+
+  const beforeInf = ((before?.infinitive as string) ?? '').trim();
   const afterInf = ((after.infinitive as string) ?? '').trim();
-  if (afterInf && beforeInf !== afterInf) {
-    try {
-      const audioUrl = await synthesizeAndUploadAudio(afterInf, 'verb-infinitive', docId);
-      if (audioUrl) updates.infinitiveAudioUrl = audioUrl;
-    } catch (error) {
-      console.error(`Failed to regenerate infinitive audio for verbs/${docId}:`, error);
+  if (afterInf) {
+    const infinitiveExists = !!(after.infinitiveAudioUrl as string | undefined);
+    const shouldGenerateInfinitive = isCreate ? !infinitiveExists : beforeInf !== afterInf;
+    if (shouldGenerateInfinitive) {
+      jobs.push({
+        fieldPath: 'infinitiveAudioUrl',
+        text: afterInf,
+        audioType: 'verb-infinitive',
+      });
     }
   }
 
-  const beforeConj = (before.conjugations ?? {}) as ConjugationsData;
+  const beforeConj = (before?.conjugations ?? {}) as ConjugationsData;
   const afterConj = (after.conjugations ?? {}) as ConjugationsData;
 
   for (const [tense, forms] of Object.entries(afterConj)) {
     for (const [formKey, form] of Object.entries(forms)) {
       const afterPl = (form.pl ?? '').trim();
-      const beforePl = (beforeConj[tense]?.[formKey]?.pl ?? '').trim();
-      if (!afterPl || beforePl === afterPl) continue;
+      if (!afterPl) continue;
 
-      const subPath = `${docId}_${tense}_${formKey}`;
-      try {
-        const audioUrl = await synthesizeAndUploadAudio(afterPl, 'conjugation', docId, subPath);
-        if (audioUrl) updates[`conjugations.${tense}.${formKey}.audioUrl`] = audioUrl;
-      } catch (error) {
-        console.error(`Failed to regenerate audio for verbs/${docId} ${tense}.${formKey}:`, error);
-      }
+      const beforePl = (beforeConj[tense]?.[formKey]?.pl ?? '').trim();
+      const formHasAudio = !!form.audioUrl;
+
+      const shouldGenerate = isCreate ? !formHasAudio : beforePl !== afterPl;
+      if (!shouldGenerate) continue;
+
+      jobs.push({
+        fieldPath: `conjugations.${tense}.${formKey}.audioUrl`,
+        text: afterPl,
+        audioType: 'conjugation',
+        subPath: `${docId}_${tense}_${formKey}`,
+      });
     }
   }
 
-  if (Object.keys(updates).length === 0) return;
+  return jobs;
+}
+
+export const onVerbWrite = onDocumentWritten('verbs/{docId}', async (event) => {
+  const { docId } = event.params;
+  const after = event.data?.after?.data();
+  if (!after) return;
+
+  const jobs = collectVerbAudioJobs(docId, event.data?.before?.data(), after);
+  if (jobs.length === 0) return;
+
+  const docRef = db.collection('verbs').doc(docId);
+  try {
+    await docRef.update({
+      audioStatus: 'generating' satisfies CardAudioStatus,
+      audioError: FieldValue.delete(),
+    });
+  } catch (error) {
+    console.error(`Failed to mark verbs/${docId} generating:`, error);
+  }
 
   try {
-    await db.collection('verbs').doc(docId).update(updates);
-    console.log(`Regenerated audio for verbs/${docId}: ${Object.keys(updates).join(', ')}`);
+    const queue = getFunctions().taskQueue('generateVerbAudio');
+    await queue.enqueue({ docId, jobs } satisfies GenerateVerbAudioTaskData, {
+      dispatchDeadlineSeconds: 600,
+    });
+    console.log(`Enqueued ${jobs.length} audio job(s) for verbs/${docId}`);
   } catch (error) {
-    console.error(`Failed to update audio URLs for verbs/${docId}:`, error);
+    const message = error instanceof Error ? error.message : 'Failed to enqueue audio task';
+    console.error(`Failed to enqueue verb audio task for verbs/${docId}:`, error);
+    try {
+      await docRef.update({
+        audioStatus: 'error' satisfies CardAudioStatus,
+        audioError: message,
+      });
+    } catch (updateErr) {
+      console.error(`Failed to record enqueue error for verbs/${docId}:`, updateErr);
+    }
   }
 });
+
+export const generateVerbAudio = onTaskDispatched<GenerateVerbAudioTaskData>(
+  {
+    retryConfig: { maxAttempts: 2, minBackoffSeconds: 30 },
+    rateLimits: { maxConcurrentDispatches: 2 },
+    memory: '512MiB',
+    timeoutSeconds: 540,
+  },
+  async (req) => {
+    const { docId, jobs } = req.data;
+    const docRef = db.collection('verbs').doc(docId);
+
+    const updates: Record<string, unknown> = {};
+    const failures: string[] = [];
+
+    for (const job of jobs) {
+      try {
+        const url = await synthesizeAndUploadAudio(job.text, job.audioType, docId, job.subPath);
+        if (!url) {
+          failures.push(`${job.fieldPath}: empty TTS response`);
+          continue;
+        }
+        updates[job.fieldPath] = url;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Audio generation failed';
+        failures.push(`${job.fieldPath}: ${message}`);
+        console.error(`generateVerbAudio: ${job.fieldPath} failed for verbs/${docId}:`, error);
+      }
+    }
+
+    const successCount = Object.keys(updates).length;
+
+    if (failures.length === 0) {
+      updates.audioStatus = 'ready' satisfies CardAudioStatus;
+      updates.audioError = FieldValue.delete();
+    } else {
+      updates.audioStatus = 'error' satisfies CardAudioStatus;
+      const preview = failures.slice(0, 5).join('; ');
+      const suffix = failures.length > 5 ? ` (+${failures.length - 5} more)` : '';
+      updates.audioError = `${failures.length} of ${jobs.length} job(s) failed: ${preview}${suffix}`;
+    }
+
+    try {
+      await docRef.update(updates);
+      console.log(
+        `generateVerbAudio: verbs/${docId} wrote ${successCount} url(s), ${failures.length} failure(s)`
+      );
+    } catch (error) {
+      console.error(`generateVerbAudio: failed to persist updates for verbs/${docId}:`, error);
+      throw error;
+    }
+
+    if (successCount === 0 && failures.length > 0) {
+      throw new Error(`All ${failures.length} verb audio jobs failed for verbs/${docId}`);
+    }
+  }
+);
 
 // ---------------------------------------------------------------------------
 // Sync vocabulary example sentences <-> sentences collection (bi-directional)

@@ -1,5 +1,6 @@
 import type { Card as FSRSCard, ReviewLog } from 'ts-fsrs';
 import type { CustomItemBase } from './customItems';
+import type { CardAudioFields } from './audio';
 
 export type PartOfSpeech =
   | 'noun'
@@ -23,7 +24,7 @@ export interface ExampleSentence {
   english: string;
 }
 
-export interface VocabularyWord {
+export interface VocabularyWord extends CardAudioFields {
   id: VocabularyWordId;
   polish: string;
   english: string;

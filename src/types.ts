@@ -1,5 +1,6 @@
 import type { Card as FSRSCard, ReviewLog } from 'ts-fsrs';
 import type { CustomItemBase } from './types/customItems';
+import type { CardAudioFields } from './types/audio';
 
 export type Case =
   | 'Nominative'
@@ -16,7 +17,7 @@ export type Number = 'Singular' | 'Plural';
 
 export type DeclensionCardId = number | string;
 
-export interface DeclensionCard {
+export interface DeclensionCard extends CardAudioFields {
   id: DeclensionCardId;
   front: string;
   back: string;
