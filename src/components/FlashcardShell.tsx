@@ -1,8 +1,9 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Box, Button, Card, Divider, Stack } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import ReplayIcon from '@mui/icons-material/Replay';
 import { styled } from '../lib/styled';
 import { alpha } from '../lib/theme';
 import type { Grade } from 'ts-fsrs';
@@ -15,10 +16,12 @@ interface FlashcardShellProps {
   isViewingHistory?: boolean;
   canGoBack?: boolean;
   intervals?: RatingIntervals;
+  reassessIntervals?: RatingIntervals;
   maxWidth?: number;
   canEdit?: boolean;
   onReveal: () => void;
   onRate?: (rating: Grade) => void;
+  onReassess?: (rating: Grade) => void;
   onNext?: () => void;
   onGoBack?: () => void;
   onContinue?: () => void;
@@ -91,6 +94,16 @@ const BackButton = styled(Button)(({ theme }) => ({
   },
 }));
 
+const ReassessButton = styled(Button)(({ theme }) => ({
+  minWidth: 'auto',
+  padding: theme.spacing(1.5, 2),
+  backgroundColor: alpha(theme.palette.warning.main, 0.15),
+  color: theme.palette.warning.dark,
+  '&:hover': {
+    backgroundColor: alpha(theme.palette.warning.main, 0.25),
+  },
+}));
+
 const ContinueButton = styled(Button)(({ theme }) => ({
   backgroundColor: theme.palette.text.primary,
   '&:hover': {
@@ -104,10 +117,12 @@ export function FlashcardShell({
   isViewingHistory = false,
   canGoBack = false,
   intervals,
+  reassessIntervals,
   maxWidth = 420,
   canEdit = false,
   onReveal,
   onRate,
+  onReassess,
   onNext,
   onGoBack,
   onContinue,
@@ -118,6 +133,7 @@ export function FlashcardShell({
   question,
   answer,
 }: FlashcardShellProps) {
+  const [isReassessing, setIsReassessing] = useState(false);
   const showBackButton = canGoBack && !practiceMode;
 
   const renderBottomActions = () => {
@@ -146,11 +162,34 @@ export function FlashcardShell({
     }
 
     if (isViewingHistory) {
+      if (isReassessing && onReassess) {
+        return (
+          <Stack spacing={1}>
+            <RatingButtons
+              intervals={reassessIntervals}
+              onRate={(rating) => {
+                setIsReassessing(false);
+                onReassess(rating);
+              }}
+            />
+            <BackButton fullWidth variant="contained" onClick={() => setIsReassessing(false)}>
+              Cancel
+            </BackButton>
+          </Stack>
+        );
+      }
+
       return (
         <Stack spacing={1}>
           <ContinueButton fullWidth size="large" variant="contained" onClick={onContinue}>
             Continue →
           </ContinueButton>
+          {onReassess && (
+            <ReassessButton fullWidth variant="contained" onClick={() => setIsReassessing(true)}>
+              <ReplayIcon fontSize="small" sx={{ mr: 0.5 }} />
+              Re-assess difficulty
+            </ReassessButton>
+          )}
           {showBackButton && (
             <BackButton fullWidth variant="contained" onClick={onGoBack}>
               <ArrowBackIcon fontSize="small" sx={{ mr: 0.5 }} />

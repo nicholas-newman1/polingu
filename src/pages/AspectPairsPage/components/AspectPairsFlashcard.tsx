@@ -18,8 +18,10 @@ interface AspectPairsFlashcardProps {
   isViewingHistory?: boolean;
   canGoBack?: boolean;
   intervals?: RatingIntervals;
+  reassessIntervals?: RatingIntervals;
   canEdit?: boolean;
   onRate?: (rating: Grade) => void;
+  onReassess?: (rating: Grade) => void;
   onNext?: () => void;
   onGoBack?: () => void;
   onContinue?: () => void;
@@ -84,8 +86,10 @@ export function AspectPairsFlashcard({
   isViewingHistory = false,
   canGoBack = false,
   intervals,
+  reassessIntervals,
   canEdit = false,
   onRate,
+  onReassess,
   onNext,
   onGoBack,
   onContinue,
@@ -237,9 +241,11 @@ export function AspectPairsFlashcard({
       isViewingHistory={isViewingHistory}
       canGoBack={canGoBack}
       intervals={intervals}
+      reassessIntervals={reassessIntervals}
       canEdit={canEdit}
       onReveal={() => setRevealed(true)}
       onRate={onRate}
+      onReassess={onReassess}
       onNext={onNext}
       onGoBack={onGoBack}
       onContinue={onContinue}

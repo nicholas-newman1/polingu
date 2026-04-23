@@ -19,6 +19,7 @@ import { EditSentenceModal } from '../../components/EditSentenceModal';
 import type {
   Sentence,
   CustomSentence,
+  SentenceCardReviewData,
   SentenceReviewDataStore,
   SentenceDirectionSettings,
   CEFRLevel,
@@ -117,13 +118,14 @@ export function SentencesPage({ mode }: SentencesPageProps) {
   const {
     isViewingHistory,
     historyCard,
+    historyMeta,
     canGoBack,
     addToHistory,
     updateInHistory,
     goBack,
     goForward,
     clearHistory,
-  } = useCardHistory<Sentence>();
+  } = useCardHistory<Sentence, SentenceCardReviewData>();
 
   const sessionBuiltRef = useRef(false);
   const currentDirection = mode ?? 'pl-to-en';
@@ -259,7 +261,7 @@ export function SentencesPage({ mode }: SentencesPageProps) {
   const handleRate = async (rating: Grade) => {
     if (!currentSessionCard) return;
 
-    addToHistory(currentSessionCard.sentence);
+    addToHistory(currentSessionCard.sentence, currentSessionCard.reviewData);
 
     const sentenceId = currentSessionCard.sentence.id;
     const updatedReviewData = rateSentenceCard(currentSessionCard.reviewData, rating);
@@ -299,6 +301,19 @@ export function SentencesPage({ mode }: SentencesPageProps) {
 
     setRatingCounter((c) => c + 1);
     await updateSentenceReviewStore(directionRef.current, newStore);
+  };
+
+  const handleReassess = async (rating: Grade) => {
+    if (!historyCard || !historyMeta) return;
+
+    const sentenceId = historyCard.id;
+    const updatedReviewData = rateSentenceCard(historyMeta, rating);
+
+    const newStore = { ...reviewStore };
+    newStore.cards = { ...newStore.cards, [sentenceId]: updatedReviewData };
+
+    await updateSentenceReviewStore(directionRef.current, newStore);
+    goForward();
   };
 
   const handleNewCardsChange = async (newCardsPerDay: number) => {
@@ -483,6 +498,17 @@ export function SentencesPage({ mode }: SentencesPageProps) {
     };
   }, [currentSessionCard, reviewStore]);
 
+  const reassessIntervals: RatingIntervals | undefined = useMemo(() => {
+    if (!historyMeta) return undefined;
+    const allIntervals = getNextIntervals(historyMeta.fsrsCard);
+    return {
+      [Rating.Again]: allIntervals[Rating.Again],
+      [Rating.Hard]: allIntervals[Rating.Hard],
+      [Rating.Good]: allIntervals[Rating.Good],
+      [Rating.Easy]: allIntervals[Rating.Easy],
+    };
+  }, [historyMeta]);
+
   const totalRemaining = sessionQueue.length - currentIndex + learningQueue.length;
 
   const currentPracticeSentence = practiceCards[practiceIndex];
@@ -662,8 +688,10 @@ export function SentencesPage({ mode }: SentencesPageProps) {
                 canGoBack={canGoBack}
                 canEdit={isAdmin}
                 isAdmin={isAdmin}
+                reassessIntervals={reassessIntervals}
                 onGoBack={goBack}
                 onContinue={goForward}
+                onReassess={handleReassess}
                 onEdit={() => {
                   setEditingSentence(historyCard);
                   setIsCreatingSentence(false);

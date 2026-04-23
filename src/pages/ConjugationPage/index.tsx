@@ -19,6 +19,7 @@ import type {
   ConjugationReviewDataStore,
   ConjugationDirectionSettings,
   ConjugationFilters,
+  ConjugationFormReviewData,
   DrillableForm,
   ConjugationForm,
   Aspect,
@@ -108,13 +109,14 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
   const {
     isViewingHistory,
     historyCard,
+    historyMeta,
     canGoBack,
     addToHistory,
     updateInHistory,
     goBack,
     goForward,
     clearHistory,
-  } = useCardHistory<DrillableForm>();
+  } = useCardHistory<DrillableForm, ConjugationFormReviewData>();
 
   const directionSettings = settings[currentDirection];
   const reviewStore = conjugationReviewStores[currentDirection];
@@ -273,7 +275,7 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
   const handleRate = async (rating: Grade) => {
     if (!currentSessionCard) return;
 
-    addToHistory(currentSessionCard.form);
+    addToHistory(currentSessionCard.form, currentSessionCard.reviewData);
 
     const formKey = currentSessionCard.form.fullFormKey;
     const updatedReviewData = rateConjugationCard(currentSessionCard.reviewData, rating);
@@ -313,6 +315,19 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
 
     setRatingCounter((c) => c + 1);
     await updateConjugationReviewStore(directionRef.current, newStore);
+  };
+
+  const handleReassess = async (rating: Grade) => {
+    if (!historyCard || !historyMeta) return;
+
+    const formKey = historyCard.fullFormKey;
+    const updatedReviewData = rateConjugationCard(historyMeta, rating);
+
+    const newStore = { ...reviewStore };
+    newStore.forms = { ...newStore.forms, [formKey]: updatedReviewData };
+
+    await updateConjugationReviewStore(directionRef.current, newStore);
+    goForward();
   };
 
   const handleSettingsChange = async (newCardsPerDay: number) => {
@@ -511,6 +526,17 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
     };
   }, [currentSessionCard, reviewStore]);
 
+  const reassessIntervals: ConjugationRatingIntervals | undefined = useMemo(() => {
+    if (!historyMeta) return undefined;
+    const allIntervals = getNextIntervals(historyMeta.fsrsCard);
+    return {
+      [Rating.Again]: allIntervals[Rating.Again],
+      [Rating.Hard]: allIntervals[Rating.Hard],
+      [Rating.Good]: allIntervals[Rating.Good],
+      [Rating.Easy]: allIntervals[Rating.Easy],
+    };
+  }, [historyMeta]);
+
   const totalRemaining = sessionQueue.length - currentIndex + learningQueue.length;
 
   const currentPracticeForm = practiceCards[practiceIndex];
@@ -635,8 +661,10 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
                 isViewingHistory
                 canGoBack={canGoBack}
                 canEdit={isAdmin}
+                reassessIntervals={reassessIntervals}
                 onGoBack={goBack}
                 onContinue={goForward}
+                onReassess={handleReassess}
                 onEdit={() => {
                   setEditingForm(historyCard);
                   setShowEditModal(true);

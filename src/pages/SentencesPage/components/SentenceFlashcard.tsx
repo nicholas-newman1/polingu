@@ -17,9 +17,11 @@ interface SentenceFlashcardProps {
   isViewingHistory?: boolean;
   canGoBack?: boolean;
   intervals?: RatingIntervals;
+  reassessIntervals?: RatingIntervals;
   canEdit?: boolean;
   isAdmin?: boolean;
   onRate?: (rating: Grade) => void;
+  onReassess?: (rating: Grade) => void;
   onNext?: () => void;
   onGoBack?: () => void;
   onContinue?: () => void;
@@ -71,9 +73,11 @@ export function SentenceFlashcard({
   isViewingHistory = false,
   canGoBack = false,
   intervals,
+  reassessIntervals,
   canEdit = false,
   isAdmin = false,
   onRate,
+  onReassess,
   onNext,
   onGoBack,
   onContinue,
@@ -154,10 +158,12 @@ export function SentenceFlashcard({
       isViewingHistory={isViewingHistory}
       canGoBack={canGoBack}
       intervals={intervals}
+      reassessIntervals={reassessIntervals}
       maxWidth={520}
       canEdit={canEdit}
       onReveal={() => setRevealed(true)}
       onRate={onRate}
+      onReassess={onReassess}
       onNext={onNext}
       onGoBack={onGoBack}
       onContinue={onContinue}

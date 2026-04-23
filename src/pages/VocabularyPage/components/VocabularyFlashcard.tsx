@@ -16,8 +16,10 @@ interface VocabularyFlashcardProps {
   isViewingHistory?: boolean;
   canGoBack?: boolean;
   intervals?: RatingIntervals;
+  reassessIntervals?: RatingIntervals;
   isAdmin?: boolean;
   onRate?: (rating: Grade) => void;
+  onReassess?: (rating: Grade) => void;
   onNext?: () => void;
   onGoBack?: () => void;
   onContinue?: () => void;
@@ -94,8 +96,10 @@ export function VocabularyFlashcard({
   isViewingHistory = false,
   canGoBack = false,
   intervals,
+  reassessIntervals,
   isAdmin = false,
   onRate,
+  onReassess,
   onNext,
   onGoBack,
   onContinue,
@@ -187,9 +191,11 @@ export function VocabularyFlashcard({
       isViewingHistory={isViewingHistory}
       canGoBack={canGoBack}
       intervals={intervals}
+      reassessIntervals={reassessIntervals}
       canEdit={canEditOrDelete}
       onReveal={() => setRevealed(true)}
       onRate={onRate}
+      onReassess={onReassess}
       onNext={onNext}
       onGoBack={onGoBack}
       onContinue={onContinue}

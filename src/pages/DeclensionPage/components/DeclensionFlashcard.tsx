@@ -18,9 +18,11 @@ interface DeclensionFlashcardProps {
   isViewingHistory?: boolean;
   canGoBack?: boolean;
   intervals?: DeclensionRatingIntervals;
+  reassessIntervals?: DeclensionRatingIntervals;
   canEdit?: boolean;
   isAdmin?: boolean;
   onRate?: (rating: Grade) => void;
+  onReassess?: (rating: Grade) => void;
   onNext?: () => void;
   onGoBack?: () => void;
   onContinue?: () => void;
@@ -64,9 +66,11 @@ export function DeclensionFlashcard({
   isViewingHistory = false,
   canGoBack = false,
   intervals,
+  reassessIntervals,
   canEdit = false,
   isAdmin = false,
   onRate,
+  onReassess,
   onNext,
   onGoBack,
   onContinue,
@@ -141,9 +145,11 @@ export function DeclensionFlashcard({
       isViewingHistory={isViewingHistory}
       canGoBack={canGoBack}
       intervals={intervals}
+      reassessIntervals={reassessIntervals}
       canEdit={canEdit}
       onReveal={() => setRevealed(true)}
       onRate={onRate}
+      onReassess={onReassess}
       onNext={onNext}
       onGoBack={onGoBack}
       onContinue={onContinue}

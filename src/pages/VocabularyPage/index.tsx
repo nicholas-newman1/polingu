@@ -19,6 +19,7 @@ import { AddVocabularyModal } from '../../components/AddVocabularyModal';
 import type {
   VocabularyWord,
   VocabularyWordId,
+  VocabularyCardReviewData,
   VocabularyReviewDataStore,
   VocabularyDirectionSettings,
   CustomVocabularyWord,
@@ -116,13 +117,14 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
   const {
     isViewingHistory,
     historyCard,
+    historyMeta,
     canGoBack,
     addToHistory,
     updateInHistory,
     goBack,
     goForward,
     clearHistory,
-  } = useCardHistory<VocabularyWord>();
+  } = useCardHistory<VocabularyWord, VocabularyCardReviewData>();
 
   const sessionBuiltRef = useRef(false);
   const currentDirection = mode ?? 'pl-to-en';
@@ -258,7 +260,7 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
   const handleRate = async (rating: Grade) => {
     if (!currentSessionCard) return;
 
-    addToHistory(currentSessionCard.word);
+    addToHistory(currentSessionCard.word, currentSessionCard.reviewData);
 
     const wordId = currentSessionCard.word.id;
     const wordIdKey = String(wordId);
@@ -299,6 +301,20 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
 
     setRatingCounter((c) => c + 1);
     await updateVocabularyReviewStore(directionRef.current, newStore);
+  };
+
+  const handleReassess = async (rating: Grade) => {
+    if (!historyCard || !historyMeta) return;
+
+    const wordId = historyCard.id;
+    const wordIdKey = String(wordId);
+    const updatedReviewData = rateVocabularyCard(historyMeta, rating);
+
+    const newStore = { ...reviewStore };
+    newStore.cards = { ...newStore.cards, [wordIdKey]: updatedReviewData };
+
+    await updateVocabularyReviewStore(directionRef.current, newStore);
+    goForward();
   };
 
   const handleSettingsChange = async (newCardsPerDay: number) => {
@@ -490,6 +506,17 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
     };
   }, [currentSessionCard, reviewStore]);
 
+  const reassessIntervals: RatingIntervals | undefined = useMemo(() => {
+    if (!historyMeta) return undefined;
+    const allIntervals = getVocabularyNextIntervals(historyMeta.fsrsCard);
+    return {
+      [Rating.Again]: allIntervals[Rating.Again],
+      [Rating.Hard]: allIntervals[Rating.Hard],
+      [Rating.Good]: allIntervals[Rating.Good],
+      [Rating.Easy]: allIntervals[Rating.Easy],
+    };
+  }, [historyMeta]);
+
   const totalRemaining = sessionQueue.length - currentIndex + learningQueue.length;
 
   const currentPracticeWord = practiceCards[practiceIndex];
@@ -651,8 +678,10 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
                 isViewingHistory
                 canGoBack={canGoBack}
                 isAdmin={isAdmin}
+                reassessIntervals={reassessIntervals}
                 onGoBack={goBack}
                 onContinue={goForward}
+                onReassess={handleReassess}
                 onEdit={() => {
                   const isCustomWord = historyCard.isCustom === true;
                   if (isCustomWord) {

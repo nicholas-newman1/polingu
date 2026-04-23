@@ -13,6 +13,7 @@ import { SettingsPanel } from '../../components/SettingsPanel';
 import { EditAspectPairsModal } from '../../components/EditAspectPairsModal';
 import type {
   AspectPairCard,
+  AspectPairsCardReviewData,
   AspectPairsReviewDataStore,
   AspectPairsSettings,
 } from '../../types/aspectPairs';
@@ -90,13 +91,14 @@ export function AspectPairsPage() {
   const {
     isViewingHistory,
     historyCard,
+    historyMeta,
     canGoBack,
     addToHistory,
     updateInHistory,
     goBack,
     goForward,
     clearHistory,
-  } = useCardHistory<AspectPairCard>();
+  } = useCardHistory<AspectPairCard, AspectPairsCardReviewData>();
 
   const buildSession = useCallback(
     (
@@ -187,7 +189,7 @@ export function AspectPairsPage() {
   const handleRate = async (rating: Grade) => {
     if (!currentSessionCard) return;
 
-    addToHistory(currentSessionCard.card);
+    addToHistory(currentSessionCard.card, currentSessionCard.reviewData);
 
     const verbId = currentSessionCard.card.verb.id;
     const updatedReviewData = rateAspectPairsCard(currentSessionCard.reviewData, rating);
@@ -227,6 +229,19 @@ export function AspectPairsPage() {
 
     setRatingCounter((c) => c + 1);
     await updateAspectPairsReviewStore(newStore);
+  };
+
+  const handleReassess = async (rating: Grade) => {
+    if (!historyCard || !historyMeta) return;
+
+    const verbId = historyCard.verb.id;
+    const updatedReviewData = rateAspectPairsCard(historyMeta, rating);
+
+    const newStore = { ...reviewStore };
+    newStore.cards = { ...newStore.cards, [verbId]: updatedReviewData };
+
+    await updateAspectPairsReviewStore(newStore);
+    goForward();
   };
 
   const handleSettingsChange = async (newCardsPerDay: number) => {
@@ -387,6 +402,17 @@ export function AspectPairsPage() {
     };
   }, [currentSessionCard, reviewStore]);
 
+  const reassessIntervals: RatingIntervals | undefined = useMemo(() => {
+    if (!historyMeta) return undefined;
+    const allIntervals = getNextIntervals(historyMeta.fsrsCard);
+    return {
+      [Rating.Again]: allIntervals[Rating.Again],
+      [Rating.Hard]: allIntervals[Rating.Hard],
+      [Rating.Good]: allIntervals[Rating.Good],
+      [Rating.Easy]: allIntervals[Rating.Easy],
+    };
+  }, [historyMeta]);
+
   const totalRemaining = sessionQueue.length - currentIndex + learningQueue.length;
 
   const currentPracticeCard = practiceCards[practiceIndex];
@@ -500,8 +526,10 @@ export function AspectPairsPage() {
                 isViewingHistory
                 canGoBack={canGoBack}
                 canEdit={isAdmin}
+                reassessIntervals={reassessIntervals}
                 onGoBack={goBack}
                 onContinue={goForward}
+                onReassess={handleReassess}
                 onEdit={() => {
                   setEditingCard(historyCard);
                   setShowEditModal(true);

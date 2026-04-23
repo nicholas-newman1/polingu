@@ -15,6 +15,7 @@ import { EditDeclensionModal } from '../../components/EditDeclensionModal';
 import type {
   DeclensionCard,
   CustomDeclensionCard,
+  DeclensionCardReviewData,
   Case,
   Gender,
   Number,
@@ -128,13 +129,14 @@ export function DeclensionPage() {
   const {
     isViewingHistory,
     historyCard,
+    historyMeta,
     canGoBack,
     addToHistory,
     updateInHistory,
     goBack,
     goForward,
     clearHistory,
-  } = useCardHistory<DeclensionCard>();
+  } = useCardHistory<DeclensionCard, DeclensionCardReviewData>();
 
   const filteredCards = useMemo(() => {
     return allDeclensionCards.filter((card) => {
@@ -313,7 +315,7 @@ export function DeclensionPage() {
   const handleRate = async (rating: Grade) => {
     if (!currentSessionCard) return;
 
-    addToHistory(currentSessionCard.card);
+    addToHistory(currentSessionCard.card, currentSessionCard.reviewData);
 
     const updatedReviewData = rateCard(currentSessionCard.reviewData, rating);
 
@@ -355,6 +357,18 @@ export function DeclensionPage() {
 
     setRatingCounter((c) => c + 1);
     await updateDeclensionReviewStore(newStore);
+  };
+
+  const handleReassess = async (rating: Grade) => {
+    if (!historyCard || !historyMeta) return;
+
+    const updatedReviewData = rateCard(historyMeta, rating);
+
+    const newStore = { ...reviewStore };
+    newStore.cards = { ...newStore.cards, [historyCard.id]: updatedReviewData };
+
+    await updateDeclensionReviewStore(newStore);
+    goForward();
   };
 
   const handleSettingsChange = async (newCardsPerDay: number) => {
@@ -551,6 +565,17 @@ export function DeclensionPage() {
     };
   }, [currentSessionCard, reviewStore]);
 
+  const reassessIntervals: DeclensionRatingIntervals | undefined = useMemo(() => {
+    if (!historyMeta) return undefined;
+    const allIntervals = getNextIntervals(historyMeta.fsrsCard);
+    return {
+      [Rating.Again]: allIntervals[Rating.Again],
+      [Rating.Hard]: allIntervals[Rating.Hard],
+      [Rating.Good]: allIntervals[Rating.Good],
+      [Rating.Easy]: allIntervals[Rating.Easy],
+    };
+  }, [historyMeta]);
+
   const totalRemaining = sessionQueue.length - currentIndex + learningQueue.length;
 
   const currentPracticeCard = practiceCards[practiceIndex];
@@ -669,8 +694,10 @@ export function DeclensionPage() {
             canGoBack={canGoBack}
             canEdit={historyCard.isCustom || isAdmin}
             isAdmin={isAdmin}
+            reassessIntervals={reassessIntervals}
             onGoBack={goBack}
             onContinue={goForward}
+            onReassess={handleReassess}
             onEdit={() => {
               setEditingCard(historyCard);
               setIsCreatingNew(false);
