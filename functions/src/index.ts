@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { setGlobalOptions } from 'firebase-functions';
 import { onCall, HttpsError } from 'firebase-functions/https';
 import { onDocumentWritten } from 'firebase-functions/firestore';
@@ -769,6 +770,19 @@ interface SaveAudioResponse {
   audioUrl: string;
 }
 
+function isCustomAudioType(type: AudioType): boolean {
+  return type === 'custom-sentence' || type === 'custom-vocabulary' || type === 'custom-declension';
+}
+
+function bucketForAudioType(type: AudioType): string {
+  return isCustomAudioType(type) ? DEFAULT_BUCKET : AUDIO_BUCKET;
+}
+
+function buildFirebaseDownloadUrl(bucket: string, filePath: string, token: string): string {
+  const encoded = encodeURIComponent(filePath);
+  return `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encoded}?alt=media&token=${token}`;
+}
+
 function getAudioPath(type: AudioType, id: string, subPath?: string, userId?: string): string {
   switch (type) {
     case 'sentence':
@@ -782,11 +796,11 @@ function getAudioPath(type: AudioType, id: string, subPath?: string, userId?: st
     case 'verb-infinitive':
       return `verb-infinitives/${id}.mp3`;
     case 'custom-sentence':
-      return `custom/${userId}/sentences/${id}.mp3`;
+      return `audio/users/${userId}/cards/sentences/${id}.mp3`;
     case 'custom-vocabulary':
-      return `custom/${userId}/vocabulary/${id}.mp3`;
+      return `audio/users/${userId}/cards/vocabulary/${id}.mp3`;
     case 'custom-declension':
-      return `custom/${userId}/declension/${id}.mp3`;
+      return `audio/users/${userId}/cards/declension/${id}.mp3`;
     default:
       throw new Error(`Unknown audio type: ${type}`);
   }
@@ -831,6 +845,36 @@ async function updateFirestoreAudioUrl(
   }
 }
 
+async function uploadAudioBuffer(
+  audioBuffer: Buffer,
+  audioType: AudioType,
+  id: string,
+  subPath?: string,
+  userId?: string
+): Promise<string> {
+  const filePath = getAudioPath(audioType, id, subPath, userId);
+  const bucketName = bucketForAudioType(audioType);
+  const bucket = storage.bucket(bucketName);
+
+  if (isCustomAudioType(audioType)) {
+    const token = randomUUID();
+    await bucket.file(filePath).save(audioBuffer, {
+      contentType: 'audio/mpeg',
+      metadata: {
+        cacheControl: 'public, max-age=31536000',
+        metadata: { firebaseStorageDownloadTokens: token },
+      },
+    });
+    return buildFirebaseDownloadUrl(bucketName, filePath, token);
+  }
+
+  await bucket.file(filePath).save(audioBuffer, {
+    contentType: 'audio/mpeg',
+    metadata: { cacheControl: 'public, max-age=31536000' },
+  });
+  return `https://storage.googleapis.com/${bucketName}/${filePath}?v=${Date.now()}`;
+}
+
 async function synthesizeAndUploadAudio(
   text: string,
   audioType: AudioType,
@@ -847,14 +891,7 @@ async function synthesizeAndUploadAudio(
   if (!response.audioContent) return null;
 
   const audioBuffer = Buffer.from(response.audioContent as Uint8Array);
-  const filePath = getAudioPath(audioType, id, subPath, userId);
-  const bucket = storage.bucket(AUDIO_BUCKET);
-  await bucket.file(filePath).save(audioBuffer, {
-    contentType: 'audio/mpeg',
-    metadata: { cacheControl: 'public, max-age=31536000' },
-  });
-
-  return `https://storage.googleapis.com/${AUDIO_BUCKET}/${filePath}?v=${Date.now()}`;
+  return uploadAudioBuffer(audioBuffer, audioType, id, subPath, userId);
 }
 
 export const saveAudio = onCall<SaveAudioRequest, Promise<SaveAudioResponse>>(async (request) => {
@@ -875,18 +912,7 @@ export const saveAudio = onCall<SaveAudioRequest, Promise<SaveAudioResponse>>(as
 
   try {
     const audioBuffer = Buffer.from(audioBase64, 'base64');
-    const filePath = getAudioPath(type, id, subPath, userId);
-    const bucket = storage.bucket(AUDIO_BUCKET);
-    const file = bucket.file(filePath);
-
-    await file.save(audioBuffer, {
-      contentType: 'audio/mpeg',
-      metadata: {
-        cacheControl: 'public, max-age=31536000',
-      },
-    });
-
-    const audioUrl = `https://storage.googleapis.com/${AUDIO_BUCKET}/${filePath}?v=${Date.now()}`;
+    const audioUrl = await uploadAudioBuffer(audioBuffer, type, id, subPath, userId);
 
     await updateFirestoreAudioUrl(type, id, audioUrl, subPath);
 

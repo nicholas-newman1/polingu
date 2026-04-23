@@ -17,6 +17,15 @@ service firebase.storage {
       allow write: if false;
     }
 
+    // Custom card audio (TTS output for custom sentences/vocabulary/declension).
+    // Written by Cloud Functions only. Reads go through a per-object Firebase
+    // Storage download token in the stored audioUrl, but we also gate SDK reads
+    // to the owner in case anything ever resolves via the Storage SDK.
+    match /audio/users/{userId}/cards/{cardType}/{fileName} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if false;
+    }
+
     // System audio - any authenticated user can read
     match /audio/system/{audioId}/{fileName} {
       allow read: if request.auth != null;
