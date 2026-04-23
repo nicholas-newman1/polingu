@@ -74,6 +74,7 @@ const CardHeader = styled(Box)(({ theme }) => ({
   display: 'flex',
   justifyContent: 'space-between',
   alignItems: 'center',
+  gap: theme.spacing(1.5),
   marginBottom: theme.spacing(1),
 }));
 
