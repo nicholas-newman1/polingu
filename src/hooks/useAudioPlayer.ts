@@ -46,7 +46,12 @@ export function useAudioPlayer({
 
   const stopAudio = useCallback(() => {
     if (audioRef.current) {
-      audioRef.current.pause();
+      const el = audioRef.current;
+      el.pause();
+      // Fully tear down the media element so Android releases audio focus
+      // and ducked background music (e.g. Spotify) restores to full volume.
+      el.removeAttribute('src');
+      el.load();
       audioRef.current = null;
       setIsPlaying(false);
     }
