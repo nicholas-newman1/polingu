@@ -2,6 +2,8 @@ import { onObjectFinalized } from 'firebase-functions/storage';
 import { onCall, HttpsError } from 'firebase-functions/https';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
+import { getAuth } from 'firebase-admin/auth';
+import { isKilled } from './killSwitch.js';
 
 const db = getFirestore();
 const storage = getStorage();
@@ -148,6 +150,18 @@ export const processBookUpload = onObjectFinalized(
 
       if (!isPdf) {
         throw new Error('Invalid file type. Only PDF files are supported.');
+      }
+
+      let userIsAdmin = false;
+      try {
+        const user = await getAuth().getUser(userId);
+        userIsAdmin = !!user.customClaims?.admin;
+      } catch {
+        userIsAdmin = false;
+      }
+
+      if (!userIsAdmin && (await isKilled('books'))) {
+        throw new Error('Book uploads are temporarily unavailable.');
       }
 
       if (fileSize > MAX_FILE_SIZE) {

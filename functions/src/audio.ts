@@ -7,6 +7,7 @@ import { getFirestore } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 import OpenAI, { toFile } from 'openai';
 import { TextToSpeechClient, protos } from '@google-cloud/text-to-speech';
+import { assertNotKilled, isKilled } from './killSwitch.js';
 
 const db = getFirestore();
 const storage = getStorage();
@@ -176,6 +177,10 @@ export const processAudioUpload = onObjectFinalized(
 
       const userIsAdmin = await isAdmin(userId);
 
+      if (!userIsAdmin && (await isKilled('audio'))) {
+        throw new Error('Audio processing is temporarily unavailable.');
+      }
+
       if (!userIsAdmin && fileSize > MAX_FILE_SIZE) {
         throw new Error('File too large. Maximum size is 25MB.');
       }
@@ -269,6 +274,10 @@ export const transcribeAudio = onTaskDispatched(
       const [metadata] = await file.getMetadata();
 
       const userIsAdmin = await isAdmin(userId);
+
+      if (!userIsAdmin && (await isKilled('audio'))) {
+        throw new Error('Audio processing is temporarily unavailable.');
+      }
 
       if (!userIsAdmin) {
         const headerDuration = await parseAudioDurationSeconds(
@@ -427,6 +436,10 @@ export const createUserAudio = onCall<CreateUserAudioRequest, Promise<{ id: stri
     const userId = request.auth.uid;
     const { title, text } = request.data;
 
+    if (!request.auth.token.admin) {
+      await assertNotKilled('audio');
+    }
+
     if (!title || typeof title !== 'string') {
       throw new HttpsError('invalid-argument', 'Title is required.');
     }
@@ -491,6 +504,11 @@ export const processUserTextAudio = onTaskDispatched(
     const audioRef = db.collection('users').doc(userId).collection('audioItems').doc(audioId);
 
     try {
+      const userIsAdmin = await isAdmin(userId);
+      if (!userIsAdmin && (await isKilled('audio'))) {
+        throw new Error('Audio processing is temporarily unavailable.');
+      }
+
       const chunks = chunkTextForTTS(text);
       const audioChunks: Buffer[] = [];
 

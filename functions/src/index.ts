@@ -13,6 +13,8 @@ import { Storage } from '@google-cloud/storage';
 
 initializeApp();
 
+import { assertNotKilled } from './killSwitch.js';
+
 export { processBookUpload, deleteBook, getStorageUsage } from './reader.js';
 export {
   processAudioUpload,
@@ -175,6 +177,10 @@ export const translate = onCall<TranslateRequest, Promise<TranslateResponse>>(
 
     const isAdmin = !!request.auth?.token?.admin;
     const resetTime = getNextMidnightUTC();
+
+    if (!isAdmin) {
+      await assertNotKilled('translate');
+    }
 
     const { charsUsedAfter } = await reserveTranslationBudget(
       userId,

@@ -32,3 +32,12 @@ serviceAccountKey.json
 
 # Sentence index (regenerate with: npm run sentences:sync)
 sentenceIndex.json
+
+# Terraform
+infra/.terraform/
+infra/.terraform.tfstate.lock.info
+infra/*.tfstate
+infra/*.tfstate.*
+infra/*.tfvars
+infra/.build/
+infra/kill-switch-function/node_modules/
