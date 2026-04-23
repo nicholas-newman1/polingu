@@ -1,7 +1,24 @@
 import { collection, doc, onSnapshot, query, orderBy, updateDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../firebase';
+import { userDb } from '../offlineDb/userDb';
 import type { SystemAudioItem } from '../../types/audio';
+
+const SYSTEM_AUDIO_ITEMS_CACHE_KEY = '__system-audio-items-list';
+
+export async function getCachedSystemAudioItems(): Promise<SystemAudioItem[]> {
+  const record = await userDb.userData.get(SYSTEM_AUDIO_ITEMS_CACHE_KEY);
+  return record ? (record.data as SystemAudioItem[]) : [];
+}
+
+async function cacheSystemAudioItems(items: SystemAudioItem[]): Promise<void> {
+  await userDb.userData.put({
+    key: SYSTEM_AUDIO_ITEMS_CACHE_KEY,
+    data: items,
+    lastModified: Date.now(),
+    pendingSync: 0,
+  });
+}
 
 export function subscribeToSystemAudioItems(
   callback: (items: SystemAudioItem[]) => void
@@ -13,6 +30,7 @@ export function subscribeToSystemAudioItems(
     q,
     (snapshot) => {
       const items = snapshot.docs.map((d) => d.data() as SystemAudioItem);
+      cacheSystemAudioItems(items);
       callback(items);
     },
     (error) => {

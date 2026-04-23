@@ -17,6 +17,7 @@ import {
   cacheAudioBlob,
   subscribeToSystemAudioItems,
   subscribeToSystemAudioItem,
+  getCachedSystemAudioItems,
 } from '../lib/audio';
 import type { AudioItem, SystemAudioItem, TranscriptSegment } from '../types/audio';
 
@@ -181,6 +182,13 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       if (!cancelled) {
         setItems(cached);
         setLibraryLoading(false);
+      }
+    });
+
+    getCachedSystemAudioItems().then((cached) => {
+      if (!cancelled) {
+        setSystemItems(cached);
+        systemItemsRef.current = cached;
       }
     });
 

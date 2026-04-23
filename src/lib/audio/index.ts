@@ -17,6 +17,7 @@ export {
   updateQueueSavedTime,
 } from './audioQueue';
 export {
+  getCachedSystemAudioItems,
   subscribeToSystemAudioItems,
   subscribeToSystemAudioItem,
   createSystemAudio,
