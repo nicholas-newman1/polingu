@@ -43,6 +43,7 @@ import { useSnackbar } from '../../hooks/useSnackbar';
 import { useReviewData } from '../../hooks/useReviewData';
 import { useProgressStats } from '../../hooks/useProgressStats';
 import { useCardHistory } from '../../hooks/useCardHistory';
+import { usePrefetchAudio } from '../../hooks/usePrefetchAudio';
 import shuffleArray from '../../lib/utils/shuffleArray';
 import { includesWordId } from '../../lib/storage/helpers';
 
@@ -239,6 +240,20 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
 
   const currentSessionCard = sessionQueue[currentIndex] ?? learningQueue[0];
   const isFinished = currentIndex >= sessionQueue.length && learningQueue.length === 0;
+
+  const upcomingAudioUrls = practiceMode
+    ? Array.from({ length: 3 }, (_, i) => {
+        const len = practiceCards.length;
+        if (len === 0) return undefined;
+        return practiceCards[(practiceIndex + 1 + i) % len]?.audioUrl;
+      })
+    : [
+        ...sessionQueue.slice(currentIndex + 1, currentIndex + 4).map((c) => c.word.audioUrl),
+        ...learningQueue
+          .slice(currentIndex < sessionQueue.length ? 0 : 1)
+          .map((c) => c.word.audioUrl),
+      ].slice(0, 3);
+  usePrefetchAudio(upcomingAudioUrls);
 
   const handleRate = async (rating: Grade) => {
     if (!currentSessionCard) return;

@@ -30,6 +30,7 @@ import { useProgressStats } from '../../hooks/useProgressStats';
 import { useOptimistic } from '../../hooks/useOptimistic';
 import { useSnackbar } from '../../hooks/useSnackbar';
 import { useCardHistory } from '../../hooks/useCardHistory';
+import { usePrefetchAudio } from '../../hooks/usePrefetchAudio';
 import shuffleArray from '../../lib/utils/shuffleArray';
 import { includesVerbId } from '../../lib/storage/helpers';
 import { updateVerb } from '../../lib/storage/systemVerbs';
@@ -168,6 +169,20 @@ export function AspectPairsPage() {
 
   const currentSessionCard = sessionQueue[currentIndex] ?? learningQueue[0];
   const isFinished = currentIndex >= sessionQueue.length && learningQueue.length === 0;
+
+  const upcomingCards: Array<AspectPairCard | undefined> = practiceMode
+    ? Array.from({ length: 3 }, (_, i) => {
+        const len = practiceCards.length;
+        if (len === 0) return undefined;
+        return practiceCards[(practiceIndex + 1 + i) % len];
+      })
+    : [
+        ...sessionQueue.slice(currentIndex + 1, currentIndex + 4).map((c) => c.card),
+        ...learningQueue.slice(currentIndex < sessionQueue.length ? 0 : 1).map((c) => c.card),
+      ].slice(0, 3);
+  usePrefetchAudio(
+    upcomingCards.flatMap((c) => [c?.verb.infinitiveAudioUrl, c?.pairVerb.infinitiveAudioUrl])
+  );
 
   const handleRate = async (rating: Grade) => {
     if (!currentSessionCard) return;

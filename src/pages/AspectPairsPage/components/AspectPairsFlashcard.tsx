@@ -10,6 +10,7 @@ import type { Verb, Tense } from '../../../types/conjugation';
 import { alpha } from '../../../lib/theme';
 import { VerbConjugationTooltip } from '../../../components/VerbConjugationTooltip';
 import { useAppSettings } from '../../../contexts/AppSettingsContext';
+import { resolvePlayableAudioUrl } from '../../../lib/audio/audioPrefetchCache';
 
 interface AspectPairsFlashcardProps {
   card: AspectPairCard;
@@ -119,7 +120,8 @@ export function AspectPairsFlashcard({
     (url: string, which: 'front' | 'back') => {
       stopAudio();
 
-      const audio = new Audio(url);
+      const playableUrl = resolvePlayableAudioUrl(url) ?? url;
+      const audio = new Audio(playableUrl);
       audioRef.current = audio;
       setPlayingAudio(which);
 

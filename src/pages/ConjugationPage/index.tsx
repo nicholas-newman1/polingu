@@ -48,6 +48,7 @@ import { updateVerb, deleteVerb } from '../../lib/storage/systemVerbs';
 import { useOptimistic } from '../../hooks/useOptimistic';
 import { useSnackbar } from '../../hooks/useSnackbar';
 import { useCardHistory } from '../../hooks/useCardHistory';
+import { usePrefetchAudio } from '../../hooks/usePrefetchAudio';
 
 const MainContent = styled(Box)({
   flex: 1,
@@ -252,6 +253,22 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
 
   const currentSessionCard = sessionQueue[currentIndex] ?? learningQueue[0];
   const isFinished = currentIndex >= sessionQueue.length && learningQueue.length === 0;
+
+  const upcomingAudioUrls = practiceMode
+    ? Array.from({ length: 3 }, (_, i) => {
+        const len = practiceCards.length;
+        if (len === 0) return undefined;
+        return practiceCards[(practiceIndex + 1 + i) % len]?.form.audioUrl;
+      })
+    : [
+        ...sessionQueue
+          .slice(currentIndex + 1, currentIndex + 4)
+          .map((c) => c.form.form.audioUrl),
+        ...learningQueue
+          .slice(currentIndex < sessionQueue.length ? 0 : 1)
+          .map((c) => c.form.form.audioUrl),
+      ].slice(0, 3);
+  usePrefetchAudio(upcomingAudioUrls);
 
   const handleRate = async (rating: Grade) => {
     if (!currentSessionCard) return;

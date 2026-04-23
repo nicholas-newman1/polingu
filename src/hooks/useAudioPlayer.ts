@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useAppSettings } from '../contexts/AppSettingsContext';
+import { resolvePlayableAudioUrl } from '../lib/audio/audioPrefetchCache';
 
 interface UseAudioPlayerOptions {
   /** The URL of the audio file to play */
@@ -56,7 +57,8 @@ export function useAudioPlayer({
 
     stopAudio();
 
-    const audio = new Audio(audioUrl);
+    const playableUrl = resolvePlayableAudioUrl(audioUrl) ?? audioUrl;
+    const audio = new Audio(playableUrl);
     audioRef.current = audio;
     setIsPlaying(true);
 

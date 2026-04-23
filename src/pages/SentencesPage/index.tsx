@@ -39,6 +39,7 @@ import { useOptimistic } from '../../hooks/useOptimistic';
 import { useSnackbar } from '../../hooks/useSnackbar';
 import { useTranslationContext } from '../../hooks/useTranslationContext';
 import { useCardHistory } from '../../hooks/useCardHistory';
+import { usePrefetchAudio } from '../../hooks/usePrefetchAudio';
 import {
   updateSentence,
   deleteSentence,
@@ -240,6 +241,20 @@ export function SentencesPage({ mode }: SentencesPageProps) {
 
   const currentSessionCard = sessionQueue[currentIndex] ?? learningQueue[0];
   const isFinished = currentIndex >= sessionQueue.length && learningQueue.length === 0;
+
+  const upcomingAudioUrls = practiceMode
+    ? Array.from({ length: 3 }, (_, i) => {
+        const len = practiceCards.length;
+        if (len === 0) return undefined;
+        return practiceCards[(practiceIndex + 1 + i) % len]?.audioUrl;
+      })
+    : [
+        ...sessionQueue.slice(currentIndex + 1, currentIndex + 4).map((c) => c.sentence.audioUrl),
+        ...learningQueue
+          .slice(currentIndex < sessionQueue.length ? 0 : 1)
+          .map((c) => c.sentence.audioUrl),
+      ].slice(0, 3);
+  usePrefetchAudio(upcomingAudioUrls);
 
   const handleRate = async (rating: Grade) => {
     if (!currentSessionCard) return;
