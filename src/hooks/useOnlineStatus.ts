@@ -1,6 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { syncAllPendingToFirestore } from '../lib/offlineDb/userDataWrapper';
 import { syncContentFromFirestore } from '../lib/offlineDb/contentSync';
+
+const SYNC_TIMEOUT_MS = 10000;
 
 interface UseOnlineStatusReturn {
   /** Whether the device is currently online */
@@ -21,29 +23,33 @@ export function useOnlineStatus(): UseOnlineStatusReturn {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isSyncing, setIsSyncing] = useState(false);
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
+  const isSyncingRef = useRef(false);
 
   const triggerSync = useCallback(async () => {
-    if (!navigator.onLine || isSyncing) return;
+    if (!navigator.onLine || isSyncingRef.current) return;
 
+    isSyncingRef.current = true;
     setIsSyncing(true);
     try {
-      // Sync user data and content in parallel
-      const [syncedCount] = await Promise.all([
-        syncAllPendingToFirestore(),
-        syncContentFromFirestore(),
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Sync timed out')), SYNC_TIMEOUT_MS)
+      );
+      const [syncedCount] = await Promise.race([
+        Promise.all([syncAllPendingToFirestore(), syncContentFromFirestore()]),
+        timeout,
       ]);
       setPendingSyncCount((prev) => Math.max(0, prev - syncedCount));
     } catch (e) {
       console.error('Sync failed:', e);
     } finally {
+      isSyncingRef.current = false;
       setIsSyncing(false);
     }
-  }, [isSyncing]);
+  }, []);
 
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
-      // Auto-sync when coming back online
       triggerSync();
     };
 
