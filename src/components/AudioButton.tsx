@@ -31,7 +31,8 @@ export function AudioButton({ isPlaying, onToggle, size = 'small' }: AudioButton
         <BoxIconButton
           onClick={handleToggleMute}
           size={size}
-          sx={isMuted ? { color: 'error.main' } : undefined}
+          tone="danger"
+          active={isMuted}
           aria-label={isMuted ? 'Enable auto-play audio' : 'Disable auto-play audio'}
         >
           <VolumeOff fontSize={size} />

@@ -45,6 +45,17 @@ const StyledIconButton = styled(IconButton)<StyledProps>(({ theme, $variant, $to
   }
 
   if ($tone === 'danger') {
+    if ($active) {
+      return {
+        ...base,
+        backgroundColor: alpha(theme.palette.error.main, 0.1),
+        color: theme.palette.error.main,
+        '&:hover': {
+          backgroundColor: alpha(theme.palette.error.main, 0.15),
+          color: theme.palette.error.main,
+        },
+      };
+    }
     return {
       ...base,
       backgroundColor: theme.palette.action.hover,
