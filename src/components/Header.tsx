@@ -24,7 +24,7 @@ import {
   Add,
   TextSnippet,
 } from '@mui/icons-material';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import type { User } from 'firebase/auth';
 import getFirstName from '../lib/utils/getFirstName';
 import { alpha } from '../lib/theme';
@@ -58,8 +58,18 @@ interface HeaderProps {
 
 export function Header({ user, onSignOut, pageTitle, backPath }: HeaderProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const addToVocabulary = useAddToVocabulary();
   const addSentence = useAddSentence();
+
+  const handleBack = () => {
+    if (!backPath) return;
+    if (location.key !== 'default') {
+      navigate(-1);
+    } else {
+      navigate(backPath);
+    }
+  };
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [quickAddAnchorEl, setQuickAddAnchorEl] = useState<null | HTMLElement>(null);
   const menuOpen = Boolean(anchorEl);
@@ -130,7 +140,7 @@ export function Header({ user, onSignOut, pageTitle, backPath }: HeaderProps) {
     >
       <Stack direction="row" alignItems="center" sx={{ minWidth: 0, overflow: 'hidden', flex: 1 }}>
         {backPath && (
-          <BackButton size="small" onClick={() => navigate(backPath)}>
+          <BackButton size="small" onClick={handleBack}>
             <ArrowBack fontSize="small" />
           </BackButton>
         )}

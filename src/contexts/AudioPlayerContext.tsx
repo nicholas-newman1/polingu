@@ -228,17 +228,43 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     transcriptRef.current = [];
   }, []);
 
+  const MAX_BLOB_URL_ENTRIES = 20;
   const blobUrlCacheRef = useRef<Map<string, string>>(new Map());
+
+  const touchBlobUrl = useCallback((audioId: string) => {
+    const cache = blobUrlCacheRef.current;
+    const existing = cache.get(audioId);
+    if (!existing) return;
+    cache.delete(audioId);
+    cache.set(audioId, existing);
+  }, []);
+
+  const evictBlobUrlsIfNeeded = useCallback(() => {
+    const cache = blobUrlCacheRef.current;
+    while (cache.size > MAX_BLOB_URL_ENTRIES) {
+      const oldestKey = cache.keys().next().value;
+      if (!oldestKey) return;
+      const url = cache.get(oldestKey);
+      cache.delete(oldestKey);
+      if (url && url !== audioUrlRef.current) {
+        URL.revokeObjectURL(url);
+      }
+    }
+  }, []);
 
   const resolveAudioUrl = useCallback(
     async (audioId: string, storagePath: string): Promise<string> => {
       const existingBlobUrl = blobUrlCacheRef.current.get(audioId);
-      if (existingBlobUrl) return existingBlobUrl;
+      if (existingBlobUrl) {
+        touchBlobUrl(audioId);
+        return existingBlobUrl;
+      }
 
       const cachedBlob = await getCachedAudioBlob(audioId);
       if (cachedBlob) {
         const blobUrl = URL.createObjectURL(cachedBlob);
         blobUrlCacheRef.current.set(audioId, blobUrl);
+        evictBlobUrlsIfNeeded();
         return blobUrl;
       }
 
@@ -253,8 +279,18 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
 
       return signedUrl;
     },
-    []
+    [touchBlobUrl, evictBlobUrlsIfNeeded]
   );
+
+  useEffect(() => {
+    const cache = blobUrlCacheRef.current;
+    return () => {
+      for (const url of cache.values()) {
+        URL.revokeObjectURL(url);
+      }
+      cache.clear();
+    };
+  }, []);
 
   const loadTrackInternal = useCallback(
     (audioId: string, force = false, autoPlay = true) => {
