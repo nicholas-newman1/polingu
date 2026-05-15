@@ -1,35 +1,46 @@
 import type { ConjugationReviewDataStore } from '../../types/conjugation';
 import type { TranslationDirection } from '../../types/common';
-import { getTodayString, getDefaultConjugationReviewStore, getConjugationDocPath } from './helpers';
+import {
+  getTodayString,
+  getDefaultConjugationReviewStore,
+  getConjugationSessionDocPath,
+} from './helpers';
 import { loadUserData } from '../offlineDb/userDataWrapper';
+import { conjugationReviewStorage } from './conjugationReviewStorage';
 
-function deserializeConjugationReviewData(data: unknown): ConjugationReviewDataStore {
-  const parsed = data as ConjugationReviewDataStore;
-  const today = getTodayString();
-  if (parsed.lastReviewDate !== today) {
-    parsed.reviewedToday = [];
-    parsed.newFormsToday = [];
-    parsed.lastReviewDate = today;
-  }
-  Object.keys(parsed.forms).forEach((key) => {
-    const form = parsed.forms[key];
-    if (!form?.fsrsCard) return;
-    if (form.fsrsCard.due) {
-      form.fsrsCard.due = new Date(form.fsrsCard.due);
-    }
-    if (form.fsrsCard.last_review) {
-      form.fsrsCard.last_review = new Date(form.fsrsCard.last_review);
-    }
-  });
-  return parsed;
+interface ConjugationReviewSession {
+  reviewedToday: ConjugationReviewDataStore['reviewedToday'];
+  newFormsToday: ConjugationReviewDataStore['newFormsToday'];
+  lastReviewDate: string;
 }
 
 export default async function loadConjugationReviewData(
   direction: TranslationDirection
 ): Promise<ConjugationReviewDataStore> {
-  return loadUserData(
-    getConjugationDocPath(direction),
-    getDefaultConjugationReviewStore(),
-    deserializeConjugationReviewData
-  );
+  const storage = conjugationReviewStorage(direction);
+  const today = getTodayString();
+  const defaults = getDefaultConjugationReviewStore();
+  const defaultSession: ConjugationReviewSession = {
+    reviewedToday: defaults.reviewedToday,
+    newFormsToday: defaults.newFormsToday,
+    lastReviewDate: defaults.lastReviewDate,
+  };
+
+  const [forms, session] = await Promise.all([
+    storage.loadCards(),
+    loadUserData<ConjugationReviewSession>(getConjugationSessionDocPath(direction), defaultSession),
+  ]);
+
+  if (session.lastReviewDate !== today) {
+    session.reviewedToday = [];
+    session.newFormsToday = [];
+    session.lastReviewDate = today;
+  }
+
+  return {
+    forms,
+    reviewedToday: session.reviewedToday,
+    newFormsToday: session.newFormsToday,
+    lastReviewDate: session.lastReviewDate,
+  };
 }

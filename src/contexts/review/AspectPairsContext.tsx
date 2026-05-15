@@ -1,4 +1,4 @@
-import { createContext, useState, useCallback, useMemo, type ReactNode } from 'react';
+import { createContext, useState, useCallback, useMemo, useRef, type ReactNode } from 'react';
 import type { Verb } from '../../types/conjugation';
 import type {
   AspectPairCard,
@@ -45,11 +45,14 @@ export function AspectPairsProvider({
   const [aspectPairsReviewStore, setAspectPairsReviewStore] = useState<AspectPairsReviewDataStore>(
     initialReviewStore ?? getDefaultAspectPairsReviewStore()
   );
+  const storeRef = useRef(aspectPairsReviewStore);
   const [aspectPairsSettings, setAspectPairsSettings] =
     useState<AspectPairsSettings>(initialSettings);
 
   useSyncProps({ initialReviewStore, initialSettings }, () => {
-    setAspectPairsReviewStore(initialReviewStore ?? getDefaultAspectPairsReviewStore());
+    const next = initialReviewStore ?? getDefaultAspectPairsReviewStore();
+    setAspectPairsReviewStore(next);
+    storeRef.current = next;
     setAspectPairsSettings(initialSettings);
   });
 
@@ -75,9 +78,11 @@ export function AspectPairsProvider({
   }, [verbs]);
 
   const updateAspectPairsReviewStore = useCallback(async (store: AspectPairsReviewDataStore) => {
+    const prev = storeRef.current;
+    storeRef.current = store;
     setAspectPairsReviewStore(store);
     try {
-      await saveAspectPairsReviewData(store);
+      await saveAspectPairsReviewData(prev, store);
     } catch (e) {
       showSaveError(e);
     }
@@ -96,6 +101,7 @@ export function AspectPairsProvider({
     try {
       await clearAspectPairsData();
       const freshStore = getDefaultAspectPairsReviewStore();
+      storeRef.current = freshStore;
       setAspectPairsReviewStore(freshStore);
       setAspectPairsSettings(DEFAULT_ASPECT_PAIRS_SETTINGS);
     } catch (e) {

@@ -1,35 +1,46 @@
 import type { SentenceReviewDataStore } from '../../types/sentences';
 import type { TranslationDirection } from '../../types/common';
-import { getTodayString, getDefaultSentenceReviewStore, getSentenceDocPath } from './helpers';
+import {
+  getTodayString,
+  getDefaultSentenceReviewStore,
+  getSentenceSessionDocPath,
+} from './helpers';
 import { loadUserData } from '../offlineDb/userDataWrapper';
+import { sentenceReviewStorage } from './sentenceReviewStorage';
 
-function deserializeSentenceReviewData(data: unknown): SentenceReviewDataStore {
-  const parsed = data as SentenceReviewDataStore;
-  const today = getTodayString();
-  if (parsed.lastReviewDate !== today) {
-    parsed.reviewedToday = [];
-    parsed.newCardsToday = [];
-    parsed.lastReviewDate = today;
-  }
-  Object.keys(parsed.cards).forEach((key) => {
-    const card = parsed.cards[key];
-    if (!card?.fsrsCard) return;
-    if (card.fsrsCard.due) {
-      card.fsrsCard.due = new Date(card.fsrsCard.due);
-    }
-    if (card.fsrsCard.last_review) {
-      card.fsrsCard.last_review = new Date(card.fsrsCard.last_review);
-    }
-  });
-  return parsed;
+interface SentenceReviewSession {
+  reviewedToday: SentenceReviewDataStore['reviewedToday'];
+  newCardsToday: SentenceReviewDataStore['newCardsToday'];
+  lastReviewDate: string;
 }
 
 export default async function loadSentenceReviewData(
   direction: TranslationDirection
 ): Promise<SentenceReviewDataStore> {
-  return loadUserData(
-    getSentenceDocPath(direction),
-    getDefaultSentenceReviewStore(),
-    deserializeSentenceReviewData
-  );
+  const storage = sentenceReviewStorage(direction);
+  const today = getTodayString();
+  const defaults = getDefaultSentenceReviewStore();
+  const defaultSession: SentenceReviewSession = {
+    reviewedToday: defaults.reviewedToday,
+    newCardsToday: defaults.newCardsToday,
+    lastReviewDate: defaults.lastReviewDate,
+  };
+
+  const [cards, session] = await Promise.all([
+    storage.loadCards(),
+    loadUserData<SentenceReviewSession>(getSentenceSessionDocPath(direction), defaultSession),
+  ]);
+
+  if (session.lastReviewDate !== today) {
+    session.reviewedToday = [];
+    session.newCardsToday = [];
+    session.lastReviewDate = today;
+  }
+
+  return {
+    cards,
+    reviewedToday: session.reviewedToday,
+    newCardsToday: session.newCardsToday,
+    lastReviewDate: session.lastReviewDate,
+  };
 }

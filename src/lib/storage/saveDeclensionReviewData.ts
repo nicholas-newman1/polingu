@@ -1,33 +1,25 @@
 import type { DeclensionReviewDataStore } from '../../types';
+import { DECLENSION_SESSION_DOC_PATH } from './helpers';
 import { saveUserData } from '../offlineDb/userDataWrapper';
+import { declensionReviewStorage } from './declensionReviewStorage';
 
-function serializeDeclensionReviewData(data: DeclensionReviewDataStore): unknown {
-  return {
-    ...data,
-    cards: Object.fromEntries(
-      Object.entries(data.cards).map(([key, card]) => [
-        key,
-        {
-          ...card,
-          fsrsCard: {
-            ...card.fsrsCard,
-            due:
-              card.fsrsCard.due instanceof Date
-                ? card.fsrsCard.due.toISOString()
-                : card.fsrsCard.due,
-            last_review:
-              card.fsrsCard.last_review instanceof Date
-                ? card.fsrsCard.last_review.toISOString()
-                : card.fsrsCard.last_review,
-          },
-        },
-      ])
-    ),
-  };
+interface DeclensionReviewSession {
+  reviewedToday: DeclensionReviewDataStore['reviewedToday'];
+  newCardsToday: DeclensionReviewDataStore['newCardsToday'];
+  lastReviewDate: string;
 }
 
 export default async function saveDeclensionReviewData(
-  data: DeclensionReviewDataStore
+  prev: DeclensionReviewDataStore | null,
+  next: DeclensionReviewDataStore
 ): Promise<void> {
-  await saveUserData('reviewData', data, serializeDeclensionReviewData);
+  const session: DeclensionReviewSession = {
+    reviewedToday: next.reviewedToday,
+    newCardsToday: next.newCardsToday,
+    lastReviewDate: next.lastReviewDate,
+  };
+  await Promise.all([
+    declensionReviewStorage.saveCardsDiff(prev?.cards ?? null, next.cards),
+    saveUserData(DECLENSION_SESSION_DOC_PATH, session),
+  ]);
 }

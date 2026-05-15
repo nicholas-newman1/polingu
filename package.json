@@ -22,7 +22,8 @@
     "audio:vocabulary": "tsx scripts/audio-generate-vocabulary.ts",
     "audio:declension": "tsx scripts/audio-generate-declension.ts",
     "audio:conjugation": "tsx scripts/audio-generate-conjugation.ts",
-    "audio:aspect-pairs": "tsx scripts/audio-generate-aspect-pairs.ts"
+    "audio:aspect-pairs": "tsx scripts/audio-generate-aspect-pairs.ts",
+    "migrate:review-data": "tsx scripts/migrate-review-data.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

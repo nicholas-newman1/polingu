@@ -1,4 +1,4 @@
-import { createContext, useState, useCallback, type ReactNode } from 'react';
+import { createContext, useState, useCallback, useRef, type ReactNode } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import type {
@@ -62,28 +62,29 @@ export function ConjugationProvider({
       'en-to-pl': getDefaultConjugationReviewStore(),
     }
   );
+  const storesRef = useRef(conjugationReviewStores);
   const [conjugationSettings, setConjugationSettings] =
     useState<ConjugationSettings>(initialSettings);
 
   useSyncProps({ initialVerbs, initialReviewStores, initialSettings }, () => {
     setVerbs(initialVerbs);
-    setConjugationReviewStores(
-      initialReviewStores ?? {
-        'pl-to-en': getDefaultConjugationReviewStore(),
-        'en-to-pl': getDefaultConjugationReviewStore(),
-      }
-    );
+    const nextStores = initialReviewStores ?? {
+      'pl-to-en': getDefaultConjugationReviewStore(),
+      'en-to-pl': getDefaultConjugationReviewStore(),
+    };
+    setConjugationReviewStores(nextStores);
+    storesRef.current = nextStores;
     setConjugationSettings(initialSettings);
   });
 
   const updateConjugationReviewStore = useCallback(
     async (direction: TranslationDirection, store: ConjugationReviewDataStore) => {
-      setConjugationReviewStores((prev) => ({
-        ...prev,
-        [direction]: store,
-      }));
+      const prevStore = storesRef.current[direction];
+      const nextAll = { ...storesRef.current, [direction]: store };
+      storesRef.current = nextAll;
+      setConjugationReviewStores(nextAll);
       try {
-        await saveConjugationReviewData(store, direction);
+        await saveConjugationReviewData(prevStore, store, direction);
       } catch (e) {
         showSaveError(e);
       }
@@ -110,10 +111,9 @@ export function ConjugationProvider({
     try {
       await clearConjugationData(direction);
       const freshStore = getDefaultConjugationReviewStore();
-      setConjugationReviewStores((prev) => ({
-        ...prev,
-        [direction]: freshStore,
-      }));
+      const nextAll = { ...storesRef.current, [direction]: freshStore };
+      storesRef.current = nextAll;
+      setConjugationReviewStores(nextAll);
     } catch (e) {
       showSaveError(e);
     }

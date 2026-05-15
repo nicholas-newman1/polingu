@@ -1,4 +1,12 @@
-import { createContext, useState, useCallback, useMemo, useEffect, type ReactNode } from 'react';
+import {
+  createContext,
+  useState,
+  useCallback,
+  useMemo,
+  useEffect,
+  useRef,
+  type ReactNode,
+} from 'react';
 import type {
   DeclensionCard,
   CustomDeclensionCard,
@@ -61,6 +69,7 @@ export function DeclensionProvider({
   const [declensionReviewStore, setDeclensionReviewStore] = useState<DeclensionReviewDataStore>(
     initialReviewStore ?? getDefaultDeclensionReviewStore()
   );
+  const storeRef = useRef(declensionReviewStore);
   const [declensionSettings, setDeclensionSettings] = useState<DeclensionSettings>(initialSettings);
 
   useSyncProps(
@@ -68,7 +77,9 @@ export function DeclensionProvider({
     () => {
       setCustomDeclensionCards(initialCustomCards);
       setSystemDeclensionCards(initialSystemCards);
-      setDeclensionReviewStore(initialReviewStore ?? getDefaultDeclensionReviewStore());
+      const next = initialReviewStore ?? getDefaultDeclensionReviewStore();
+      setDeclensionReviewStore(next);
+      storeRef.current = next;
       setDeclensionSettings(initialSettings);
     }
   );
@@ -88,9 +99,11 @@ export function DeclensionProvider({
   }, [user]);
 
   const updateDeclensionReviewStore = useCallback(async (store: DeclensionReviewDataStore) => {
+    const prev = storeRef.current;
+    storeRef.current = store;
     setDeclensionReviewStore(store);
     try {
-      await saveDeclensionReviewData(store);
+      await saveDeclensionReviewData(prev, store);
     } catch (e) {
       showSaveError(e);
     }
@@ -109,6 +122,7 @@ export function DeclensionProvider({
     try {
       await clearDeclensionData();
       const freshStore = getDefaultDeclensionReviewStore();
+      storeRef.current = freshStore;
       setDeclensionReviewStore(freshStore);
       setDeclensionSettings(DEFAULT_DECLENSION_SETTINGS);
     } catch (e) {

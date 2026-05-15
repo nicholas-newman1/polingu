@@ -12,17 +12,47 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // User declension review data - only the owner can read/write
+    // Legacy declension review data document (kept readable/writable so the
+    // app can finish draining IndexedDB pending writes and the migration
+    // script can delete it). Safe to remove once all users have migrated.
     match /users/{userId}/data/reviewData {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // User vocabulary review data (per direction) - only the owner can read/write
+    // Declension per-card review data (one doc per card)
+    match /users/{userId}/declensionReviewCards/{cardId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Declension per-day session counters (reviewedToday, newCardsToday, lastReviewDate)
+    match /users/{userId}/data/declensionReviewSession {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Legacy vocabulary review data documents (kept until migration drains)
     match /users/{userId}/data/vocabularyReviewData-pl-en {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
     match /users/{userId}/data/vocabularyReviewData-en-pl {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Vocabulary per-card review data (one doc per word, per direction)
+    match /users/{userId}/vocabularyReviewCards-pl-en/{cardId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    match /users/{userId}/vocabularyReviewCards-en-pl/{cardId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Vocabulary per-day session counters
+    match /users/{userId}/data/vocabularyReviewSession-pl-en {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    match /users/{userId}/data/vocabularyReviewSession-en-pl {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
@@ -35,12 +65,30 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // User sentence review data (per direction) - only the owner can read/write
+    // Legacy sentence review data documents (kept until migration drains)
     match /users/{userId}/data/sentenceReviewData-pl-en {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
     match /users/{userId}/data/sentenceReviewData-en-pl {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Sentence per-card review data (one doc per sentence, per direction)
+    match /users/{userId}/sentenceReviewCards-pl-en/{cardId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    match /users/{userId}/sentenceReviewCards-en-pl/{cardId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Sentence per-day session counters
+    match /users/{userId}/data/sentenceReviewSession-pl-en {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    match /users/{userId}/data/sentenceReviewSession-en-pl {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
@@ -53,12 +101,30 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // User conjugation review data (per direction) - only the owner can read/write
+    // Legacy conjugation review data documents (kept until migration drains)
     match /users/{userId}/data/conjugationReviewData-pl-en {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
     match /users/{userId}/data/conjugationReviewData-en-pl {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Conjugation per-form review data (one doc per form, per direction)
+    match /users/{userId}/conjugationReviewForms-pl-en/{formKey} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    match /users/{userId}/conjugationReviewForms-en-pl/{formKey} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Conjugation per-day session counters
+    match /users/{userId}/data/conjugationReviewSession-pl-en {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    match /users/{userId}/data/conjugationReviewSession-en-pl {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
@@ -71,8 +137,18 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // User aspect pairs review data - only the owner can read/write
+    // Legacy aspect pairs review data document (kept until migration drains)
     match /users/{userId}/data/aspectPairsReviewData {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Aspect pairs per-card review data (one doc per pair)
+    match /users/{userId}/aspectPairsReviewCards/{cardId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Aspect pairs per-day session counters
+    match /users/{userId}/data/aspectPairsReviewSession {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 

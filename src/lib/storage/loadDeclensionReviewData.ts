@@ -1,32 +1,42 @@
 import type { DeclensionReviewDataStore } from '../../types';
-import { getTodayString, getDefaultDeclensionReviewStore } from './helpers';
+import {
+  getTodayString,
+  getDefaultDeclensionReviewStore,
+  DECLENSION_SESSION_DOC_PATH,
+} from './helpers';
 import { loadUserData } from '../offlineDb/userDataWrapper';
+import { declensionReviewStorage } from './declensionReviewStorage';
 
-function deserializeDeclensionReviewData(data: unknown): DeclensionReviewDataStore {
-  const parsed = data as DeclensionReviewDataStore;
-  const today = getTodayString();
-  if (parsed.lastReviewDate !== today) {
-    parsed.reviewedToday = [];
-    parsed.newCardsToday = [];
-    parsed.lastReviewDate = today;
-  }
-  Object.keys(parsed.cards).forEach((key) => {
-    const card = parsed.cards[key];
-    if (!card?.fsrsCard) return;
-    if (card.fsrsCard.due) {
-      card.fsrsCard.due = new Date(card.fsrsCard.due);
-    }
-    if (card.fsrsCard.last_review) {
-      card.fsrsCard.last_review = new Date(card.fsrsCard.last_review);
-    }
-  });
-  return parsed;
+interface DeclensionReviewSession {
+  reviewedToday: DeclensionReviewDataStore['reviewedToday'];
+  newCardsToday: DeclensionReviewDataStore['newCardsToday'];
+  lastReviewDate: string;
 }
 
 export default async function loadDeclensionReviewData(): Promise<DeclensionReviewDataStore> {
-  return loadUserData(
-    'reviewData',
-    getDefaultDeclensionReviewStore(),
-    deserializeDeclensionReviewData
-  );
+  const today = getTodayString();
+  const defaults = getDefaultDeclensionReviewStore();
+  const defaultSession: DeclensionReviewSession = {
+    reviewedToday: defaults.reviewedToday,
+    newCardsToday: defaults.newCardsToday,
+    lastReviewDate: defaults.lastReviewDate,
+  };
+
+  const [cards, session] = await Promise.all([
+    declensionReviewStorage.loadCards(),
+    loadUserData<DeclensionReviewSession>(DECLENSION_SESSION_DOC_PATH, defaultSession),
+  ]);
+
+  if (session.lastReviewDate !== today) {
+    session.reviewedToday = [];
+    session.newCardsToday = [];
+    session.lastReviewDate = today;
+  }
+
+  return {
+    cards,
+    reviewedToday: session.reviewedToday,
+    newCardsToday: session.newCardsToday,
+    lastReviewDate: session.lastReviewDate,
+  };
 }

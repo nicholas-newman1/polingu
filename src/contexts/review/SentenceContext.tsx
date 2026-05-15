@@ -1,4 +1,12 @@
-import { createContext, useState, useCallback, useMemo, useEffect, type ReactNode } from 'react';
+import {
+  createContext,
+  useState,
+  useCallback,
+  useMemo,
+  useEffect,
+  useRef,
+  type ReactNode,
+} from 'react';
 import type {
   Sentence,
   CustomSentence,
@@ -81,6 +89,7 @@ export function SentenceProvider({
       'en-to-pl': getDefaultSentenceReviewStore(),
     }
   );
+  const storesRef = useRef(sentenceReviewStores);
   const [sentenceSettings, setSentenceSettings] = useState<SentenceSettings>(initialSettings);
   const [customSentences, setCustomSentences] = useState<CustomSentence[]>(initialCustomSentences);
   const [systemSentences, setSystemSentences] = useState<Sentence[]>(initialSystemSentences);
@@ -95,12 +104,12 @@ export function SentenceProvider({
       initialTags,
     },
     () => {
-      setSentenceReviewStores(
-        initialReviewStores ?? {
-          'pl-to-en': getDefaultSentenceReviewStore(),
-          'en-to-pl': getDefaultSentenceReviewStore(),
-        }
-      );
+      const nextStores = initialReviewStores ?? {
+        'pl-to-en': getDefaultSentenceReviewStore(),
+        'en-to-pl': getDefaultSentenceReviewStore(),
+      };
+      setSentenceReviewStores(nextStores);
+      storesRef.current = nextStores;
       setSentenceSettings(initialSettings);
       setCustomSentences(initialCustomSentences);
       setSystemSentences(initialSystemSentences);
@@ -124,12 +133,12 @@ export function SentenceProvider({
 
   const updateSentenceReviewStore = useCallback(
     async (direction: TranslationDirection, store: SentenceReviewDataStore) => {
-      setSentenceReviewStores((prev) => ({
-        ...prev,
-        [direction]: store,
-      }));
+      const prevStore = storesRef.current[direction];
+      const nextAll = { ...storesRef.current, [direction]: store };
+      storesRef.current = nextAll;
+      setSentenceReviewStores(nextAll);
       try {
-        await saveSentenceReviewData(store, direction);
+        await saveSentenceReviewData(prevStore, store, direction);
       } catch (e) {
         showSaveError(e);
       }
@@ -156,10 +165,9 @@ export function SentenceProvider({
     try {
       await clearSentenceData(direction);
       const freshStore = getDefaultSentenceReviewStore();
-      setSentenceReviewStores((prev) => ({
-        ...prev,
-        [direction]: freshStore,
-      }));
+      const nextAll = { ...storesRef.current, [direction]: freshStore };
+      storesRef.current = nextAll;
+      setSentenceReviewStores(nextAll);
     } catch (e) {
       showSaveError(e);
     }

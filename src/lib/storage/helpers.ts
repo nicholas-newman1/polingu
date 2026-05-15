@@ -46,6 +46,12 @@ export function getVocabularyDocPath(direction: TranslationDirection): string {
   return direction === 'pl-to-en' ? 'vocabularyReviewData-pl-en' : 'vocabularyReviewData-en-pl';
 }
 
+export function getVocabularySessionDocPath(direction: TranslationDirection): string {
+  return direction === 'pl-to-en'
+    ? 'vocabularyReviewSession-pl-en'
+    : 'vocabularyReviewSession-en-pl';
+}
+
 export function includesSentenceId(array: string[], id: string): boolean {
   return array.includes(id);
 }
@@ -61,6 +67,10 @@ export function getDefaultSentenceReviewStore(): SentenceReviewDataStore {
 
 export function getSentenceDocPath(direction: TranslationDirection): string {
   return direction === 'pl-to-en' ? 'sentenceReviewData-pl-en' : 'sentenceReviewData-en-pl';
+}
+
+export function getSentenceSessionDocPath(direction: TranslationDirection): string {
+  return direction === 'pl-to-en' ? 'sentenceReviewSession-pl-en' : 'sentenceReviewSession-en-pl';
 }
 
 export function includesFormKey(array: ConjugationFormKey[], key: ConjugationFormKey): boolean {
@@ -79,6 +89,15 @@ export function getDefaultConjugationReviewStore(): ConjugationReviewDataStore {
 export function getConjugationDocPath(direction: TranslationDirection): string {
   return direction === 'pl-to-en' ? 'conjugationReviewData-pl-en' : 'conjugationReviewData-en-pl';
 }
+
+export function getConjugationSessionDocPath(direction: TranslationDirection): string {
+  return direction === 'pl-to-en'
+    ? 'conjugationReviewSession-pl-en'
+    : 'conjugationReviewSession-en-pl';
+}
+
+export const ASPECT_PAIRS_SESSION_DOC_PATH = 'aspectPairsReviewSession';
+export const DECLENSION_SESSION_DOC_PATH = 'declensionReviewSession';
 
 export function includesVerbId(array: string[], id: string): boolean {
   return array.includes(id);

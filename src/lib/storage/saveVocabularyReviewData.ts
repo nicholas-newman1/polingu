@@ -1,36 +1,28 @@
 import type { VocabularyReviewDataStore } from '../../types/vocabulary';
 import type { TranslationDirection } from '../../types/common';
-import { getVocabularyDocPath } from './helpers';
+import { getVocabularySessionDocPath } from './helpers';
 import { saveUserData } from '../offlineDb/userDataWrapper';
+import { vocabularyReviewStorage } from './vocabularyReviewStorage';
 
-function serializeVocabularyReviewData(data: VocabularyReviewDataStore): unknown {
-  return {
-    ...data,
-    cards: Object.fromEntries(
-      Object.entries(data.cards).map(([key, card]) => [
-        key,
-        {
-          ...card,
-          fsrsCard: {
-            ...card.fsrsCard,
-            due:
-              card.fsrsCard.due instanceof Date
-                ? card.fsrsCard.due.toISOString()
-                : card.fsrsCard.due,
-            last_review:
-              card.fsrsCard.last_review instanceof Date
-                ? card.fsrsCard.last_review.toISOString()
-                : card.fsrsCard.last_review,
-          },
-        },
-      ])
-    ),
-  };
+interface VocabularyReviewSession {
+  reviewedToday: VocabularyReviewDataStore['reviewedToday'];
+  newCardsToday: VocabularyReviewDataStore['newCardsToday'];
+  lastReviewDate: string;
 }
 
 export default async function saveVocabularyReviewData(
-  data: VocabularyReviewDataStore,
+  prev: VocabularyReviewDataStore | null,
+  next: VocabularyReviewDataStore,
   direction: TranslationDirection
 ): Promise<void> {
-  await saveUserData(getVocabularyDocPath(direction), data, serializeVocabularyReviewData);
+  const storage = vocabularyReviewStorage(direction);
+  const session: VocabularyReviewSession = {
+    reviewedToday: next.reviewedToday,
+    newCardsToday: next.newCardsToday,
+    lastReviewDate: next.lastReviewDate,
+  };
+  await Promise.all([
+    storage.saveCardsDiff(prev?.cards ?? null, next.cards),
+    saveUserData(getVocabularySessionDocPath(direction), session),
+  ]);
 }

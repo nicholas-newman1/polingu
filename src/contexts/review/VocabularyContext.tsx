@@ -1,4 +1,12 @@
-import { createContext, useState, useCallback, useMemo, useEffect, type ReactNode } from 'react';
+import {
+  createContext,
+  useState,
+  useCallback,
+  useMemo,
+  useEffect,
+  useRef,
+  type ReactNode,
+} from 'react';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import type {
@@ -74,6 +82,7 @@ export function VocabularyProvider({
       'en-to-pl': getDefaultVocabularyReviewStore(),
     }
   );
+  const storesRef = useRef(vocabularyReviewStores);
   const [vocabularySettings, setVocabularySettings] = useState<VocabularySettings>(initialSettings);
   const [customWords, setCustomWords] = useState<CustomVocabularyWord[]>(initialCustomWords);
   const [systemWords, setSystemWords] = useState<VocabularyWord[]>(initialSystemWords);
@@ -81,12 +90,12 @@ export function VocabularyProvider({
   useSyncProps(
     { initialReviewStores, initialSettings, initialCustomWords, initialSystemWords },
     () => {
-      setVocabularyReviewStores(
-        initialReviewStores ?? {
-          'pl-to-en': getDefaultVocabularyReviewStore(),
-          'en-to-pl': getDefaultVocabularyReviewStore(),
-        }
-      );
+      const nextStores = initialReviewStores ?? {
+        'pl-to-en': getDefaultVocabularyReviewStore(),
+        'en-to-pl': getDefaultVocabularyReviewStore(),
+      };
+      setVocabularyReviewStores(nextStores);
+      storesRef.current = nextStores;
       setVocabularySettings(initialSettings);
       setCustomWords(initialCustomWords);
       setSystemWords(initialSystemWords);
@@ -109,12 +118,12 @@ export function VocabularyProvider({
 
   const updateVocabularyReviewStore = useCallback(
     async (direction: TranslationDirection, store: VocabularyReviewDataStore) => {
-      setVocabularyReviewStores((prev) => ({
-        ...prev,
-        [direction]: store,
-      }));
+      const prevStore = storesRef.current[direction];
+      const nextAll = { ...storesRef.current, [direction]: store };
+      storesRef.current = nextAll;
+      setVocabularyReviewStores(nextAll);
       try {
-        await saveVocabularyReviewData(store, direction);
+        await saveVocabularyReviewData(prevStore, store, direction);
       } catch (e) {
         showSaveError(e);
       }
@@ -141,10 +150,9 @@ export function VocabularyProvider({
     try {
       await clearVocabularyData(direction);
       const freshStore = getDefaultVocabularyReviewStore();
-      setVocabularyReviewStores((prev) => ({
-        ...prev,
-        [direction]: freshStore,
-      }));
+      const nextAll = { ...storesRef.current, [direction]: freshStore };
+      storesRef.current = nextAll;
+      setVocabularyReviewStores(nextAll);
     } catch (e) {
       showSaveError(e);
     }

@@ -1,32 +1,42 @@
 import type { AspectPairsReviewDataStore } from '../../types/aspectPairs';
-import { getTodayString, getDefaultAspectPairsReviewStore } from './helpers';
+import {
+  getTodayString,
+  getDefaultAspectPairsReviewStore,
+  ASPECT_PAIRS_SESSION_DOC_PATH,
+} from './helpers';
 import { loadUserData } from '../offlineDb/userDataWrapper';
+import { aspectPairsReviewStorage } from './aspectPairsReviewStorage';
 
-function deserializeAspectPairsReviewData(data: unknown): AspectPairsReviewDataStore {
-  const parsed = data as AspectPairsReviewDataStore;
-  const today = getTodayString();
-  if (parsed.lastReviewDate !== today) {
-    parsed.reviewedToday = [];
-    parsed.newCardsToday = [];
-    parsed.lastReviewDate = today;
-  }
-  Object.keys(parsed.cards).forEach((key) => {
-    const card = parsed.cards[key];
-    if (!card?.fsrsCard) return;
-    if (card.fsrsCard.due) {
-      card.fsrsCard.due = new Date(card.fsrsCard.due);
-    }
-    if (card.fsrsCard.last_review) {
-      card.fsrsCard.last_review = new Date(card.fsrsCard.last_review);
-    }
-  });
-  return parsed;
+interface AspectPairsReviewSession {
+  reviewedToday: AspectPairsReviewDataStore['reviewedToday'];
+  newCardsToday: AspectPairsReviewDataStore['newCardsToday'];
+  lastReviewDate: string;
 }
 
 export default async function loadAspectPairsReviewData(): Promise<AspectPairsReviewDataStore> {
-  return loadUserData(
-    'aspectPairsReviewData',
-    getDefaultAspectPairsReviewStore(),
-    deserializeAspectPairsReviewData
-  );
+  const today = getTodayString();
+  const defaults = getDefaultAspectPairsReviewStore();
+  const defaultSession: AspectPairsReviewSession = {
+    reviewedToday: defaults.reviewedToday,
+    newCardsToday: defaults.newCardsToday,
+    lastReviewDate: defaults.lastReviewDate,
+  };
+
+  const [cards, session] = await Promise.all([
+    aspectPairsReviewStorage.loadCards(),
+    loadUserData<AspectPairsReviewSession>(ASPECT_PAIRS_SESSION_DOC_PATH, defaultSession),
+  ]);
+
+  if (session.lastReviewDate !== today) {
+    session.reviewedToday = [];
+    session.newCardsToday = [];
+    session.lastReviewDate = today;
+  }
+
+  return {
+    cards,
+    reviewedToday: session.reviewedToday,
+    newCardsToday: session.newCardsToday,
+    lastReviewDate: session.lastReviewDate,
+  };
 }

@@ -9,6 +9,7 @@ import { loadContentData, syncContentFromFirestore } from '../../lib/offlineDb/c
 import {
   refreshAllUserDataFromFirestore,
   syncAllPendingToFirestore,
+  cleanupLegacyReviewUserDataRows,
 } from '../../lib/offlineDb/userDataWrapper';
 import { refreshSentenceTagsFromFirestore } from '../../lib/storage/sentenceTags';
 import { DeclensionProvider, DeclensionContext, loadDeclensionData } from './DeclensionContext';
@@ -137,6 +138,10 @@ export function ReviewDataProvider({ children }: ReviewDataProviderProps) {
 
   useEffect(() => {
     let active = true;
+
+    cleanupLegacyReviewUserDataRows().catch((e) => {
+      console.error('Failed to remove legacy review IndexedDB rows:', e);
+    });
 
     fetchAllData().then((result) => {
       if (!active) return;

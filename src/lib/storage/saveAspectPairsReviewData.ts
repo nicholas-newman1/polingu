@@ -1,33 +1,25 @@
 import type { AspectPairsReviewDataStore } from '../../types/aspectPairs';
+import { ASPECT_PAIRS_SESSION_DOC_PATH } from './helpers';
 import { saveUserData } from '../offlineDb/userDataWrapper';
+import { aspectPairsReviewStorage } from './aspectPairsReviewStorage';
 
-function serializeAspectPairsReviewData(data: AspectPairsReviewDataStore): unknown {
-  return {
-    ...data,
-    cards: Object.fromEntries(
-      Object.entries(data.cards).map(([key, card]) => [
-        key,
-        {
-          ...card,
-          fsrsCard: {
-            ...card.fsrsCard,
-            due:
-              card.fsrsCard.due instanceof Date
-                ? card.fsrsCard.due.toISOString()
-                : card.fsrsCard.due,
-            last_review:
-              card.fsrsCard.last_review instanceof Date
-                ? card.fsrsCard.last_review.toISOString()
-                : card.fsrsCard.last_review,
-          },
-        },
-      ])
-    ),
-  };
+interface AspectPairsReviewSession {
+  reviewedToday: AspectPairsReviewDataStore['reviewedToday'];
+  newCardsToday: AspectPairsReviewDataStore['newCardsToday'];
+  lastReviewDate: string;
 }
 
 export default async function saveAspectPairsReviewData(
-  data: AspectPairsReviewDataStore
+  prev: AspectPairsReviewDataStore | null,
+  next: AspectPairsReviewDataStore
 ): Promise<void> {
-  await saveUserData('aspectPairsReviewData', data, serializeAspectPairsReviewData);
+  const session: AspectPairsReviewSession = {
+    reviewedToday: next.reviewedToday,
+    newCardsToday: next.newCardsToday,
+    lastReviewDate: next.lastReviewDate,
+  };
+  await Promise.all([
+    aspectPairsReviewStorage.saveCardsDiff(prev?.cards ?? null, next.cards),
+    saveUserData(ASPECT_PAIRS_SESSION_DOC_PATH, session),
+  ]);
 }

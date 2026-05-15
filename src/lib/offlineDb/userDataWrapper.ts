@@ -14,6 +14,30 @@ import { userDb } from './userDb';
 import { getUserId } from '../storage/helpers';
 
 /**
+ * Legacy single-document review data keys. These were per-user docs that held
+ * the entire `cards`/`forms` map and were migrated to per-card subcollections.
+ * The keys may still exist in IndexedDB for users who were active before the
+ * migration; we must skip them during background sync (re-pushing them would
+ * trip the Firestore index limit again) and remove the stale rows on load.
+ */
+const LEGACY_REVIEW_USER_DATA_KEYS = new Set<string>([
+  'vocabularyReviewData-pl-en',
+  'vocabularyReviewData-en-pl',
+  'sentenceReviewData-pl-en',
+  'sentenceReviewData-en-pl',
+  'conjugationReviewData-pl-en',
+  'conjugationReviewData-en-pl',
+  'aspectPairsReviewData',
+  'reviewData',
+]);
+
+export async function cleanupLegacyReviewUserDataRows(): Promise<void> {
+  await Promise.all(
+    Array.from(LEGACY_REVIEW_USER_DATA_KEYS).map((key) => userDb.userData.delete(key))
+  );
+}
+
+/**
  * 1. Save to IndexedDB immediately (works offline)
  * 2. Await Firestore write when online so callers know the server has it
  *    before we move on. If offline or if the write fails, the record stays
@@ -94,7 +118,10 @@ export async function refreshAllUserDataFromFirestore(): Promise<void> {
   if (!userId || !navigator.onLine) return;
 
   const allRecords = await userDb.userData.toArray();
-  const userRecords = allRecords.filter((r) => !r.key.startsWith('__') && r.pendingSync !== 1);
+  const userRecords = allRecords.filter(
+    (r) =>
+      !r.key.startsWith('__') && r.pendingSync !== 1 && !LEGACY_REVIEW_USER_DATA_KEYS.has(r.key)
+  );
   await Promise.all(
     userRecords.map(async (record) => {
       try {
@@ -123,7 +150,9 @@ export async function syncAllPendingToFirestore(): Promise<number> {
   const userId = getUserId();
   if (!userId) return 0;
 
-  const pending = await userDb.userData.where('pendingSync').equals(1).toArray();
+  const pending = (await userDb.userData.where('pendingSync').equals(1).toArray()).filter(
+    (r) => !LEGACY_REVIEW_USER_DATA_KEYS.has(r.key)
+  );
   let synced = 0;
 
   for (const record of pending) {
