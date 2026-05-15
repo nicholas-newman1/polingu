@@ -15,7 +15,9 @@ import { getUserId } from '../storage/helpers';
 
 /**
  * 1. Save to IndexedDB immediately (works offline)
- * 2. Sync to Firestore in background if online
+ * 2. Await Firestore write when online so callers know the server has it
+ *    before we move on. If offline or if the write fails, the record stays
+ *    flagged pendingSync=1 and will be retried by syncAllPendingToFirestore.
  */
 export async function saveUserData<T>(
   docPath: string,
@@ -34,15 +36,15 @@ export async function saveUserData<T>(
     pendingSync: 1,
   });
 
-  if (navigator.onLine) {
+  if (!navigator.onLine) return;
+
+  try {
     const docRef = doc(db, 'users', userId, 'data', docPath);
-    setDoc(docRef, serializedData as object)
-      .then(() => {
-        userDb.userData.update(docPath, { pendingSync: 0 });
-      })
-      .catch((e) => {
-        console.error(`Failed to sync ${docPath} to Firestore:`, e);
-      });
+    await setDoc(docRef, serializedData as object);
+    await userDb.userData.update(docPath, { pendingSync: 0 });
+  } catch (e) {
+    console.error(`Failed to sync ${docPath} to Firestore:`, e);
+    throw e;
   }
 }
 
@@ -92,7 +94,7 @@ export async function refreshAllUserDataFromFirestore(): Promise<void> {
   if (!userId || !navigator.onLine) return;
 
   const allRecords = await userDb.userData.toArray();
-  const userRecords = allRecords.filter((r) => !r.key.startsWith('__'));
+  const userRecords = allRecords.filter((r) => !r.key.startsWith('__') && r.pendingSync !== 1);
   await Promise.all(
     userRecords.map(async (record) => {
       try {

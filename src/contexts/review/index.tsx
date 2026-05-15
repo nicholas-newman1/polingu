@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, type ReactNode } from 'react';
+import { useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import type { DeclensionCard } from '../../types';
 import type { VocabularyWord } from '../../types/vocabulary';
 import type { Sentence } from '../../types/sentences';
@@ -6,7 +6,10 @@ import type { Verb } from '../../types/conjugation';
 import { getUserId } from '../../lib/storage/helpers';
 import { useAuthContext } from '../../hooks/useAuthContext';
 import { loadContentData, syncContentFromFirestore } from '../../lib/offlineDb/contentSync';
-import { refreshAllUserDataFromFirestore } from '../../lib/offlineDb/userDataWrapper';
+import {
+  refreshAllUserDataFromFirestore,
+  syncAllPendingToFirestore,
+} from '../../lib/offlineDb/userDataWrapper';
 import { refreshSentenceTagsFromFirestore } from '../../lib/storage/sentenceTags';
 import { DeclensionProvider, DeclensionContext, loadDeclensionData } from './DeclensionContext';
 import { VocabularyProvider, VocabularyContext, loadVocabularyData } from './VocabularyContext';
@@ -101,6 +104,37 @@ export function ReviewDataProvider({ children }: ReviewDataProviderProps) {
     setLoading(true);
   }
 
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  const syncInFlightRef = useRef(false);
+  const performBackgroundSync = useCallback(async () => {
+    if (!navigator.onLine || !getUserId()) return;
+    if (syncInFlightRef.current) return;
+    syncInFlightRef.current = true;
+    try {
+      await syncAllPendingToFirestore();
+      await Promise.all([
+        refreshAllUserDataFromFirestore(),
+        syncContentFromFirestore(),
+        refreshSentenceTagsFromFirestore(),
+      ]);
+      const fresh = await fetchAllData();
+      if (mountedRef.current && fresh) {
+        setData(fresh);
+      }
+    } catch (e) {
+      console.error('Background sync failed:', e);
+    } finally {
+      syncInFlightRef.current = false;
+    }
+  }, [fetchAllData]);
+
   useEffect(() => {
     let active = true;
 
@@ -108,29 +142,27 @@ export function ReviewDataProvider({ children }: ReviewDataProviderProps) {
       if (!active) return;
       setData(result);
       setLoading(false);
-
-      if (navigator.onLine && getUserId()) {
-        Promise.all([
-          refreshAllUserDataFromFirestore(),
-          syncContentFromFirestore(),
-          refreshSentenceTagsFromFirestore(),
-        ])
-          .then(() => {
-            if (active) return fetchAllData();
-          })
-          .then((fresh) => {
-            if (active && fresh) {
-              setData(fresh);
-            }
-          })
-          .catch((e) => console.error('Background sync failed:', e));
-      }
+      performBackgroundSync();
     });
 
     return () => {
       active = false;
     };
-  }, [user?.uid, fetchAllData]);
+  }, [user?.uid, fetchAllData, performBackgroundSync]);
+
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        performBackgroundSync();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', performBackgroundSync);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('focus', performBackgroundSync);
+    };
+  }, [performBackgroundSync]);
 
   return (
     <DeclensionProvider
