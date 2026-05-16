@@ -166,17 +166,9 @@ export function CustomVocabularyPage() {
     }
   };
 
-  const handleAudioSaved = useCallback(
-    (wordId: string, audioUrl: string) => {
-      const newCustomWords = customWords.map((w) => (w.id === wordId ? { ...w, audioUrl } : w));
-
-      applyOptimisticCustomWords(newCustomWords, async () => {
-        await saveCustomVocabulary(newCustomWords);
-        setCustomWordsBase(newCustomWords);
-      });
-    },
-    [customWords, applyOptimisticCustomWords]
-  );
+  const handleAudioSaved = useCallback((wordId: string, audioUrl: string) => {
+    setCustomWordsBase((prev) => prev.map((w) => (w.id === wordId ? { ...w, audioUrl } : w)));
+  }, []);
 
   const filteredAndSortedWords = useMemo(() => {
     let result = [...customWords];

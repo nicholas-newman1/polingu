@@ -810,7 +810,8 @@ async function updateFirestoreAudioUrl(
   type: AudioType,
   id: string,
   audioUrl: string,
-  subPath?: string
+  subPath?: string,
+  userId?: string
 ): Promise<void> {
   switch (type) {
     case 'sentence':
@@ -838,9 +839,34 @@ async function updateFirestoreAudioUrl(
       await db.collection('verbs').doc(id).update({ infinitiveAudioUrl: audioUrl });
       break;
     case 'custom-sentence':
+      if (userId) {
+        await db
+          .collection('users')
+          .doc(userId)
+          .collection('customSentences')
+          .doc(id)
+          .update({ audioUrl });
+      }
+      break;
     case 'custom-vocabulary':
+      if (userId) {
+        await db
+          .collection('users')
+          .doc(userId)
+          .collection('customVocabulary')
+          .doc(id)
+          .update({ audioUrl });
+      }
+      break;
     case 'custom-declension':
-      // Custom card audio URLs are written by the client after saveAudio resolves.
+      if (userId) {
+        await db
+          .collection('users')
+          .doc(userId)
+          .collection('customDeclension')
+          .doc(id)
+          .update({ audioUrl });
+      }
       break;
   }
 }
@@ -914,7 +940,7 @@ export const saveAudio = onCall<SaveAudioRequest, Promise<SaveAudioResponse>>(as
     const audioBuffer = Buffer.from(audioBase64, 'base64');
     const audioUrl = await uploadAudioBuffer(audioBuffer, type, id, subPath, userId);
 
-    await updateFirestoreAudioUrl(type, id, audioUrl, subPath);
+    await updateFirestoreAudioUrl(type, id, audioUrl, subPath, userId);
 
     return { audioUrl };
   } catch (error) {

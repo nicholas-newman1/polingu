@@ -160,17 +160,9 @@ export function CustomDeclensionPage() {
     }
   };
 
-  const handleAudioSaved = useCallback(
-    (cardId: string, audioUrl: string) => {
-      const newCustomCards = customCards.map((c) => (c.id === cardId ? { ...c, audioUrl } : c));
-
-      applyOptimisticCustomCards(newCustomCards, async () => {
-        await saveCustomDeclension(newCustomCards);
-        setCustomCardsBase(newCustomCards);
-      });
-    },
-    [customCards, applyOptimisticCustomCards]
-  );
+  const handleAudioSaved = useCallback((cardId: string, audioUrl: string) => {
+    setCustomCardsBase((prev) => prev.map((c) => (c.id === cardId ? { ...c, audioUrl } : c)));
+  }, []);
 
   const filteredAndSortedCards = useMemo(() => {
     let result = [...customCards];

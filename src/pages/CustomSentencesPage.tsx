@@ -160,20 +160,11 @@ export function CustomSentencesPage() {
     }
   };
 
-  const handleAudioSaved = useCallback(
-    (sentenceId: string, audioUrl: string) => {
-      const newCustomSentences = customSentences.map((s) =>
-        s.id === sentenceId ? { ...s, audioUrl } : s
-      );
-
-      applyOptimisticCustomSentences(newCustomSentences, async () => {
-        await saveCustomSentences(newCustomSentences);
-        setCustomSentencesBase(newCustomSentences);
-        setContextCustomSentences(newCustomSentences);
-      });
-    },
-    [customSentences, applyOptimisticCustomSentences, setContextCustomSentences]
-  );
+  const handleAudioSaved = useCallback((sentenceId: string, audioUrl: string) => {
+    setCustomSentencesBase((prev) =>
+      prev.map((s) => (s.id === sentenceId ? { ...s, audioUrl } : s))
+    );
+  }, []);
 
   const filteredAndSortedSentences = useMemo(() => {
     let result = [...customSentences];
