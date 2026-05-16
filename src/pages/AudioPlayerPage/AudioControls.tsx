@@ -57,16 +57,37 @@ const PlaybackGroup = styled(Box)({
   flex: 1,
 });
 
+const ProgressSliderWrapper = styled(Box)({
+  position: 'relative',
+});
+
 const ProgressSlider = styled(Slider)({
   '&.MuiSlider-root': {
-    padding: 0,
-    marginBottom: 4,
+    padding: '10px 0',
+    marginBottom: 0,
+    display: 'block',
   },
   '& .MuiSlider-thumb': {
     width: 12,
     height: 12,
   },
 });
+
+const SeekTooltip = styled(Box)(({ theme }) => ({
+  position: 'absolute',
+  bottom: 'calc(100% + 6px)',
+  transform: 'translateX(-50%)',
+  padding: theme.spacing(0.25, 0.75),
+  borderRadius: theme.shape.borderRadius,
+  backgroundColor: theme.palette.grey[800],
+  color: theme.palette.common.white,
+  fontSize: '0.7rem',
+  fontWeight: 600,
+  lineHeight: 1.4,
+  pointerEvents: 'none',
+  whiteSpace: 'nowrap',
+  zIndex: 1,
+}));
 
 const FontSizeButton = styled(ButtonBase)(({ theme }) => ({
   width: 48,
@@ -151,7 +172,9 @@ export function AudioControls({
   const [fontSizeMenuAnchor, setFontSizeMenuAnchor] = useState<HTMLElement | null>(null);
   const [isSeeking, setIsSeeking] = useState(false);
   const [seekValue, setSeekValue] = useState(0);
+  const [hoverPercent, setHoverPercent] = useState<number | null>(null);
   const controlsRef = useRef<HTMLDivElement>(null);
+  const sliderWrapperRef = useRef<HTMLDivElement>(null);
   const lastHeightRef = useRef(0);
 
   useEffect(() => {
@@ -196,18 +219,49 @@ export function AudioControls({
     onSetPlaybackRate(value as number);
   };
 
+  const handleSliderHoverMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!sliderWrapperRef.current || !duration) return;
+    const rect = sliderWrapperRef.current.getBoundingClientRect();
+    if (rect.width <= 0) return;
+    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    setHoverPercent(ratio * 100);
+  };
+
+  const handleSliderHoverLeave = () => {
+    setHoverPercent(null);
+  };
+
+  const seekingPercent = duration > 0 ? (seekValue / duration) * 100 : 0;
+  const tooltipPercent = isSeeking ? seekingPercent : hoverPercent;
+  const displayedTime = isSeeking ? seekValue : currentTime;
+  const isPreviewing = isSeeking;
+
   return (
     <ControlsBar ref={controlsRef}>
-      <ProgressSlider
-        value={isSeeking ? seekValue : currentTime}
-        max={duration || 1}
-        onChange={handleSeekChange}
-        onChangeCommitted={handleSeekCommit}
-        size="small"
-      />
+      <ProgressSliderWrapper
+        ref={sliderWrapperRef}
+        onMouseMove={handleSliderHoverMove}
+        onMouseLeave={handleSliderHoverLeave}
+      >
+        {tooltipPercent !== null && duration > 0 && (
+          <SeekTooltip sx={{ left: `${tooltipPercent}%` }}>
+            {formatTime((tooltipPercent / 100) * duration)}
+          </SeekTooltip>
+        )}
+        <ProgressSlider
+          value={isSeeking ? seekValue : currentTime}
+          max={duration || 1}
+          onChange={handleSeekChange}
+          onChangeCommitted={handleSeekCommit}
+          size="small"
+        />
+      </ProgressSliderWrapper>
       <TimeRow>
-        <Typography variant="caption" color="text.secondary">
-          {formatTime(currentTime)}
+        <Typography
+          variant="caption"
+          color={isPreviewing ? 'text.primary' : 'text.secondary'}
+        >
+          {formatTime(displayedTime)}
         </Typography>
         <Typography variant="caption" color="text.secondary">
           {formatTime(duration)}
