@@ -10,7 +10,13 @@ import {
   LinearProgress,
   Chip,
 } from '@mui/material';
-import { VolumeUp, CloudDownload, DeleteOutline, CloudOff } from '@mui/icons-material';
+import {
+  VolumeUp,
+  CloudDownload,
+  DeleteOutline,
+  CloudOff,
+  VisibilityOff,
+} from '@mui/icons-material';
 import { styled } from '../lib/styled';
 import { useAppSettings } from '../contexts/AppSettingsContext';
 import { useReviewData } from '../hooks/useReviewData';
@@ -136,6 +142,10 @@ export function SettingsPage() {
     updateSettings({ autoPlayAudio: event.target.checked });
   };
 
+  const handleHidePolishChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    updateSettings({ hidePolishText: event.target.checked });
+  };
+
   const handleDownloadAudio = async () => {
     if (isDownloading || !navigator.onLine) return;
 
@@ -193,6 +203,26 @@ export function SettingsPage() {
             </SettingInfo>
             <FormControlLabel
               control={<Switch checked={settings.autoPlayAudio} onChange={handleAutoPlayChange} />}
+              label=""
+            />
+          </SettingRow>
+
+          <SettingRow>
+            <SettingInfo>
+              <SettingIcon>
+                <VisibilityOff />
+              </SettingIcon>
+              <Box>
+                <Typography variant="body1">Hide Polish text</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Hide Polish text on flashcards to focus on learning by audio
+                </Typography>
+              </Box>
+            </SettingInfo>
+            <FormControlLabel
+              control={
+                <Switch checked={settings.hidePolishText} onChange={handleHidePolishChange} />
+              }
               label=""
             />
           </SettingRow>

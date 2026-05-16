@@ -5,6 +5,8 @@ import { styled } from '../../../lib/styled';
 import { FlashcardShell } from '../../../components/FlashcardShell';
 import type { RatingIntervals } from '../../../components/RatingButtons';
 import { AudioButton } from '../../../components/AudioButton';
+import { HidePolishButton } from '../../../components/HidePolishButton';
+import { HiddenPolishPlaceholder } from '../../../components/HiddenPolishPlaceholder';
 import type { DrillableForm, Verb } from '../../../types/conjugation';
 import type { TranslationDirection } from '../../../types/common';
 import {
@@ -17,6 +19,7 @@ import {
 import { alpha } from '../../../lib/theme';
 import { VerbConjugationTooltip } from '../../../components/VerbConjugationTooltip';
 import { useAudioPlayer } from '../../../hooks/useAudioPlayer';
+import { useAppSettings } from '../../../contexts/AppSettingsContext';
 
 export type ConjugationRatingIntervals = RatingIntervals;
 
@@ -127,6 +130,8 @@ export function ConjugationFlashcard({
   onDelete,
 }: ConjugationFlashcardProps) {
   const [revealed, setRevealed] = useState(isViewingHistory);
+  const { settings } = useAppSettings();
+  const hidePolish = settings.hidePolishText;
 
   const isPolishToEnglish = direction === 'pl-to-en';
 
@@ -145,9 +150,12 @@ export function ConjugationFlashcard({
     ? getCorrespondingAspectPairForm(form, aspectPairVerb)
     : null;
 
-  const headerActions = hasAudio ? (
-    <AudioButton isPlaying={isPlaying} onToggle={toggleAudio} />
-  ) : undefined;
+  const headerActions = (
+    <>
+      {hasAudio && <AudioButton isPlaying={isPlaying} onToggle={toggleAudio} />}
+      {hasAudio && <HidePolishButton />}
+    </>
+  );
 
   const question = (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
@@ -167,17 +175,21 @@ export function ConjugationFlashcard({
         </Stack>
       )}
 
-      <QuestionText variant="h4" color="text.primary">
-        {isPolishToEnglish ? (
-          <VerbConjugationTooltip verb={form.verb} tense={form.tense}>
-            {questionDisplay}
-          </VerbConjugationTooltip>
-        ) : (
-          questionDisplay
-        )}
-      </QuestionText>
+      {isPolishToEnglish && hidePolish ? (
+        <HiddenPolishPlaceholder />
+      ) : (
+        <QuestionText variant="h4" color="text.primary">
+          {isPolishToEnglish ? (
+            <VerbConjugationTooltip verb={form.verb} tense={form.tense}>
+              {questionDisplay}
+            </VerbConjugationTooltip>
+          ) : (
+            questionDisplay
+          )}
+        </QuestionText>
+      )}
 
-      {isPolishToEnglish && (
+      {isPolishToEnglish && !hidePolish && (
         <InfinitiveLabel>
           <VerbConjugationTooltip verb={form.verb} tense={form.tense} />
         </InfinitiveLabel>
@@ -187,20 +199,26 @@ export function ConjugationFlashcard({
 
   const answer = (
     <>
-      <AnswerText variant="h4" color="text.primary">
-        {!isPolishToEnglish ? (
-          <VerbConjugationTooltip verb={form.verb} tense={form.tense}>
-            {answerData.primary}
-          </VerbConjugationTooltip>
-        ) : (
-          answerData.primary
-        )}
-      </AnswerText>
-      {answerData.alternatives && answerData.alternatives.length > 0 && (
-        <AlternativesText>Also: {answerData.alternatives.join(', ')}</AlternativesText>
+      {!isPolishToEnglish && hidePolish ? (
+        <HiddenPolishPlaceholder />
+      ) : (
+        <AnswerText variant="h4" color="text.primary">
+          {!isPolishToEnglish ? (
+            <VerbConjugationTooltip verb={form.verb} tense={form.tense}>
+              {answerData.primary}
+            </VerbConjugationTooltip>
+          ) : (
+            answerData.primary
+          )}
+        </AnswerText>
       )}
+      {answerData.alternatives &&
+        answerData.alternatives.length > 0 &&
+        !(!isPolishToEnglish && hidePolish) && (
+          <AlternativesText>Also: {answerData.alternatives.join(', ')}</AlternativesText>
+        )}
 
-      {!isPolishToEnglish && (
+      {!isPolishToEnglish && !hidePolish && (
         <InfinitiveLabel>
           <VerbConjugationTooltip verb={form.verb} tense={form.tense} />
         </InfinitiveLabel>
@@ -219,7 +237,7 @@ export function ConjugationFlashcard({
         )}
       </Stack>
 
-      {aspectPairForm && aspectPairVerb && (
+      {aspectPairForm && aspectPairVerb && !hidePolish && (
         <AspectPairBox>
           <Typography variant="body2" color="text.secondary">
             {aspectPairVerb.aspect}: <strong>{aspectPairForm}</strong>

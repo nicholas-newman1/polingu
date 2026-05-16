@@ -5,10 +5,13 @@ import { styled } from '../../../lib/styled';
 import { FlashcardShell } from '../../../components/FlashcardShell';
 import type { RatingIntervals } from '../../../components/RatingButtons';
 import { AudioButton } from '../../../components/AudioButton';
+import { HidePolishButton } from '../../../components/HidePolishButton';
+import { HiddenPolishPlaceholder } from '../../../components/HiddenPolishPlaceholder';
 import { renderTappableText } from '../../../lib/renderTappableText';
 import type { Sentence, CEFRLevel } from '../../../types/sentences';
 import type { TranslationDirection } from '../../../types/common';
 import { useAudioPlayer } from '../../../hooks/useAudioPlayer';
+import { useAppSettings } from '../../../contexts/AppSettingsContext';
 
 interface SentenceFlashcardProps {
   sentence: Sentence;
@@ -87,6 +90,8 @@ export function SentenceFlashcard({
   onUpdateTranslation,
 }: SentenceFlashcardProps) {
   const [revealed, setRevealed] = useState(isViewingHistory);
+  const { settings } = useAppSettings();
+  const hidePolish = settings.hidePolishText;
 
   const isPolishToEnglish = direction === 'pl-to-en';
 
@@ -117,13 +122,23 @@ export function SentenceFlashcard({
     ]
   );
 
-  const questionContent = isPolishToEnglish
-    ? renderTappableText(sentence.polish, tappableTextOptions)
-    : sentence.english;
+  const questionContent =
+    isPolishToEnglish && hidePolish ? (
+      <HiddenPolishPlaceholder />
+    ) : isPolishToEnglish ? (
+      renderTappableText(sentence.polish, tappableTextOptions)
+    ) : (
+      sentence.english
+    );
 
-  const answerContent = isPolishToEnglish
-    ? sentence.english
-    : renderTappableText(sentence.polish, tappableTextOptions);
+  const answerContent =
+    !isPolishToEnglish && hidePolish ? (
+      <HiddenPolishPlaceholder />
+    ) : isPolishToEnglish ? (
+      sentence.english
+    ) : (
+      renderTappableText(sentence.polish, tappableTextOptions)
+    );
 
   const handleDelete = () => {
     if (window.confirm('Are you sure you want to delete this sentence?')) {
@@ -133,9 +148,12 @@ export function SentenceFlashcard({
 
   const header = <LevelChip $level={sentence.level} label={sentence.level} />;
 
-  const headerActions = hasAudio ? (
-    <AudioButton isPlaying={isPlaying} onToggle={toggleAudio} />
-  ) : undefined;
+  const headerActions = (
+    <>
+      {hasAudio && <AudioButton isPlaying={isPlaying} onToggle={toggleAudio} />}
+      {hasAudio && <HidePolishButton />}
+    </>
+  );
 
   const question = (
     <>

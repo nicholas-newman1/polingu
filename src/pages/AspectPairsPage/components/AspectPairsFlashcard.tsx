@@ -5,6 +5,8 @@ import { styled } from '../../../lib/styled';
 import { FlashcardShell } from '../../../components/FlashcardShell';
 import type { RatingIntervals } from '../../../components/RatingButtons';
 import { AudioButton } from '../../../components/AudioButton';
+import { HidePolishButton } from '../../../components/HidePolishButton';
+import { HiddenPolishPlaceholder } from '../../../components/HiddenPolishPlaceholder';
 import type { AspectPairCard } from '../../../types/aspectPairs';
 import type { Verb, Tense } from '../../../types/conjugation';
 import { alpha } from '../../../lib/theme';
@@ -97,6 +99,7 @@ export function AspectPairsFlashcard({
   onUnlink,
 }: AspectPairsFlashcardProps) {
   const { settings: appSettings } = useAppSettings();
+  const hidePolish = appSettings.hidePolishText;
   const [revealed, setRevealed] = useState(isViewingHistory);
   const [showPerfectiveFirst] = useState(() => Math.random() < 0.5);
   const [playingAudio, setPlayingAudio] = useState<'front' | 'back' | null>(null);
@@ -187,15 +190,24 @@ export function AspectPairsFlashcard({
 
   const header = <DirectionLabel>Aspect Pairs</DirectionLabel>;
 
-  const headerActions = frontAudioUrl ? (
-    <AudioButton isPlaying={playingAudio === 'front'} onToggle={toggleFrontAudio} />
-  ) : undefined;
+  const headerActions = (
+    <>
+      {frontAudioUrl && (
+        <AudioButton isPlaying={playingAudio === 'front'} onToggle={toggleFrontAudio} />
+      )}
+      {frontAudioUrl && <HidePolishButton />}
+    </>
+  );
 
   const question = (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-      <QuestionText variant="h4" color="text.primary">
-        <VerbConjugationTooltip verb={frontVerb} tense={getDefaultTenseForVerb(frontVerb)} />
-      </QuestionText>
+      {hidePolish ? (
+        <HiddenPolishPlaceholder />
+      ) : (
+        <QuestionText variant="h4" color="text.primary">
+          <VerbConjugationTooltip verb={frontVerb} tense={getDefaultTenseForVerb(frontVerb)} />
+        </QuestionText>
+      )}
     </Box>
   );
 
@@ -207,9 +219,13 @@ export function AspectPairsFlashcard({
 
       {isBiaspectual ? (
         <>
-          <AnswerText variant="h5" color="text.primary">
-            <VerbConjugationTooltip verb={frontVerb} tense={getDefaultTenseForVerb(frontVerb)} />
-          </AnswerText>
+          {hidePolish ? (
+            <HiddenPolishPlaceholder />
+          ) : (
+            <AnswerText variant="h5" color="text.primary">
+              <VerbConjugationTooltip verb={frontVerb} tense={getDefaultTenseForVerb(frontVerb)} />
+            </AnswerText>
+          )}
           <BiaspectualNote>
             This verb is biaspectual — the same form is used for both perfective and imperfective.
           </BiaspectualNote>
@@ -220,9 +236,18 @@ export function AspectPairsFlashcard({
             {backVerb.aspect}:
           </Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <AnswerText variant="h5" color="text.primary">
-              <VerbConjugationTooltip verb={backVerb} tense={getDefaultTenseForVerb(backVerb)} />
-            </AnswerText>
+            <Box sx={{ flex: 1 }}>
+              {hidePolish ? (
+                <HiddenPolishPlaceholder />
+              ) : (
+                <AnswerText variant="h5" color="text.primary">
+                  <VerbConjugationTooltip
+                    verb={backVerb}
+                    tense={getDefaultTenseForVerb(backVerb)}
+                  />
+                </AnswerText>
+              )}
+            </Box>
             {backAudioUrl && (
               <AudioButton isPlaying={playingAudio === 'back'} onToggle={toggleBackAudio} />
             )}

@@ -5,9 +5,12 @@ import { styled } from '../../../lib/styled';
 import { FlashcardShell } from '../../../components/FlashcardShell';
 import type { RatingIntervals } from '../../../components/RatingButtons';
 import { AudioButton } from '../../../components/AudioButton';
+import { HidePolishButton } from '../../../components/HidePolishButton';
+import { HiddenPolishPlaceholder } from '../../../components/HiddenPolishPlaceholder';
 import type { VocabularyWord } from '../../../types/vocabulary';
 import type { TranslationDirection } from '../../../types/common';
 import { useAudioPlayer } from '../../../hooks/useAudioPlayer';
+import { useAppSettings } from '../../../contexts/AppSettingsContext';
 
 interface VocabularyFlashcardProps {
   word: VocabularyWord;
@@ -107,6 +110,8 @@ export function VocabularyFlashcard({
   onDelete,
 }: VocabularyFlashcardProps) {
   const [revealed, setRevealed] = useState(isViewingHistory);
+  const { settings } = useAppSettings();
+  const hidePolish = settings.hidePolishText;
 
   const isPolishToEnglish = direction === 'pl-to-en';
 
@@ -125,19 +130,34 @@ export function VocabularyFlashcard({
 
   const header = isCustomWord ? <CustomLabel>Custom</CustomLabel> : undefined;
 
-  const headerActions = hasAudio ? (
-    <AudioButton isPlaying={isPlaying} onToggle={toggleAudio} />
-  ) : undefined;
+  const headerActions = (
+    <>
+      {hasAudio && <AudioButton isPlaying={isPlaying} onToggle={toggleAudio} />}
+      {hasAudio && <HidePolishButton />}
+    </>
+  );
+
+  const questionIsPolishHidden = isPolishToEnglish && hidePolish;
+  const answerIsPolishHidden = !isPolishToEnglish && hidePolish;
+
+  const hasExamples = word.examples && word.examples.length > 0;
+  const showExamples = hasExamples && (!hidePolish || revealed);
 
   const question = (
     <>
-      <QuestionText variant="h4" color="text.primary" sx={{ mb: 2 }}>
-        {questionWord}
-      </QuestionText>
+      {questionIsPolishHidden ? (
+        <Box sx={{ mb: 2 }}>
+          <HiddenPolishPlaceholder />
+        </Box>
+      ) : (
+        <QuestionText variant="h4" color="text.primary" sx={{ mb: 2 }}>
+          {questionWord}
+        </QuestionText>
+      )}
 
-      {word.examples && word.examples.length > 0 && (
-        <ExamplesList>
-          {word.examples.map((example, index) => {
+      {showExamples && (
+        <ExamplesList className={hidePolish ? 'animate-fade-up' : undefined}>
+          {word.examples!.map((example, index) => {
             const primaryText = isPolishToEnglish ? example.polish : example.english;
             const translationText = isPolishToEnglish ? example.english : example.polish;
             return (
@@ -165,9 +185,15 @@ export function VocabularyFlashcard({
 
   const answer = (
     <>
-      <AnswerText variant="h4" color="text.primary" sx={{ mb: 2 }}>
-        {answerWord}
-      </AnswerText>
+      {answerIsPolishHidden ? (
+        <Box sx={{ mb: 2 }}>
+          <HiddenPolishPlaceholder />
+        </Box>
+      ) : (
+        <AnswerText variant="h4" color="text.primary" sx={{ mb: 2 }}>
+          {answerWord}
+        </AnswerText>
+      )}
 
       <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: 'wrap', gap: 1 }}>
         {word.partOfSpeech && (

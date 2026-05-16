@@ -5,10 +5,13 @@ import { styled } from '../../../lib/styled';
 import { FlashcardShell } from '../../../components/FlashcardShell';
 import type { RatingIntervals } from '../../../components/RatingButtons';
 import { AudioButton } from '../../../components/AudioButton';
+import { HidePolishButton } from '../../../components/HidePolishButton';
+import { HiddenPolishPlaceholder } from '../../../components/HiddenPolishPlaceholder';
 import type { DeclensionCard } from '../../../types';
 import { renderTappableText } from '../../../lib/renderTappableText';
 import { useTranslationContext } from '../../../hooks/useTranslationContext';
 import { useAudioPlayer } from '../../../hooks/useAudioPlayer';
+import { useAppSettings } from '../../../contexts/AppSettingsContext';
 
 export type DeclensionRatingIntervals = RatingIntervals;
 
@@ -79,6 +82,8 @@ export function DeclensionFlashcard({
 }: DeclensionFlashcardProps) {
   const [revealed, setRevealed] = useState(isViewingHistory);
   const { handleDailyLimitReached } = useTranslationContext();
+  const { settings } = useAppSettings();
+  const hidePolish = settings.hidePolishText;
 
   const { isPlaying, toggleAudio, hasAudio } = useAudioPlayer({
     audioUrl: card.audioUrl,
@@ -110,18 +115,31 @@ export function DeclensionFlashcard({
 
   const header = card.isCustom ? <CustomLabel>Custom</CustomLabel> : undefined;
 
-  const headerActions = hasAudio ? (
-    <AudioButton isPlaying={isPlaying} onToggle={toggleAudio} />
-  ) : undefined;
+  const headerActions = (
+    <>
+      {hasAudio && <AudioButton isPlaying={isPlaying} onToggle={toggleAudio} />}
+      {hasAudio && <HidePolishButton />}
+    </>
+  );
 
   const question = (
-    <QuestionText>{renderTappableText(card.front, tappableTextOptions)}</QuestionText>
+    <QuestionText>
+      {hidePolish ? (
+        <HiddenPolishPlaceholder />
+      ) : (
+        renderTappableText(card.front, tappableTextOptions)
+      )}
+    </QuestionText>
   );
 
   const answer = (
     <>
       <AnswerText sx={{ mb: 2 }}>
-        {renderTappableText(card.back, tappableTextOptions, card.declined)}
+        {hidePolish ? (
+          <HiddenPolishPlaceholder />
+        ) : (
+          renderTappableText(card.back, tappableTextOptions, card.declined)
+        )}
       </AnswerText>
 
       <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: 'wrap', gap: 1 }}>
