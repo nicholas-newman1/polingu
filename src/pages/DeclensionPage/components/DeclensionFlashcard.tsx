@@ -123,13 +123,7 @@ export function DeclensionFlashcard({
   );
 
   const question = (
-    <QuestionText>
-      {hidePolish ? (
-        <HiddenPolishPlaceholder />
-      ) : (
-        renderTappableText(card.front, tappableTextOptions)
-      )}
-    </QuestionText>
+    <QuestionText>{renderTappableText(card.front, tappableTextOptions)}</QuestionText>
   );
 
   const answer = (
