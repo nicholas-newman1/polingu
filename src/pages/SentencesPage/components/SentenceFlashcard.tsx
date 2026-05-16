@@ -137,19 +137,20 @@ export function SentenceFlashcard({
     <AudioButton isPlaying={isPlaying} onToggle={toggleAudio} />
   ) : undefined;
 
-  const question = <SentenceText sx={{ mb: 2 }}>{questionContent}</SentenceText>;
-
-  const answer = (
+  const question = (
     <>
-      <AnswerTextBox sx={{ mb: 2 }}>{answerContent}</AnswerTextBox>
-
-      <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', gap: 0.5 }}>
-        {sentence.tags.map((tag) => (
-          <TagChip key={tag} label={tag} size="small" />
-        ))}
-      </Stack>
+      {sentence.tags.length > 0 && (
+        <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', gap: 0.5, mb: 2 }}>
+          {sentence.tags.map((tag) => (
+            <TagChip key={tag} label={tag} size="small" />
+          ))}
+        </Stack>
+      )}
+      <SentenceText sx={{ mb: 2 }}>{questionContent}</SentenceText>
     </>
   );
+
+  const answer = <AnswerTextBox sx={{ mb: 2 }}>{answerContent}</AnswerTextBox>;
 
   return (
     <FlashcardShell
