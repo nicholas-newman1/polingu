@@ -30,6 +30,7 @@ interface DeclensionFlashcardProps {
   onGoBack?: () => void;
   onContinue?: () => void;
   onEdit?: () => void;
+  onDelete?: () => void;
   onUpdateTranslation?: (word: string, translation: string) => void;
 }
 
@@ -78,6 +79,7 @@ export function DeclensionFlashcard({
   onGoBack,
   onContinue,
   onEdit,
+  onDelete,
   onUpdateTranslation,
 }: DeclensionFlashcardProps) {
   const [revealed, setRevealed] = useState(isViewingHistory);
@@ -166,6 +168,7 @@ export function DeclensionFlashcard({
       onGoBack={onGoBack}
       onContinue={onContinue}
       onEdit={onEdit}
+      onDelete={onDelete}
       header={header}
       headerActions={headerActions}
       question={question}

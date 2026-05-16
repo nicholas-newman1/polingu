@@ -481,29 +481,35 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
     [editingForm, verbs, applyOptimisticVerbs, setContextVerbs, updateFormInQueues]
   );
 
+  const deleteVerbById = useCallback(
+    (verbId: string, { skipConfirm = false }: { skipConfirm?: boolean } = {}) => {
+      if (!skipConfirm) {
+        const confirmMessage =
+          'Are you sure you want to delete this verb? This will remove all conjugation forms for this verb and affect all users.';
+        if (!window.confirm(confirmMessage)) return;
+      }
+
+      const newVerbs = verbs.filter((v) => v.id !== verbId);
+      removeVerbFromQueues(verbId);
+      applyOptimisticVerbs(newVerbs, async () => {
+        await deleteVerb(verbId);
+        setContextVerbs(newVerbs);
+      });
+    },
+    [verbs, applyOptimisticVerbs, setContextVerbs]
+  );
+
   const handleDeleteVerb = useCallback(() => {
     if (!editingForm) return;
-
-    const confirmMessage =
-      'Are you sure you want to delete this verb? This will remove all conjugation forms for this verb and affect all users.';
-
-    if (!window.confirm(confirmMessage)) {
-      return;
-    }
-
-    const verbId = editingForm.verb.id;
-    const newVerbs = verbs.filter((v) => v.id !== verbId);
-
-    removeVerbFromQueues(verbId);
-
-    applyOptimisticVerbs(newVerbs, async () => {
-      await deleteVerb(verbId);
-      setContextVerbs(newVerbs);
-    });
-
+    deleteVerbById(editingForm.verb.id, { skipConfirm: true });
     setShowEditModal(false);
     setEditingForm(null);
-  }, [editingForm, verbs, applyOptimisticVerbs, setContextVerbs]);
+  }, [editingForm, deleteVerbById]);
+
+  const handleDeleteCurrentSessionVerb = useCallback(() => {
+    if (!currentSessionCard) return;
+    deleteVerbById(currentSessionCard.form.verb.id);
+  }, [currentSessionCard, deleteVerbById]);
 
   const intervals: ConjugationRatingIntervals = useMemo(() => {
     if (!currentSessionCard) {
@@ -636,16 +642,7 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
                     setShowEditModal(true);
                   }}
                   onDelete={() => {
-                    const confirmMessage =
-                      'Are you sure you want to delete this verb? This will remove all conjugation forms for this verb and affect all users.';
-                    if (!window.confirm(confirmMessage)) return;
-                    const verbId = currentPracticeForm.verb.id;
-                    const newVerbs = verbs.filter((v) => v.id !== verbId);
-                    removeVerbFromQueues(verbId);
-                    applyOptimisticVerbs(newVerbs, async () => {
-                      await deleteVerb(verbId);
-                      setContextVerbs(newVerbs);
-                    });
+                    deleteVerbById(currentPracticeForm.verb.id);
                     handlePracticeNext();
                   }}
                 />
@@ -670,16 +667,7 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
                   setShowEditModal(true);
                 }}
                 onDelete={() => {
-                  const confirmMessage =
-                    'Are you sure you want to delete this verb? This will remove all conjugation forms for this verb and affect all users.';
-                  if (!window.confirm(confirmMessage)) return;
-                  const verbId = historyCard.verb.id;
-                  const newVerbs = verbs.filter((v) => v.id !== verbId);
-                  removeVerbFromQueues(verbId);
-                  applyOptimisticVerbs(newVerbs, async () => {
-                    await deleteVerb(verbId);
-                    setContextVerbs(newVerbs);
-                  });
+                  deleteVerbById(historyCard.verb.id);
                   goForward();
                 }}
               />
@@ -743,7 +731,7 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
                 onRate={handleRate}
                 onGoBack={goBack}
                 onEdit={handleOpenEditModal}
-                onDelete={handleDeleteVerb}
+                onDelete={handleDeleteCurrentSessionVerb}
               />
             ) : verbs.length === 0 ? (
               <EmptyState message="No verbs available. Import verbs to get started." />

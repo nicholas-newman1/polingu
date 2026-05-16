@@ -25,6 +25,7 @@ import type {
 import {
   updateDeclensionCard,
   updateDeclensionCardTranslation,
+  deleteDeclensionCard,
 } from '../../lib/storage/systemDeclension';
 import { saveCustomDeclension } from '../../lib/storage/customDeclension';
 import { includesDeclensionCardId } from '../../lib/storage/helpers';
@@ -482,26 +483,70 @@ export function DeclensionPage() {
     ]
   );
 
+  const deleteCardById = useCallback(
+    (card: DeclensionCard, { skipConfirm = false }: { skipConfirm?: boolean } = {}) => {
+      const isCustomCard = card.isCustom === true;
+      const isSystemCard = !isCustomCard && isAdmin;
+      if (!isCustomCard && !isSystemCard) return;
+
+      if (!skipConfirm) {
+        const confirmMessage = isCustomCard
+          ? 'Are you sure you want to delete this custom card?'
+          : 'Are you sure you want to delete this system declension card? This will affect all users.';
+        if (!window.confirm(confirmMessage)) return;
+      }
+
+      removeCardFromQueues(card.id);
+
+      if (isCustomCard) {
+        const newCustomCards = customDeclensionCards.filter((c) => c.id !== card.id);
+        applyOptimisticCustomCards(newCustomCards, async () => {
+          await saveCustomDeclension(newCustomCards);
+          setContextCustomDeclensionCards(newCustomCards);
+        });
+      } else {
+        const newSystemCards = systemDeclensionCards.filter((c) => c.id !== card.id);
+        applyOptimisticSystemCards(newSystemCards, async () => {
+          await deleteDeclensionCard(card.id as number);
+          setContextSystemDeclensionCards(newSystemCards);
+        });
+      }
+    },
+    [
+      isAdmin,
+      customDeclensionCards,
+      systemDeclensionCards,
+      applyOptimisticCustomCards,
+      applyOptimisticSystemCards,
+      setContextCustomDeclensionCards,
+      setContextSystemDeclensionCards,
+    ]
+  );
+
   const handleDeleteCard = useCallback(() => {
-    if (!editingCard || !editingCard.isCustom) return;
-
-    const newCustomCards = customDeclensionCards.filter((card) => card.id !== editingCard.id);
-
-    removeCardFromQueues(editingCard.id);
-
-    applyOptimisticCustomCards(newCustomCards, async () => {
-      await saveCustomDeclension(newCustomCards);
-      setContextCustomDeclensionCards(newCustomCards);
-    });
-
+    if (!editingCard) return;
+    deleteCardById(editingCard, { skipConfirm: true });
     setShowEditModal(false);
     setEditingCard(null);
-  }, [
-    editingCard,
-    customDeclensionCards,
-    applyOptimisticCustomCards,
-    setContextCustomDeclensionCards,
-  ]);
+  }, [editingCard, deleteCardById]);
+
+  const handleDeleteCurrentSessionCard = useCallback(() => {
+    if (!currentSessionCard) return;
+    deleteCardById(currentSessionCard.card);
+  }, [currentSessionCard, deleteCardById]);
+
+  const handleDeletePracticeCard = useCallback(() => {
+    const card = practiceCards[practiceIndex];
+    if (!card) return;
+    deleteCardById(card);
+    setPracticeIndex((prev) => prev % Math.max(practiceCards.length - 1, 1));
+  }, [practiceCards, practiceIndex, deleteCardById]);
+
+  const handleDeleteHistoryCard = useCallback(() => {
+    if (!historyCard) return;
+    deleteCardById(historyCard);
+    goForward();
+  }, [historyCard, deleteCardById, goForward]);
 
   const handleUpdateTranslation = useCallback(
     async (cardId: DeclensionCard['id'], word: string, translation: string) => {
@@ -676,6 +721,7 @@ export function DeclensionPage() {
                 setIsCreatingNew(false);
                 setShowEditModal(true);
               }}
+              onDelete={handleDeletePracticeCard}
               onUpdateTranslation={
                 isAdmin
                   ? (word, translation) =>
@@ -703,6 +749,7 @@ export function DeclensionPage() {
               setIsCreatingNew(false);
               setShowEditModal(true);
             }}
+            onDelete={handleDeleteHistoryCard}
             onUpdateTranslation={
               isAdmin
                 ? (word, translation) => handleUpdateTranslation(historyCard.id, word, translation)
@@ -757,6 +804,7 @@ export function DeclensionPage() {
             onRate={handleRate}
             onGoBack={goBack}
             onEdit={handleOpenEditModal}
+            onDelete={handleDeleteCurrentSessionCard}
             onUpdateTranslation={
               isAdmin
                 ? (word, translation) =>
@@ -775,7 +823,11 @@ export function DeclensionPage() {
           setIsCreatingNew(false);
         }}
         onSave={handleSaveCard}
-        onDelete={editingCard?.isCustom ? handleDeleteCard : undefined}
+        onDelete={
+          editingCard && !isCreatingNew && (editingCard.isCustom || isAdmin)
+            ? handleDeleteCard
+            : undefined
+        }
         card={editingCard}
         isCreating={isCreatingNew}
       />
