@@ -8,12 +8,23 @@ import {
   Box,
   Typography,
   CircularProgress,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
 } from '@mui/material';
 import { styled } from '../../lib/styled';
 import CloseIcon from '@mui/icons-material/Close';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import BookmarkAddIcon from '@mui/icons-material/BookmarkAdd';
+import AbcIcon from '@mui/icons-material/Abc';
+import TextSnippetIcon from '@mui/icons-material/TextSnippet';
 import { translate, RateLimitMinuteError, RateLimitDailyError } from '../../lib/translate';
 import { useTranslationContext } from '../../hooks/useTranslationContext';
 import { useBackClose } from '../../hooks/useBackClose';
+import { useSnackbar } from '../../hooks/useSnackbar';
+import { useAddToVocabulary } from '../../hooks/useAddToVocabulary';
+import { useAddSentence } from '../../hooks/useAddSentence';
 import { DirectionToggle } from '../DirectionToggle';
 import type { TranslationDirection } from '../../types/common';
 
@@ -48,6 +59,7 @@ const Content = styled(DialogContent)(({ theme }) => ({
 }));
 
 const ResultBox = styled(Box)(({ theme }) => ({
+  position: 'relative',
   padding: theme.spacing(2),
   backgroundColor: theme.palette.action.hover,
   borderRadius: theme.shape.borderRadius,
@@ -57,6 +69,14 @@ const ResultBox = styled(Box)(({ theme }) => ({
   justifyContent: 'center',
 }));
 
+const ResultActions = styled(Box)(({ theme }) => ({
+  position: 'absolute',
+  top: theme.spacing(0.5),
+  right: theme.spacing(0.5),
+  display: 'flex',
+  gap: theme.spacing(0.25),
+}));
+
 export function TranslatorModal() {
   const {
     showTranslator: open,
@@ -64,7 +84,11 @@ export function TranslatorModal() {
     handleDailyLimitReached: onDailyLimitReached,
     handleTranslationSuccess: onTranslationSuccess,
   } = useTranslationContext();
+  const { showSnackbar } = useSnackbar();
+  const addToVocabulary = useAddToVocabulary();
+  const addSentence = useAddSentence();
   const [text, setText] = useState('');
+  const [addMenuAnchor, setAddMenuAnchor] = useState<null | HTMLElement>(null);
   const [result, setResult] = useState('');
   const [direction, setDirection] = useState<TranslationDirection>('en-to-pl');
   const [loading, setLoading] = useState(false);
@@ -150,6 +174,48 @@ export function TranslatorModal() {
     };
   }, [text, direction, handleClose, onDailyLimitReached, onTranslationSuccess]);
 
+  const handleCopy = async () => {
+    if (!result) return;
+    try {
+      await navigator.clipboard.writeText(result);
+      showSnackbar('Translation copied to clipboard', 'success');
+    } catch {
+      showSnackbar('Failed to copy translation', 'error');
+    }
+  };
+
+  const getPrefill = () => {
+    const polish = direction === 'en-to-pl' ? result : text;
+    const english = direction === 'en-to-pl' ? text : result;
+    return { polish: polish.trim(), english: english.trim() };
+  };
+
+  const handleOpenAddMenu = (event: React.MouseEvent<HTMLElement>) => {
+    setAddMenuAnchor(event.currentTarget);
+  };
+
+  const handleCloseAddMenu = () => {
+    setAddMenuAnchor(null);
+  };
+
+  const handleAddToVocabulary = () => {
+    const { polish, english } = getPrefill();
+    handleCloseAddMenu();
+    handleClose();
+    setTimeout(() => {
+      addToVocabulary?.openAddToVocabulary(polish, english);
+    }, 0);
+  };
+
+  const handleAddToSentences = () => {
+    const { polish, english } = getPrefill();
+    handleCloseAddMenu();
+    handleClose();
+    setTimeout(() => {
+      addSentence?.openAddSentence({ polish, english });
+    }, 0);
+  };
+
   const toggleDirection = () => {
     setDirection((prev) => (prev === 'en-to-pl' ? 'pl-to-en' : 'en-to-pl'));
     if (result) setText(result);
@@ -200,9 +266,25 @@ export function TranslatorModal() {
               {error}
             </Typography>
           ) : result ? (
-            <Typography variant="body1" sx={{ width: '100%' }}>
-              {result}
-            </Typography>
+            <>
+              <Typography variant="body1" sx={{ width: '100%', pr: 8 }}>
+                {result}
+              </Typography>
+              <ResultActions>
+                <IconButton size="small" onClick={handleCopy} aria-label="copy translation">
+                  <ContentCopyIcon fontSize="small" />
+                </IconButton>
+                {(addToVocabulary || addSentence) && (
+                  <IconButton
+                    size="small"
+                    onClick={handleOpenAddMenu}
+                    aria-label="save translation"
+                  >
+                    <BookmarkAddIcon fontSize="small" />
+                  </IconButton>
+                )}
+              </ResultActions>
+            </>
           ) : (
             <Typography variant="body2" color="text.disabled">
               Translation will appear here
@@ -210,6 +292,30 @@ export function TranslatorModal() {
           )}
         </ResultBox>
       </Content>
+      <Menu
+        anchorEl={addMenuAnchor}
+        open={Boolean(addMenuAnchor)}
+        onClose={handleCloseAddMenu}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        {addToVocabulary && (
+          <MenuItem onClick={handleAddToVocabulary}>
+            <ListItemIcon>
+              <AbcIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>Add to Vocabulary</ListItemText>
+          </MenuItem>
+        )}
+        {addSentence && (
+          <MenuItem onClick={handleAddToSentences}>
+            <ListItemIcon>
+              <TextSnippetIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>Add to Sentences</ListItemText>
+          </MenuItem>
+        )}
+      </Menu>
     </StyledDialog>
   );
 }

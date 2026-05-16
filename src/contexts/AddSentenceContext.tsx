@@ -5,7 +5,7 @@ import type { Sentence, CustomSentence } from '../types/sentences';
 import { useSentences } from '../hooks/useReviewData';
 
 export interface AddSentenceContextType {
-  openAddSentence: () => void;
+  openAddSentence: (initialValues?: { polish?: string; english?: string }) => void;
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -17,14 +17,22 @@ interface AddSentenceProviderProps {
 
 export function AddSentenceProvider({ children }: AddSentenceProviderProps) {
   const [modalOpen, setModalOpen] = useState(false);
+  const [initialValues, setInitialValues] = useState<
+    { polish?: string; english?: string } | undefined
+  >();
   const { setCustomSentences } = useSentences();
 
-  const openAddSentence = useCallback(() => {
-    setModalOpen(true);
-  }, []);
+  const openAddSentence = useCallback(
+    (values?: { polish?: string; english?: string }) => {
+      setInitialValues(values);
+      setModalOpen(true);
+    },
+    []
+  );
 
   const handleClose = useCallback(() => {
     setModalOpen(false);
+    setInitialValues(undefined);
   }, []);
 
   const handleSave = useCallback(
@@ -53,6 +61,7 @@ export function AddSentenceProvider({ children }: AddSentenceProviderProps) {
         onSave={handleSave}
         sentence={null}
         isCreating
+        initialValues={initialValues}
       />
     </AddSentenceContext.Provider>
   );

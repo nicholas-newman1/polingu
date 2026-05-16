@@ -74,11 +74,15 @@ interface EditSentenceModalProps {
   sentence: Sentence | null;
   isCreating?: boolean;
   onAudioUpdated?: (audioUrl: string) => void;
+  initialValues?: { polish?: string; english?: string };
 }
 
-const getDefaultValues = (sentence: Sentence | null): FormData => ({
-  polish: sentence?.polish || '',
-  english: sentence?.english || '',
+const getDefaultValues = (
+  sentence: Sentence | null,
+  initialValues?: { polish?: string; english?: string }
+): FormData => ({
+  polish: sentence?.polish || initialValues?.polish || '',
+  english: sentence?.english || initialValues?.english || '',
   level: sentence?.level || 'A1',
   tags: sentence?.tags || [],
 });
@@ -90,6 +94,7 @@ export function EditSentenceModal({
   sentence,
   isCreating = false,
   onAudioUpdated,
+  initialValues,
 }: EditSentenceModalProps) {
   const { isAdmin } = useAuthContext();
   const { sentenceTags } = useReviewData();
@@ -102,7 +107,7 @@ export function EditSentenceModal({
     reset,
     formState: { isValid },
   } = useForm<FormData>({
-    values: getDefaultValues(sentence),
+    values: getDefaultValues(sentence, initialValues),
     mode: 'onChange',
   });
 
