@@ -58,7 +58,9 @@ const MenuButton = styled(ButtonBase)<{ $disabled?: boolean }>(({ theme, $disabl
 
 const IconWrapper = styled(Box)<{ $isActive?: boolean; $disabled?: boolean }>(
   ({ theme, $isActive, $disabled }) => ({
-    backgroundColor: $isActive ? alpha(theme.palette.primary.main, 0.12) : theme.palette.grey[100],
+    backgroundColor: $isActive
+      ? alpha(theme.palette.primary.main, 0.12)
+      : theme.palette.action.hover,
     borderRadius: theme.spacing(1),
     padding: theme.spacing(1),
     display: 'flex',

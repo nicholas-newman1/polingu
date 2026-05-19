@@ -13,6 +13,7 @@ import {
   styled,
 } from '@mui/material';
 import { BoxIconButton } from './BoxIconButton';
+import { ColorModeToggle } from './ColorModeToggle';
 import {
   Person,
   Abc,
@@ -152,6 +153,7 @@ export function Header({ user, onSignOut, pageTitle, backPath }: HeaderProps) {
       </Stack>
 
       <Stack direction="row" alignItems="center" spacing={1}>
+        <ColorModeToggle />
         {user ? (
           <>
             <BoxIconButton size="small" onClick={handleQuickAddOpen} aria-label="Quick add">

@@ -1,9 +1,8 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { ThemeProvider } from '@mui/material/styles';
-import CssBaseline from '@mui/material/CssBaseline';
-import theme from './lib/theme';
+import { ColorModeProvider } from './contexts/ColorModeContext';
+import { ThemedApp } from './components/ThemedApp';
 import './index.css';
 import { AuthProvider } from './contexts/AuthContext';
 import { TranslationProvider } from './contexts/TranslationContext';
@@ -42,98 +41,105 @@ import { ListeningPlayerPage } from './pages/ListeningPlayerPage';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <SnackbarProvider>
-        <AuthProvider>
-          <AuthGate>
-            <ReviewDataProvider>
-              <AppSettingsProvider>
-                <UserFiltersProvider>
-                  <TranslationProvider>
-                    <CheatSheetProvider>
-                      <AudioPlayerProvider>
-                        <ListeningProvider>
-                          <BrowserRouter>
-                            <Routes>
-                              <Route path="/login" element={<SignIn />} />
-                              <Route element={<Layout />}>
-                                <Route path="/dashboard" element={<DashboardPage />} />
-                                <Route path="/declension" element={<DeclensionPage />} />
-                                <Route path="/vocabulary">
-                                  <Route index element={<VocabularyPage />} />
+    <ColorModeProvider>
+      <ThemedApp>
+        <SnackbarProvider>
+          <AuthProvider>
+            <AuthGate>
+              <ReviewDataProvider>
+                <AppSettingsProvider>
+                  <UserFiltersProvider>
+                    <TranslationProvider>
+                      <CheatSheetProvider>
+                        <AudioPlayerProvider>
+                          <ListeningProvider>
+                            <BrowserRouter>
+                              <Routes>
+                                <Route path="/login" element={<SignIn />} />
+                                <Route element={<Layout />}>
+                                  <Route path="/dashboard" element={<DashboardPage />} />
+                                  <Route path="/declension" element={<DeclensionPage />} />
+                                  <Route path="/vocabulary">
+                                    <Route index element={<VocabularyPage />} />
+                                    <Route
+                                      path="recognition"
+                                      element={<VocabularyPage mode="pl-to-en" />}
+                                    />
+                                    <Route
+                                      path="production"
+                                      element={<VocabularyPage mode="en-to-pl" />}
+                                    />
+                                  </Route>
+                                  <Route path="/sentences">
+                                    <Route index element={<SentencesPage />} />
+                                    <Route
+                                      path="recognition"
+                                      element={<SentencesPage mode="pl-to-en" />}
+                                    />
+                                    <Route
+                                      path="production"
+                                      element={<SentencesPage mode="en-to-pl" />}
+                                    />
+                                  </Route>
+                                  <Route path="/conjugation">
+                                    <Route index element={<ConjugationPage />} />
+                                    <Route
+                                      path="recognition"
+                                      element={<ConjugationPage mode="pl-to-en" />}
+                                    />
+                                    <Route
+                                      path="production"
+                                      element={<ConjugationPage mode="en-to-pl" />}
+                                    />
+                                  </Route>
+                                  <Route path="/aspect-pairs" element={<AspectPairsPage />} />
                                   <Route
-                                    path="recognition"
-                                    element={<VocabularyPage mode="pl-to-en" />}
+                                    path="/consonant-driller"
+                                    element={<ConsonantDrillerPage />}
+                                  />
+                                  <Route path="/my-vocabulary" element={<CustomVocabularyPage />} />
+                                  <Route
+                                    path="/my-declensions"
+                                    element={<CustomDeclensionPage />}
+                                  />
+                                  <Route path="/my-sentences" element={<CustomSentencesPage />} />
+                                  <Route path="/stats" element={<StatsPage />} />
+                                  <Route path="/settings" element={<SettingsPage />} />
+                                  <Route path="/library" element={<LibraryPage />} />
+                                  <Route path="/reader/:bookId" element={<ReaderPage />} />
+                                  <Route path="/audio" element={<AudioLibraryPage />} />
+                                  <Route path="/audio/player" element={<AudioPlayerPage />} />
+                                  <Route path="/listen" element={<ListeningHubPage />} />
+                                  <Route path="/listen/play" element={<ListeningPlayerPage />} />
+                                  <Route
+                                    path="/admin/generator"
+                                    element={<SentenceGeneratorPage />}
                                   />
                                   <Route
-                                    path="production"
-                                    element={<VocabularyPage mode="en-to-pl" />}
+                                    path="/admin/content"
+                                    element={<Navigate to="/admin/content/vocabulary" replace />}
+                                  />
+                                  <Route
+                                    path="/admin/content/:tab"
+                                    element={<AdminContentPage />}
                                   />
                                 </Route>
-                                <Route path="/sentences">
-                                  <Route index element={<SentencesPage />} />
-                                  <Route
-                                    path="recognition"
-                                    element={<SentencesPage mode="pl-to-en" />}
-                                  />
-                                  <Route
-                                    path="production"
-                                    element={<SentencesPage mode="en-to-pl" />}
-                                  />
-                                </Route>
-                                <Route path="/conjugation">
-                                  <Route index element={<ConjugationPage />} />
-                                  <Route
-                                    path="recognition"
-                                    element={<ConjugationPage mode="pl-to-en" />}
-                                  />
-                                  <Route
-                                    path="production"
-                                    element={<ConjugationPage mode="en-to-pl" />}
-                                  />
-                                </Route>
-                                <Route path="/aspect-pairs" element={<AspectPairsPage />} />
-                                <Route
-                                  path="/consonant-driller"
-                                  element={<ConsonantDrillerPage />}
-                                />
-                                <Route path="/my-vocabulary" element={<CustomVocabularyPage />} />
-                                <Route path="/my-declensions" element={<CustomDeclensionPage />} />
-                                <Route path="/my-sentences" element={<CustomSentencesPage />} />
-                                <Route path="/stats" element={<StatsPage />} />
-                                <Route path="/settings" element={<SettingsPage />} />
-                                <Route path="/library" element={<LibraryPage />} />
-                                <Route path="/reader/:bookId" element={<ReaderPage />} />
-                                <Route path="/audio" element={<AudioLibraryPage />} />
-                                <Route path="/audio/player" element={<AudioPlayerPage />} />
-                                <Route path="/listen" element={<ListeningHubPage />} />
-                                <Route path="/listen/play" element={<ListeningPlayerPage />} />
-                                <Route
-                                  path="/admin/generator"
-                                  element={<SentenceGeneratorPage />}
-                                />
-                                <Route
-                                  path="/admin/content"
-                                  element={<Navigate to="/admin/content/vocabulary" replace />}
-                                />
-                                <Route path="/admin/content/:tab" element={<AdminContentPage />} />
-                              </Route>
-                              <Route path="*" element={<Navigate to="/dashboard" replace />} />
-                            </Routes>
-                          </BrowserRouter>
-                        </ListeningProvider>
-                      </AudioPlayerProvider>
-                    </CheatSheetProvider>
-                  </TranslationProvider>
-                </UserFiltersProvider>
-              </AppSettingsProvider>
-            </ReviewDataProvider>
-          </AuthGate>
-        </AuthProvider>
-        <AppSnackbar />
-        <OfflineIndicator />
-      </SnackbarProvider>
-    </ThemeProvider>
+                                <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                              </Routes>
+                            </BrowserRouter>
+                          </ListeningProvider>
+                        </AudioPlayerProvider>
+                      </CheatSheetProvider>
+                    </TranslationProvider>
+                  </UserFiltersProvider>
+                </AppSettingsProvider>
+              </ReviewDataProvider>
+            </AuthGate>
+          </AuthProvider>
+          <AppSnackbar />
+          <OfflineIndicator />
+        </SnackbarProvider>
+      </ThemedApp>
+    </ColorModeProvider>
   </StrictMode>
 );
