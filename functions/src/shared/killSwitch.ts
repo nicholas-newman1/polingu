@@ -1,5 +1,5 @@
-import { getFirestore } from 'firebase-admin/firestore';
 import { HttpsError } from 'firebase-functions/https';
+import { db } from './firebase.js';
 
 export type KillSwitchFlag = 'translate' | 'audio' | 'books';
 
@@ -20,7 +20,7 @@ async function loadKillSwitch(): Promise<KillSwitchDoc> {
   if (cache && cache.expiresAt > now) return cache.data;
 
   try {
-    const snap = await getFirestore().collection('config').doc('killSwitch').get();
+    const snap = await db.collection('config').doc('killSwitch').get();
     const data = (snap.data() as KillSwitchDoc | undefined) ?? {};
     cache = { data, expiresAt: now + CACHE_TTL_MS };
     return data;
