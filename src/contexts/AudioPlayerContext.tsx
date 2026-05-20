@@ -25,6 +25,8 @@ type AnyAudioItem = AudioItem | SystemAudioItem;
 import { useQueueManager, type QueueManager } from '../hooks/useQueueManager';
 import { emitAudioModeEvent, subscribeAudioModeEvent } from '../lib/audio/audioModeBus';
 
+const HIGHLIGHT_LOOKAHEAD_S = 0.5;
+
 function binarySearchSegment(segments: TranscriptSegment[], time: number): number {
   let lo = 0;
   let hi = segments.length - 1;
@@ -555,8 +557,10 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
 
     function computeIndices(time: number) {
       const segments = transcriptRef.current;
-      const segIdx = binarySearchSegment(segments, time);
-      const wordIdx = segIdx >= 0 ? findActiveWord(segments[segIdx], time) : -1;
+      const rate = audio?.playbackRate ?? playbackRateRef.current;
+      const adjusted = time + HIGHLIGHT_LOOKAHEAD_S * rate;
+      const segIdx = binarySearchSegment(segments, adjusted);
+      const wordIdx = segIdx >= 0 ? findActiveWord(segments[segIdx], adjusted) : -1;
       return { segIdx, wordIdx };
     }
 
@@ -565,10 +569,10 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       const time = audio.currentTime;
       persistTime(time);
       const { segIdx, wordIdx } = computeIndices(time);
+      setActiveSegmentIndex(segIdx);
+      setActiveWordIndex(wordIdx);
       startTransition(() => {
         setCurrentTime(time);
-        setActiveSegmentIndex(segIdx);
-        setActiveWordIndex(wordIdx);
       });
       rafRef.current = requestAnimationFrame(loop);
     }
