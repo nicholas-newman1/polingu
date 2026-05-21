@@ -1,5 +1,5 @@
 import { Box, Tooltip } from '@mui/material';
-import { PlayArrow, Stop, VolumeOff } from '@mui/icons-material';
+import { PlayArrow, Stop, VolumeUp, VolumeOff } from '@mui/icons-material';
 import { useAppSettings } from '../contexts/AppSettingsContext';
 import { BoxIconButton } from './BoxIconButton';
 
@@ -22,8 +22,9 @@ export function AudioButton({ isPlaying, onToggle, size = 'small' }: AudioButton
       <BoxIconButton
         onClick={onToggle}
         size={size}
-        sx={isPlaying ? { color: 'error.main' } : undefined}
+        active={isPlaying}
         aria-label={isPlaying ? 'Stop audio' : 'Play audio'}
+        aria-pressed={isPlaying}
       >
         {isPlaying ? <Stop fontSize={size} /> : <PlayArrow fontSize={size} />}
       </BoxIconButton>
@@ -31,11 +32,11 @@ export function AudioButton({ isPlaying, onToggle, size = 'small' }: AudioButton
         <BoxIconButton
           onClick={handleToggleMute}
           size={size}
-          tone="danger"
           active={isMuted}
           aria-label={isMuted ? 'Enable auto-play audio' : 'Disable auto-play audio'}
+          aria-pressed={isMuted}
         >
-          <VolumeOff fontSize={size} />
+          {isMuted ? <VolumeOff fontSize={size} /> : <VolumeUp fontSize={size} />}
         </BoxIconButton>
       </Tooltip>
     </Box>

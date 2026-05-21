@@ -67,6 +67,18 @@ const StyledIconButton = styled(IconButton)<StyledProps>(({ theme, $variant, $to
     };
   }
 
+  if ($active) {
+    return {
+      ...base,
+      backgroundColor: theme.palette.action.selected,
+      color: theme.palette.text.primary,
+      '&:hover': {
+        backgroundColor: theme.palette.action.selected,
+        color: theme.palette.text.primary,
+      },
+    };
+  }
+
   return {
     ...base,
     backgroundColor: theme.palette.action.hover,
