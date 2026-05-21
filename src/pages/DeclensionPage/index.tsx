@@ -830,6 +830,11 @@ export function DeclensionPage() {
         }
         card={editingCard}
         isCreating={isCreatingNew}
+        onAudioUpdated={(audioUrl) => {
+          if (editingCard) {
+            updateCardInQueues(editingCard.id, { ...editingCard, audioUrl });
+          }
+        }}
       />
     </>
   );

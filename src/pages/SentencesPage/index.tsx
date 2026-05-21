@@ -800,6 +800,11 @@ export function SentencesPage({ mode }: SentencesPageProps) {
         onSave={isCreatingSentence ? handleAddSentence : handleSaveSentence}
         sentence={editingSentence}
         isCreating={isCreatingSentence}
+        onAudioUpdated={(audioUrl) => {
+          if (editingSentence) {
+            updateSentenceInQueues(editingSentence.id, { ...editingSentence, audioUrl });
+          }
+        }}
       />
     </>
   );

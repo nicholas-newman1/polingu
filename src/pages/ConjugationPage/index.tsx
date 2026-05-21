@@ -749,6 +749,25 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
         onSave={handleSaveForm}
         onDelete={isAdmin ? handleDeleteVerb : undefined}
         form={editingForm}
+        onAudioUpdated={(audioUrl) => {
+          if (!editingForm) return;
+          const verb = editingForm.verb;
+          const { tense, formKey } = editingForm;
+          const tenseForms = verb.conjugations[tense];
+          if (!tenseForms) return;
+          const updatedConjugations = {
+            ...verb.conjugations,
+            [tense]: {
+              ...tenseForms,
+              [formKey]: {
+                ...(tenseForms as Record<string, ConjugationForm>)[formKey],
+                audioUrl,
+              },
+            },
+          };
+          const updatedVerb: Verb = { ...verb, conjugations: updatedConjugations };
+          updateFormInQueues(verb.id, updatedVerb);
+        }}
       />
     </>
   );

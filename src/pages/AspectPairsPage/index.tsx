@@ -607,6 +607,22 @@ export function AspectPairsPage() {
         onSave={handleSaveCard}
         onUnlink={isAdmin ? handleUnlinkPair : undefined}
         card={editingCard}
+        onVerb1AudioUpdated={(audioUrl) => {
+          if (!editingCard) return;
+          const verb1 = editingCard.verb;
+          const verb2 = editingCard.pairVerb;
+          const updatedVerb1: Verb = { ...verb1, infinitiveAudioUrl: audioUrl };
+          const updatedVerb2: Verb = verb1.id === verb2.id ? updatedVerb1 : verb2;
+          updateCardInQueues(verb1.id, verb2.id, updatedVerb1, updatedVerb2);
+        }}
+        onVerb2AudioUpdated={(audioUrl) => {
+          if (!editingCard) return;
+          const verb1 = editingCard.verb;
+          const verb2 = editingCard.pairVerb;
+          const updatedVerb2: Verb = { ...verb2, infinitiveAudioUrl: audioUrl };
+          const updatedVerb1: Verb = verb1.id === verb2.id ? updatedVerb2 : verb1;
+          updateCardInQueues(verb1.id, verb2.id, updatedVerb1, updatedVerb2);
+        }}
       />
     </>
   );
