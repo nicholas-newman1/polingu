@@ -17,17 +17,7 @@ import {
 } from '@mui/material';
 import { styled } from '../lib/styled';
 import { BoxIconButton } from './BoxIconButton';
-import {
-  Menu,
-  Close,
-  Home,
-  Check,
-  AutoAwesome,
-  MusicNote,
-  MenuBook,
-  Headphones,
-  Storage,
-} from '@mui/icons-material';
+import { Menu, Close, Home, Check, AutoAwesome, Storage } from '@mui/icons-material';
 import { useReviewData } from '../hooks/useReviewData';
 import { useBackClose } from '../hooks/useBackClose';
 import type { ReviewCounts } from '../contexts/review';
@@ -42,7 +32,8 @@ import { LimitReachedDialog } from './LimitReachedDialog';
 import { BottomMenuBar } from './BottomMenu/BottomMenuBar';
 import { useAuthContext } from '../hooks/useAuthContext';
 import { SITE_NAME } from '../constants';
-import { FEATURE_NAV_ITEMS } from '../constants/navigation';
+import { getOrderedDashboardItems } from '../constants/navigation';
+import { useAppSettings } from '../contexts/AppSettingsContext';
 import { SiteLogo } from './SiteLogo';
 import { PageTitleContext, PageTitleProvider } from '../contexts/PageTitleContext';
 import { AddToVocabularyProvider } from '../contexts/AddToVocabularyContext';
@@ -169,44 +160,21 @@ function NavItem({ path, icon, label, active, reviewCount, loading, onNavigate }
   );
 }
 
-const NAV_ITEMS: Array<{
+interface NavItemConfig {
   path: string;
   icon: typeof Home;
   label: string;
   reviewCountKey?: keyof ReviewCounts;
   adminOnly?: boolean;
-}> = [
-  {
-    path: '/dashboard',
-    icon: Home,
-    label: 'Dashboard',
-  },
-  ...FEATURE_NAV_ITEMS.map((item) => ({
-    path: item.path,
-    icon: item.icon,
-    label: item.label,
-    reviewCountKey: item.statsKey,
-  })),
-  {
-    path: '/consonant-driller',
-    icon: MusicNote,
-    label: 'Consonant Driller',
-  },
-  {
-    path: '/library',
-    icon: MenuBook,
-    label: 'Library',
-  },
-  {
-    path: '/audio',
-    icon: Headphones,
-    label: 'Audio',
-  },
-  {
-    path: '/listen',
-    icon: Headphones,
-    label: 'Listening',
-  },
+}
+
+const DASHBOARD_NAV_ITEM: NavItemConfig = {
+  path: '/dashboard',
+  icon: Home,
+  label: 'Dashboard',
+};
+
+const ADMIN_NAV_ITEMS: NavItemConfig[] = [
   {
     path: '/admin/content',
     icon: Storage,
@@ -220,6 +188,17 @@ const NAV_ITEMS: Array<{
     adminOnly: true,
   },
 ];
+
+function buildNavItems(dashboardOrder: string[] | undefined): NavItemConfig[] {
+  const ordered = getOrderedDashboardItems(dashboardOrder).map((item) => ({
+    path: item.path,
+    icon: item.icon,
+    label: item.label,
+    reviewCountKey: item.kind === 'feature' ? item.statsKey : undefined,
+  }));
+
+  return [DASHBOARD_NAV_ITEM, ...ordered, ...ADMIN_NAV_ITEMS];
+}
 
 const PAGE_TITLES: Record<string, string> = {
   '/dashboard': 'Dashboard',
@@ -281,6 +260,7 @@ function DrawerContent({
   reviewCounts,
   loading,
   isAdmin,
+  navItems,
 }: {
   currentPath: string;
   onNavigate: (path: string) => void;
@@ -289,9 +269,10 @@ function DrawerContent({
   reviewCounts: ReviewCounts;
   loading: boolean;
   isAdmin: boolean;
+  navItems: NavItemConfig[];
 }) {
   const isActive = (path: string) => currentPath === path;
-  const visibleItems = NAV_ITEMS.filter((item) => !item.adminOnly || isAdmin);
+  const visibleItems = navItems.filter((item) => !item.adminOnly || isAdmin);
 
   return (
     <>
@@ -331,12 +312,14 @@ function DrawerContent({
 function LayoutContent() {
   const { user, signOut, isAdmin } = useAuthContext();
   const { counts, loading: countsLoading } = useReviewData();
+  const { settings } = useAppSettings();
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const theme = useTheme();
   const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
   const pageTitleContext = useContext(PageTitleContext);
+  const navItems = buildNavItems(settings.dashboardOrder);
 
   const closeMobileDrawer = useCallback(() => setMobileDrawerOpen(false), []);
   useBackClose(mobileDrawerOpen, closeMobileDrawer);
@@ -377,6 +360,7 @@ function LayoutContent() {
                 reviewCounts={counts}
                 loading={countsLoading}
                 isAdmin={isAdmin}
+                navItems={navItems}
               />
             </Drawer>
           ) : (
@@ -402,6 +386,7 @@ function LayoutContent() {
                 reviewCounts={counts}
                 loading={countsLoading}
                 isAdmin={isAdmin}
+                navItems={navItems}
               />
             </SwipeableDrawer>
           )}

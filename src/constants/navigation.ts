@@ -118,3 +118,44 @@ export const EXTRA_NAV_ITEMS: ExtraNavItem[] = [
     colorKey: 'success',
   },
 ];
+
+export type DashboardNavItem =
+  | (FeatureNavItem & { kind: 'feature' })
+  | (ExtraNavItem & { kind: 'extra' });
+
+export const ALL_DASHBOARD_NAV_ITEMS: DashboardNavItem[] = [
+  ...FEATURE_NAV_ITEMS.map((item) => ({ ...item, kind: 'feature' as const })),
+  ...EXTRA_NAV_ITEMS.map((item) => ({ ...item, kind: 'extra' as const })),
+];
+
+/**
+ * Merge a user's stored dashboard order with the canonical item list.
+ * - Items in `storedOrder` that no longer exist are dropped.
+ * - Items that exist but are missing from `storedOrder` are appended at the
+ *   end so newly shipped features remain discoverable for existing users.
+ */
+export function getOrderedDashboardItems(storedOrder?: string[]): DashboardNavItem[] {
+  if (!storedOrder || storedOrder.length === 0) {
+    return ALL_DASHBOARD_NAV_ITEMS;
+  }
+
+  const byPath = new Map(ALL_DASHBOARD_NAV_ITEMS.map((item) => [item.path, item]));
+  const ordered: DashboardNavItem[] = [];
+  const seen = new Set<string>();
+
+  for (const path of storedOrder) {
+    const item = byPath.get(path);
+    if (item && !seen.has(path)) {
+      ordered.push(item);
+      seen.add(path);
+    }
+  }
+
+  for (const item of ALL_DASHBOARD_NAV_ITEMS) {
+    if (!seen.has(item.path)) {
+      ordered.push(item);
+    }
+  }
+
+  return ordered;
+}

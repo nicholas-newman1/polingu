@@ -7,8 +7,9 @@ import { FeatureCard } from '../components/FeatureCard';
 import { ProgressStats } from '../components/ProgressStats';
 import { ReviewCountBadge } from '../components/ReviewCountBadge';
 import { SITE_NAME } from '../constants';
-import { FEATURE_NAV_ITEMS, EXTRA_NAV_ITEMS } from '../constants/navigation';
+import { getOrderedDashboardItems } from '../constants/navigation';
 import { SiteLogo } from '../components/SiteLogo';
+import { useAppSettings } from '../contexts/AppSettingsContext';
 
 const PageContainer = styled(Box)(({ theme }) => ({
   flex: 1,
@@ -47,6 +48,8 @@ export function DashboardPage() {
   const isCompact = useMediaQuery('(max-width: 429px)');
   const { loading } = useReviewData();
   const progressStats = useProgressStats();
+  const { settings } = useAppSettings();
+  const orderedItems = getOrderedDashboardItems(settings.dashboardOrder);
 
   return (
     <PageContainer>
@@ -70,32 +73,32 @@ export function DashboardPage() {
       </Header>
 
       <CardsGrid>
-        {FEATURE_NAV_ITEMS.map((feature) => {
-          const color = theme.palette[feature.colorKey].main;
-          const stats = progressStats[feature.statsKey];
-
-          return (
-            <FeatureCard
-              key={feature.path}
-              color={color}
-              icon={<feature.icon sx={{ fontSize: 28 }} />}
-              title={feature.label}
-              description={isCompact ? feature.description : feature.fullDescription}
-              badge={<ReviewCountBadge count={stats.due} loading={loading} />}
-              onClick={() => navigate(feature.path)}
-            >
-              <ProgressStats
-                learned={stats.learned}
-                total={stats.total}
-                color={color}
-                layout="inline"
-                loading={loading}
-              />
-            </FeatureCard>
-          );
-        })}
-        {EXTRA_NAV_ITEMS.map((item) => {
+        {orderedItems.map((item) => {
           const color = theme.palette[item.colorKey].main;
+
+          if (item.kind === 'feature') {
+            const stats = progressStats[item.statsKey];
+            return (
+              <FeatureCard
+                key={item.path}
+                color={color}
+                icon={<item.icon sx={{ fontSize: 28 }} />}
+                title={item.label}
+                description={isCompact ? item.description : item.fullDescription}
+                badge={<ReviewCountBadge count={stats.due} loading={loading} />}
+                onClick={() => navigate(item.path)}
+              >
+                <ProgressStats
+                  learned={stats.learned}
+                  total={stats.total}
+                  color={color}
+                  layout="inline"
+                  loading={loading}
+                />
+              </FeatureCard>
+            );
+          }
+
           return (
             <FeatureCard
               key={item.path}

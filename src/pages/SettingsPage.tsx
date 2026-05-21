@@ -16,6 +16,7 @@ import {
   DeleteOutline,
   CloudOff,
   VisibilityOff,
+  DashboardCustomize,
 } from '@mui/icons-material';
 import { styled } from '../lib/styled';
 import { useAppSettings } from '../contexts/AppSettingsContext';
@@ -29,6 +30,7 @@ import {
   type PreloadProgress,
 } from '../lib/audioPreloader';
 import type { Verb } from '../types/conjugation';
+import { CustomizeDashboardDialog } from '../components/CustomizeDashboardDialog';
 
 const PageContainer = styled(Box)(({ theme }) => ({
   maxWidth: 600,
@@ -109,12 +111,12 @@ export function SettingsPage() {
   const { settings, updateSettings } = useAppSettings();
   const { systemSentences, systemWords, systemDeclensionCards, verbs } = useReviewData();
 
-  // Offline audio state
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState<PreloadProgress | null>(null);
   const [cacheCount, setCacheCount] = useState(0);
   const [cacheSize, setCacheSize] = useState(0);
   const [isClearing, setIsClearing] = useState(false);
+  const [customizeOpen, setCustomizeOpen] = useState(false);
 
   // Calculate total audio items
   const allAudioItems = useMemo(() => {
@@ -232,6 +234,35 @@ export function SettingsPage() {
       <SettingCard>
         <CardContent>
           <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
+            Dashboard
+          </Typography>
+
+          <SettingRow>
+            <SettingInfo>
+              <SettingIcon>
+                <DashboardCustomize />
+              </SettingIcon>
+              <Box>
+                <Typography variant="body1">Customize dashboard order</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Rearrange the cards on your dashboard and side menu
+                </Typography>
+              </Box>
+            </SettingInfo>
+            <Button
+              variant="outlined"
+              onClick={() => setCustomizeOpen(true)}
+              data-qa="open-customize-dashboard"
+            >
+              Customize
+            </Button>
+          </SettingRow>
+        </CardContent>
+      </SettingCard>
+
+      <SettingCard>
+        <CardContent>
+          <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
             Offline Audio
           </Typography>
 
@@ -311,6 +342,8 @@ export function SettingsPage() {
           )}
         </CardContent>
       </SettingCard>
+
+      <CustomizeDashboardDialog open={customizeOpen} onClose={() => setCustomizeOpen(false)} />
     </PageContainer>
   );
 }
