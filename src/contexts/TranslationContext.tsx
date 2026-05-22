@@ -1,5 +1,6 @@
 import { createContext, useState, useCallback, type ReactNode } from 'react';
 import type { TranslationResult } from '../lib/translate';
+import { useAuthContext } from '../hooks/useAuthContext';
 
 const MAX_CHARS_PER_DAY = 1500;
 
@@ -36,6 +37,7 @@ function getInitialUsage(): TranslationUsage | null {
 }
 
 export function TranslationProvider({ children }: { children: ReactNode }) {
+  const { isAdmin } = useAuthContext();
   const [translationUsage, setTranslationUsage] = useState<TranslationUsage | null>(
     getInitialUsage
   );
@@ -46,6 +48,7 @@ export function TranslationProvider({ children }: { children: ReactNode }) {
   const openTranslator = useCallback(() => {
     const today = new Date().toISOString().split('T')[0];
     if (
+      !isAdmin &&
       translationUsage &&
       translationUsage.date === today &&
       translationUsage.charsUsed >= MAX_CHARS_PER_DAY
@@ -55,7 +58,7 @@ export function TranslationProvider({ children }: { children: ReactNode }) {
     } else {
       setShowTranslator(true);
     }
-  }, [translationUsage]);
+  }, [translationUsage, isAdmin]);
 
   const closeTranslator = useCallback(() => {
     setShowTranslator(false);
