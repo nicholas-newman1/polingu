@@ -5,6 +5,9 @@ import type { CustomVocabularyWord } from '../types/vocabulary';
 import { useVocabulary } from '../hooks/useReviewData';
 import { normalizeVocabularyPrefill } from '../lib/utils/normalizeVocabularyPrefill';
 import { findCustomWordWithSamePolish } from '../lib/utils/findDuplicateCustomVocabularyPolish';
+import reprioritizeVocabularyWord, {
+  canReprioritizeVocabularyWord,
+} from '../lib/storage/reprioritizeVocabularyWord';
 import { useSnackbar } from '../hooks/useSnackbar';
 
 export interface AddToVocabularyContextType {
@@ -23,7 +26,8 @@ export function AddToVocabularyProvider({ children }: AddToVocabularyProviderPro
   const [initialValues, setInitialValues] = useState<
     { polish: string; english: string } | undefined
   >();
-  const { refreshVocabularyWords } = useVocabulary();
+  const { refreshVocabularyWords, vocabularyReviewStores, updateVocabularyReviewStore } =
+    useVocabulary();
   const { showSnackbar } = useSnackbar();
 
   const openAddToVocabulary = useCallback((polish: string, english: string) => {
@@ -39,11 +43,42 @@ export function AddToVocabularyProvider({ children }: AddToVocabularyProviderPro
     setInitialValues(undefined);
   }, []);
 
+  const handleReprioritize = useCallback(
+    (wordId: string) => {
+      const plToEnNext = reprioritizeVocabularyWord(vocabularyReviewStores['pl-to-en'], wordId);
+      const enToPlNext = reprioritizeVocabularyWord(vocabularyReviewStores['en-to-pl'], wordId);
+      const promises: Promise<void>[] = [];
+      if (plToEnNext !== vocabularyReviewStores['pl-to-en']) {
+        promises.push(updateVocabularyReviewStore('pl-to-en', plToEnNext));
+      }
+      if (enToPlNext !== vocabularyReviewStores['en-to-pl']) {
+        promises.push(updateVocabularyReviewStore('en-to-pl', enToPlNext));
+      }
+      if (promises.length === 0) return;
+      void Promise.all(promises);
+      showSnackbar('Word queued for review again.', 'success');
+    },
+    [vocabularyReviewStores, updateVocabularyReviewStore, showSnackbar]
+  );
+
   const handleSave = useCallback(
     async (wordData: Omit<CustomVocabularyWord, 'id' | 'isCustom' | 'createdAt'>) => {
       const loaded = await loadCustomVocabulary();
-      if (findCustomWordWithSamePolish(loaded, wordData.polish)) {
-        showSnackbar('This Polish word is already in your custom vocabulary.', 'error');
+      const duplicate = findCustomWordWithSamePolish(loaded, wordData.polish);
+      if (duplicate) {
+        const reviewable = canReprioritizeVocabularyWord(vocabularyReviewStores, duplicate.id);
+        showSnackbar(
+          'This Polish word is already in your custom vocabulary.',
+          'error',
+          reviewable
+            ? {
+                action: {
+                  label: 'Review again',
+                  onClick: () => handleReprioritize(String(duplicate.id)),
+                },
+              }
+            : undefined
+        );
         return false;
       }
       const newWord: CustomVocabularyWord = {
@@ -56,7 +91,7 @@ export function AddToVocabularyProvider({ children }: AddToVocabularyProviderPro
       await saveCustomVocabulary(newCustomWords);
       await refreshVocabularyWords();
     },
-    [refreshVocabularyWords, showSnackbar]
+    [refreshVocabularyWords, showSnackbar, vocabularyReviewStores, handleReprioritize]
   );
 
   return (

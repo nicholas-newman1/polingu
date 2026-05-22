@@ -67,10 +67,12 @@ interface FormData {
   tags: string[];
 }
 
+type SaveResult = void | boolean | Promise<void | boolean>;
+
 interface EditSentenceModalProps {
   open: boolean;
   onClose: () => void;
-  onSave: (data: Omit<Sentence, 'id'>) => void;
+  onSave: (data: Omit<Sentence, 'id'>) => SaveResult;
   sentence: Sentence | null;
   isCreating?: boolean;
   onAudioUpdated?: (audioUrl: string) => void;
@@ -127,13 +129,14 @@ export function EditSentenceModal({
 
   useBackClose(open, handleClose);
 
-  const onSubmit = (data: FormData) => {
-    onSave({
+  const onSubmit = async (data: FormData) => {
+    const result = await onSave({
       polish: data.polish.trim(),
       english: data.english.trim(),
       level: data.level,
       tags: data.tags,
     });
+    if (result === false) return;
     handleClose();
   };
 

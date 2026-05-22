@@ -81,10 +81,12 @@ interface FormData {
   hint: string;
 }
 
+type SaveResult = void | boolean | Promise<void | boolean>;
+
 interface EditDeclensionModalProps {
   open: boolean;
   onClose: () => void;
-  onSave: (data: Omit<DeclensionCard, 'id' | 'isCustom'>) => void;
+  onSave: (data: Omit<DeclensionCard, 'id' | 'isCustom'>) => SaveResult;
   onDelete?: () => void;
   card: DeclensionCard | null;
   isCreating?: boolean;
@@ -139,9 +141,9 @@ export function EditDeclensionModal({
 
   useBackClose(open, handleClose);
 
-  const onSubmit = (data: FormData) => {
+  const onSubmit = async (data: FormData) => {
     const trimmedHint = data.hint.trim();
-    onSave({
+    const result = await onSave({
       front: data.front.trim(),
       back: data.back.trim(),
       declined: data.declined.trim(),
@@ -150,6 +152,7 @@ export function EditDeclensionModal({
       number: data.number,
       ...(trimmedHint && { hint: trimmedHint }),
     });
+    if (result === false) return;
     handleClose();
   };
 

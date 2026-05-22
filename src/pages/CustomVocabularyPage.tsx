@@ -20,8 +20,12 @@ import { AddVocabularyModal } from '../components/AddVocabularyModal';
 import { InlineAudioRegenerator } from '../components/AudioRegenerator';
 import { saveCustomVocabulary, subscribeCustomVocabulary } from '../lib/storage/customVocabulary';
 import { findCustomWordWithSamePolish } from '../lib/utils/findDuplicateCustomVocabularyPolish';
+import reprioritizeVocabularyWord, {
+  canReprioritizeVocabularyWord,
+} from '../lib/storage/reprioritizeVocabularyWord';
 import type { CustomVocabularyWord, PartOfSpeech, NounGender } from '../types/vocabulary';
 import { useAuthContext } from '../hooks/useAuthContext';
+import { useVocabulary } from '../hooks/useReviewData';
 import { useOptimistic } from '../hooks/useOptimistic';
 import { useSnackbar } from '../hooks/useSnackbar';
 import {
@@ -71,6 +75,7 @@ const GENDERS: NounGender[] = ['masculine', 'feminine', 'neuter'];
 export function CustomVocabularyPage() {
   const { user, isAdmin } = useAuthContext();
   const { showSnackbar } = useSnackbar();
+  const { vocabularyReviewStores, updateVocabularyReviewStore } = useVocabulary();
   const [isLoading, setIsLoading] = useState(true);
   const [customWordsBase, setCustomWordsBase] = useState<CustomVocabularyWord[]>([]);
   const [customWords, applyOptimisticCustomWords] = useOptimistic(customWordsBase, {
@@ -101,9 +106,40 @@ export function CustomVocabularyPage() {
     return unsub;
   }, [user]);
 
+  const handleReprioritize = useCallback(
+    (wordId: string) => {
+      const plToEnNext = reprioritizeVocabularyWord(vocabularyReviewStores['pl-to-en'], wordId);
+      const enToPlNext = reprioritizeVocabularyWord(vocabularyReviewStores['en-to-pl'], wordId);
+      const promises: Promise<void>[] = [];
+      if (plToEnNext !== vocabularyReviewStores['pl-to-en']) {
+        promises.push(updateVocabularyReviewStore('pl-to-en', plToEnNext));
+      }
+      if (enToPlNext !== vocabularyReviewStores['en-to-pl']) {
+        promises.push(updateVocabularyReviewStore('en-to-pl', enToPlNext));
+      }
+      if (promises.length === 0) return;
+      void Promise.all(promises);
+      showSnackbar('Word queued for review again.', 'success');
+    },
+    [vocabularyReviewStores, updateVocabularyReviewStore, showSnackbar]
+  );
+
   const handleAddWord = (wordData: Omit<CustomVocabularyWord, 'id' | 'isCustom' | 'createdAt'>) => {
-    if (findCustomWordWithSamePolish(customWords, wordData.polish)) {
-      showSnackbar('This Polish word is already in your custom vocabulary.', 'error');
+    const duplicate = findCustomWordWithSamePolish(customWords, wordData.polish);
+    if (duplicate) {
+      const reviewable = canReprioritizeVocabularyWord(vocabularyReviewStores, duplicate.id);
+      showSnackbar(
+        'This Polish word is already in your custom vocabulary.',
+        'error',
+        reviewable
+          ? {
+              action: {
+                label: 'Review again',
+                onClick: () => handleReprioritize(String(duplicate.id)),
+              },
+            }
+          : undefined
+      );
       return false;
     }
     const newWord: CustomVocabularyWord = {
@@ -359,6 +395,12 @@ export function CustomVocabularyPage() {
                         onDelete={() => handleDeleteWord(word.id)}
                         editLabel="edit word"
                         deleteLabel="delete word"
+                        onReprioritize={() => handleReprioritize(String(word.id))}
+                        canReprioritize={canReprioritizeVocabularyWord(
+                          vocabularyReviewStores,
+                          word.id
+                        )}
+                        reprioritizeLabel="review word again"
                       />
                     </TableCell>
                     {isAdmin && (

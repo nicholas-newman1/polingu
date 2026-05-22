@@ -19,8 +19,13 @@ import { alpha } from '../lib/theme';
 import { EditDeclensionModal } from '../components/EditDeclensionModal';
 import { InlineAudioRegenerator } from '../components/AudioRegenerator';
 import { saveCustomDeclension, subscribeCustomDeclension } from '../lib/storage/customDeclension';
+import { findCustomDeclensionDuplicate } from '../lib/utils/findDuplicateCustomDeclension';
+import reprioritizeDeclensionCard, {
+  canReprioritizeDeclensionCard,
+} from '../lib/storage/reprioritizeDeclensionCard';
 import type { CustomDeclensionCard, Case, Gender, Number, DeclensionCard } from '../types';
 import { useAuthContext } from '../hooks/useAuthContext';
+import { useDeclension } from '../hooks/useReviewData';
 import { useOptimistic } from '../hooks/useOptimistic';
 import { useSnackbar } from '../hooks/useSnackbar';
 import {
@@ -74,6 +79,7 @@ const NUMBERS: Number[] = ['Singular', 'Plural'];
 export function CustomDeclensionPage() {
   const { user, isAdmin } = useAuthContext();
   const { showSnackbar } = useSnackbar();
+  const { declensionReviewStore, updateDeclensionReviewStore } = useDeclension();
   const [isLoading, setIsLoading] = useState(true);
   const [customCardsBase, setCustomCardsBase] = useState<CustomDeclensionCard[]>([]);
   const [customCards, applyOptimisticCustomCards] = useOptimistic(customCardsBase, {
@@ -105,7 +111,35 @@ export function CustomDeclensionPage() {
     return unsub;
   }, [user]);
 
+  const handleReprioritize = useCallback(
+    (cardId: string) => {
+      const next = reprioritizeDeclensionCard(declensionReviewStore, cardId);
+      if (next === declensionReviewStore) return;
+      void updateDeclensionReviewStore(next);
+      showSnackbar('Card queued for review again.', 'success');
+    },
+    [declensionReviewStore, updateDeclensionReviewStore, showSnackbar]
+  );
+
   const handleAddCard = (cardData: Omit<DeclensionCard, 'id' | 'isCustom'>) => {
+    const duplicate = findCustomDeclensionDuplicate(customCards, cardData);
+    if (duplicate) {
+      const reviewable = canReprioritizeDeclensionCard(declensionReviewStore, duplicate.id);
+      showSnackbar(
+        'This declension card is already in your collection.',
+        'error',
+        reviewable
+          ? {
+              action: {
+                label: 'Review again',
+                onClick: () => handleReprioritize(duplicate.id),
+              },
+            }
+          : undefined
+      );
+      return false;
+    }
+
     const newCard: CustomDeclensionCard = {
       ...cardData,
       id: `custom_${Date.now()}`,
@@ -122,6 +156,10 @@ export function CustomDeclensionPage() {
 
   const handleEditCard = (cardData: Omit<DeclensionCard, 'id' | 'isCustom'>) => {
     if (!editingCard) return;
+    if (findCustomDeclensionDuplicate(customCards, cardData, editingCard.id)) {
+      showSnackbar('This declension card is already in your collection.', 'error');
+      return false;
+    }
     const newCustomCards = customCards.map((c) =>
       c.id === editingCard.id ? { ...c, ...cardData } : c
     );
@@ -386,6 +424,12 @@ export function CustomDeclensionPage() {
                         onDelete={() => handleDeleteCard(card.id)}
                         editLabel="edit card"
                         deleteLabel="delete card"
+                        onReprioritize={() => handleReprioritize(card.id)}
+                        canReprioritize={canReprioritizeDeclensionCard(
+                          declensionReviewStore,
+                          card.id
+                        )}
+                        reprioritizeLabel="review card again"
                       />
                     </TableCell>
                     {isAdmin && (

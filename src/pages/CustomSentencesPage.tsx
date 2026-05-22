@@ -19,12 +19,14 @@ import { alpha } from '../lib/theme';
 import { EditSentenceModal } from '../components/EditSentenceModal';
 import { InlineAudioRegenerator } from '../components/AudioRegenerator';
 import { saveCustomSentences, subscribeCustomSentences } from '../lib/storage/customSentences';
+import { findCustomSentenceWithSamePolish } from '../lib/utils/findDuplicateCustomSentence';
+import reprioritizeSentence, { canReprioritizeSentence } from '../lib/storage/reprioritizeSentence';
 import type { CustomSentence, CEFRLevel, Sentence } from '../types/sentences';
 import { ALL_LEVELS } from '../types/sentences';
 import { useAuthContext } from '../hooks/useAuthContext';
 import { useOptimistic } from '../hooks/useOptimistic';
 import { useSnackbar } from '../hooks/useSnackbar';
-import { useReviewData } from '../hooks/useReviewData';
+import { useReviewData, useSentences } from '../hooks/useReviewData';
 import {
   PageContainer,
   FiltersRow,
@@ -64,6 +66,7 @@ export function CustomSentencesPage() {
   const { user, isAdmin } = useAuthContext();
   const { showSnackbar } = useSnackbar();
   const { setCustomSentences: setContextCustomSentences } = useReviewData();
+  const { sentenceReviewStores, updateSentenceReviewStore } = useSentences();
   const [isLoading, setIsLoading] = useState(true);
   const [customSentencesBase, setCustomSentencesBase] = useState<CustomSentence[]>([]);
   const [customSentences, applyOptimisticCustomSentences] = useOptimistic(customSentencesBase, {
@@ -93,7 +96,43 @@ export function CustomSentencesPage() {
     return unsub;
   }, [user]);
 
+  const handleReprioritize = useCallback(
+    (sentenceId: string) => {
+      const plToEnNext = reprioritizeSentence(sentenceReviewStores['pl-to-en'], sentenceId);
+      const enToPlNext = reprioritizeSentence(sentenceReviewStores['en-to-pl'], sentenceId);
+      const promises: Promise<void>[] = [];
+      if (plToEnNext !== sentenceReviewStores['pl-to-en']) {
+        promises.push(updateSentenceReviewStore('pl-to-en', plToEnNext));
+      }
+      if (enToPlNext !== sentenceReviewStores['en-to-pl']) {
+        promises.push(updateSentenceReviewStore('en-to-pl', enToPlNext));
+      }
+      if (promises.length === 0) return;
+      void Promise.all(promises);
+      showSnackbar('Sentence queued for review again.', 'success');
+    },
+    [sentenceReviewStores, updateSentenceReviewStore, showSnackbar]
+  );
+
   const handleAddSentence = (sentenceData: Omit<Sentence, 'id'>) => {
+    const duplicate = findCustomSentenceWithSamePolish(customSentences, sentenceData.polish);
+    if (duplicate) {
+      const reviewable = canReprioritizeSentence(sentenceReviewStores, duplicate.id);
+      showSnackbar(
+        'This sentence is already in your collection.',
+        'error',
+        reviewable
+          ? {
+              action: {
+                label: 'Review again',
+                onClick: () => handleReprioritize(duplicate.id),
+              },
+            }
+          : undefined
+      );
+      return false;
+    }
+
     const newSentence: CustomSentence = {
       ...sentenceData,
       id: `custom_${Date.now()}`,
@@ -111,6 +150,12 @@ export function CustomSentencesPage() {
 
   const handleEditSentence = (sentenceData: Omit<Sentence, 'id'>) => {
     if (!editingSentence) return;
+    if (
+      findCustomSentenceWithSamePolish(customSentences, sentenceData.polish, editingSentence.id)
+    ) {
+      showSnackbar('This sentence is already in your collection.', 'error');
+      return false;
+    }
     const newCustomSentences = customSentences.map((s) =>
       s.id === editingSentence.id
         ? {
@@ -320,6 +365,9 @@ export function CustomSentencesPage() {
                         onDelete={() => handleDeleteSentence(sentence.id)}
                         editLabel="edit sentence"
                         deleteLabel="delete sentence"
+                        onReprioritize={() => handleReprioritize(sentence.id)}
+                        canReprioritize={canReprioritizeSentence(sentenceReviewStores, sentence.id)}
+                        reprioritizeLabel="review sentence again"
                       />
                     </TableCell>
                     {isAdmin && (

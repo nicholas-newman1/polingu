@@ -28,6 +28,9 @@ import type { TranslationDirection } from '../../types/common';
 import getOrCreateVocabularyCardReviewData from '../../lib/storage/getOrCreateVocabularyCardReviewData';
 import { saveCustomVocabulary } from '../../lib/storage/customVocabulary';
 import { findCustomWordWithSamePolish } from '../../lib/utils/findDuplicateCustomVocabularyPolish';
+import reprioritizeVocabularyWord, {
+  canReprioritizeVocabularyWord,
+} from '../../lib/storage/reprioritizeVocabularyWord';
 import {
   updateSystemVocabularyWord,
   deleteSystemVocabularyWord,
@@ -323,9 +326,38 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
     buildSession(allWords, reviewStore, newSettings);
   };
 
+  const handleReprioritizeWord = (wordId: VocabularyWordId) => {
+    const key = String(wordId);
+    const plToEnNext = reprioritizeVocabularyWord(vocabularyReviewStores['pl-to-en'], key);
+    const enToPlNext = reprioritizeVocabularyWord(vocabularyReviewStores['en-to-pl'], key);
+    const promises: Promise<void>[] = [];
+    if (plToEnNext !== vocabularyReviewStores['pl-to-en']) {
+      promises.push(updateVocabularyReviewStore('pl-to-en', plToEnNext));
+    }
+    if (enToPlNext !== vocabularyReviewStores['en-to-pl']) {
+      promises.push(updateVocabularyReviewStore('en-to-pl', enToPlNext));
+    }
+    if (promises.length === 0) return;
+    void Promise.all(promises);
+    showSnackbar('Word queued for review again.', 'success');
+  };
+
   const handleAddWord = (wordData: Omit<CustomVocabularyWord, 'id' | 'isCustom' | 'createdAt'>) => {
-    if (findCustomWordWithSamePolish(customWords, wordData.polish)) {
-      showSnackbar('This Polish word is already in your custom vocabulary.', 'error');
+    const duplicate = findCustomWordWithSamePolish(customWords, wordData.polish);
+    if (duplicate) {
+      const reviewable = canReprioritizeVocabularyWord(vocabularyReviewStores, duplicate.id);
+      showSnackbar(
+        'This Polish word is already in your custom vocabulary.',
+        'error',
+        reviewable
+          ? {
+              action: {
+                label: 'Review again',
+                onClick: () => handleReprioritizeWord(duplicate.id),
+              },
+            }
+          : undefined
+      );
       return false;
     }
     const newWord: CustomVocabularyWord = {
