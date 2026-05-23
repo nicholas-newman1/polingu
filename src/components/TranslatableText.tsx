@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { CircularProgress, Typography, Box, IconButton } from '@mui/material';
 import BookmarkAddOutlinedIcon from '@mui/icons-material/BookmarkAddOutlined';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { styled } from '../lib/styled';
 import { TranslatableTextProvider } from '../contexts/TranslatableTextContext';
 import { useTranslatableText } from '../hooks/useTranslatableText';
@@ -75,6 +76,16 @@ function PhraseTooltip({
     if (selectedPhrase && addToVocabulary) {
       addToVocabulary.openAddToVocabulary(selectedPhrase, translation || '');
       closePhraseTooltip?.();
+    }
+  };
+
+  const handleCopy = async () => {
+    if (!selectedPhrase) return;
+    try {
+      await navigator.clipboard.writeText(selectedPhrase);
+      showSnackbar('Copied to clipboard', 'success');
+    } catch {
+      showSnackbar('Failed to copy', 'error');
     }
   };
 
@@ -183,6 +194,9 @@ function PhraseTooltip({
                 {translation}
               </Typography>
             )}
+            <AddToVocabButton size="small" onClick={handleCopy} aria-label="Copy to clipboard">
+              <ContentCopyIcon sx={{ fontSize: 16 }} />
+            </AddToVocabButton>
             {addToVocabulary && (
               <AddToVocabButton
                 size="small"

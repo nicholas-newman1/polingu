@@ -4,6 +4,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import CheckIcon from '@mui/icons-material/Check';
 import CloseIcon from '@mui/icons-material/Close';
 import BookmarkAddOutlinedIcon from '@mui/icons-material/BookmarkAddOutlined';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { styled } from '../lib/styled';
 import { translate, RateLimitMinuteError, RateLimitDailyError } from '../lib/translate';
 import {
@@ -262,6 +263,15 @@ export function TranslatableWord({
     }
   };
 
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(word);
+      showSnackbar('Copied to clipboard', 'success');
+    } catch {
+      showSnackbar('Failed to copy', 'error');
+    }
+  };
+
   const handleMouseDown = useCallback(
     (event: React.MouseEvent<HTMLSpanElement>) => {
       if (isDragEnabled && event.button === 0) {
@@ -409,6 +419,9 @@ export function TranslatableWord({
                   <EditIcon sx={{ fontSize: 14 }} />
                 </EditButton>
               )}
+              <AddToVocabButton size="small" onClick={handleCopy} aria-label="Copy to clipboard">
+                <ContentCopyIcon sx={{ fontSize: 14 }} />
+              </AddToVocabButton>
               {addToVocabulary && (
                 <AddToVocabButton
                   size="small"
