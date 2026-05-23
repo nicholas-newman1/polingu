@@ -60,7 +60,7 @@ export function AudioPlayerPage() {
 
   const handleSeekToSegment = useCallback(
     (time: number) => {
-      seek(time);
+      seek(Math.max(0, time - 0.2));
       if (!isPlaying) play();
     },
     [seek, play, isPlaying]
