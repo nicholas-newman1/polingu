@@ -16,6 +16,7 @@ const TextContainer = styled(Box)({
 
 interface PhraseTooltipProps {
   sentenceContext?: string;
+  getSentenceContext?: (selectedIndices: number[]) => string | undefined;
   translations?: Record<string, string>;
   declensionCardId?: number;
   sentenceId?: string;
@@ -41,6 +42,7 @@ const AddToVocabButton = styled(IconButton)(({ theme }) => ({
 
 function PhraseTooltip({
   sentenceContext,
+  getSentenceContext,
   translations,
   declensionCardId,
   sentenceId,
@@ -58,6 +60,16 @@ function PhraseTooltip({
   const selectedPhrase = context?.selectedPhrase;
   const phraseAnchorEl = context?.phraseAnchorEl;
   const closePhraseTooltip = context?.closePhraseTooltip;
+  const selectedIndices = context?.selectedIndices;
+
+  const getSentenceContextRef = useRef(getSentenceContext);
+  useEffect(() => {
+    getSentenceContextRef.current = getSentenceContext;
+  });
+  const selectedIndicesRef = useRef(selectedIndices);
+  useEffect(() => {
+    selectedIndicesRef.current = selectedIndices;
+  });
 
   const handleAddToVocabulary = () => {
     if (selectedPhrase && addToVocabulary) {
@@ -84,10 +96,14 @@ function PhraseTooltip({
       setLoading(true);
       setError(null);
       try {
+        const dynamicContext = getSentenceContextRef.current?.(
+          Array.from(selectedIndicesRef.current ?? [])
+        );
+        const effectiveContext = dynamicContext ?? sentenceContext;
         const result = await translate(
           selectedPhrase,
           'EN',
-          sentenceContext,
+          effectiveContext,
           declensionCardId,
           sentenceId
         );
@@ -244,6 +260,7 @@ function TranslatableTextInner({ children }: TranslatableTextInnerProps) {
 export interface TranslatableTextProps {
   children: React.ReactNode;
   sentenceContext?: string;
+  getSentenceContext?: (selectedIndices: number[]) => string | undefined;
   translations?: Record<string, string>;
   declensionCardId?: number;
   sentenceId?: string;
@@ -254,6 +271,7 @@ export interface TranslatableTextProps {
 export function TranslatableText({
   children,
   sentenceContext,
+  getSentenceContext,
   translations,
   declensionCardId,
   sentenceId,
@@ -265,6 +283,7 @@ export function TranslatableText({
       <TranslatableTextInner>{children}</TranslatableTextInner>
       <PhraseTooltip
         sentenceContext={sentenceContext}
+        getSentenceContext={getSentenceContext}
         translations={translations}
         declensionCardId={declensionCardId}
         sentenceId={sentenceId}

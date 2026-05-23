@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback, useState } from 'react';
+import { useRef, useEffect, useCallback, useState, useMemo } from 'react';
 import { Box, IconButton, Typography } from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import { styled } from '../../lib/styled';
@@ -6,6 +6,10 @@ import { TranslatableWord } from '../../components/TranslatableWord';
 import { TranslatableText } from '../../components/TranslatableText';
 import type { TranscriptSegment } from '../../types/audio';
 import type { TranscriptFontSize } from '../../types/appSettings';
+
+function countWords(text: string): number {
+  return text.split(/(\s+)/).filter((t) => t.length > 0 && !/^\s+$/.test(t)).length;
+}
 
 const FONT_SIZE_MAP: Record<TranscriptFontSize, { base: string; sm: string }> = {
   small: { base: '1rem', sm: '1.2rem' },
@@ -75,6 +79,44 @@ export function TranscriptView({
 }: TranscriptViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const segmentRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const [translations, setTranslations] = useState<Record<string, string>>({});
+
+  const handleUpdateTranslation = useCallback((word: string, translation: string) => {
+    setTranslations((prev) => ({ ...prev, [word]: translation }));
+  }, []);
+
+  const segmentWordOffsets = useMemo(() => {
+    const offsets: number[] = [];
+    let total = 0;
+    for (const segment of transcript) {
+      offsets.push(total);
+      total += countWords(segment.text);
+    }
+    return offsets;
+  }, [transcript]);
+
+  const getSentenceContext = useCallback(
+    (selectedIndices: number[]) => {
+      if (selectedIndices.length === 0 || transcript.length === 0) return undefined;
+      let min = Infinity;
+      let max = -Infinity;
+      for (const idx of selectedIndices) {
+        if (idx < min) min = idx;
+        if (idx > max) max = idx;
+      }
+      let firstSeg = 0;
+      let lastSeg = 0;
+      for (let i = 0; i < segmentWordOffsets.length; i++) {
+        if (segmentWordOffsets[i] <= min) firstSeg = i;
+        if (segmentWordOffsets[i] <= max) lastSeg = i;
+      }
+      return transcript
+        .slice(firstSeg, lastSeg + 1)
+        .map((s) => s.text)
+        .join(' ');
+    },
+    [segmentWordOffsets, transcript]
+  );
 
   const handleSeekToSegmentClick = useCallback(
     (segIdx: number, time: number) => {
@@ -121,54 +163,65 @@ export function TranscriptView({
 
   return (
     <TranscriptContainer ref={containerRef}>
-      {transcript.map((segment, segIdx) => {
-        const isActive = segIdx === activeSegmentIndex;
+      <TranslatableText
+        getSentenceContext={getSentenceContext}
+        translations={translations}
+        onDailyLimitReached={onDailyLimitReached}
+        onUpdateTranslation={handleUpdateTranslation}
+      >
+        {transcript.map((segment, segIdx) => {
+          const isActive = segIdx === activeSegmentIndex;
 
-        return (
-          <SegmentRow
-            key={segIdx}
-            ref={setSegmentRef(segIdx)}
-            $isActive={isActive}
-            $fontSize={fontSize}
-          >
-            {onSeekToSegment && (
-              <IconButton
-                size="medium"
-                onClick={() => handleSeekToSegmentClick(segIdx, segment.startTime)}
-                sx={{ mt: 1.5, flexShrink: 0 }}
-                data-qa={`segment-seek-${segIdx}`}
-                aria-label="Jump to this line"
-              >
-                <PlayArrowIcon fontSize="medium" />
-              </IconButton>
-            )}
-            <SegmentText>
-              <SegmentContent
-                segment={segment}
-                onDailyLimitReached={onDailyLimitReached}
-                onWordTap={onWordTap}
-              />
-            </SegmentText>
-          </SegmentRow>
-        );
-      })}
+          return (
+            <SegmentRow
+              key={segIdx}
+              ref={setSegmentRef(segIdx)}
+              $isActive={isActive}
+              $fontSize={fontSize}
+            >
+              {onSeekToSegment && (
+                <IconButton
+                  size="medium"
+                  onClick={() => handleSeekToSegmentClick(segIdx, segment.startTime)}
+                  sx={{ mt: 1.5, flexShrink: 0 }}
+                  data-qa={`segment-seek-${segIdx}`}
+                  aria-label="Jump to this line"
+                >
+                  <PlayArrowIcon fontSize="medium" />
+                </IconButton>
+              )}
+              <SegmentText>
+                <SegmentContent
+                  segment={segment}
+                  wordOffset={segmentWordOffsets[segIdx]}
+                  translations={translations}
+                  onDailyLimitReached={onDailyLimitReached}
+                  onWordTap={onWordTap}
+                />
+              </SegmentText>
+            </SegmentRow>
+          );
+        })}
+      </TranslatableText>
     </TranscriptContainer>
   );
 }
 
 interface SegmentContentProps {
   segment: TranscriptSegment;
+  wordOffset: number;
+  translations: Record<string, string>;
   onDailyLimitReached?: (resetTime: string) => void;
   onWordTap?: () => void;
 }
 
-function SegmentContent({ segment, onDailyLimitReached, onWordTap }: SegmentContentProps) {
-  const [translations, setTranslations] = useState<Record<string, string>>({});
-
-  const handleUpdateTranslation = useCallback((word: string, translation: string) => {
-    setTranslations((prev) => ({ ...prev, [word]: translation }));
-  }, []);
-
+function SegmentContent({
+  segment,
+  wordOffset,
+  translations,
+  onDailyLimitReached,
+  onWordTap,
+}: SegmentContentProps) {
   const tokens = segment.text.split(/(\s+)/);
   let wordIndex = 0;
   const elements = tokens.map((token, index) => {
@@ -180,25 +233,15 @@ function SegmentContent({ segment, onDailyLimitReached, onWordTap }: SegmentCont
       <TranslatableWord
         key={index}
         word={token}
-        wordIndex={currentWordIndex}
+        wordIndex={wordOffset + currentWordIndex}
         sentenceContext={segment.text}
         translations={translations}
         onDailyLimitReached={onDailyLimitReached}
-        onUpdateTranslation={handleUpdateTranslation}
         disableHoverTranslate
         onTranslateRequest={onWordTap}
       />
     );
   });
 
-  return (
-    <TranslatableText
-      sentenceContext={segment.text}
-      translations={translations}
-      onDailyLimitReached={onDailyLimitReached}
-      onUpdateTranslation={handleUpdateTranslation}
-    >
-      {elements}
-    </TranslatableText>
-  );
+  return <>{elements}</>;
 }
