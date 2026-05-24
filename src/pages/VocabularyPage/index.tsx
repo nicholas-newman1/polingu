@@ -42,6 +42,8 @@ import rateVocabularyCard from '../../lib/vocabularyScheduler/rateVocabularyCard
 import getVocabularyNextIntervals from '../../lib/fsrsUtils/getNextIntervals';
 import type { VocabularySessionCard } from '../../lib/vocabularyScheduler/types';
 import { useAuthContext } from '../../hooks/useAuthContext';
+import { useAppSettings } from '../../contexts/AppSettingsContext';
+import { useAddToVocabulary } from '../../hooks/useAddToVocabulary';
 import { useOptimistic } from '../../hooks/useOptimistic';
 import { useSnackbar } from '../../hooks/useSnackbar';
 import { useReviewData } from '../../hooks/useReviewData';
@@ -72,6 +74,8 @@ interface VocabularyPageProps {
 export function VocabularyPage({ mode }: VocabularyPageProps) {
   const navigate = useNavigate();
   const { user, isAdmin } = useAuthContext();
+  const { settings: appSettings } = useAppSettings();
+  const addToVocabulary = useAddToVocabulary();
   const { showSnackbar } = useSnackbar();
   const {
     loading: contextLoading,
@@ -375,6 +379,10 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
 
     const mergedWords = [...newCustomWords, ...systemWords];
     buildSession(mergedWords, reviewStore, directionSettings);
+
+    if (isAdmin && appSettings.suggestExamplesAfterAddingWord) {
+      addToVocabulary?.openSuggestExamples(newWord);
+    }
   };
 
   const updateWordInQueues = (wordId: VocabularyWordId, updates: Partial<VocabularyWord>) => {

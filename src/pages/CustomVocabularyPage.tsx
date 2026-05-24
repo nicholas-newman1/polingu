@@ -28,6 +28,8 @@ import { useAuthContext } from '../hooks/useAuthContext';
 import { useVocabulary } from '../hooks/useReviewData';
 import { useOptimistic } from '../hooks/useOptimistic';
 import { useSnackbar } from '../hooks/useSnackbar';
+import { useAddToVocabulary } from '../hooks/useAddToVocabulary';
+import { useAppSettings } from '../contexts/AppSettingsContext';
 import {
   PageContainer,
   FiltersRow,
@@ -76,6 +78,8 @@ export function CustomVocabularyPage() {
   const { user, isAdmin } = useAuthContext();
   const { showSnackbar } = useSnackbar();
   const { vocabularyReviewStores, updateVocabularyReviewStore } = useVocabulary();
+  const { settings: appSettings } = useAppSettings();
+  const addToVocabulary = useAddToVocabulary();
   const [isLoading, setIsLoading] = useState(true);
   const [customWordsBase, setCustomWordsBase] = useState<CustomVocabularyWord[]>([]);
   const [customWords, applyOptimisticCustomWords] = useOptimistic(customWordsBase, {
@@ -154,6 +158,10 @@ export function CustomVocabularyPage() {
       await saveCustomVocabulary(newCustomWords);
       setCustomWordsBase(newCustomWords);
     });
+
+    if (isAdmin && appSettings.suggestExamplesAfterAddingWord) {
+      addToVocabulary?.openSuggestExamples(newWord);
+    }
   };
 
   const handleEditWord = (
