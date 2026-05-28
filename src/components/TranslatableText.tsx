@@ -61,15 +61,11 @@ function PhraseTooltip({
   const selectedPhrase = context?.selectedPhrase;
   const phraseAnchorEl = context?.phraseAnchorEl;
   const closePhraseTooltip = context?.closePhraseTooltip;
-  const selectedIndices = context?.selectedIndices;
+  const getSelectedIndices = context?.getSelectedIndices;
 
   const getSentenceContextRef = useRef(getSentenceContext);
   useEffect(() => {
     getSentenceContextRef.current = getSentenceContext;
-  });
-  const selectedIndicesRef = useRef(selectedIndices);
-  useEffect(() => {
-    selectedIndicesRef.current = selectedIndices;
   });
 
   const handleAddToVocabulary = () => {
@@ -107,9 +103,7 @@ function PhraseTooltip({
       setLoading(true);
       setError(null);
       try {
-        const dynamicContext = getSentenceContextRef.current?.(
-          Array.from(selectedIndicesRef.current ?? [])
-        );
+        const dynamicContext = getSentenceContextRef.current?.(getSelectedIndices?.() ?? []);
         const effectiveContext = dynamicContext ?? sentenceContext;
         const result = await translate(
           selectedPhrase,
@@ -147,6 +141,7 @@ function PhraseTooltip({
     onUpdateTranslation,
     closePhraseTooltip,
     showSnackbar,
+    getSelectedIndices,
   ]);
 
   useEffect(() => {
@@ -218,56 +213,6 @@ interface TranslatableTextInnerProps {
 }
 
 function TranslatableTextInner({ children }: TranslatableTextInnerProps) {
-  const context = useTranslatableText();
-
-  useEffect(() => {
-    if (!context?.isDragging) return;
-
-    const handleMouseUp = () => {
-      context.endDrag();
-    };
-
-    const handleMouseLeave = (e: MouseEvent) => {
-      if (e.target === document.documentElement) {
-        context.endDrag();
-      }
-    };
-
-    const handleTouchEnd = () => {
-      context.endDrag();
-    };
-
-    const handleTouchMove = (e: TouchEvent) => {
-      e.preventDefault();
-
-      const touch = e.touches[0];
-      if (!touch) return;
-
-      const element = document.elementFromPoint(touch.clientX, touch.clientY);
-      if (!element) return;
-
-      const wordIndexAttr = element.getAttribute('data-word-index');
-      if (wordIndexAttr !== null) {
-        const wordIndex = parseInt(wordIndexAttr, 10);
-        if (!isNaN(wordIndex)) {
-          context.updateDrag(wordIndex);
-        }
-      }
-    };
-
-    document.addEventListener('mouseup', handleMouseUp);
-    document.addEventListener('mouseleave', handleMouseLeave);
-    document.addEventListener('touchend', handleTouchEnd);
-    document.addEventListener('touchmove', handleTouchMove, { passive: false });
-
-    return () => {
-      document.removeEventListener('mouseup', handleMouseUp);
-      document.removeEventListener('mouseleave', handleMouseLeave);
-      document.removeEventListener('touchend', handleTouchEnd);
-      document.removeEventListener('touchmove', handleTouchMove);
-    };
-  }, [context]);
-
   return <TextContainer>{children}</TextContainer>;
 }
 

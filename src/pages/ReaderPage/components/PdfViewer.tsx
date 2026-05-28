@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useSyncExternalStore } from 'react';
 import { Box, IconButton, Typography, CircularProgress, Tooltip } from '@mui/material';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
@@ -111,9 +111,17 @@ interface PdfWordBoxProps {
   pageKey: number;
 }
 
+const pdfNoopSubscribe = () => () => {};
+const pdfReturnFalse = () => false;
+
 function PdfWordBox({ item, index, pageKey }: PdfWordBoxProps) {
   const context = useTranslatableText();
-  const isSelected = context?.selectedIndices.has(index) ?? false;
+  const subscribe = context?.subscribeSelection ?? pdfNoopSubscribe;
+  const getSnapshot = useCallback(
+    () => (context ? context.isIndexSelected(index) : false),
+    [context, index]
+  );
+  const isSelected = useSyncExternalStore(subscribe, getSnapshot, pdfReturnFalse);
 
   return (
     <Box

@@ -569,9 +569,9 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       const time = audio.currentTime;
       persistTime(time);
       const { segIdx, wordIdx } = computeIndices(time);
-      setActiveSegmentIndex(segIdx);
-      setActiveWordIndex(wordIdx);
       startTransition(() => {
+        setActiveSegmentIndex(segIdx);
+        setActiveWordIndex(wordIdx);
         setCurrentTime(time);
       });
       rafRef.current = requestAnimationFrame(loop);

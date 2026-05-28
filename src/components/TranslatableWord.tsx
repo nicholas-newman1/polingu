@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useSyncExternalStore, memo } from 'react';
 import { CircularProgress, Typography, IconButton, TextField, InputAdornment } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import CheckIcon from '@mui/icons-material/Check';
@@ -90,6 +90,9 @@ const SelectableHighlightedSpan = styled(HighlightedSpan, {
   }),
 }));
 
+const noopSubscribe = () => () => {};
+const returnFalse = () => false;
+
 export interface TranslatableWordProps {
   word: string;
   wordIndex?: number;
@@ -105,7 +108,7 @@ export interface TranslatableWordProps {
   onTranslateRequest?: () => void;
 }
 
-export function TranslatableWord({
+function TranslatableWordComponent({
   word,
   wordIndex,
   sentenceContext,
@@ -127,20 +130,29 @@ export function TranslatableWord({
   const [isSaving, setIsSaving] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const spanRef = useRef<HTMLSpanElement>(null);
+  console.log('render');
 
   const dragContext = useTranslatableText();
   const addToVocabulary = useAddToVocabulary();
   const { showSnackbar } = useSnackbar();
   const isDragEnabled = dragContext !== null && wordIndex !== undefined;
-  const isSelected = isDragEnabled && dragContext.selectedIndices.has(wordIndex);
+
+  const subscribeSelection = dragContext?.subscribeSelection ?? noopSubscribe;
+  const getSelectedSnapshot = useCallback(
+    () => (isDragEnabled ? dragContext.isIndexSelected(wordIndex) : false),
+    [isDragEnabled, dragContext, wordIndex]
+  );
+  const isSelected = useSyncExternalStore(subscribeSelection, getSelectedSnapshot, returnFalse);
+
   const isDragging = isDragEnabled && dragContext.isDragging;
   const hasPhrase = isDragEnabled && dragContext.selectedPhrase !== null;
 
+  const registerWord = dragContext?.registerWord;
   useEffect(() => {
-    if (isDragEnabled) {
-      dragContext.registerWord(wordIndex, word);
+    if (registerWord && wordIndex !== undefined) {
+      registerWord(wordIndex, word);
     }
-  }, [isDragEnabled, dragContext, wordIndex, word]);
+  }, [registerWord, wordIndex, word]);
 
   const {
     anchorEl,
@@ -274,29 +286,92 @@ export function TranslatableWord({
 
   const handleMouseDown = useCallback(
     (event: React.MouseEvent<HTMLSpanElement>) => {
-      if (isDragEnabled && event.button === 0) {
-        event.preventDefault();
+      if (!isDragEnabled || event.button !== 0) return;
+      event.preventDefault();
+
+      const startX = event.clientX;
+      const startY = event.clientY;
+      const element = event.currentTarget;
+      const THRESHOLD_SQ = 16;
+      let dragStarted = false;
+
+      const removeAll = () => {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      };
+
+      const onMove = (e: MouseEvent) => {
+        if (dragStarted) return;
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        if (dx * dx + dy * dy < THRESHOLD_SQ) return;
+        dragStarted = true;
+        document.removeEventListener('mousemove', onMove);
         onTranslateRequest?.();
-        dragContext.startDrag(wordIndex, event.currentTarget);
-      }
+        dragContext.startDrag(wordIndex, element);
+      };
+
+      const onUp = () => {
+        removeAll();
+        if (dragStarted) {
+          dragContext.endDrag();
+        }
+      };
+
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
     },
     [isDragEnabled, dragContext, wordIndex, onTranslateRequest]
   );
 
   const handleTouchStart = useCallback(
     (event: React.TouchEvent<HTMLSpanElement>) => {
-      if (isDragEnabled) {
-        // Don't prevent default immediately - let the browser determine if this is a tap or drag
+      if (!isDragEnabled) return;
+      const touch = event.touches[0];
+      if (!touch) return;
+
+      const startX = touch.clientX;
+      const startY = touch.clientY;
+      const element = event.currentTarget;
+      const THRESHOLD_SQ = 64;
+      let dragStarted = false;
+
+      const removeAll = () => {
+        document.removeEventListener('touchmove', onMove);
+        document.removeEventListener('touchend', onEnd);
+        document.removeEventListener('touchcancel', onEnd);
+      };
+
+      const onMove = (e: TouchEvent) => {
+        if (e.cancelable) e.preventDefault();
+        if (dragStarted) return;
+        const t = e.touches[0];
+        if (!t) return;
+        const dx = t.clientX - startX;
+        const dy = t.clientY - startY;
+        if (dx * dx + dy * dy < THRESHOLD_SQ) return;
+        dragStarted = true;
         onTranslateRequest?.();
-        dragContext.startDrag(wordIndex, event.currentTarget);
-      }
+        dragContext.startDrag(wordIndex, element);
+      };
+
+      const onEnd = () => {
+        removeAll();
+        if (dragStarted) {
+          dragContext.endDrag();
+        }
+      };
+
+      document.addEventListener('touchmove', onMove, { passive: false });
+      document.addEventListener('touchend', onEnd);
+      document.addEventListener('touchcancel', onEnd);
     },
     [isDragEnabled, dragContext, wordIndex, onTranslateRequest]
   );
 
   const handleMouseEnterWord = useCallback(
     (event: React.MouseEvent<HTMLSpanElement>) => {
-      if (isDragEnabled && dragContext.isDragging) {
+      if (isDragEnabled) {
         dragContext.updateDrag(wordIndex);
       }
       if (!isDragging && !hasPhrase && !disableHoverTranslate) {
@@ -335,9 +410,7 @@ export function TranslatableWord({
         setIsEditing(false);
       } else {
         setIsClicked(true);
-        if (!isDragEnabled) {
-          onTranslateRequest?.();
-        }
+        onTranslateRequest?.();
         fetchTranslation();
       }
       if (event.currentTarget) {
@@ -348,7 +421,6 @@ export function TranslatableWord({
       hasPhrase,
       isDragging,
       isClicked,
-      isDragEnabled,
       setIsClicked,
       fetchTranslation,
       baseHandleMouseEnter,
@@ -438,3 +510,5 @@ export function TranslatableWord({
     </>
   );
 }
+
+export const TranslatableWord = memo(TranslatableWordComponent);

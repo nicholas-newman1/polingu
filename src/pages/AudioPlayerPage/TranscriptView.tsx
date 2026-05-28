@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback, useState, useMemo } from 'react';
+import { useRef, useEffect, useCallback, useState, useMemo, memo } from 'react';
 import { Box, IconButton, Typography } from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import { styled } from '../../lib/styled';
@@ -137,16 +137,13 @@ export function TranscriptView({
     }
   }, [activeSegmentIndex]);
 
-  const setSegmentRef = useCallback(
-    (index: number) => (el: HTMLDivElement | null) => {
-      if (el) {
-        segmentRefs.current.set(index, el);
-      } else {
-        segmentRefs.current.delete(index);
-      }
-    },
-    []
-  );
+  const registerSegmentRef = useCallback((segIdx: number, el: HTMLDivElement | null) => {
+    if (el) {
+      segmentRefs.current.set(segIdx, el);
+    } else {
+      segmentRefs.current.delete(segIdx);
+    }
+  }, []);
 
   if (transcript.length === 0) {
     return (
@@ -161,6 +158,8 @@ export function TranscriptView({
     );
   }
 
+  const seekEnabled = Boolean(onSeekToSegment);
+
   return (
     <TranscriptContainer ref={containerRef}>
       <TranslatableText
@@ -169,43 +168,87 @@ export function TranscriptView({
         onDailyLimitReached={onDailyLimitReached}
         onUpdateTranslation={handleUpdateTranslation}
       >
-        {transcript.map((segment, segIdx) => {
-          const isActive = segIdx === activeSegmentIndex;
-
-          return (
-            <SegmentRow
-              key={segIdx}
-              ref={setSegmentRef(segIdx)}
-              $isActive={isActive}
-              $fontSize={fontSize}
-            >
-              {onSeekToSegment && (
-                <IconButton
-                  size="medium"
-                  onClick={() => handleSeekToSegmentClick(segIdx, segment.startTime)}
-                  sx={{ mt: 1.5, flexShrink: 0 }}
-                  data-qa={`segment-seek-${segIdx}`}
-                  aria-label="Jump to this line"
-                >
-                  <PlayArrowIcon fontSize="medium" />
-                </IconButton>
-              )}
-              <SegmentText>
-                <SegmentContent
-                  segment={segment}
-                  wordOffset={segmentWordOffsets[segIdx]}
-                  translations={translations}
-                  onDailyLimitReached={onDailyLimitReached}
-                  onWordTap={onWordTap}
-                />
-              </SegmentText>
-            </SegmentRow>
-          );
-        })}
+        {transcript.map((segment, segIdx) => (
+          <TranscriptRow
+            key={segIdx}
+            segment={segment}
+            segIdx={segIdx}
+            isActive={segIdx === activeSegmentIndex}
+            fontSize={fontSize}
+            wordOffset={segmentWordOffsets[segIdx]}
+            translations={translations}
+            onDailyLimitReached={onDailyLimitReached}
+            onWordTap={onWordTap}
+            onSeekClick={seekEnabled ? handleSeekToSegmentClick : undefined}
+            registerRef={registerSegmentRef}
+          />
+        ))}
       </TranslatableText>
     </TranscriptContainer>
   );
 }
+
+interface TranscriptRowProps {
+  segment: TranscriptSegment;
+  segIdx: number;
+  isActive: boolean;
+  fontSize: TranscriptFontSize;
+  wordOffset: number;
+  translations: Record<string, string>;
+  onDailyLimitReached?: (resetTime: string) => void;
+  onWordTap?: () => void;
+  onSeekClick?: (segIdx: number, time: number) => void;
+  registerRef: (segIdx: number, el: HTMLDivElement | null) => void;
+}
+
+const TranscriptRow = memo(function TranscriptRow({
+  segment,
+  segIdx,
+  isActive,
+  fontSize,
+  wordOffset,
+  translations,
+  onDailyLimitReached,
+  onWordTap,
+  onSeekClick,
+  registerRef,
+}: TranscriptRowProps) {
+  const refCb = useCallback(
+    (el: HTMLDivElement | null) => {
+      registerRef(segIdx, el);
+    },
+    [registerRef, segIdx]
+  );
+
+  const handleSeek = useCallback(() => {
+    onSeekClick?.(segIdx, segment.startTime);
+  }, [onSeekClick, segIdx, segment.startTime]);
+
+  return (
+    <SegmentRow ref={refCb} $isActive={isActive} $fontSize={fontSize}>
+      {onSeekClick && (
+        <IconButton
+          size="medium"
+          onClick={handleSeek}
+          sx={{ mt: 1.5, flexShrink: 0 }}
+          data-qa={`segment-seek-${segIdx}`}
+          aria-label="Jump to this line"
+        >
+          <PlayArrowIcon fontSize="medium" />
+        </IconButton>
+      )}
+      <SegmentText>
+        <SegmentContent
+          segment={segment}
+          wordOffset={wordOffset}
+          translations={translations}
+          onDailyLimitReached={onDailyLimitReached}
+          onWordTap={onWordTap}
+        />
+      </SegmentText>
+    </SegmentRow>
+  );
+});
 
 interface SegmentContentProps {
   segment: TranscriptSegment;
@@ -215,33 +258,36 @@ interface SegmentContentProps {
   onWordTap?: () => void;
 }
 
-function SegmentContent({
+const SegmentContent = memo(function SegmentContent({
   segment,
   wordOffset,
   translations,
   onDailyLimitReached,
   onWordTap,
 }: SegmentContentProps) {
-  const tokens = segment.text.split(/(\s+)/);
-  let wordIndex = 0;
-  const elements = tokens.map((token, index) => {
-    if (/^\s+$/.test(token)) return token;
-    const currentWordIndex = wordIndex;
-    wordIndex++;
+  const tokens = useMemo(() => segment.text.split(/(\s+)/), [segment.text]);
 
-    return (
-      <TranslatableWord
-        key={index}
-        word={token}
-        wordIndex={wordOffset + currentWordIndex}
-        sentenceContext={segment.text}
-        translations={translations}
-        onDailyLimitReached={onDailyLimitReached}
-        disableHoverTranslate
-        onTranslateRequest={onWordTap}
-      />
-    );
-  });
+  const elements = useMemo(() => {
+    let wordIndex = 0;
+    return tokens.map((token, index) => {
+      if (/^\s+$/.test(token)) return token;
+      const currentWordIndex = wordIndex;
+      wordIndex++;
+
+      return (
+        <TranslatableWord
+          key={index}
+          word={token}
+          wordIndex={wordOffset + currentWordIndex}
+          sentenceContext={segment.text}
+          translations={translations}
+          onDailyLimitReached={onDailyLimitReached}
+          disableHoverTranslate
+          onTranslateRequest={onWordTap}
+        />
+      );
+    });
+  }, [tokens, wordOffset, segment.text, translations, onDailyLimitReached, onWordTap]);
 
   return <>{elements}</>;
-}
+});
