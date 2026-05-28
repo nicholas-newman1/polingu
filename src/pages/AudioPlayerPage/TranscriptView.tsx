@@ -17,6 +17,29 @@ const FONT_SIZE_MAP: Record<TranscriptFontSize, { base: string; sm: string }> = 
   large: { base: '1.9rem', sm: '2.1rem' },
 };
 
+const PLACEHOLDER_FONT_PX: Record<TranscriptFontSize, number> = {
+  small: 19,
+  medium: 24,
+  large: 34,
+};
+
+const PLACEHOLDER_WORDS_PER_LINE: Record<TranscriptFontSize, number> = {
+  small: 12,
+  medium: 10,
+  large: 7,
+};
+
+function estimatePlaceholderHeight(wordCount: number, fontSize: TranscriptFontSize): number {
+  const fontPx = PLACEHOLDER_FONT_PX[fontSize];
+  const lineHeightPx = fontPx * 1.8;
+  const wordsPerLine = PLACEHOLDER_WORDS_PER_LINE[fontSize];
+  const lines = Math.max(1, Math.ceil(wordCount / wordsPerLine));
+  return Math.ceil(lines * lineHeightPx);
+}
+
+const INITIAL_VISIBLE_BUFFER = 5;
+const LAZY_ROOT_MARGIN = '800px 0px';
+
 const TranscriptContainer = styled(Box)(({ theme }) => ({
   flex: 1,
   minWidth: 0,
@@ -60,6 +83,11 @@ const SegmentText = styled(Box)({
   minWidth: 0,
 });
 
+const SegmentPlaceholder = styled(Box)({
+  flexShrink: 0,
+  minWidth: 0,
+});
+
 interface TranscriptViewProps {
   transcript: TranscriptSegment[];
   activeSegmentIndex: number;
@@ -85,15 +113,29 @@ export function TranscriptView({
     setTranslations((prev) => ({ ...prev, [word]: translation }));
   }, []);
 
+  const segmentWordCounts = useMemo(
+    () => transcript.map((segment) => countWords(segment.text)),
+    [transcript]
+  );
+
   const segmentWordOffsets = useMemo(() => {
     const offsets: number[] = [];
     let total = 0;
-    for (const segment of transcript) {
+    for (const count of segmentWordCounts) {
       offsets.push(total);
-      total += countWords(segment.text);
+      total += count;
     }
     return offsets;
-  }, [transcript]);
+  }, [segmentWordCounts]);
+
+  const [initialActiveSegmentIndex] = useState(activeSegmentIndex);
+  const initialVisibleSet = useMemo(() => {
+    const set = new Set<number>();
+    const start = Math.max(0, initialActiveSegmentIndex - INITIAL_VISIBLE_BUFFER);
+    const end = Math.min(transcript.length - 1, initialActiveSegmentIndex + INITIAL_VISIBLE_BUFFER);
+    for (let i = start; i <= end; i++) set.add(i);
+    return set;
+  }, [initialActiveSegmentIndex, transcript.length]);
 
   const getSentenceContext = useCallback(
     (selectedIndices: number[]) => {
@@ -140,10 +182,15 @@ export function TranscriptView({
   const registerSegmentRef = useCallback((segIdx: number, el: HTMLDivElement | null) => {
     if (el) {
       segmentRefs.current.set(segIdx, el);
-    } else {
-      segmentRefs.current.delete(segIdx);
     }
   }, []);
+
+  useEffect(() => {
+    const refs = segmentRefs.current;
+    return () => {
+      refs.clear();
+    };
+  }, [transcript]);
 
   if (transcript.length === 0) {
     return (
@@ -169,8 +216,10 @@ export function TranscriptView({
         onUpdateTranslation={handleUpdateTranslation}
       >
         {transcript.map((segment, segIdx) => (
-          <TranscriptRow
+          <LazyTranscriptRow
             key={segIdx}
+            initiallyVisible={initialVisibleSet.has(segIdx)}
+            wordCount={segmentWordCounts[segIdx]}
             segment={segment}
             segIdx={segIdx}
             isActive={segIdx === activeSegmentIndex}
@@ -200,6 +249,59 @@ interface TranscriptRowProps {
   onSeekClick?: (segIdx: number, time: number) => void;
   registerRef: (segIdx: number, el: HTMLDivElement | null) => void;
 }
+
+interface LazyTranscriptRowProps extends TranscriptRowProps {
+  initiallyVisible: boolean;
+  wordCount: number;
+}
+
+const LazyTranscriptRow = memo(function LazyTranscriptRow({
+  initiallyVisible,
+  wordCount,
+  ...rowProps
+}: LazyTranscriptRowProps) {
+  const { isActive, fontSize, segIdx, registerRef } = rowProps;
+  const [hasBeenVisible, setHasBeenVisible] = useState(initiallyVisible || isActive);
+  const placeholderRef = useRef<HTMLDivElement | null>(null);
+
+  if (!hasBeenVisible && isActive) {
+    setHasBeenVisible(true);
+  }
+
+  useEffect(() => {
+    if (hasBeenVisible) return;
+    const el = placeholderRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) setHasBeenVisible(true);
+      },
+      { rootMargin: LAZY_ROOT_MARGIN }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasBeenVisible]);
+
+  const handlePlaceholderRef = useCallback(
+    (el: HTMLDivElement | null) => {
+      placeholderRef.current = el;
+      registerRef(segIdx, el);
+    },
+    [registerRef, segIdx]
+  );
+
+  if (hasBeenVisible) {
+    return <TranscriptRow {...rowProps} />;
+  }
+
+  return (
+    <SegmentPlaceholder
+      ref={handlePlaceholderRef}
+      data-qa={`segment-placeholder-${segIdx}`}
+      sx={{ minHeight: estimatePlaceholderHeight(wordCount, fontSize) }}
+    />
+  );
+});
 
 const TranscriptRow = memo(function TranscriptRow({
   segment,
