@@ -24,7 +24,7 @@ import { styled } from '../lib/styled';
 import { alpha } from '../lib/theme';
 import { generateExample, type GeneratedExample } from '../lib/generateExample';
 import { translate } from '../lib/translate';
-import type { CustomVocabularyWord, ExampleSentence } from '../types/vocabulary';
+import type { ExampleSentence, VocabularyWord } from '../types/vocabulary';
 
 const SUGGESTION_CAP = 3;
 
@@ -91,7 +91,7 @@ const RowHeader = styled(Box)({
 
 interface SuggestVocabularyExamplesModalProps {
   open: boolean;
-  word: CustomVocabularyWord | null;
+  word: VocabularyWord | null;
   onClose: () => void;
   onSave: (examples: ExampleSentence[]) => Promise<void> | void;
 }

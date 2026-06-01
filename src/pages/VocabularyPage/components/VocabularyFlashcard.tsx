@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Grade } from 'ts-fsrs';
-import { Box, Chip, Stack, Typography } from '@mui/material';
+import { Box, Button, Chip, Stack, Typography } from '@mui/material';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import { styled } from '../../../lib/styled';
 import { FlashcardShell } from '../../../components/FlashcardShell';
 import type { RatingIntervals } from '../../../components/RatingButtons';
@@ -28,6 +29,7 @@ interface VocabularyFlashcardProps {
   onContinue?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
+  onGenerateSentences?: () => void;
 }
 
 const CustomLabel = styled(Typography)(({ theme }) => ({
@@ -88,6 +90,13 @@ const ExampleTranslation = styled(Typography)(({ theme }) => ({
   },
 }));
 
+const GenerateSentencesButton = styled(Button)(({ theme }) => ({
+  alignSelf: 'flex-start',
+  marginTop: theme.spacing(1.5),
+  textTransform: 'none',
+  fontSize: '0.8125rem',
+}));
+
 function formatPartOfSpeech(pos: string): string {
   return pos.charAt(0).toUpperCase() + pos.slice(1);
 }
@@ -108,6 +117,7 @@ export function VocabularyFlashcard({
   onContinue,
   onEdit,
   onDelete,
+  onGenerateSentences,
 }: VocabularyFlashcardProps) {
   const [revealed, setRevealed] = useState(isViewingHistory);
   const { settings } = useAppSettings();
@@ -142,6 +152,18 @@ export function VocabularyFlashcard({
 
   const hasExamples = word.examples && word.examples.length > 0;
   const showExamples = hasExamples && (!hidePolish || revealed);
+  const showGenerateSentencesButton = !hasExamples && !!onGenerateSentences;
+
+  const generateSentencesButton = showGenerateSentencesButton ? (
+    <GenerateSentencesButton
+      size="small"
+      variant="contained"
+      onClick={onGenerateSentences}
+      startIcon={<AutoAwesomeIcon fontSize="small" />}
+    >
+      Generate sentences
+    </GenerateSentencesButton>
+  ) : null;
 
   const question = (
     <>
@@ -180,6 +202,8 @@ export function VocabularyFlashcard({
           })}
         </ExamplesList>
       )}
+
+      {!revealed && generateSentencesButton}
     </>
   );
 
@@ -207,6 +231,8 @@ export function VocabularyFlashcard({
           💡 {word.notes}
         </HintText>
       )}
+
+      {generateSentencesButton}
     </>
   );
 

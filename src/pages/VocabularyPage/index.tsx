@@ -16,6 +16,7 @@ import { EmptyState } from '../../components/EmptyState';
 import { ReviewCountBadge } from '../../components/ReviewCountBadge';
 import { SettingsPanel } from '../../components/SettingsPanel';
 import { AddVocabularyModal } from '../../components/AddVocabularyModal';
+import { SuggestVocabularyExamplesModal } from '../../components/SuggestVocabularyExamplesModal';
 import type {
   VocabularyWord,
   VocabularyWordId,
@@ -23,6 +24,7 @@ import type {
   VocabularyReviewDataStore,
   VocabularyDirectionSettings,
   CustomVocabularyWord,
+  ExampleSentence,
 } from '../../types/vocabulary';
 import type { TranslationDirection } from '../../types/common';
 import getOrCreateVocabularyCardReviewData from '../../lib/storage/getOrCreateVocabularyCardReviewData';
@@ -120,6 +122,9 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
     null
   );
   const [editingSystemWord, setEditingSystemWord] = useState(false);
+  const [generateSentencesForWord, setGenerateSentencesForWord] = useState<VocabularyWord | null>(
+    null
+  );
 
   const {
     isViewingHistory,
@@ -513,6 +518,46 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
     }
   };
 
+  const handleOpenGenerateSentences = (word: VocabularyWord) => {
+    setGenerateSentencesForWord(word);
+  };
+
+  const getGenerateSentencesHandler = (word: VocabularyWord) => {
+    const isCustomWord = word.isCustom === true;
+    if (!isCustomWord && !isAdmin) return undefined;
+    return () => handleOpenGenerateSentences(word);
+  };
+
+  const handleSaveGeneratedSentences = async (newExamples: ExampleSentence[]) => {
+    if (!generateSentencesForWord || newExamples.length === 0) return;
+    const targetWord = generateSentencesForWord;
+    const wordId = targetWord.id;
+    const isCustomWord = targetWord.isCustom === true;
+    const existingExamples = targetWord.examples ?? [];
+    const mergedExamples = [...existingExamples, ...newExamples];
+
+    if (isCustomWord) {
+      const newCustomWords = customWords.map((w) =>
+        w.id === wordId ? { ...w, examples: mergedExamples } : w
+      );
+      applyOptimisticCustomWords(newCustomWords, async () => {
+        await saveCustomVocabulary(newCustomWords);
+        setContextCustomWords(newCustomWords);
+      });
+    } else {
+      if (!isAdmin) return;
+      const newSystemWords = systemWords.map((w) =>
+        w.id === wordId ? { ...w, examples: mergedExamples } : w
+      );
+      applyOptimisticSystemWords(newSystemWords, async () => {
+        await updateSystemVocabularyWord(wordId as number, { examples: mergedExamples });
+        setContextSystemWords(newSystemWords);
+      });
+    }
+
+    updateWordInQueues(wordId, { examples: mergedExamples });
+  };
+
   const handleResetAllData = async () => {
     if (
       window.confirm(
@@ -667,6 +712,7 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
                   practiceMode
                   isAdmin={isAdmin}
                   onNext={handlePracticeNext}
+                  onGenerateSentences={getGenerateSentencesHandler(currentPracticeWord)}
                   onEdit={() => {
                     const isCustomWord = currentPracticeWord.isCustom === true;
                     if (isCustomWord) {
@@ -722,6 +768,7 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
                 onGoBack={goBack}
                 onContinue={goForward}
                 onReassess={handleReassess}
+                onGenerateSentences={getGenerateSentencesHandler(historyCard)}
                 onEdit={() => {
                   const isCustomWord = historyCard.isCustom === true;
                   if (isCustomWord) {
@@ -817,6 +864,7 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
                 onGoBack={goBack}
                 onEdit={handleOpenEditModal}
                 onDelete={handleDeleteWord}
+                onGenerateSentences={getGenerateSentencesHandler(currentSessionCard.word)}
               />
             ) : null}
           </>
@@ -837,6 +885,13 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
             updateWordInQueues(editingWord.id, { audioUrl });
           }
         }}
+      />
+
+      <SuggestVocabularyExamplesModal
+        open={!!generateSentencesForWord}
+        word={generateSentencesForWord}
+        onClose={() => setGenerateSentencesForWord(null)}
+        onSave={handleSaveGeneratedSentences}
       />
     </>
   );
