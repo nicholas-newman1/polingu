@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Box, Button, Card, Divider, Stack } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -136,6 +136,17 @@ export function FlashcardShell({
 }: FlashcardShellProps) {
   const [isReassessing, setIsReassessing] = useState(false);
   const showBackButton = canGoBack && !practiceMode;
+
+  useEffect(() => {
+    if (!revealed) return;
+    const frame = requestAnimationFrame(() => {
+      window.scrollTo({
+        top: document.documentElement.scrollHeight,
+        behavior: 'smooth',
+      });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [revealed]);
 
   const renderBottomActions = () => {
     if (!revealed) {
