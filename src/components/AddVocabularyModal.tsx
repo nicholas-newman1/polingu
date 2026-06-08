@@ -30,6 +30,7 @@ import { translate } from '../lib/translate';
 import { generateExample, type GeneratedExample } from '../lib/generateExample';
 import { useAuthContext } from '../hooks/useAuthContext';
 import { useBackClose } from '../hooks/useBackClose';
+import { normalizeCustomVocabularyFields } from '../lib/utils/normalizeCustomVocabularyFields';
 import { AudioRegenerator } from './AudioRegenerator';
 import type {
   CustomVocabularyWord,
@@ -415,14 +416,16 @@ export function AddVocabularyModal({
   const onSubmit = async (data: FormData) => {
     const validExamples = data.examples.filter((ex) => ex.polish.trim() && ex.english.trim());
 
-    const result = await onSave({
-      polish: data.polish.trim(),
-      english: data.english.trim(),
-      partOfSpeech: data.partOfSpeech || undefined,
-      gender: showGenderField && data.gender ? data.gender : undefined,
-      notes: data.notes.trim() || undefined,
-      examples: validExamples.length > 0 ? validExamples : undefined,
-    });
+    const result = await onSave(
+      normalizeCustomVocabularyFields({
+        polish: data.polish.trim(),
+        english: data.english.trim(),
+        partOfSpeech: data.partOfSpeech || undefined,
+        gender: showGenderField && data.gender ? data.gender : undefined,
+        notes: data.notes.trim() || undefined,
+        examples: validExamples.length > 0 ? validExamples : undefined,
+      })
+    );
     if (result === false) return;
     handleClose();
   };
