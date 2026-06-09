@@ -175,7 +175,7 @@ export function ConjugationFlashcard({
         </Stack>
       )}
 
-      {isPolishToEnglish && hidePolish ? (
+      {isPolishToEnglish && hidePolish && !revealed ? (
         <HiddenPolishPlaceholder />
       ) : (
         <QuestionText variant="h4" color="text.primary">
@@ -189,7 +189,7 @@ export function ConjugationFlashcard({
         </QuestionText>
       )}
 
-      {isPolishToEnglish && !hidePolish && (
+      {isPolishToEnglish && (!hidePolish || revealed) && (
         <InfinitiveLabel>
           <VerbConjugationTooltip verb={form.verb} tense={form.tense} />
         </InfinitiveLabel>
@@ -199,7 +199,7 @@ export function ConjugationFlashcard({
 
   const answer = (
     <>
-      {!isPolishToEnglish && hidePolish ? (
+      {!isPolishToEnglish && hidePolish && !revealed ? (
         <HiddenPolishPlaceholder />
       ) : (
         <AnswerText variant="h4" color="text.primary">
@@ -214,11 +214,11 @@ export function ConjugationFlashcard({
       )}
       {answerData.alternatives &&
         answerData.alternatives.length > 0 &&
-        !(!isPolishToEnglish && hidePolish) && (
+        !(!isPolishToEnglish && hidePolish && !revealed) && (
           <AlternativesText>Also: {answerData.alternatives.join(', ')}</AlternativesText>
         )}
 
-      {!isPolishToEnglish && !hidePolish && (
+      {!isPolishToEnglish && (!hidePolish || revealed) && (
         <InfinitiveLabel>
           <VerbConjugationTooltip verb={form.verb} tense={form.tense} />
         </InfinitiveLabel>
@@ -237,7 +237,7 @@ export function ConjugationFlashcard({
         )}
       </Stack>
 
-      {aspectPairForm && aspectPairVerb && !hidePolish && (
+      {aspectPairForm && aspectPairVerb && (!hidePolish || revealed) && (
         <AspectPairBox>
           <Typography variant="body2" color="text.secondary">
             {aspectPairVerb.aspect}: <strong>{aspectPairForm}</strong>

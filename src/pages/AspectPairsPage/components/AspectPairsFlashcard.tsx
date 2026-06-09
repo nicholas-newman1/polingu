@@ -201,7 +201,7 @@ export function AspectPairsFlashcard({
 
   const question = (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-      {hidePolish ? (
+      {hidePolish && !revealed ? (
         <HiddenPolishPlaceholder />
       ) : (
         <QuestionText variant="h4" color="text.primary">
@@ -219,7 +219,7 @@ export function AspectPairsFlashcard({
 
       {isBiaspectual ? (
         <>
-          {hidePolish ? (
+          {hidePolish && !revealed ? (
             <HiddenPolishPlaceholder />
           ) : (
             <AnswerText variant="h5" color="text.primary">
@@ -237,7 +237,7 @@ export function AspectPairsFlashcard({
           </Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Box sx={{ flex: 1 }}>
-              {hidePolish ? (
+              {hidePolish && !revealed ? (
                 <HiddenPolishPlaceholder />
               ) : (
                 <AnswerText variant="h5" color="text.primary">

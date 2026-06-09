@@ -131,7 +131,7 @@ export function DeclensionFlashcard({
   const answer = (
     <>
       <AnswerText sx={{ mb: 2 }}>
-        {hidePolish ? (
+        {hidePolish && !revealed ? (
           <HiddenPolishPlaceholder />
         ) : (
           renderTappableText(card.back, tappableTextOptions, card.declined)

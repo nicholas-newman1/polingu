@@ -148,8 +148,8 @@ export function VocabularyFlashcard({
     </>
   );
 
-  const questionIsPolishHidden = isPolishToEnglish && hidePolish;
-  const answerIsPolishHidden = !isPolishToEnglish && hidePolish;
+  const questionIsPolishHidden = isPolishToEnglish && hidePolish && !revealed;
+  const answerIsPolishHidden = !isPolishToEnglish && hidePolish && !revealed;
 
   const hasExamples = word.examples && word.examples.length > 0;
   const showExamples = hasExamples && (!hidePolish || revealed);

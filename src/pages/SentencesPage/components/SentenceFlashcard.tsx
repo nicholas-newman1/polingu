@@ -123,7 +123,7 @@ export function SentenceFlashcard({
   );
 
   const questionContent =
-    isPolishToEnglish && hidePolish ? (
+    isPolishToEnglish && hidePolish && !revealed ? (
       <HiddenPolishPlaceholder />
     ) : isPolishToEnglish ? (
       renderTappableText(sentence.polish, tappableTextOptions)
@@ -132,7 +132,7 @@ export function SentenceFlashcard({
     );
 
   const answerContent =
-    !isPolishToEnglish && hidePolish ? (
+    !isPolishToEnglish && hidePolish && !revealed ? (
       <HiddenPolishPlaceholder />
     ) : isPolishToEnglish ? (
       sentence.english
