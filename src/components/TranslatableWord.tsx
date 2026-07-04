@@ -3,7 +3,7 @@ import { CircularProgress, Typography, IconButton, TextField, InputAdornment } f
 import EditIcon from '@mui/icons-material/Edit';
 import CheckIcon from '@mui/icons-material/Check';
 import CloseIcon from '@mui/icons-material/Close';
-import BookmarkAddOutlinedIcon from '@mui/icons-material/BookmarkAddOutlined';
+import AddIcon from '@mui/icons-material/Add';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { styled } from '../lib/styled';
 import { translate, RateLimitMinuteError, RateLimitDailyError } from '../lib/translate';
@@ -500,7 +500,7 @@ function TranslatableWordComponent({
                   onClick={handleAddToVocabulary}
                   aria-label="Add to vocabulary"
                 >
-                  <BookmarkAddOutlinedIcon sx={{ fontSize: 14 }} />
+                  <AddIcon sx={{ fontSize: 14 }} />
                 </AddToVocabButton>
               )}
             </>
