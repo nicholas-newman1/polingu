@@ -136,6 +136,54 @@ terraform plan -detailed-exitcode
 
 Exit code `2` means drift detected (someone clicked in the console).
 
+## Firestore backups
+
+The stack includes automated weekly Firestore exports:
+
+- **Schedule**: Every Sunday at 3 AM Toronto time
+- **Retention**: 28 days (4 weekly backups)
+- **Destination**: `gs://polish-declension-firestore-backups/<timestamp>/`
+
+### Manually triggering a backup
+
+```bash
+gcloud functions call firestore-backup --region=us-central1
+```
+
+Or via curl with authentication:
+
+```bash
+curl -X POST \
+  -H "Authorization: Bearer $(gcloud auth print-identity-token)" \
+  "$(gcloud functions describe firestore-backup --region=us-central1 --format='value(serviceConfig.uri)')"
+```
+
+### Viewing backup status
+
+List recent export operations:
+
+```bash
+gcloud firestore operations list --database='(default)'
+```
+
+List backups in the bucket:
+
+```bash
+gcloud storage ls gs://polish-declension-firestore-backups/
+```
+
+### Restoring from a backup
+
+1. Pick a backup timestamp from the bucket listing above.
+2. Import it (this merges with existing data; use a fresh database for full restore):
+
+```bash
+gcloud firestore import gs://polish-declension-firestore-backups/<timestamp>/
+```
+
+**Warning**: Import overwrites documents with the same IDs. For a clean restore,
+delete the target collections first or restore to a different database.
+
 ## What to do when the budget fires
 
 1. Check billing dashboard to see what collection/service spiked.

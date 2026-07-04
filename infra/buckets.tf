@@ -50,3 +50,21 @@ resource "google_storage_bucket_iam_member" "audio_cache_public_read" {
   role   = "roles/storage.objectViewer"
   member = "allUsers"
 }
+
+resource "google_storage_bucket" "firestore_backups" {
+  name                        = "${var.project_id}-firestore-backups"
+  project                     = var.project_id
+  location                    = "US"
+  uniform_bucket_level_access = true
+
+  lifecycle_rule {
+    condition {
+      age = 28
+    }
+    action {
+      type = "Delete"
+    }
+  }
+
+  depends_on = [google_project_service.apis]
+}

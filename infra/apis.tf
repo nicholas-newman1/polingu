@@ -25,6 +25,7 @@ resource "google_project_service" "apis" {
     "storage.googleapis.com",
     "cloudtasks.googleapis.com",
     "texttospeech.googleapis.com",
+    "cloudscheduler.googleapis.com",
   ])
 
   project            = var.project_id
