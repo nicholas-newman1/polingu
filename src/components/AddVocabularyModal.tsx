@@ -207,12 +207,16 @@ export function AddVocabularyModal({
   const { isAdmin } = useAuthContext();
   const [pendingAudioUrl, setPendingAudioUrl] = useState<string | null>(null);
 
+  const hasPrefilledValues = Boolean(
+    editWord || initialValues?.polish?.trim() || initialValues?.english?.trim()
+  );
+
   const {
     control,
     handleSubmit,
     reset,
     setValue,
-    formState: { isValid },
+    formState: { isValid, isSubmitting },
   } = useForm<FormData>({
     values: getDefaultValues(editWord, initialValues),
     mode: 'onChange',
@@ -478,7 +482,7 @@ export function AddVocabularyModal({
                 }}
                 label="Polish"
                 fullWidth
-                autoFocus={!editWord}
+                autoFocus={!hasPrefilledValues}
                 required
                 placeholder="e.g., kot"
               />
@@ -792,8 +796,13 @@ export function AddVocabularyModal({
           <Button onClick={handleClose} color="inherit" type="button">
             Cancel
           </Button>
-          <Button type="submit" variant="contained" disabled={!isValid}>
-            {editWord ? 'Save Changes' : 'Add Word'}
+          <Button
+            type="submit"
+            variant="contained"
+            disabled={!isValid || isSubmitting}
+            startIcon={isSubmitting ? <CircularProgress size={16} color="inherit" /> : undefined}
+          >
+            {isSubmitting ? 'Saving...' : editWord ? 'Save Changes' : 'Add Word'}
           </Button>
         </Actions>
       </form>
