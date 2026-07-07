@@ -2,7 +2,7 @@ import { collection, doc, onSnapshot, query, orderBy, updateDoc } from 'firebase
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../firebase';
 import { userDb } from '../offlineDb/userDb';
-import type { SystemAudioItem } from '../../types/audio';
+import type { SystemAudioItem, TranscriptSegment } from '../../types/audio';
 
 const SYSTEM_AUDIO_ITEMS_CACHE_KEY = '__system-audio-items-list';
 
@@ -74,10 +74,11 @@ export async function deleteSystemAudio(id: string): Promise<void> {
 
 export async function updateSystemAudio(
   id: string,
-  updates: { title?: string }
+  updates: { title?: string; transcript?: TranscriptSegment[] }
 ): Promise<void> {
   const audioRef = doc(db, 'systemAudioItems', id);
-  const cleanUpdates: Record<string, string> = {};
+  const cleanUpdates: Record<string, unknown> = {};
   if (updates.title !== undefined) cleanUpdates.title = updates.title.trim();
+  if (updates.transcript !== undefined) cleanUpdates.transcript = updates.transcript;
   await updateDoc(audioRef, cleanUpdates);
 }

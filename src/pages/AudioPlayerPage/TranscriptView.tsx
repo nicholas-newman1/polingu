@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback, useState, useMemo, memo } from 'react';
+import { useRef, useEffect, useLayoutEffect, useCallback, useState, useMemo, memo } from 'react';
 import { Box, IconButton, Typography } from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import { styled } from '../../lib/styled';
@@ -59,29 +59,57 @@ const TranscriptContainer = styled(Box)(({ theme }) => ({
   },
 }));
 
-const SegmentRow = styled(Box)<{ $isActive: boolean; $fontSize: TranscriptFontSize }>(
-  ({ theme, $isActive, $fontSize }) => ({
-    display: 'flex',
-    alignItems: 'flex-start',
-    gap: theme.spacing(1),
-    minWidth: 0,
-    transition: 'opacity 0.3s ease, font-size 0.2s ease',
-    opacity: $isActive ? 1 : 0.4,
-    lineHeight: 1.8,
-    fontWeight: 900,
-    fontSize: FONT_SIZE_MAP[$fontSize].base,
-    overflowWrap: 'normal',
-    wordBreak: 'normal',
-    [theme.breakpoints.up('sm')]: {
-      fontSize: FONT_SIZE_MAP[$fontSize].sm,
+const SegmentRow = styled(Box)<{
+  $isActive: boolean;
+  $fontSize: TranscriptFontSize;
+  $editMode: boolean;
+}>(({ theme, $isActive, $fontSize, $editMode }) => ({
+  display: 'flex',
+  alignItems: 'flex-start',
+  gap: theme.spacing(1),
+  minWidth: 0,
+  transition: 'opacity 0.3s ease, font-size 0.2s ease',
+  opacity: $editMode || $isActive ? 1 : 0.4,
+  lineHeight: 1.8,
+  fontWeight: 900,
+  fontSize: FONT_SIZE_MAP[$fontSize].base,
+  overflowWrap: 'normal',
+  wordBreak: 'normal',
+  ...($editMode && {
+    cursor: 'pointer',
+    borderRadius: theme.shape.borderRadius,
+    padding: theme.spacing(0.5, 1),
+    margin: theme.spacing(-0.5, -1),
+    outline: `1px dashed ${theme.palette.divider}`,
+    '&:hover': {
+      backgroundColor: theme.palette.action.hover,
+      outlineColor: theme.palette.primary.main,
     },
-  })
-);
+  }),
+  [theme.breakpoints.up('sm')]: {
+    fontSize: FONT_SIZE_MAP[$fontSize].sm,
+  },
+}));
 
 const SegmentText = styled(Box)({
   flex: 1,
   minWidth: 0,
 });
+
+const EditModeBanner = styled(Box)(({ theme }) => ({
+  position: 'sticky',
+  top: 0,
+  zIndex: 2,
+  alignSelf: 'stretch',
+  textAlign: 'center',
+  padding: theme.spacing(0.75, 2),
+  marginBottom: theme.spacing(1),
+  borderRadius: theme.shape.borderRadius,
+  backgroundColor: theme.palette.primary.main,
+  color: theme.palette.primary.contrastText,
+  fontSize: '0.8rem',
+  fontWeight: 700,
+}));
 
 const SegmentPlaceholder = styled(Box)({
   flexShrink: 0,
@@ -95,6 +123,8 @@ interface TranscriptViewProps {
   onDailyLimitReached?: (resetTime: string) => void;
   onWordTap?: () => void;
   onSeekToSegment?: (time: number) => void;
+  editMode?: boolean;
+  onEditSegment?: (segIdx: number) => void;
 }
 
 export function TranscriptView({
@@ -104,10 +134,56 @@ export function TranscriptView({
   onDailyLimitReached,
   onWordTap,
   onSeekToSegment,
+  editMode = false,
+  onEditSegment,
 }: TranscriptViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const segmentRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const scrollAnchorRef = useRef<{ segIdx: number; offset: number } | null>(null);
+  const prevEditModeRef = useRef(editMode);
   const [translations, setTranslations] = useState<Record<string, string>>({});
+
+  const measureAnchor = useCallback((): { segIdx: number; offset: number } | null => {
+    const container = containerRef.current;
+    if (!container) return null;
+    const containerRect = container.getBoundingClientRect();
+    const centerY = containerRect.top + containerRect.height / 2;
+    let bestIdx = -1;
+    let bestOffset = 0;
+    let bestDistance = Infinity;
+    segmentRefs.current.forEach((el, idx) => {
+      const elRect = el.getBoundingClientRect();
+      const elCenter = elRect.top + elRect.height / 2;
+      const distance = Math.abs(elCenter - centerY);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestIdx = idx;
+        bestOffset = elRect.top - containerRect.top;
+      }
+    });
+    return bestIdx >= 0 ? { segIdx: bestIdx, offset: bestOffset } : null;
+  }, []);
+
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    if (prevEditModeRef.current === editMode) {
+      const anchor = measureAnchor();
+      if (anchor) scrollAnchorRef.current = anchor;
+      return;
+    }
+
+    prevEditModeRef.current = editMode;
+    const anchor = scrollAnchorRef.current;
+    if (!anchor) return;
+    const el = segmentRefs.current.get(anchor.segIdx);
+    if (!el) return;
+    const containerTop = container.getBoundingClientRect().top;
+    const newOffset = el.getBoundingClientRect().top - containerTop;
+    container.scrollTop += newOffset - anchor.offset;
+    scrollAnchorRef.current = measureAnchor();
+  });
 
   const handleUpdateTranslation = useCallback((word: string, translation: string) => {
     setTranslations((prev) => ({ ...prev, [word]: translation }));
@@ -205,10 +281,15 @@ export function TranscriptView({
     );
   }
 
-  const seekEnabled = Boolean(onSeekToSegment);
+  const seekEnabled = Boolean(onSeekToSegment) && !editMode;
 
   return (
     <TranscriptContainer ref={containerRef}>
+      {editMode && (
+        <EditModeBanner data-qa="transcript-edit-banner">
+          Editing transcript — tap a line to correct it
+        </EditModeBanner>
+      )}
       <TranslatableText
         getSentenceContext={getSentenceContext}
         translations={translations}
@@ -229,6 +310,8 @@ export function TranscriptView({
             onDailyLimitReached={onDailyLimitReached}
             onWordTap={onWordTap}
             onSeekClick={seekEnabled ? handleSeekToSegmentClick : undefined}
+            editMode={editMode}
+            onEditSegment={onEditSegment}
             registerRef={registerSegmentRef}
           />
         ))}
@@ -247,6 +330,8 @@ interface TranscriptRowProps {
   onDailyLimitReached?: (resetTime: string) => void;
   onWordTap?: () => void;
   onSeekClick?: (segIdx: number, time: number) => void;
+  editMode?: boolean;
+  onEditSegment?: (segIdx: number) => void;
   registerRef: (segIdx: number, el: HTMLDivElement | null) => void;
 }
 
@@ -313,6 +398,8 @@ const TranscriptRow = memo(function TranscriptRow({
   onDailyLimitReached,
   onWordTap,
   onSeekClick,
+  editMode = false,
+  onEditSegment,
   registerRef,
 }: TranscriptRowProps) {
   const refCb = useCallback(
@@ -326,8 +413,36 @@ const TranscriptRow = memo(function TranscriptRow({
     onSeekClick?.(segIdx, segment.startTime);
   }, [onSeekClick, segIdx, segment.startTime]);
 
+  const handleEdit = useCallback(() => {
+    onEditSegment?.(segIdx);
+  }, [onEditSegment, segIdx]);
+
+  if (editMode) {
+    return (
+      <SegmentRow
+        ref={refCb}
+        $isActive={isActive}
+        $fontSize={fontSize}
+        $editMode
+        role="button"
+        tabIndex={0}
+        onClick={handleEdit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            handleEdit();
+          }
+        }}
+        data-qa={`segment-edit-${segIdx}`}
+        aria-label="Edit this line"
+      >
+        <SegmentText>{segment.text}</SegmentText>
+      </SegmentRow>
+    );
+  }
+
   return (
-    <SegmentRow ref={refCb} $isActive={isActive} $fontSize={fontSize}>
+    <SegmentRow ref={refCb} $isActive={isActive} $fontSize={fontSize} $editMode={false}>
       {onSeekClick && (
         <IconButton
           size="medium"

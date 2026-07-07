@@ -17,6 +17,7 @@ import Forward10Icon from '@mui/icons-material/Forward10';
 import SkipNextIcon from '@mui/icons-material/SkipNext';
 import SkipPreviousIcon from '@mui/icons-material/SkipPrevious';
 import FormatSizeIcon from '@mui/icons-material/FormatSize';
+import EditNoteIcon from '@mui/icons-material/EditNote';
 import CheckIcon from '@mui/icons-material/Check';
 import { styled } from '../../lib/styled';
 import { DRAWER_WIDTH } from '../../components/Layout';
@@ -142,6 +143,9 @@ interface AudioControlsProps {
   onPreviousTrack: () => void;
   onFontSizeChange: (size: TranscriptFontSize) => void;
   onHeightChange?: (height: number) => void;
+  editModeAvailable?: boolean;
+  editMode?: boolean;
+  onToggleEditMode?: () => void;
 }
 
 const FONT_SIZE_OPTIONS: { value: TranscriptFontSize; label: string }[] = [
@@ -167,6 +171,9 @@ export function AudioControls({
   onPreviousTrack,
   onFontSizeChange,
   onHeightChange,
+  editModeAvailable = false,
+  editMode = false,
+  onToggleEditMode,
 }: AudioControlsProps) {
   const [speedMenuAnchor, setSpeedMenuAnchor] = useState<HTMLElement | null>(null);
   const [fontSizeMenuAnchor, setFontSizeMenuAnchor] = useState<HTMLElement | null>(null);
@@ -257,10 +264,7 @@ export function AudioControls({
         />
       </ProgressSliderWrapper>
       <TimeRow>
-        <Typography
-          variant="caption"
-          color={isPreviewing ? 'text.primary' : 'text.secondary'}
-        >
+        <Typography variant="caption" color={isPreviewing ? 'text.primary' : 'text.secondary'}>
           {formatTime(displayedTime)}
         </Typography>
         <Typography variant="caption" color="text.secondary">
@@ -321,6 +325,24 @@ export function AudioControls({
             <SkipNextIcon />
           </IconButton>
         </PlaybackGroup>
+        {editModeAvailable && (
+          <IconButton
+            onClick={onToggleEditMode}
+            aria-label={editMode ? 'Exit transcript edit mode' : 'Edit transcript'}
+            aria-pressed={editMode}
+            sx={{
+              width: 32,
+              height: 32,
+              flexShrink: 0,
+              mr: 0.5,
+              color: editMode ? 'primary.contrastText' : 'text.secondary',
+              bgcolor: editMode ? 'primary.main' : 'transparent',
+              '&:hover': { bgcolor: editMode ? 'primary.dark' : 'action.hover' },
+            }}
+          >
+            <EditNoteIcon fontSize="small" />
+          </IconButton>
+        )}
         <FontSizeButton
           onClick={(e) => setFontSizeMenuAnchor(e.currentTarget)}
           aria-controls={fontSizeMenuAnchor ? 'font-size-menu' : undefined}

@@ -1,13 +1,30 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Navigate } from 'react-router-dom';
 import { Box, CircularProgress, Typography } from '@mui/material';
 import { styled } from '../../lib/styled';
 import { useAudioPlayerContext } from '../../contexts/AudioPlayerContext';
+import { useAuthContext } from '../../hooks/useAuthContext';
 import { useTranslationContext } from '../../hooks/useTranslationContext';
 import { useTranscriptFontSize } from '../../hooks/useTranscriptFontSize';
 import { usePageTitle } from '../../hooks/usePageTitle';
+import { updateSystemAudio } from '../../lib/audio/systemAudioItems';
+import type { TranscriptSegment, TranscriptWord } from '../../types/audio';
 import { TranscriptView } from './TranscriptView';
 import { AudioControls, CONTROLS_HEIGHT } from './AudioControls';
+import { EditTranscriptSegmentDialog } from './EditTranscriptSegmentDialog';
+
+function rebuildSegmentWords(text: string, startTime: number, endTime: number): TranscriptWord[] {
+  const tokens = text.split(/\s+/).filter(Boolean);
+  if (tokens.length === 0) return [];
+  const span = Math.max(0, endTime - startTime);
+  const per = span / tokens.length;
+  return tokens.map((word, i) => ({
+    word,
+    startTime: startTime + per * i,
+    endTime: startTime + per * (i + 1),
+    confidence: 1,
+  }));
+}
 
 const PlayerContainer = styled(Box)({
   display: 'flex',
@@ -35,6 +52,7 @@ export function AudioPlayerPage() {
   const {
     activeAudioId,
     audioItem,
+    systemItems,
     isPlaying,
     currentTime,
     duration,
@@ -52,11 +70,69 @@ export function AudioPlayerPage() {
     nextTrack,
     previousTrack,
   } = useAudioPlayerContext();
+  const { isAdmin } = useAuthContext();
   const [controlsHeight, setControlsHeight] = useState(CONTROLS_HEIGHT);
   const wasPlayingBeforeSeekRef = useRef(false);
   const { handleDailyLimitReached } = useTranslationContext();
   const [transcriptFontSize, setTranscriptFontSize] = useTranscriptFontSize();
+  const [editMode, setEditMode] = useState(false);
+  const [editingSegment, setEditingSegment] = useState<number | null>(null);
+  const [trackedAudioId, setTrackedAudioId] = useState(activeAudioId);
   usePageTitle(audioItem?.title || 'Audio');
+
+  const canEditTranscript = useMemo(
+    () => isAdmin && !!activeAudioId && systemItems.some((i) => i.id === activeAudioId),
+    [isAdmin, activeAudioId, systemItems]
+  );
+
+  if (activeAudioId !== trackedAudioId) {
+    setTrackedAudioId(activeAudioId);
+    setEditMode(false);
+    setEditingSegment(null);
+  } else if (!canEditTranscript && (editMode || editingSegment !== null)) {
+    setEditMode(false);
+    setEditingSegment(null);
+  }
+
+  const handleToggleEditMode = useCallback(() => {
+    setEditMode((prev) => {
+      const next = !prev;
+      if (next && isPlaying) pause();
+      return next;
+    });
+  }, [isPlaying, pause]);
+
+  const handleEditSegment = useCallback((segIdx: number) => {
+    setEditingSegment(segIdx);
+  }, []);
+
+  const closeEditor = useCallback(() => {
+    setEditingSegment(null);
+  }, []);
+
+  const handleSaveSegment = useCallback(
+    async (text: string) => {
+      if (editingSegment === null || !activeAudioId || !audioItem) return;
+      const original = audioItem.transcript?.[editingSegment];
+      if (!original) return;
+      if (text === original.text.trim()) {
+        closeEditor();
+        return;
+      }
+      const nextTranscript: TranscriptSegment[] = audioItem.transcript.map((segment, idx) =>
+        idx === editingSegment
+          ? {
+              ...segment,
+              text,
+              words: rebuildSegmentWords(text, segment.startTime, segment.endTime),
+            }
+          : segment
+      );
+      await updateSystemAudio(activeAudioId, { transcript: nextTranscript });
+      closeEditor();
+    },
+    [editingSegment, activeAudioId, audioItem, closeEditor]
+  );
 
   const handleSeekToSegment = useCallback(
     (time: number) => {
@@ -142,6 +218,8 @@ export function AudioPlayerPage() {
           onDailyLimitReached={handleDailyLimitReached}
           onWordTap={pause}
           onSeekToSegment={handleSeekToSegment}
+          editMode={editMode}
+          onEditSegment={handleEditSegment}
         />
       </TranscriptArea>
 
@@ -162,6 +240,18 @@ export function AudioPlayerPage() {
         onPreviousTrack={previousTrack}
         onFontSizeChange={setTranscriptFontSize}
         onHeightChange={setControlsHeight}
+        editModeAvailable={canEditTranscript}
+        editMode={editMode}
+        onToggleEditMode={handleToggleEditMode}
+      />
+
+      <EditTranscriptSegmentDialog
+        open={editingSegment !== null}
+        initialText={
+          editingSegment !== null ? (audioItem?.transcript?.[editingSegment]?.text ?? '') : ''
+        }
+        onClose={closeEditor}
+        onSave={handleSaveSegment}
       />
     </PlayerContainer>
   );
