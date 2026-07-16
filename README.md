@@ -1,83 +1,116 @@
 # Polingu
 
-A comprehensive Polish language learning app with spaced repetition. Practice declensions, build vocabulary, and translate sentences—all with an intelligent review system that optimizes your study time.
+A comprehensive Polish language learning app built around spaced repetition. Drill declensions and conjugations, build vocabulary, translate sentences, read PDFs with tap-to-translate, and reinforce everything with synced audio and passive listening—all backed by an intelligent review system that optimizes your study time.
 
 ## Features
 
-### Three Learning Modules
+### Spaced Repetition Modules
 
-- **Declension** — Master Polish noun and pronoun declensions across all 7 cases (Nominative, Genitive, Dative, Accusative, Instrumental, Locative, Vocative) with fill-in-the-blank flashcards
-- **Vocabulary** — Learn common Polish words with example sentences, parts of speech, and gender information
-- **Sentences** — Practice translating complete Polish sentences with detailed word-by-word annotations including lemmas and grammar notes
+Five learning modules are scheduled with the [FSRS](https://github.com/open-spaced-repetition/ts-fsrs) algorithm (the same scheduler used by Anki). After revealing an answer, rate your recall—**Again**, **Hard**, **Good**, or **Easy**—and each card is scheduled at its optimal next interval.
 
-### FSRS Spaced Repetition
-
-Uses the Free Spaced Repetition Scheduler algorithm (same as Anki) to schedule reviews at optimal intervals. After revealing an answer, rate your recall:
-
-- **Again** — Forgot completely (card repeats in session)
-- **Hard** — Struggled to remember
-- **Good** — Remembered with effort
-- **Easy** — Instantly recalled
+- **Declension** — Master Polish noun and pronoun declensions across all 7 cases (Nominative, Genitive, Dative, Accusative, Instrumental, Locative, Vocative) with fill-in-the-blank flashcards showing case, gender, and number.
+- **Vocabulary** — Learn common Polish words with example sentences, parts of speech, gender, and audio.
+- **Sentences** — Practice translating complete Polish sentences with word-by-word annotations, organized by CEFR level (A1–C2).
+- **Conjugation** — Drill Polish verb forms across tenses, persons, numbers, and aspects, with filtering by tense, person, number, aspect, verb class, and gender.
+- **Aspect Pairs** — Learn perfective/imperfective verb pairs, with conjugation reference built in.
 
 ### Bidirectional Learning
 
-Vocabulary and sentences support two practice modes:
+Vocabulary, sentences, and conjugation each support two practice directions, with separate review progress tracked per direction:
 
 - **Recognition** (Polish → English) — See Polish, produce English
 - **Production** (English → Polish) — See English, produce Polish
-
-### Smart Filtering
-
-- Filter declension cards by case, gender, and number
-- Filter sentences by CEFR level (A1–C2)
-- Filters affect new cards while due reviews always appear
-
-### Interactive Word Translations
-
-- **Tap any word** to see its English translation, lemma, and grammar info
-- **Drag-select phrases** to get contextual translations
-- Translations are cached to minimize API calls
-
-### Built-in Translator
-
-Access the English ↔ Polish translator from the bottom menu to quickly look up words and phrases outside of flashcard sessions.
-
-### Reference Cheat Sheets
-
-Quick-access reference materials available from the bottom menu:
-
-- **Declension endings** — Complete tables for masculine, feminine, and neuter nouns
-- **Consonants** — Soft, hard, and hardened consonant categories
-- **Y/I rules** — When to use Y vs I in Polish spelling
-
-### Custom Content
-
-Add your own learning material alongside the system content:
-
-- Create custom vocabulary words with part of speech, gender, and notes
-- Create custom declension flashcards
-- Manage your custom items in dedicated pages with search and filtering
-
-### Cloud Sync
-
-- Sign in with Google to sync progress across devices
-- All review data stored in Firebase
-- Works offline with automatic sync when back online
 
 ### Flexible Study Options
 
 - **Practice Mode** — Drill cards without affecting SRS progress
 - **Practice Ahead** — Review cards before they're due
 - **Learn Extra** — Add more new cards beyond your daily limit
-- Configurable daily new card limit per module
+- **Card history** — Step back through rated cards to reassess them
+- Configurable daily new-card limit per module and direction
 
-### Study Statistics
+### Smart Filtering
 
-Track your learning progress:
+- Filter declension cards by case, gender, and number
+- Filter conjugation cards by tense, person, number, aspect, verb class, and gender
+- Filter sentences by CEFR level (A1–C2)
+- Filters affect new cards while due reviews always appear
 
-- Cards studied and mastered
-- Breakdown of system vs custom content
-- Separate stats for vocabulary and declension
+### Audio
+
+- **Card audio** — Most cards include Polish text-to-speech, with optional auto-play and an "audio-only" mode that hides the Polish text
+- **Audio Library** — Upload your own audio files or generate audio from pasted text; tracks are transcribed automatically into timestamped segments
+- **Audio Player** — Karaoke-style player that highlights the transcript at the segment and word level as it plays, with adjustable speed, track navigation, and font size
+- **Offline audio** — Download all card audio for offline study
+
+### Passive Listening
+
+A dedicated listening mode turns your sentence, vocabulary, or declension decks into passive audio sessions. Choose an ordering (random, due-first, practice-ahead, learned-only, or recently-added), configure separate playback settings for learned vs. unfamiliar cards, and keep listening via a mini player that persists across the app. Listening is purely for reinforcement and does not affect SRS progress.
+
+### PDF Reader & Library
+
+Upload PDF books to your library and read them in-app with `pdfjs-dist`. Tap any word or drag-select a phrase to translate it, save bookmarks, zoom, and pick up where you left off—reading progress is saved per book.
+
+### Consonant Driller
+
+A quick, session-based drill (no SRS) for classifying Polish consonants as hard or soft, either by consonant or within example words.
+
+### Interactive Word Translations
+
+- **Tap any word** to see its English translation, lemma, and grammar info
+- **Drag-select phrases** to get contextual translations
+- Save any word or phrase straight to your custom vocabulary or sentences
+- Translations are cached to minimize API calls
+
+### Built-in Translator
+
+Access the English ↔ Polish translator from the bottom menu to look up words and phrases outside of flashcard sessions, and save results directly into your decks.
+
+### Reference Cheat Sheets
+
+Quick-access reference materials from the bottom menu:
+
+- **Declension endings** — Complete tables for masculine, feminine, and neuter nouns
+- **Conjugation** — Verb conjugation reference
+- **Consonants** — Soft, hard, and hardened consonant categories
+- **Y/I rules** — When to use Y vs I in Polish spelling
+
+### Custom Content
+
+Add your own learning material alongside the built-in content:
+
+- Create custom vocabulary, declension cards, and sentences
+- Manage them in dedicated pages (`My Vocabulary`, `My Declensions`, `My Sentences`) with search and filtering
+- Audio is generated automatically for custom items
+- Duplicate detection lets you re-prioritize an existing card instead of adding a copy
+
+### Statistics
+
+- **Dashboard** — Learned, total, and due counts per module, with reorderable feature cards
+- **Stats page** — Detailed breakdown of studied, mastered, and total cards, including system vs. custom content
+
+### Accounts & Cloud Sync
+
+- **Guest mode** — Use the app and study built-in content without signing in
+- **Google sign-in** — Sync review progress, custom content, and settings across devices via Firebase
+- Works offline with automatic background sync when you reconnect
+
+### Offline-First (PWA)
+
+Polingu is an installable Progressive Web App:
+
+- Install to your home screen and use it like a native app
+- Built-in content is cached in IndexedDB (via Dexie) for offline access
+- A service worker precaches the app shell and caches audio for offline playback
+- User data is written locally first and synced to Firestore when online
+
+### Admin Tooling
+
+For users with the admin role:
+
+- **Content manager** — CRUD for system vocabulary, declensions, sentences, and verbs
+- **Sentence generator** — AI-assisted sentence generation, curriculum discovery, and tagging
+- **System audio** — Generate shared audio tracks from text, and edit transcript segments
 
 ## Getting Started
 
@@ -92,10 +125,39 @@ npm start
 npm run build
 ```
 
+## Data & Audio Scripts
+
+Content and audio pipelines are managed through `tsx` scripts (require Firebase Admin credentials):
+
+```bash
+# Declension content
+npm run declension:import      # Import declension JSON into Firestore
+npm run declension:sync        # Sync Firestore declensions to local index
+npm run declension:export      # Export declension cards to JSON
+
+# Verb content
+npm run verbs:import           # Import verbs JSON into Firestore
+npm run verbs:validate         # Validate verb JSON schema
+npm run verbs:sync             # Sync verbs from Firestore
+npm run verbs:export           # Export verbs to JSON
+
+# Text-to-speech audio generation
+npm run audio:vocabulary
+npm run audio:declension
+npm run audio:sentences
+npm run audio:conjugation
+npm run audio:aspect-pairs
+```
+
 ## Tech Stack
 
 - **React 19** + TypeScript
-- **MUI** (Material UI) — Component library and styling
-- **Firebase** — Firestore database and Google authentication
-- **Vite** — Build tool
-- **ts-fsrs** — Spaced repetition algorithm
+- **Vite 7** — Build tool and dev server
+- **MUI 7** (Material UI) + Emotion — Component library and styling
+- **Firebase** — Auth, Firestore, Storage, and Cloud Functions
+- **Dexie** — IndexedDB wrapper for offline-first storage
+- **ts-fsrs** — Spaced repetition scheduling
+- **pdfjs-dist** — In-app PDF reader
+- **vite-plugin-pwa** (Workbox) — Service worker and installable PWA
+- **@tanstack/react-virtual**, **@dnd-kit** — Virtualization and drag-and-drop
+- **Google Cloud Text-to-Speech** — Audio generation
