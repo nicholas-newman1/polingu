@@ -64,10 +64,15 @@ const AddToVocabButton = styled(IconButton)(({ theme }) => ({
   },
 }));
 
+const LONG_PRESS_MS = 1000;
+const TOUCH_MOVE_CANCEL_SQ = 100;
+
 const SelectableSpan = styled(TappableSpan, {
   shouldForwardProp: (prop) => prop !== '$isSelected',
 })<{ $isSelected?: boolean }>(({ theme, $isSelected }) => ({
-  touchAction: 'none',
+  userSelect: 'none',
+  WebkitUserSelect: 'none',
+  WebkitTouchCallout: 'none',
   ...($isSelected && {
     backgroundColor: theme.palette.primary.main,
     color: theme.palette.primary.contrastText,
@@ -80,7 +85,9 @@ const SelectableSpan = styled(TappableSpan, {
 const SelectableHighlightedSpan = styled(HighlightedSpan, {
   shouldForwardProp: (prop) => prop !== '$isSelected',
 })<{ $isSelected?: boolean }>(({ theme, $isSelected }) => ({
-  touchAction: 'none',
+  userSelect: 'none',
+  WebkitUserSelect: 'none',
+  WebkitTouchCallout: 'none',
   ...($isSelected && {
     backgroundColor: theme.palette.primary.main,
     color: theme.palette.primary.contrastText,
@@ -332,26 +339,35 @@ function TranslatableWordComponent({
       const startX = touch.clientX;
       const startY = touch.clientY;
       const element = event.currentTarget;
-      const THRESHOLD_SQ = 64;
       let dragStarted = false;
+      let holdTimer: ReturnType<typeof setTimeout> | null = setTimeout(() => {
+        holdTimer = null;
+        dragStarted = true;
+        onTranslateRequest?.();
+        dragContext.startDrag(wordIndex, element);
+      }, LONG_PRESS_MS);
 
       const removeAll = () => {
+        if (holdTimer !== null) {
+          clearTimeout(holdTimer);
+          holdTimer = null;
+        }
         document.removeEventListener('touchmove', onMove);
         document.removeEventListener('touchend', onEnd);
         document.removeEventListener('touchcancel', onEnd);
       };
 
       const onMove = (e: TouchEvent) => {
-        if (e.cancelable) e.preventDefault();
-        if (dragStarted) return;
+        if (dragStarted) {
+          if (e.cancelable) e.preventDefault();
+          return;
+        }
         const t = e.touches[0];
         if (!t) return;
         const dx = t.clientX - startX;
         const dy = t.clientY - startY;
-        if (dx * dx + dy * dy < THRESHOLD_SQ) return;
-        dragStarted = true;
-        onTranslateRequest?.();
-        dragContext.startDrag(wordIndex, element);
+        if (dx * dx + dy * dy < TOUCH_MOVE_CANCEL_SQ) return;
+        removeAll();
       };
 
       const onEnd = () => {
@@ -442,6 +458,7 @@ function TranslatableWordComponent({
         onMouseEnter={handleMouseEnterWord}
         onMouseLeave={handleMouseLeaveWord}
         onTouchStart={handleTouchStart}
+        onContextMenu={(event) => event.preventDefault()}
       >
         {word}
       </WordComponent>
