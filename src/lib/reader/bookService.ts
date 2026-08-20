@@ -19,6 +19,7 @@ import { undefinedToDeleteField } from '../storage/firestoreUtils';
 import type { Book, BookColor, ReadingProgress } from '../../types/reader';
 
 const BOOKS_CACHE_KEY = '__books-list';
+const BOOK_TEXT_CACHE_PREFIX = '__book-text-';
 
 export async function getCachedBooks(): Promise<Book[]> {
   const record = await userDb.userData.get(BOOKS_CACHE_KEY);
@@ -101,6 +102,38 @@ export async function getBookDownloadUrl(storagePath: string): Promise<string> {
   return getDownloadURL(storageRef);
 }
 
+export async function getBookTextContent(bookId: string, storagePath: string): Promise<string> {
+  const cacheKey = `${BOOK_TEXT_CACHE_PREFIX}${bookId}`;
+  const cached = await userDb.userData.get(cacheKey);
+  if (cached) {
+    return cached.data as string;
+  }
+
+  if (!navigator.onLine) {
+    throw new Error('Text not available offline. Open this book once while online.');
+  }
+
+  const url = await getBookDownloadUrl(storagePath);
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error('Failed to load text content.');
+  }
+
+  const text = await response.text();
+  await userDb.userData.put({
+    key: cacheKey,
+    data: text,
+    lastModified: Date.now(),
+    pendingSync: 0,
+  });
+
+  return text;
+}
+
+export async function clearBookTextCache(bookId: string): Promise<void> {
+  await userDb.userData.delete(`${BOOK_TEXT_CACHE_PREFIX}${bookId}`);
+}
+
 export async function getReadingProgress(bookId: string): Promise<ReadingProgress | null> {
   const progress = await loadUserData<ReadingProgress | null>(`reader-progress-${bookId}`, null);
   return progress;
@@ -117,6 +150,7 @@ interface DeleteBookRequest {
 export async function deleteBook(bookId: string): Promise<void> {
   const deleteFn = httpsCallable<DeleteBookRequest, { success: boolean }>(functions, 'deleteBook');
   await deleteFn({ bookId });
+  await clearBookTextCache(bookId);
 }
 
 export async function updateBook(

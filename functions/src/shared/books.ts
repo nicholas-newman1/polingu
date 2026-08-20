@@ -33,12 +33,13 @@ export interface BookMetadata {
   author?: string;
   fileName: string;
   fileSize: number;
-  fileType: 'pdf';
+  fileType: 'pdf' | 'text';
   storagePath: string;
   uploadedAt: number;
   status: 'processing' | 'ready' | 'error';
   error?: string;
   pageCount?: number;
+  wordCount?: number;
   color?: BookColor;
 }
 
@@ -116,4 +117,27 @@ export async function extractPdfMetadata(buffer: Buffer): Promise<ExtractedPdfMe
     author,
     pageCount: pdf.numPages,
   };
+}
+
+export interface ExtractedTextMetadata {
+  title: string;
+  wordCount: number;
+}
+
+export function extractTextMetadata(buffer: Buffer): ExtractedTextMetadata {
+  const text = buffer.toString('utf-8');
+  if (text.includes('\uFFFD')) {
+    throw new Error('Invalid text encoding. Please use UTF-8.');
+  }
+
+  const trimmed = text.trim();
+  if (!trimmed) {
+    throw new Error('Text file is empty.');
+  }
+
+  const wordCount = trimmed.split(/\s+/).filter(Boolean).length;
+  const firstLine = trimmed.split(/\r?\n/)[0]?.trim() ?? '';
+  const title = firstLine.length > 0 && firstLine.length <= 100 ? firstLine : 'Untitled';
+
+  return { title, wordCount };
 }

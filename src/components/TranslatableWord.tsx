@@ -130,7 +130,6 @@ function TranslatableWordComponent({
   const [isSaving, setIsSaving] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const spanRef = useRef<HTMLSpanElement>(null);
-  console.log('render');
 
   const dragContext = useTranslatableText();
   const addToVocabulary = useAddToVocabulary();

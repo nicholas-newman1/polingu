@@ -7,6 +7,7 @@ import {
   MAX_FILE_SIZE_BOOKS,
   MAX_USER_STORAGE,
   extractPdfMetadata,
+  extractTextMetadata,
   getUnusedColor,
 } from '../../shared/books.js';
 
@@ -30,9 +31,10 @@ export const processBookUpload = onObjectFinalized(
 
     try {
       const isPdf = contentType === 'application/pdf' || fileName.endsWith('.pdf');
+      const isText = contentType === 'text/plain' || fileName.endsWith('.txt');
 
-      if (!isPdf) {
-        throw new Error('Invalid file type. Only PDF files are supported.');
+      if (!isPdf && !isText) {
+        throw new Error('Invalid file type. Only PDF and plain text files are supported.');
       }
 
       let userIsAdmin = false;
@@ -57,31 +59,50 @@ export const processBookUpload = onObjectFinalized(
       const [buffer] = await file.download();
 
       const finalPath = `books/users/${userId}/${bookId}/${fileName}`;
-      const extracted = await extractPdfMetadata(buffer);
       const color = await getUnusedColor(userId);
 
-      const bookData: BookMetadata = {
-        id: bookId,
-        userId,
-        title: extracted.title || fileName.replace(/\.pdf$/i, ''),
-        ...(extracted.author && { author: extracted.author }),
-        fileName,
-        fileSize,
-        fileType: 'pdf',
-        storagePath: finalPath,
-        uploadedAt: Date.now(),
-        status: 'ready',
-        pageCount: extracted.pageCount,
-        color,
-      };
+      let bookData: BookMetadata;
+
+      if (isPdf) {
+        const extracted = await extractPdfMetadata(buffer);
+        bookData = {
+          id: bookId,
+          userId,
+          title: extracted.title || fileName.replace(/\.pdf$/i, ''),
+          ...(extracted.author && { author: extracted.author }),
+          fileName,
+          fileSize,
+          fileType: 'pdf',
+          storagePath: finalPath,
+          uploadedAt: Date.now(),
+          status: 'ready',
+          pageCount: extracted.pageCount,
+          color,
+        };
+      } else {
+        const extracted = extractTextMetadata(buffer);
+        const providedTitle = event.data.metadata?.bookTitle?.trim();
+        const providedAuthor = event.data.metadata?.bookAuthor?.trim();
+
+        bookData = {
+          id: bookId,
+          userId,
+          title: providedTitle || extracted.title || fileName.replace(/\.txt$/i, ''),
+          ...(providedAuthor && { author: providedAuthor }),
+          fileName,
+          fileSize,
+          fileType: 'text',
+          storagePath: finalPath,
+          uploadedAt: Date.now(),
+          status: 'ready',
+          wordCount: extracted.wordCount,
+          color,
+        };
+      }
 
       await db.runTransaction(async (tx) => {
         const booksSnap = await tx.get(
-          db
-            .collection('users')
-            .doc(userId)
-            .collection('books')
-            .where('status', '==', 'ready')
+          db.collection('users').doc(userId).collection('books').where('status', '==', 'ready')
         );
         let totalSize = 0;
         booksSnap.forEach((doc) => {

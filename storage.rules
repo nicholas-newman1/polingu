@@ -39,8 +39,8 @@ service firebase.storage {
                    && request.auth.uid == userId
                    && request.resource.size < 50 * 1024 * 1024
                    && (request.resource.contentType == 'application/pdf'
-                       || request.resource.contentType == 'application/epub+zip'
-                       || fileName.matches('.*\\.(pdf|epub)$'));
+                       || request.resource.contentType == 'text/plain'
+                       || fileName.matches('.*\\.(pdf|txt)$'));
       // No direct reads from pending - Cloud Function processes these
       allow read: if false;
     }

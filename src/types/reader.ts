@@ -28,12 +28,13 @@ export interface Book {
   author?: string;
   fileName: string;
   fileSize: number;
-  fileType: 'pdf';
+  fileType: 'pdf' | 'text';
   storagePath: string;
   uploadedAt: number;
   status: 'processing' | 'ready' | 'error';
   error?: string;
   pageCount?: number;
+  wordCount?: number;
   color?: BookColor;
 }
 
@@ -43,6 +44,8 @@ export interface ReadingProgress {
   scrollPercent: number;
   lastReadAt: number;
   bookmarks?: number[];
+  textAnchorIndex?: number;
+  textBookmarks?: number[];
 }
 
 export interface UploadProgress {

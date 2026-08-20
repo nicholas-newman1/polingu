@@ -1,6 +1,6 @@
 # Polingu
 
-A comprehensive Polish language learning app built around spaced repetition. Drill declensions and conjugations, build vocabulary, translate sentences, read PDFs with tap-to-translate, and reinforce everything with synced audio and passive listening—all backed by an intelligent review system that optimizes your study time.
+A comprehensive Polish language learning app built around spaced repetition. Drill declensions and conjugations, build vocabulary, translate sentences, read your own texts and PDFs with tap-to-translate, and reinforce everything with synced audio and passive listening—all backed by an intelligent review system that optimizes your study time.
 
 ## Features
 
@@ -47,9 +47,9 @@ Vocabulary, sentences, and conjugation each support two practice directions, wit
 
 A dedicated listening mode turns your sentence, vocabulary, or declension decks into passive audio sessions. Choose an ordering (random, due-first, practice-ahead, learned-only, or recently-added), configure separate playback settings for learned vs. unfamiliar cards, and keep listening via a mini player that persists across the app. Listening is purely for reinforcement and does not affect SRS progress.
 
-### PDF Reader & Library
+### Reader & Library
 
-Upload PDF books to your library and read them in-app with `pdfjs-dist`. Tap any word or drag-select a phrase to translate it, save bookmarks, zoom, and pick up where you left off—reading progress is saved per book.
+Paste plain text or upload PDF books to your library and read them in-app. Text books render as continuous, responsive HTML with adjustable font size and are cached for offline reading; PDFs are rendered with `pdfjs-dist`. Tap any word or drag-select a phrase to translate it, save bookmarks, and pick up where you left off—reading progress is saved per book.
 
 ### Consonant Driller
 

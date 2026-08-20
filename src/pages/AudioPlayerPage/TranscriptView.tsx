@@ -6,10 +6,7 @@ import { TranslatableWord } from '../../components/TranslatableWord';
 import { TranslatableText } from '../../components/TranslatableText';
 import type { TranscriptSegment } from '../../types/audio';
 import type { TranscriptFontSize } from '../../types/appSettings';
-
-function countWords(text: string): number {
-  return text.split(/(\s+)/).filter((t) => t.length > 0 && !/^\s+$/.test(t)).length;
-}
+import { countWords } from '../../lib/utils/countWords';
 
 const FONT_SIZE_MAP: Record<TranscriptFontSize, { base: string; sm: string }> = {
   small: { base: '1rem', sm: '1.2rem' },
