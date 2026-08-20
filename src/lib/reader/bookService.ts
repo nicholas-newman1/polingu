@@ -15,6 +15,7 @@ import { saveUserData } from '../offlineDb/userSync';
 import { loadUserData } from '../offlineDb/userDataWrapper';
 import { userDb } from '../offlineDb/userDb';
 import { getUserId } from '../storage/helpers';
+import { undefinedToDeleteField } from '../storage/firestoreUtils';
 import type { Book, BookColor, ReadingProgress } from '../../types/reader';
 
 const BOOKS_CACHE_KEY = '__books-list';
@@ -132,7 +133,7 @@ export async function updateBook(
   if (updates.author !== undefined) cleanUpdates.author = updates.author.trim() || undefined;
   if (updates.color !== undefined) cleanUpdates.color = updates.color;
 
-  await updateDoc(bookRef, cleanUpdates);
+  await updateDoc(bookRef, undefinedToDeleteField(cleanUpdates));
 }
 
 export async function getStorageUsage(): Promise<{ usedBytes: number; maxBytes: number }> {
