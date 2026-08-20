@@ -83,7 +83,7 @@ export function SentencesPage({ mode }: SentencesPageProps) {
     updateSentenceReviewStore,
     updateSentenceSettings,
     clearSentenceReviewData,
-    setSentences: setContextSentences,
+    setSystemSentences: setContextSystemSentences,
     setCustomSentences: setContextCustomSentences,
   } = useReviewData();
 
@@ -424,39 +424,78 @@ export function SentencesPage({ mode }: SentencesPageProps) {
         ...sentenceData,
       };
 
-      const newSentences = sentences.map((s) =>
+      updateSentenceInQueues(editingSentence.id, updatedSentence);
+
+      if (editingSentence.isCustom) {
+        const newCustomSentences = customSentences.map((s) =>
+          s.id === editingSentence.id ? (updatedSentence as CustomSentence) : s
+        );
+
+        applyOptimisticCustomSentences(newCustomSentences, async () => {
+          await saveCustomSentences(newCustomSentences);
+          setContextCustomSentences(newCustomSentences);
+        });
+        return;
+      }
+
+      const newSystemSentences = contextSystemSentences.map((s) =>
         s.id === editingSentence.id ? updatedSentence : s
       );
 
-      updateSentenceInQueues(editingSentence.id, updatedSentence);
-
-      applyOptimisticSentences(newSentences, async () => {
+      applyOptimisticSentences([...customSentences, ...newSystemSentences], async () => {
         await updateSentence(editingSentence.id, sentenceData);
-        setContextSentences(newSentences);
+        setContextSystemSentences(newSystemSentences);
       });
     },
     [
       editingSentence,
-      sentences,
+      customSentences,
+      contextSystemSentences,
+      applyOptimisticCustomSentences,
       applyOptimisticSentences,
-      setContextSentences,
+      setContextCustomSentences,
+      setContextSystemSentences,
       updateSentenceInQueues,
+    ]
+  );
+
+  const deleteSentenceById = useCallback(
+    (sentenceToDelete: Sentence) => {
+      removeSentenceFromQueues(sentenceToDelete.id);
+
+      if (sentenceToDelete.isCustom) {
+        const newCustomSentences = customSentences.filter((s) => s.id !== sentenceToDelete.id);
+
+        applyOptimisticCustomSentences(newCustomSentences, async () => {
+          await saveCustomSentences(newCustomSentences);
+          setContextCustomSentences(newCustomSentences);
+        });
+        return;
+      }
+
+      const newSystemSentences = contextSystemSentences.filter(
+        (s) => s.id !== sentenceToDelete.id
+      );
+
+      applyOptimisticSentences([...customSentences, ...newSystemSentences], async () => {
+        await deleteSentence(sentenceToDelete.id);
+        setContextSystemSentences(newSystemSentences);
+      });
+    },
+    [
+      customSentences,
+      contextSystemSentences,
+      applyOptimisticCustomSentences,
+      applyOptimisticSentences,
+      setContextCustomSentences,
+      setContextSystemSentences,
     ]
   );
 
   const handleDeleteSentence = useCallback(() => {
     if (!currentSessionCard) return;
-
-    const sentenceToDelete = currentSessionCard.sentence;
-    const newSentences = sentences.filter((s) => s.id !== sentenceToDelete.id);
-
-    removeSentenceFromQueues(sentenceToDelete.id);
-
-    applyOptimisticSentences(newSentences, async () => {
-      await deleteSentence(sentenceToDelete.id);
-      setContextSentences(newSentences);
-    });
-  }, [currentSessionCard, sentences, applyOptimisticSentences, setContextSentences]);
+    deleteSentenceById(currentSessionCard.sentence);
+  }, [currentSessionCard, deleteSentenceById]);
 
   const handleUpdateTranslation = useCallback(
     async (sentenceId: string, word: string, translation: string) => {
@@ -468,14 +507,37 @@ export function SentencesPage({ mode }: SentencesPageProps) {
 
       updateSentenceInQueues(sentenceId, updatedSentence);
 
-      const newSentences = sentences.map((s) => (s.id === sentenceId ? updatedSentence : s));
+      if (sentence.isCustom) {
+        const newCustomSentences = customSentences.map((s) =>
+          s.id === sentenceId ? { ...s, translations: updatedTranslations } : s
+        );
 
-      applyOptimisticSentences(newSentences, async () => {
+        applyOptimisticCustomSentences(newCustomSentences, async () => {
+          await saveCustomSentences(newCustomSentences);
+          setContextCustomSentences(newCustomSentences);
+        });
+        return;
+      }
+
+      const newSystemSentences = contextSystemSentences.map((s) =>
+        s.id === sentenceId ? updatedSentence : s
+      );
+
+      applyOptimisticSentences([...customSentences, ...newSystemSentences], async () => {
         await updateSentenceTranslation(sentenceId, word, translation);
-        setContextSentences(newSentences);
+        setContextSystemSentences(newSystemSentences);
       });
     },
-    [sentences, applyOptimisticSentences, setContextSentences, updateSentenceInQueues]
+    [
+      sentences,
+      customSentences,
+      contextSystemSentences,
+      applyOptimisticCustomSentences,
+      applyOptimisticSentences,
+      setContextCustomSentences,
+      setContextSystemSentences,
+      updateSentenceInQueues,
+    ]
   );
 
   const intervals: RatingIntervals = useMemo(() => {
@@ -657,14 +719,7 @@ export function SentencesPage({ mode }: SentencesPageProps) {
                   }}
                   onDelete={() => {
                     if (window.confirm('Are you sure you want to delete this sentence?')) {
-                      const newSentences = sentences.filter(
-                        (s) => s.id !== currentPracticeSentence.id
-                      );
-                      removeSentenceFromQueues(currentPracticeSentence.id);
-                      applyOptimisticSentences(newSentences, async () => {
-                        await deleteSentence(currentPracticeSentence.id);
-                        setContextSentences(newSentences);
-                      });
+                      deleteSentenceById(currentPracticeSentence);
                       handlePracticeNext();
                     }
                   }}
@@ -699,12 +754,7 @@ export function SentencesPage({ mode }: SentencesPageProps) {
                 }}
                 onDelete={() => {
                   if (window.confirm('Are you sure you want to delete this sentence?')) {
-                    const newSentences = sentences.filter((s) => s.id !== historyCard.id);
-                    removeSentenceFromQueues(historyCard.id);
-                    applyOptimisticSentences(newSentences, async () => {
-                      await deleteSentence(historyCard.id);
-                      setContextSentences(newSentences);
-                    });
+                    deleteSentenceById(historyCard);
                     goForward();
                   }
                 }}
