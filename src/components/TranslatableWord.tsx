@@ -64,7 +64,7 @@ const AddToVocabButton = styled(IconButton)(({ theme }) => ({
   },
 }));
 
-const LONG_PRESS_MS = 1000;
+const LONG_PRESS_MS = 400;
 const TOUCH_MOVE_CANCEL_SQ = 100;
 
 const SelectableSpan = styled(TappableSpan, {
