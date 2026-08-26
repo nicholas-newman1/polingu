@@ -92,9 +92,15 @@ async function uploadFileToPending(
   });
 }
 
+export interface UploadBookParams {
+  title?: string;
+  author?: string;
+}
+
 export async function uploadBook(
   file: File,
-  onProgress: (progress: UploadProgress) => void
+  onProgress: (progress: UploadProgress) => void,
+  params?: UploadBookParams
 ): Promise<string> {
   const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
 
@@ -102,7 +108,13 @@ export async function uploadBook(
     throw new Error('Only PDF files are supported.');
   }
 
-  return uploadFileToPending(file, onProgress);
+  const title = params?.title?.trim();
+  const author = params?.author?.trim();
+
+  return uploadFileToPending(file, onProgress, {
+    ...(title && { booktitle: title }),
+    ...(author && { bookauthor: author }),
+  });
 }
 
 export interface UploadTextParams {
@@ -127,7 +139,7 @@ export async function uploadText(
   const file = new File([blob], 'book.txt', { type: 'text/plain' });
 
   return uploadFileToPending(file, onProgress, {
-    ...(title && { bookTitle: title }),
-    ...(author && { bookAuthor: author }),
+    ...(title && { booktitle: title }),
+    ...(author && { bookauthor: author }),
   });
 }

@@ -11,6 +11,18 @@ import {
   getUnusedColor,
 } from '../../shared/books.js';
 
+function getCustomMetadataValue(
+  metadata: Record<string, string> | undefined,
+  key: string
+): string | undefined {
+  if (!metadata) return undefined;
+
+  const lowerKey = key.toLowerCase();
+  const value = metadata[lowerKey] ?? metadata[key];
+  const trimmed = value?.trim();
+  return trimmed || undefined;
+}
+
 export const processBookUpload = onObjectFinalized(
   {
     bucket: DEFAULT_BUCKET,
@@ -61,6 +73,9 @@ export const processBookUpload = onObjectFinalized(
       const finalPath = `books/users/${userId}/${bookId}/${fileName}`;
       const color = await getUnusedColor(userId);
 
+      const providedTitle = getCustomMetadataValue(event.data.metadata, 'booktitle');
+      const providedAuthor = getCustomMetadataValue(event.data.metadata, 'bookauthor');
+
       let bookData: BookMetadata;
 
       if (isPdf) {
@@ -68,8 +83,10 @@ export const processBookUpload = onObjectFinalized(
         bookData = {
           id: bookId,
           userId,
-          title: extracted.title || fileName.replace(/\.pdf$/i, ''),
-          ...(extracted.author && { author: extracted.author }),
+          title: providedTitle || extracted.title || fileName.replace(/\.pdf$/i, ''),
+          ...(providedAuthor
+            ? { author: providedAuthor }
+            : extracted.author && { author: extracted.author }),
           fileName,
           fileSize,
           fileType: 'pdf',
@@ -81,8 +98,6 @@ export const processBookUpload = onObjectFinalized(
         };
       } else {
         const extracted = extractTextMetadata(buffer);
-        const providedTitle = event.data.metadata?.bookTitle?.trim();
-        const providedAuthor = event.data.metadata?.bookAuthor?.trim();
 
         bookData = {
           id: bookId,

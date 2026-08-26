@@ -53,13 +53,19 @@ export function AddBookDialog({
     const file = event.target.files?.[0];
     if (!file) return;
 
+    const capturedTitle = title.trim() || undefined;
+    const capturedAuthor = author.trim() || undefined;
+
     event.target.value = '';
     setSubmitting(true);
     onClose();
     resetForm();
 
     try {
-      await uploadBook(file, onUploadProgress);
+      await uploadBook(file, onUploadProgress, {
+        title: capturedTitle,
+        author: capturedAuthor,
+      });
       onComplete();
     } catch (error) {
       console.error('Upload failed:', error);
