@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback, useEffect } from 'react';
+import { useRef, useState, useCallback } from 'react';
 import { useForm, Controller, useFieldArray, useWatch } from 'react-hook-form';
 import {
   Dialog,
@@ -20,16 +20,20 @@ import {
   Divider,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
+import ClearIcon from '@mui/icons-material/Clear';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import { styled } from '../lib/styled';
 import { alpha } from '../lib/theme';
-import { translate } from '../lib/translate';
 import { generateExample, type GeneratedExample } from '../lib/generateExample';
 import { useAuthContext } from '../hooks/useAuthContext';
 import { useBackClose } from '../hooks/useBackClose';
+import {
+  useSinglePolishEnglishAutoTranslate,
+  usePolishEnglishAutoTranslate,
+} from '../hooks/usePolishEnglishAutoTranslate';
 import { normalizeCustomVocabularyFields } from '../lib/utils/normalizeCustomVocabularyFields';
 import { AudioRegenerator } from './AudioRegenerator';
 import type {
@@ -139,6 +143,44 @@ const PreviewActions = styled(Box)(({ theme }) => ({
   marginTop: theme.spacing(1),
 }));
 
+interface FieldEndAdornmentProps {
+  value: string;
+  onClear: () => void;
+  clearLabel: string;
+  dataQa: string;
+  isTranslating?: boolean;
+}
+
+function FieldEndAdornment({
+  value,
+  onClear,
+  clearLabel,
+  dataQa,
+  isTranslating,
+}: FieldEndAdornmentProps) {
+  const showClear = value.length > 0;
+  if (!showClear && !isTranslating) return null;
+
+  return (
+    <InputAdornment position="end">
+      {isTranslating && <CircularProgress size={16} />}
+      {showClear && (
+        <IconButton
+          size="small"
+          edge="end"
+          onClick={onClear}
+          aria-label={clearLabel}
+          data-qa={dataQa}
+          tabIndex={-1}
+          sx={{ color: 'text.disabled' }}
+        >
+          <ClearIcon fontSize="small" />
+        </IconButton>
+      )}
+    </InputAdornment>
+  );
+}
+
 interface FormData {
   polish: string;
   english: string;
@@ -216,6 +258,7 @@ export function AddVocabularyModal({
     handleSubmit,
     reset,
     setValue,
+    getValues,
     formState: { isValid, isSubmitting },
   } = useForm<FormData>({
     values: getDefaultValues(editWord, initialValues),
@@ -234,107 +277,38 @@ export function AddVocabularyModal({
   const showGenderField = partOfSpeech === 'noun' || partOfSpeech === 'proper noun';
 
   const newExamplePolishRef = useRef<HTMLInputElement>(null);
-  const [translatingIndexes, setTranslatingIndexes] = useState<Set<number>>(new Set());
-  const translationTimeouts = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
-  const userEditedEnglish = useRef<Set<number>>(new Set());
 
-  const [isTranslatingWord, setIsTranslatingWord] = useState(false);
-  const wordTranslationTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const userEditedWordEnglish = useRef(false);
+  const {
+    handlePolishChange: handleWordPolishChange,
+    handleEnglishChange: handleWordEnglishChange,
+    isTranslatingEnglish: isTranslatingWordEnglish,
+    isTranslatingPolish: isTranslatingWordPolish,
+    cancel: cancelWordTranslations,
+  } = useSinglePolishEnglishAutoTranslate({
+    getPolish: () => getValues('polish'),
+    getEnglish: () => getValues('english'),
+    onPolishTranslated: (polish) => setValue('polish', polish, { shouldValidate: true }),
+    onEnglishTranslated: (english) => setValue('english', english, { shouldValidate: true }),
+  });
 
-  useEffect(() => {
-    if (open) {
-      userEditedWordEnglish.current = !!(editWord || initialValues?.english);
-    }
-  }, [open, editWord, initialValues]);
+  const {
+    handlePolishChange: handleExamplePolishChange,
+    handleEnglishChange: handleExampleEnglishChange,
+    isTranslatingEnglish: isTranslatingExampleEnglish,
+    isTranslatingPolish: isTranslatingExamplePolish,
+    cancelAll: cancelExampleTranslations,
+  } = usePolishEnglishAutoTranslate<number>({
+    getPolish: (index) => getValues(`examples.${index}.polish`),
+    getEnglish: (index) => getValues(`examples.${index}.english`),
+    onPolishTranslated: (index, polish) => setValue(`examples.${index}.polish`, polish),
+    onEnglishTranslated: (index, english) => setValue(`examples.${index}.english`, english),
+  });
 
   const [aiContext, setAiContext] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedExamples, setGeneratedExamples] = useState<GeneratedExample[]>([]);
   const [selectedExampleIndexes, setSelectedExampleIndexes] = useState<Set<number>>(new Set());
   const [generateError, setGenerateError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const timeouts = translationTimeouts.current;
-    return () => {
-      timeouts.forEach((timeout) => clearTimeout(timeout));
-      if (wordTranslationTimeout.current) clearTimeout(wordTranslationTimeout.current);
-    };
-  }, []);
-
-  const translatePolishText = useCallback(
-    async (index: number, polishText: string) => {
-      const trimmed = polishText.trim();
-      if (!trimmed) return;
-
-      setTranslatingIndexes((prev) => new Set(prev).add(index));
-      try {
-        const result = await translate(trimmed, 'EN');
-        if (!userEditedEnglish.current.has(index)) {
-          setValue(`examples.${index}.english`, result.translatedText);
-        }
-      } catch {
-        // Silently fail - user can manually enter translation
-      } finally {
-        setTranslatingIndexes((prev) => {
-          const next = new Set(prev);
-          next.delete(index);
-          return next;
-        });
-      }
-    },
-    [setValue]
-  );
-
-  const handlePolishChange = useCallback(
-    (index: number, value: string) => {
-      userEditedEnglish.current.delete(index);
-
-      const existingTimeout = translationTimeouts.current.get(index);
-      if (existingTimeout) {
-        clearTimeout(existingTimeout);
-      }
-
-      const timeout = setTimeout(() => {
-        translatePolishText(index, value);
-        translationTimeouts.current.delete(index);
-      }, 500);
-
-      translationTimeouts.current.set(index, timeout);
-    },
-    [translatePolishText]
-  );
-
-  const handleEnglishManualEdit = useCallback((index: number) => {
-    userEditedEnglish.current.add(index);
-  }, []);
-
-  const handleWordPolishChange = useCallback(
-    (value: string) => {
-      if (wordTranslationTimeout.current) {
-        clearTimeout(wordTranslationTimeout.current);
-      }
-
-      const trimmed = value.trim();
-      if (!trimmed) return;
-
-      wordTranslationTimeout.current = setTimeout(async () => {
-        if (userEditedWordEnglish.current) return;
-        setIsTranslatingWord(true);
-        try {
-          const result = await translate(trimmed, 'EN');
-          if (!userEditedWordEnglish.current) {
-            setValue('english', result.translatedText, { shouldValidate: true });
-          }
-        } catch {
-          // Silently fail
-        } finally {
-          setIsTranslatingWord(false);
-        }
-      }, 500);
-    },
-    [setValue]
-  );
 
   const handleGenerateExample = useCallback(async () => {
     if (!polishWord?.trim() || !englishWord?.trim()) return;
@@ -387,16 +361,8 @@ export function AddVocabularyModal({
 
   const handleClose = useCallback(() => {
     reset(getDefaultValues(null, undefined));
-    translationTimeouts.current.forEach((timeout) => clearTimeout(timeout));
-    translationTimeouts.current.clear();
-    userEditedEnglish.current.clear();
-    if (wordTranslationTimeout.current) {
-      clearTimeout(wordTranslationTimeout.current);
-      wordTranslationTimeout.current = null;
-    }
-    userEditedWordEnglish.current = false;
-    setIsTranslatingWord(false);
-    setTranslatingIndexes(new Set());
+    cancelWordTranslations();
+    cancelExampleTranslations();
     setAiContext('');
     setGeneratedExamples([]);
     setSelectedExampleIndexes(new Set());
@@ -404,7 +370,7 @@ export function AddVocabularyModal({
     setIsGenerating(false);
     setPendingAudioUrl(null);
     onClose();
-  }, [onClose, reset]);
+  }, [onClose, reset, cancelWordTranslations, cancelExampleTranslations]);
 
   const handleAudioSaved = useCallback(
     (audioUrl: string) => {
@@ -485,6 +451,22 @@ export function AddVocabularyModal({
                 autoFocus={!hasPrefilledValues}
                 required
                 placeholder="e.g., kot"
+                slotProps={{
+                  input: {
+                    endAdornment: (
+                      <FieldEndAdornment
+                        value={field.value}
+                        onClear={() => {
+                          field.onChange('');
+                          handleWordPolishChange('');
+                        }}
+                        clearLabel="Clear Polish"
+                        dataQa="add-vocabulary-clear-polish"
+                        isTranslating={isTranslatingWordPolish}
+                      />
+                    ),
+                  },
+                }}
               />
             )}
           />
@@ -498,9 +480,7 @@ export function AddVocabularyModal({
                 {...field}
                 onChange={(e) => {
                   field.onChange(e);
-                  if (e.target.value.trim()) {
-                    userEditedWordEnglish.current = true;
-                  }
+                  handleWordEnglishChange(e.target.value);
                 }}
                 label="English"
                 fullWidth
@@ -508,11 +488,18 @@ export function AddVocabularyModal({
                 placeholder="e.g., cat"
                 slotProps={{
                   input: {
-                    endAdornment: isTranslatingWord ? (
-                      <InputAdornment position="end">
-                        <CircularProgress size={16} />
-                      </InputAdornment>
-                    ) : null,
+                    endAdornment: (
+                      <FieldEndAdornment
+                        value={field.value}
+                        onClear={() => {
+                          field.onChange('');
+                          handleWordEnglishChange('');
+                        }}
+                        clearLabel="Clear English"
+                        dataQa="add-vocabulary-clear-english"
+                        isTranslating={isTranslatingWordEnglish}
+                      />
+                    ),
                   },
                 }}
               />
@@ -599,12 +586,7 @@ export function AddVocabularyModal({
                   <IconButton
                     size="small"
                     onClick={() => {
-                      const timeout = translationTimeouts.current.get(index);
-                      if (timeout) {
-                        clearTimeout(timeout);
-                        translationTimeouts.current.delete(index);
-                      }
-                      userEditedEnglish.current.delete(index);
+                      cancelExampleTranslations();
                       remove(index);
                     }}
                     aria-label="remove example"
@@ -621,13 +603,29 @@ export function AddVocabularyModal({
                       {...field}
                       onChange={(e) => {
                         field.onChange(e);
-                        handlePolishChange(index, e.target.value);
+                        handleExamplePolishChange(index, e.target.value);
                       }}
                       inputRef={index === fields.length - 1 ? newExamplePolishRef : undefined}
                       label="Polish"
                       size="small"
                       fullWidth
                       placeholder="e.g., Mam czarnego kota."
+                      slotProps={{
+                        input: {
+                          endAdornment: (
+                            <FieldEndAdornment
+                              value={field.value}
+                              onClear={() => {
+                                field.onChange('');
+                                handleExamplePolishChange(index, '');
+                              }}
+                              clearLabel={`Clear example ${index + 1} Polish`}
+                              dataQa="add-vocabulary-clear-example-polish"
+                              isTranslating={isTranslatingExamplePolish(index)}
+                            />
+                          ),
+                        },
+                      }}
                     />
                   )}
                 />
@@ -639,7 +637,7 @@ export function AddVocabularyModal({
                       {...field}
                       onChange={(e) => {
                         field.onChange(e);
-                        handleEnglishManualEdit(index);
+                        handleExampleEnglishChange(index, e.target.value);
                       }}
                       label="English"
                       size="small"
@@ -647,11 +645,18 @@ export function AddVocabularyModal({
                       placeholder="e.g., I have a black cat."
                       slotProps={{
                         input: {
-                          endAdornment: translatingIndexes.has(index) ? (
-                            <InputAdornment position="end">
-                              <CircularProgress size={16} />
-                            </InputAdornment>
-                          ) : null,
+                          endAdornment: (
+                            <FieldEndAdornment
+                              value={field.value}
+                              onClear={() => {
+                                field.onChange('');
+                                handleExampleEnglishChange(index, '');
+                              }}
+                              clearLabel={`Clear example ${index + 1} English`}
+                              dataQa="add-vocabulary-clear-example-english"
+                              isTranslating={isTranslatingExampleEnglish(index)}
+                            />
+                          ),
                         },
                       }}
                     />
