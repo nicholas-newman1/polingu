@@ -155,20 +155,27 @@ export function SentenceFlashcard({
     </>
   );
 
+  const tags = sentence.tags.length > 0 && (
+    <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', gap: 0.5, mb: 2 }}>
+      {sentence.tags.map((tag) => (
+        <TagChip key={tag} label={tag} size="small" />
+      ))}
+    </Stack>
+  );
+
   const question = (
     <>
-      {sentence.tags.length > 0 && (
-        <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', gap: 0.5, mb: 2 }}>
-          {sentence.tags.map((tag) => (
-            <TagChip key={tag} label={tag} size="small" />
-          ))}
-        </Stack>
-      )}
+      {!isPolishToEnglish && tags}
       <SentenceText sx={{ mb: 2 }}>{questionContent}</SentenceText>
     </>
   );
 
-  const answer = <AnswerTextBox sx={{ mb: 2 }}>{answerContent}</AnswerTextBox>;
+  const answer = (
+    <>
+      {isPolishToEnglish && tags}
+      <AnswerTextBox sx={{ mb: 2 }}>{answerContent}</AnswerTextBox>
+    </>
+  );
 
   return (
     <FlashcardShell
