@@ -8,6 +8,8 @@ import type { TranscriptSegment } from '../../types/audio';
 import type { TranscriptFontSize } from '../../types/appSettings';
 import { countWords } from '../../lib/utils/countWords';
 
+const SEGMENT_LINE_HEIGHT = 1.8;
+
 const FONT_SIZE_MAP: Record<TranscriptFontSize, { base: string; sm: string }> = {
   small: { base: '1rem', sm: '1.2rem' },
   medium: { base: '1.3rem', sm: '1.5rem' },
@@ -28,7 +30,7 @@ const PLACEHOLDER_WORDS_PER_LINE: Record<TranscriptFontSize, number> = {
 
 function estimatePlaceholderHeight(wordCount: number, fontSize: TranscriptFontSize): number {
   const fontPx = PLACEHOLDER_FONT_PX[fontSize];
-  const lineHeightPx = fontPx * 1.8;
+  const lineHeightPx = fontPx * SEGMENT_LINE_HEIGHT;
   const wordsPerLine = PLACEHOLDER_WORDS_PER_LINE[fontSize];
   const lines = Math.max(1, Math.ceil(wordCount / wordsPerLine));
   return Math.ceil(lines * lineHeightPx);
@@ -67,7 +69,7 @@ const SegmentRow = styled(Box)<{
   minWidth: 0,
   transition: 'opacity 0.3s ease, font-size 0.2s ease',
   opacity: $editMode || $isActive ? 1 : 0.4,
-  lineHeight: 1.8,
+  lineHeight: SEGMENT_LINE_HEIGHT,
   fontWeight: 900,
   fontSize: FONT_SIZE_MAP[$fontSize].base,
   overflowWrap: 'normal',
@@ -91,6 +93,13 @@ const SegmentRow = styled(Box)<{
 const SegmentText = styled(Box)({
   flex: 1,
   minWidth: 0,
+});
+
+const SeekButtonSlot = styled(Box)({
+  flexShrink: 0,
+  display: 'flex',
+  alignItems: 'center',
+  height: `${SEGMENT_LINE_HEIGHT}em`,
 });
 
 const EditModeBanner = styled(Box)(({ theme }) => ({
@@ -441,15 +450,16 @@ const TranscriptRow = memo(function TranscriptRow({
   return (
     <SegmentRow ref={refCb} $isActive={isActive} $fontSize={fontSize} $editMode={false}>
       {onSeekClick && (
-        <IconButton
-          size="medium"
-          onClick={handleSeek}
-          sx={{ mt: 1.5, flexShrink: 0 }}
-          data-qa={`segment-seek-${segIdx}`}
-          aria-label="Jump to this line"
-        >
-          <PlayArrowIcon fontSize="medium" />
-        </IconButton>
+        <SeekButtonSlot>
+          <IconButton
+            size="medium"
+            onClick={handleSeek}
+            data-qa={`segment-seek-${segIdx}`}
+            aria-label="Jump to this line"
+          >
+            <PlayArrowIcon fontSize="medium" />
+          </IconButton>
+        </SeekButtonSlot>
       )}
       <SegmentText>
         <SegmentContent
