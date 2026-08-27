@@ -21,7 +21,9 @@ import { styled } from '../lib/styled';
 import { useBackClose } from '../hooks/useBackClose';
 import { useReviewData } from '../hooks/useReviewData';
 import { useAuthContext } from '../hooks/useAuthContext';
+import { useSinglePolishEnglishAutoTranslate } from '../hooks/usePolishEnglishAutoTranslate';
 import { AudioRegenerator } from './AudioRegenerator';
+import { FieldEndAdornment } from './FieldEndAdornment';
 import type { Sentence, CEFRLevel } from '../types/sentences';
 import { ALL_LEVELS } from '../types/sentences';
 
@@ -107,6 +109,8 @@ export function EditSentenceModal({
     control,
     handleSubmit,
     reset,
+    setValue,
+    getValues,
     formState: { isValid },
   } = useForm<FormData>({
     values: getDefaultValues(sentence, initialValues),
@@ -115,8 +119,24 @@ export function EditSentenceModal({
 
   const polishText = useWatch({ control, name: 'polish' });
 
+  const {
+    handlePolishChange,
+    handleEnglishChange,
+    handlePolishBlur,
+    handleEnglishBlur,
+    isTranslatingPolish,
+    isTranslatingEnglish,
+    cancel: cancelTranslations,
+  } = useSinglePolishEnglishAutoTranslate({
+    getPolish: () => getValues('polish'),
+    getEnglish: () => getValues('english'),
+    onPolishTranslated: (polish) => setValue('polish', polish, { shouldValidate: true }),
+    onEnglishTranslated: (english) => setValue('english', english, { shouldValidate: true }),
+  });
+
   const handleClose = () => {
     reset(getDefaultValues(null));
+    cancelTranslations();
     setPendingAudioUrl(null);
     onClose();
   };
@@ -170,7 +190,39 @@ export function EditSentenceModal({
           control={control}
           rules={{ required: true, validate: (v) => v.trim().length > 0 }}
           render={({ field }) => (
-            <TextField {...field} label="Polish" fullWidth autoFocus required multiline rows={2} />
+            <TextField
+              {...field}
+              onChange={(e) => {
+                field.onChange(e);
+                handlePolishChange(e.target.value);
+              }}
+              onBlur={() => {
+                field.onBlur();
+                handlePolishBlur();
+              }}
+              label="Polish"
+              fullWidth
+              autoFocus
+              required
+              multiline
+              rows={2}
+              slotProps={{
+                input: {
+                  endAdornment: (
+                    <FieldEndAdornment
+                      value={field.value}
+                      onClear={() => {
+                        field.onChange('');
+                        handlePolishChange('');
+                      }}
+                      clearLabel="Clear Polish"
+                      dataQa="edit-sentence-clear-polish"
+                      isTranslating={isTranslatingPolish}
+                    />
+                  ),
+                },
+              }}
+            />
           )}
         />
 
@@ -179,7 +231,38 @@ export function EditSentenceModal({
           control={control}
           rules={{ required: true, validate: (v) => v.trim().length > 0 }}
           render={({ field }) => (
-            <TextField {...field} label="English" fullWidth required multiline rows={2} />
+            <TextField
+              {...field}
+              onChange={(e) => {
+                field.onChange(e);
+                handleEnglishChange(e.target.value);
+              }}
+              onBlur={() => {
+                field.onBlur();
+                handleEnglishBlur();
+              }}
+              label="English"
+              fullWidth
+              required
+              multiline
+              rows={2}
+              slotProps={{
+                input: {
+                  endAdornment: (
+                    <FieldEndAdornment
+                      value={field.value}
+                      onClear={() => {
+                        field.onChange('');
+                        handleEnglishChange('');
+                      }}
+                      clearLabel="Clear English"
+                      dataQa="edit-sentence-clear-english"
+                      isTranslating={isTranslatingEnglish}
+                    />
+                  ),
+                },
+              }}
+            />
           )}
         />
 

@@ -15,12 +15,10 @@ import {
   MenuItem,
   Typography,
   CircularProgress,
-  InputAdornment,
   Checkbox,
   Divider,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
-import ClearIcon from '@mui/icons-material/Clear';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
@@ -36,6 +34,7 @@ import {
 } from '../hooks/usePolishEnglishAutoTranslate';
 import { normalizeCustomVocabularyFields } from '../lib/utils/normalizeCustomVocabularyFields';
 import { AudioRegenerator } from './AudioRegenerator';
+import { FieldEndAdornment } from './FieldEndAdornment';
 import type {
   CustomVocabularyWord,
   VocabularyWord,
@@ -143,44 +142,6 @@ const PreviewActions = styled(Box)(({ theme }) => ({
   marginTop: theme.spacing(1),
 }));
 
-interface FieldEndAdornmentProps {
-  value: string;
-  onClear: () => void;
-  clearLabel: string;
-  dataQa: string;
-  isTranslating?: boolean;
-}
-
-function FieldEndAdornment({
-  value,
-  onClear,
-  clearLabel,
-  dataQa,
-  isTranslating,
-}: FieldEndAdornmentProps) {
-  const showClear = value.length > 0;
-  if (!showClear && !isTranslating) return null;
-
-  return (
-    <InputAdornment position="end">
-      {isTranslating && <CircularProgress size={16} />}
-      {showClear && (
-        <IconButton
-          size="small"
-          edge="end"
-          onClick={onClear}
-          aria-label={clearLabel}
-          data-qa={dataQa}
-          tabIndex={-1}
-          sx={{ color: 'text.disabled' }}
-        >
-          <ClearIcon fontSize="small" />
-        </IconButton>
-      )}
-    </InputAdornment>
-  );
-}
-
 interface FormData {
   polish: string;
   english: string;
@@ -281,6 +242,8 @@ export function AddVocabularyModal({
   const {
     handlePolishChange: handleWordPolishChange,
     handleEnglishChange: handleWordEnglishChange,
+    handlePolishBlur: handleWordPolishBlur,
+    handleEnglishBlur: handleWordEnglishBlur,
     isTranslatingEnglish: isTranslatingWordEnglish,
     isTranslatingPolish: isTranslatingWordPolish,
     cancel: cancelWordTranslations,
@@ -294,6 +257,8 @@ export function AddVocabularyModal({
   const {
     handlePolishChange: handleExamplePolishChange,
     handleEnglishChange: handleExampleEnglishChange,
+    handlePolishBlur: handleExamplePolishBlur,
+    handleEnglishBlur: handleExampleEnglishBlur,
     isTranslatingEnglish: isTranslatingExampleEnglish,
     isTranslatingPolish: isTranslatingExamplePolish,
     cancelAll: cancelExampleTranslations,
@@ -446,6 +411,10 @@ export function AddVocabularyModal({
                   field.onChange(e);
                   handleWordPolishChange(e.target.value);
                 }}
+                onBlur={() => {
+                  field.onBlur();
+                  handleWordPolishBlur();
+                }}
                 label="Polish"
                 fullWidth
                 autoFocus={!hasPrefilledValues}
@@ -481,6 +450,10 @@ export function AddVocabularyModal({
                 onChange={(e) => {
                   field.onChange(e);
                   handleWordEnglishChange(e.target.value);
+                }}
+                onBlur={() => {
+                  field.onBlur();
+                  handleWordEnglishBlur();
                 }}
                 label="English"
                 fullWidth
@@ -605,6 +578,10 @@ export function AddVocabularyModal({
                         field.onChange(e);
                         handleExamplePolishChange(index, e.target.value);
                       }}
+                      onBlur={() => {
+                        field.onBlur();
+                        handleExamplePolishBlur(index);
+                      }}
                       inputRef={index === fields.length - 1 ? newExamplePolishRef : undefined}
                       label="Polish"
                       size="small"
@@ -638,6 +615,10 @@ export function AddVocabularyModal({
                       onChange={(e) => {
                         field.onChange(e);
                         handleExampleEnglishChange(index, e.target.value);
+                      }}
+                      onBlur={() => {
+                        field.onBlur();
+                        handleExampleEnglishBlur(index);
                       }}
                       label="English"
                       size="small"

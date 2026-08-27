@@ -7,10 +7,6 @@ type TranslationKey = string | number;
 
 const SINGLE_FIELD_KEY = 'single';
 
-export function fieldHasContent(value: string | undefined): boolean {
-  return (value ?? '').trim().length > 0;
-}
-
 async function translateText(text: string, targetLang: 'EN' | 'PL'): Promise<string | null> {
   try {
     const result = await translate(text, targetLang);
@@ -18,6 +14,20 @@ async function translateText(text: string, targetLang: 'EN' | 'PL'): Promise<str
   } catch {
     return null;
   }
+}
+
+/**
+ * True while the source is still being composed rather than reworked: the new
+ * text either extends the previously translated text or backspaces into it.
+ * An edit in the middle is treated as a deliberate refinement instead.
+ */
+function isContinuedEdit(source: string, previousSource: string): boolean {
+  return source.startsWith(previousSource) || previousSource.startsWith(source);
+}
+
+interface AutoFilledValue {
+  source: string;
+  written: string;
 }
 
 interface DirectionOptions<K extends TranslationKey> {
@@ -28,10 +38,11 @@ interface DirectionOptions<K extends TranslationKey> {
 }
 
 /**
- * Debounced translation of a source field into its counterpart, which is only
- * written when it is still empty. The counterpart is read from the form on
- * every check rather than mirrored locally, so a translation never lands on
- * top of existing text.
+ * Debounced translation of a source field into its counterpart. The counterpart
+ * is written only when it is empty, or when it still holds this hook's own
+ * previous output and the source is being extended rather than reworked, so a
+ * translation fired mid-sentence corrects itself as typing continues while
+ * anything the user wrote or settled on is left alone.
  */
 function useTranslateIntoEmptyField<K extends TranslationKey>({
   targetLang,
@@ -45,8 +56,12 @@ function useTranslateIntoEmptyField<K extends TranslationKey>({
   const latest = useRef({ getTargetValue, onTranslated });
   latest.current = { getTargetValue, onTranslated };
 
-  // Bumped by cancelAll so in-flight requests discard their result.
+  const autoFilled = useRef<Map<K, AutoFilledValue>>(new Map());
+  // Only the newest request per key may write; bumped by cancelAll and per fire.
   const generation = useRef(0);
+  const sequences = useRef<Map<K, number>>(new Map());
+  // Bumped when the user moves on, closing the replacement window for a key.
+  const windowTokens = useRef<Map<K, number>>(new Map());
 
   useEffect(() => {
     const pending = timeouts.current;
@@ -55,28 +70,55 @@ function useTranslateIntoEmptyField<K extends TranslationKey>({
     };
   }, []);
 
+  const canWrite = useCallback((key: K, source: string, target: string) => {
+    if (!target) return true;
+    const previous = autoFilled.current.get(key);
+    if (!previous || previous.written !== target) return false;
+    return isContinuedEdit(source, previous.source);
+  }, []);
+
   const scheduleTranslation = useCallback(
     (key: K, sourceText: string) => {
       const existingTimeout = timeouts.current.get(key);
       if (existingTimeout) clearTimeout(existingTimeout);
 
       const trimmed = sourceText.trim();
-      if (!trimmed) return;
+      if (!trimmed) {
+        // Emptying the source restarts the pair: whatever was auto-filled from
+        // it stays replaceable by the next thing typed.
+        const previous = autoFilled.current.get(key);
+        if (previous) autoFilled.current.set(key, { ...previous, source: '' });
+        return;
+      }
 
       const timeout = setTimeout(async () => {
         timeouts.current.delete(key);
-        if (fieldHasContent(latest.current.getTargetValue(key))) return;
+
+        const targetBefore = (latest.current.getTargetValue(key) ?? '').trim();
+        if (!canWrite(key, trimmed, targetBefore)) return;
 
         const startGeneration = generation.current;
+        const sequence = (sequences.current.get(key) ?? 0) + 1;
+        sequences.current.set(key, sequence);
+        const windowToken = windowTokens.current.get(key) ?? 0;
+
         setTranslatingKeys((prev) => new Set(prev).add(key));
         try {
           const translated = await translateText(trimmed, targetLang);
+          if (!translated) return;
+
           const isStale =
             generation.current !== startGeneration ||
-            fieldHasContent(latest.current.getTargetValue(key));
-          if (translated && !isStale) {
-            latest.current.onTranslated(key, translated);
+            sequences.current.get(key) !== sequence ||
+            (latest.current.getTargetValue(key) ?? '').trim() !== targetBefore;
+          if (isStale) return;
+
+          // If the window closed mid-flight the value still lands, but it is
+          // not recorded, so it is the user's from here on.
+          if ((windowTokens.current.get(key) ?? 0) === windowToken) {
+            autoFilled.current.set(key, { source: trimmed, written: translated.trim() });
           }
+          latest.current.onTranslated(key, translated);
         } finally {
           setTranslatingKeys((prev) => {
             const next = new Set(prev);
@@ -88,8 +130,13 @@ function useTranslateIntoEmptyField<K extends TranslationKey>({
 
       timeouts.current.set(key, timeout);
     },
-    [debounceMs, targetLang]
+    [canWrite, debounceMs, targetLang]
   );
+
+  const closeReplacementWindow = useCallback((key: K) => {
+    autoFilled.current.delete(key);
+    windowTokens.current.set(key, (windowTokens.current.get(key) ?? 0) + 1);
+  }, []);
 
   const isTranslating = useCallback((key: K) => translatingKeys.has(key), [translatingKeys]);
 
@@ -97,10 +144,12 @@ function useTranslateIntoEmptyField<K extends TranslationKey>({
     generation.current += 1;
     timeouts.current.forEach((timeout) => clearTimeout(timeout));
     timeouts.current.clear();
+    autoFilled.current.clear();
+    sequences.current.clear();
     setTranslatingKeys(new Set());
   }, []);
 
-  return { scheduleTranslation, isTranslating, cancelAll };
+  return { scheduleTranslation, closeReplacementWindow, isTranslating, cancelAll };
 }
 
 interface AutoTranslateOptions<K extends TranslationKey> {
@@ -113,8 +162,9 @@ interface AutoTranslateOptions<K extends TranslationKey> {
 
 /**
  * Keeps a Polish/English field pair in sync in whichever direction is needed:
- * editing one side fills the other only while that other side is empty.
- * Scheduling with empty text cancels a pending translation for that key.
+ * editing one side fills the other while that other side is empty or still
+ * holds an auto-translation of what is being typed. Blurring a field settles
+ * its counterpart, and scheduling with empty text cancels a pending request.
  */
 export function usePolishEnglishAutoTranslate<K extends TranslationKey>({
   getPolish,
@@ -145,6 +195,8 @@ export function usePolishEnglishAutoTranslate<K extends TranslationKey>({
   return {
     handlePolishChange: toEnglish.scheduleTranslation,
     handleEnglishChange: toPolish.scheduleTranslation,
+    handlePolishBlur: toEnglish.closeReplacementWindow,
+    handleEnglishBlur: toPolish.closeReplacementWindow,
     isTranslatingEnglish: toEnglish.isTranslating,
     isTranslatingPolish: toPolish.isTranslating,
     cancelAll,
@@ -168,6 +220,8 @@ export function useSinglePolishEnglishAutoTranslate({
   const {
     handlePolishChange,
     handleEnglishChange,
+    handlePolishBlur,
+    handleEnglishBlur,
     isTranslatingEnglish,
     isTranslatingPolish,
     cancelAll,
@@ -188,6 +242,8 @@ export function useSinglePolishEnglishAutoTranslate({
       (english: string) => handleEnglishChange(SINGLE_FIELD_KEY, english),
       [handleEnglishChange]
     ),
+    handlePolishBlur: useCallback(() => handlePolishBlur(SINGLE_FIELD_KEY), [handlePolishBlur]),
+    handleEnglishBlur: useCallback(() => handleEnglishBlur(SINGLE_FIELD_KEY), [handleEnglishBlur]),
     isTranslatingEnglish: isTranslatingEnglish(SINGLE_FIELD_KEY),
     isTranslatingPolish: isTranslatingPolish(SINGLE_FIELD_KEY),
     cancel: cancelAll,
