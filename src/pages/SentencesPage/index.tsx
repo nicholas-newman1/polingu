@@ -473,9 +473,7 @@ export function SentencesPage({ mode }: SentencesPageProps) {
         return;
       }
 
-      const newSystemSentences = contextSystemSentences.filter(
-        (s) => s.id !== sentenceToDelete.id
-      );
+      const newSystemSentences = contextSystemSentences.filter((s) => s.id !== sentenceToDelete.id);
 
       applyOptimisticSentences([...customSentences, ...newSystemSentences], async () => {
         await deleteSentence(sentenceToDelete.id);
@@ -709,7 +707,6 @@ export function SentencesPage({ mode }: SentencesPageProps) {
                   sentence={currentPracticeSentence}
                   direction={currentDirection}
                   practiceMode
-                  isAdmin={isAdmin}
                   canEdit={isAdmin}
                   onNext={handlePracticeNext}
                   onEdit={() => {
@@ -742,7 +739,6 @@ export function SentencesPage({ mode }: SentencesPageProps) {
                 isViewingHistory
                 canGoBack={canGoBack}
                 canEdit={isAdmin}
-                isAdmin={isAdmin}
                 reassessIntervals={reassessIntervals}
                 onGoBack={goBack}
                 onContinue={goForward}
@@ -822,7 +818,6 @@ export function SentencesPage({ mode }: SentencesPageProps) {
                 intervals={intervals}
                 canGoBack={canGoBack}
                 canEdit={isAdmin}
-                isAdmin={isAdmin}
                 onRate={handleRate}
                 onGoBack={goBack}
                 onEdit={handleOpenEditModal}

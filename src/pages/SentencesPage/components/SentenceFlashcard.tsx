@@ -22,7 +22,6 @@ interface SentenceFlashcardProps {
   intervals?: RatingIntervals;
   reassessIntervals?: RatingIntervals;
   canEdit?: boolean;
-  isAdmin?: boolean;
   onRate?: (rating: Grade) => void;
   onReassess?: (rating: Grade) => void;
   onNext?: () => void;
@@ -78,7 +77,6 @@ export function SentenceFlashcard({
   intervals,
   reassessIntervals,
   canEdit = false,
-  isAdmin = false,
   onRate,
   onReassess,
   onNext,
@@ -110,16 +108,8 @@ export function SentenceFlashcard({
       onDailyLimitReached,
       onUpdateTranslation,
       sentenceContext: sentence.polish,
-      isAdmin,
     }),
-    [
-      sentence.translations,
-      sentence.id,
-      sentence.polish,
-      onDailyLimitReached,
-      onUpdateTranslation,
-      isAdmin,
-    ]
+    [sentence.translations, sentence.id, sentence.polish, onDailyLimitReached, onUpdateTranslation]
   );
 
   const questionContent =

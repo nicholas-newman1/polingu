@@ -1,13 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import {
-  Box,
-  Typography,
-  Button,
-  Chip,
-  IconButton,
-  CircularProgress,
-  Switch,
-} from '@mui/material';
+import { Box, Typography, Button, Chip, IconButton, CircularProgress, Switch } from '@mui/material';
 import { styled } from '../lib/styled';
 import { KeyboardArrowLeft, KeyboardArrowRight } from '@mui/icons-material';
 import { collection, query, where, getDocs } from 'firebase/firestore';

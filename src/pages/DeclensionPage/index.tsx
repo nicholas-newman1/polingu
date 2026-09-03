@@ -713,7 +713,6 @@ export function DeclensionPage() {
               key={`practice-${currentPracticeCard.id}-${practiceIndex}`}
               card={currentPracticeCard}
               practiceMode
-              isAdmin={isAdmin}
               canEdit={currentPracticeCard.isCustom || isAdmin}
               onNext={handlePracticeNext}
               onEdit={() => {
@@ -739,7 +738,6 @@ export function DeclensionPage() {
             isViewingHistory
             canGoBack={canGoBack}
             canEdit={historyCard.isCustom || isAdmin}
-            isAdmin={isAdmin}
             reassessIntervals={reassessIntervals}
             onGoBack={goBack}
             onContinue={goForward}
@@ -800,7 +798,6 @@ export function DeclensionPage() {
             intervals={intervals}
             canGoBack={canGoBack}
             canEdit={canEditCurrentCard}
-            isAdmin={isAdmin}
             onRate={handleRate}
             onGoBack={goBack}
             onEdit={handleOpenEditModal}

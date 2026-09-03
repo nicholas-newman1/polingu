@@ -34,4 +34,3 @@ const outputPath = resolve(process.cwd(), outputName);
 
 writeFileSync(outputPath, JSON.stringify(reviewList, null, 2));
 console.log(`Created ${outputName} with ${cards.length} cards`);
-

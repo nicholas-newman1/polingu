@@ -4,10 +4,7 @@ import { getFunctions } from 'firebase-admin/functions';
 import { db } from '../../shared/firebase.js';
 import { CardAudioStatus } from '../../shared/cardAudio.js';
 import { GENERATE_VERB_AUDIO_QUEUE } from '../../shared/queueNames.js';
-import type {
-  GenerateVerbAudioTaskData,
-  VerbAudioJob,
-} from '../../tasks/generateVerbAudio.js';
+import type { GenerateVerbAudioTaskData, VerbAudioJob } from '../../tasks/generateVerbAudio.js';
 
 interface ConjugationFormData {
   pl?: string;

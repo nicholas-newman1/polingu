@@ -53,9 +53,7 @@ export async function transcribePolishAudio(
   }));
 
   for (const word of words) {
-    const seg = segments.find(
-      (s) => word.startTime >= s.startTime && word.startTime < s.endTime
-    );
+    const seg = segments.find((s) => word.startTime >= s.startTime && word.startTime < s.endTime);
     if (seg) {
       seg.words.push(word);
     } else if (segments.length > 0) {

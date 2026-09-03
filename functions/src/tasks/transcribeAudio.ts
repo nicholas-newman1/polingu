@@ -3,10 +3,7 @@ import { db, storage } from '../shared/firebase.js';
 import { openaiApiKey } from '../shared/secrets.js';
 import { isKilled } from '../shared/killSwitch.js';
 import { isAdmin } from '../shared/auth.js';
-import {
-  MAX_DURATION_SECONDS,
-  parseAudioDurationSeconds,
-} from '../shared/userAudio.js';
+import { MAX_DURATION_SECONDS, parseAudioDurationSeconds } from '../shared/userAudio.js';
 import { transcribePolishAudio } from '../shared/transcription.js';
 
 interface TranscribeTaskData {

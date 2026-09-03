@@ -8,16 +8,28 @@ import {
   startTransition,
 } from 'react';
 
+export interface ActiveWordState {
+  index: number;
+  word: string;
+  anchorEl: HTMLElement;
+  sentenceContext?: string;
+  declensionCardId?: number;
+  sentenceId?: string;
+}
+
 export interface TranslatableTextContextValue {
   isDragging: boolean;
   phraseAnchorEl: HTMLElement | null;
   selectedPhrase: string | null;
+  activeWord: ActiveWordState | null;
   startDrag: (index: number, element: HTMLElement) => void;
   updateDrag: (index: number) => void;
   endDrag: () => void;
   cancelDrag: () => void;
   registerWord: (index: number, word: string) => void;
   closePhraseTooltip: () => void;
+  handleWordClick: (word: ActiveWordState) => void;
+  closeWordTooltip: () => void;
   subscribeSelection: (callback: () => void) => () => void;
   isIndexSelected: (index: number) => boolean;
   getSelectedIndices: () => number[];
@@ -29,16 +41,20 @@ export const TranslatableTextContext = createContext<TranslatableTextContextValu
 interface TranslatableTextProviderProps {
   children: React.ReactNode;
   onTranslatePhrase?: (phrase: string) => void;
+  onWordTap?: () => void;
 }
 
 export function TranslatableTextProvider({
   children,
   onTranslatePhrase,
+  onWordTap,
 }: TranslatableTextProviderProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [phraseAnchorEl, setPhraseAnchorEl] = useState<HTMLElement | null>(null);
   const [selectedPhrase, setSelectedPhrase] = useState<string | null>(null);
+  const [activeWord, setActiveWord] = useState<ActiveWordState | null>(null);
   const wordsRef = useRef<Map<number, string>>(new Map());
+  const activeWordRef = useRef<ActiveWordState | null>(null);
   const dragStartElementRef = useRef<HTMLElement | null>(null);
   const isDraggingRef = useRef(false);
   const dragStartRef = useRef<number | null>(null);
@@ -47,6 +63,10 @@ export function TranslatableTextProvider({
   const documentListenersCleanupRef = useRef<(() => void) | null>(null);
   const updateDragRef = useRef<((index: number) => void) | null>(null);
   const endDragRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    activeWordRef.current = activeWord;
+  }, [activeWord]);
 
   const notifySelectionChange = useCallback(() => {
     subscribersRef.current.forEach((cb) => cb());
@@ -58,6 +78,27 @@ export function TranslatableTextProvider({
       subscribersRef.current.delete(callback);
     };
   }, []);
+
+  const closeWordTooltip = useCallback(() => {
+    setActiveWord(null);
+  }, []);
+
+  const handleWordClick = useCallback(
+    (input: ActiveWordState) => {
+      const prev = activeWordRef.current;
+      if (prev?.index === input.index) {
+        setActiveWord(null);
+        return;
+      }
+      if (prev !== null) {
+        setActiveWord(null);
+        return;
+      }
+      onWordTap?.();
+      setActiveWord(input);
+    },
+    [onWordTap]
+  );
 
   const isIndexSelected = useCallback((index: number): boolean => {
     const start = dragStartRef.current;
@@ -131,6 +172,7 @@ export function TranslatableTextProvider({
         setIsDragging(true);
         setSelectedPhrase(null);
         setPhraseAnchorEl(null);
+        setActiveWord(null);
       });
     },
     [notifySelectionChange, installDocumentDragListeners]
@@ -224,12 +266,15 @@ export function TranslatableTextProvider({
       isDragging,
       phraseAnchorEl,
       selectedPhrase,
+      activeWord,
       startDrag,
       updateDrag,
       endDrag,
       cancelDrag,
       registerWord,
       closePhraseTooltip,
+      handleWordClick,
+      closeWordTooltip,
       subscribeSelection,
       isIndexSelected,
       getSelectedIndices,
@@ -238,12 +283,15 @@ export function TranslatableTextProvider({
       isDragging,
       phraseAnchorEl,
       selectedPhrase,
+      activeWord,
       startDrag,
       updateDrag,
       endDrag,
       cancelDrag,
       registerWord,
       closePhraseTooltip,
+      handleWordClick,
+      closeWordTooltip,
       subscribeSelection,
       isIndexSelected,
       getSelectedIndices,

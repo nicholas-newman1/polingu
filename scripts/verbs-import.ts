@@ -19,13 +19,9 @@ function checkDuplicates(
   existingIndex: VerbIndex[]
 ): { duplicateIds: string[]; duplicateInfinitives: string[] } {
   const existingIds = new Set(existingIndex.map((v) => v.id));
-  const existingInfinitives = new Set(
-    existingIndex.map((v) => v.infinitive.toLowerCase())
-  );
+  const existingInfinitives = new Set(existingIndex.map((v) => v.infinitive.toLowerCase()));
 
-  const duplicateIds = newVerbs
-    .filter((v) => existingIds.has(v.id))
-    .map((v) => v.id);
+  const duplicateIds = newVerbs.filter((v) => existingIds.has(v.id)).map((v) => v.id);
 
   const duplicateInfinitives = newVerbs
     .filter((v) => existingInfinitives.has(v.infinitive.toLowerCase()))
@@ -80,9 +76,7 @@ async function importVerbs(filePath: string) {
   }
 
   if (hasErrors) {
-    console.error(
-      '\n❌ Validation failed. Fix the errors above and try again.'
-    );
+    console.error('\n❌ Validation failed. Fix the errors above and try again.');
     process.exit(1);
   }
 
@@ -123,9 +117,7 @@ async function importVerbs(filePath: string) {
     }
 
     await batch.commit();
-    console.log(
-      `✓ Batch ${Math.floor(i / BATCH_SIZE) + 1}: Uploaded ${chunk.length} verbs`
-    );
+    console.log(`✓ Batch ${Math.floor(i / BATCH_SIZE) + 1}: Uploaded ${chunk.length} verbs`);
   }
 
   console.log(`✓ Added ${validVerbs.length} verbs to Firestore`);
@@ -168,4 +160,3 @@ importVerbs(resolve(process.cwd(), filePath)).catch((err) => {
   console.error('❌ Import failed:', err.message);
   process.exit(1);
 });
-

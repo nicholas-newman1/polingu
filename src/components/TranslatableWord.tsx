@@ -1,8 +1,5 @@
-import { useState, useCallback, useEffect, useRef, useSyncExternalStore, memo } from 'react';
-import { CircularProgress, Typography, IconButton, TextField, InputAdornment } from '@mui/material';
-import EditIcon from '@mui/icons-material/Edit';
-import CheckIcon from '@mui/icons-material/Check';
-import CloseIcon from '@mui/icons-material/Close';
+import { useState, useCallback, useEffect, useSyncExternalStore, memo } from 'react';
+import { CircularProgress, Typography, IconButton } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { styled } from '../lib/styled';
@@ -17,44 +14,6 @@ import {
 import { useTranslatableText } from '../hooks/useTranslatableText';
 import { useAddToVocabulary } from '../hooks/useAddToVocabulary';
 import { useSnackbar } from '../hooks/useSnackbar';
-
-const EditButton = styled(IconButton)(({ theme }) => ({
-  padding: 2,
-  color: theme.palette.tooltip.muted,
-  '&:hover': {
-    color: theme.palette.tooltip.text,
-    backgroundColor: 'transparent',
-  },
-}));
-
-const EditInput = styled(TextField)(({ theme }) => ({
-  '& .MuiInputBase-root': {
-    color: theme.palette.tooltip.text,
-    fontSize: '0.875rem',
-    padding: 0,
-  },
-  '& .MuiInputBase-input': {
-    padding: theme.spacing(0.5, 1),
-    minWidth: 80,
-  },
-  '& .MuiOutlinedInput-notchedOutline': {
-    borderColor: theme.palette.tooltip.muted,
-  },
-  '&:hover .MuiOutlinedInput-notchedOutline': {
-    borderColor: theme.palette.tooltip.text,
-  },
-  '& .Mui-focused .MuiOutlinedInput-notchedOutline': {
-    borderColor: theme.palette.tooltip.accent,
-  },
-}));
-
-const ActionIconButton = styled(IconButton)(({ theme }) => ({
-  padding: 2,
-  color: theme.palette.tooltip.text,
-  '&:hover': {
-    backgroundColor: 'transparent',
-  },
-}));
 
 const AddToVocabButton = styled(IconButton)(({ theme }) => ({
   padding: 2,
@@ -109,10 +68,7 @@ export interface TranslatableWordProps {
   declensionCardId?: number;
   sentenceId?: string;
   onDailyLimitReached?: (resetTime: string) => void;
-  onUpdateTranslation?: (word: string, translation: string) => void;
-  isAdmin?: boolean;
   disableHoverTranslate?: boolean;
-  onTranslateRequest?: () => void;
 }
 
 function TranslatableWordComponent({
@@ -124,24 +80,17 @@ function TranslatableWordComponent({
   declensionCardId,
   sentenceId,
   onDailyLimitReached,
-  onUpdateTranslation,
-  isAdmin = false,
   disableHoverTranslate = false,
-  onTranslateRequest,
 }: TranslatableWordProps) {
   const [translation, setTranslation] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editValue, setEditValue] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const spanRef = useRef<HTMLSpanElement>(null);
 
   const dragContext = useTranslatableText();
   const addToVocabulary = useAddToVocabulary();
   const { showSnackbar } = useSnackbar();
   const isDragEnabled = dragContext !== null && wordIndex !== undefined;
+  const usesSharedClickTooltip = isDragEnabled;
 
   const subscribeSelection = dragContext?.subscribeSelection ?? noopSubscribe;
   const getSelectedSnapshot = useCallback(
@@ -163,28 +112,19 @@ function TranslatableWordComponent({
   const {
     anchorEl,
     popperRef,
-    open,
+    open: hoverOpen,
     isClicked,
     setIsClicked,
     handleMouseEnter: baseHandleMouseEnter,
     handleMouseLeave,
     close,
-  } = useTooltipInteraction({
-    onClose: () => setIsEditing(false),
-  });
+  } = useTooltipInteraction();
 
   useEffect(() => {
     if (isDragging) {
       close();
     }
   }, [isDragging, close]);
-
-  useEffect(() => {
-    if (isEditing && inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.select();
-    }
-  }, [isEditing]);
 
   const cleanWord = word.replace(/[.,!?;:"""''()]/g, '').toLowerCase();
 
@@ -238,42 +178,6 @@ function TranslatableWordComponent({
     showSnackbar,
   ]);
 
-  const handleStartEdit = () => {
-    setEditValue(translation || '');
-    setIsEditing(true);
-  };
-
-  const handleCancelEdit = () => {
-    setIsEditing(false);
-    setEditValue('');
-  };
-
-  const handleSaveEdit = async () => {
-    if (!editValue.trim() || editValue === translation) {
-      handleCancelEdit();
-      return;
-    }
-
-    setIsSaving(true);
-    try {
-      await onUpdateTranslation?.(cleanWord, editValue.trim());
-      setTranslation(editValue.trim());
-      setIsEditing(false);
-    } catch {
-      setError('Save failed');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleKeyDown = (event: React.KeyboardEvent) => {
-    if (event.key === 'Enter') {
-      handleSaveEdit();
-    } else if (event.key === 'Escape') {
-      handleCancelEdit();
-    }
-  };
-
   const handleAddToVocabulary = () => {
     if (addToVocabulary) {
       addToVocabulary.openAddToVocabulary(word, translation || '');
@@ -313,7 +217,6 @@ function TranslatableWordComponent({
         if (dx * dx + dy * dy < THRESHOLD_SQ) return;
         dragStarted = true;
         document.removeEventListener('mousemove', onMove);
-        onTranslateRequest?.();
         dragContext.startDrag(wordIndex, element);
       };
 
@@ -327,7 +230,7 @@ function TranslatableWordComponent({
       document.addEventListener('mousemove', onMove);
       document.addEventListener('mouseup', onUp);
     },
-    [isDragEnabled, dragContext, wordIndex, onTranslateRequest]
+    [isDragEnabled, dragContext, wordIndex]
   );
 
   const handleTouchStart = useCallback(
@@ -343,7 +246,6 @@ function TranslatableWordComponent({
       let holdTimer: ReturnType<typeof setTimeout> | null = setTimeout(() => {
         holdTimer = null;
         dragStarted = true;
-        onTranslateRequest?.();
         dragContext.startDrag(wordIndex, element);
       }, LONG_PRESS_MS);
 
@@ -381,7 +283,7 @@ function TranslatableWordComponent({
       document.addEventListener('touchend', onEnd);
       document.addEventListener('touchcancel', onEnd);
     },
-    [isDragEnabled, dragContext, wordIndex, onTranslateRequest]
+    [isDragEnabled, dragContext, wordIndex]
   );
 
   const handleMouseEnterWord = useCallback(
@@ -420,12 +322,22 @@ function TranslatableWordComponent({
       }
       if (isDragging) return;
 
+      if (usesSharedClickTooltip) {
+        dragContext.handleWordClick({
+          index: wordIndex,
+          word,
+          anchorEl: event.currentTarget,
+          sentenceContext,
+          declensionCardId,
+          sentenceId,
+        });
+        return;
+      }
+
       if (isClicked) {
         setIsClicked(false);
-        setIsEditing(false);
       } else {
         setIsClicked(true);
-        onTranslateRequest?.();
         fetchTranslation();
       }
       if (event.currentTarget) {
@@ -435,22 +347,29 @@ function TranslatableWordComponent({
     [
       hasPhrase,
       isDragging,
+      usesSharedClickTooltip,
+      dragContext,
+      wordIndex,
+      word,
+      sentenceContext,
+      declensionCardId,
+      sentenceId,
       isClicked,
       setIsClicked,
       fetchTranslation,
       baseHandleMouseEnter,
-      dragContext,
-      onTranslateRequest,
     ]
   );
 
-  const showSingleWordTooltip = open && !isDragging && !hasPhrase;
+  const showLocalTooltip =
+    (usesSharedClickTooltip ? hoverOpen && !disableHoverTranslate : hoverOpen) &&
+    !isDragging &&
+    !hasPhrase;
   const WordComponent = isHighlighted ? SelectableHighlightedSpan : SelectableSpan;
 
   return (
     <>
       <WordComponent
-        ref={spanRef}
         $isSelected={isSelected}
         data-word-index={wordIndex}
         onClick={handleClick}
@@ -462,67 +381,44 @@ function TranslatableWordComponent({
       >
         {word}
       </WordComponent>
-      <WordTooltipPopper
-        open={showSingleWordTooltip}
-        anchorEl={anchorEl}
-        popperRef={popperRef}
-        modifiers={[{ name: 'offset', options: { offset: [0, 4] } }]}
-      >
-        <TooltipContent>
-          {loading || isSaving ? (
-            <CircularProgress size={16} sx={{ color: 'tooltip.text' }} />
-          ) : isEditing ? (
-            <EditInput
-              size="small"
-              value={editValue}
-              onChange={(e) => setEditValue(e.target.value)}
-              onKeyDown={handleKeyDown}
-              inputRef={inputRef}
-              InputProps={{
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <ActionIconButton size="small" onClick={handleSaveEdit}>
-                      <CheckIcon sx={{ fontSize: 14 }} />
-                    </ActionIconButton>
-                    <ActionIconButton size="small" onClick={handleCancelEdit}>
-                      <CloseIcon sx={{ fontSize: 14 }} />
-                    </ActionIconButton>
-                  </InputAdornment>
-                ),
-              }}
-            />
-          ) : (
-            <>
-              {error ? (
-                <Typography variant="caption" sx={{ color: 'tooltip.error' }}>
-                  {error}
-                </Typography>
-              ) : (
-                <Typography variant="body2" fontWeight={500}>
-                  {translation}
-                </Typography>
-              )}
-              {isAdmin && translation && (
-                <EditButton size="small" onClick={handleStartEdit}>
-                  <EditIcon sx={{ fontSize: 14 }} />
-                </EditButton>
-              )}
-              <AddToVocabButton size="small" onClick={handleCopy} aria-label="Copy to clipboard">
-                <ContentCopyIcon sx={{ fontSize: 14 }} />
-              </AddToVocabButton>
-              {addToVocabulary && (
-                <AddToVocabButton
-                  size="small"
-                  onClick={handleAddToVocabulary}
-                  aria-label="Add to vocabulary"
-                >
-                  <AddIcon sx={{ fontSize: 14 }} />
+      {showLocalTooltip && (
+        <WordTooltipPopper
+          open={showLocalTooltip}
+          anchorEl={anchorEl}
+          popperRef={popperRef}
+          modifiers={[{ name: 'offset', options: { offset: [0, 4] } }]}
+        >
+          <TooltipContent>
+            {loading ? (
+              <CircularProgress size={16} sx={{ color: 'tooltip.text' }} />
+            ) : (
+              <>
+                {error ? (
+                  <Typography variant="caption" sx={{ color: 'tooltip.error' }}>
+                    {error}
+                  </Typography>
+                ) : (
+                  <Typography variant="body2" fontWeight={500}>
+                    {translation}
+                  </Typography>
+                )}
+                <AddToVocabButton size="small" onClick={handleCopy} aria-label="Copy to clipboard">
+                  <ContentCopyIcon sx={{ fontSize: 14 }} />
                 </AddToVocabButton>
-              )}
-            </>
-          )}
-        </TooltipContent>
-      </WordTooltipPopper>
+                {addToVocabulary && (
+                  <AddToVocabButton
+                    size="small"
+                    onClick={handleAddToVocabulary}
+                    aria-label="Add to vocabulary"
+                  >
+                    <AddIcon sx={{ fontSize: 14 }} />
+                  </AddToVocabButton>
+                )}
+              </>
+            )}
+          </TooltipContent>
+        </WordTooltipPopper>
+      )}
     </>
   );
 }

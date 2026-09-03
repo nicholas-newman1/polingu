@@ -16,9 +16,7 @@ function getServiceAccount() {
   }
 
   if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-    return JSON.parse(
-      readFileSync(process.env.GOOGLE_APPLICATION_CREDENTIALS, 'utf-8')
-    );
+    return JSON.parse(readFileSync(process.env.GOOGLE_APPLICATION_CREDENTIALS, 'utf-8'));
   }
 
   console.error(
@@ -66,9 +64,7 @@ async function listAdmins() {
   console.log('🔍 Listing users with admin claims...\n');
 
   const listUsersResult = await auth.listUsers(1000);
-  const admins = listUsersResult.users.filter(
-    (user) => user.customClaims?.admin === true
-  );
+  const admins = listUsersResult.users.filter((user) => user.customClaims?.admin === true);
 
   if (admins.length === 0) {
     console.log('No admin users found.');
@@ -111,15 +107,9 @@ async function main() {
     default:
       console.log('Admin Claim Management\n');
       console.log('Usage:');
-      console.log(
-        '  npx tsx scripts/set-admin.ts add <uid>     - Grant admin access'
-      );
-      console.log(
-        '  npx tsx scripts/set-admin.ts remove <uid>  - Remove admin access'
-      );
-      console.log(
-        '  npx tsx scripts/set-admin.ts list          - List all admins'
-      );
+      console.log('  npx tsx scripts/set-admin.ts add <uid>     - Grant admin access');
+      console.log('  npx tsx scripts/set-admin.ts remove <uid>  - Remove admin access');
+      console.log('  npx tsx scripts/set-admin.ts list          - List all admins');
       process.exit(1);
   }
 }

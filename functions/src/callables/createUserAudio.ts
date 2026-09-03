@@ -3,10 +3,7 @@ import { getFunctions } from 'firebase-admin/functions';
 import { db } from '../shared/firebase.js';
 import { assertNotKilled } from '../shared/killSwitch.js';
 import { isAdmin } from '../shared/auth.js';
-import {
-  MAX_TEXT_CHARS_USER,
-  reserveUserAudioSlot,
-} from '../shared/userAudio.js';
+import { MAX_TEXT_CHARS_USER, reserveUserAudioSlot } from '../shared/userAudio.js';
 import { PROCESS_USER_TEXT_AUDIO_QUEUE } from '../shared/queueNames.js';
 
 interface CreateUserAudioRequest {

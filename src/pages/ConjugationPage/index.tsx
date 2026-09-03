@@ -263,9 +263,7 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
         return practiceCards[(practiceIndex + 1 + i) % len]?.form.audioUrl;
       })
     : [
-        ...sessionQueue
-          .slice(currentIndex + 1, currentIndex + 4)
-          .map((c) => c.form.form.audioUrl),
+        ...sessionQueue.slice(currentIndex + 1, currentIndex + 4).map((c) => c.form.form.audioUrl),
         ...learningQueue
           .slice(currentIndex < sessionQueue.length ? 0 : 1)
           .map((c) => c.form.form.audioUrl),

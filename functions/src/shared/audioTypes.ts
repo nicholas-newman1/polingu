@@ -21,11 +21,7 @@ export function bucketForAudioType(type: AudioType): string {
   return isCustomAudioType(type) ? DEFAULT_BUCKET : AUDIO_BUCKET;
 }
 
-export function buildFirebaseDownloadUrl(
-  bucket: string,
-  filePath: string,
-  token: string
-): string {
+export function buildFirebaseDownloadUrl(bucket: string, filePath: string, token: string): string {
   const encoded = encodeURIComponent(filePath);
   return `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encoded}?alt=media&token=${token}`;
 }

@@ -8,7 +8,6 @@ interface RenderTappableTextOptions {
   onDailyLimitReached?: (resetTime: string) => void;
   onUpdateTranslation?: (word: string, translation: string) => void;
   sentenceContext: string;
-  isAdmin?: boolean;
 }
 
 export function renderTappableText(
@@ -23,7 +22,6 @@ export function renderTappableText(
     onDailyLimitReached,
     onUpdateTranslation,
     sentenceContext,
-    isAdmin,
   } = options;
   const tokens = text.split(/(\s+)/);
 
@@ -49,8 +47,6 @@ export function renderTappableText(
         declensionCardId={declensionCardId}
         sentenceId={sentenceId}
         onDailyLimitReached={onDailyLimitReached}
-        onUpdateTranslation={onUpdateTranslation}
-        isAdmin={isAdmin}
       />
     );
   });

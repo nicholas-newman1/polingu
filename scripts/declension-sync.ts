@@ -31,10 +31,7 @@ async function sync() {
 
   index.sort((a, b) => a.id - b.id);
 
-  writeFileSync(
-    resolve(process.cwd(), 'declensionCardIndex.json'),
-    JSON.stringify(index, null, 2)
-  );
+  writeFileSync(resolve(process.cwd(), 'declensionCardIndex.json'), JSON.stringify(index, null, 2));
 
   const caseCounts = cards.reduce(
     (acc, c) => {
@@ -72,4 +69,3 @@ sync().catch((err) => {
   console.error('❌ Sync failed:', err.message);
   process.exit(1);
 });
-

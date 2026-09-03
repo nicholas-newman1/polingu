@@ -14,8 +14,7 @@ export interface CardHistoryActions<T, M> {
 }
 
 export interface CardHistoryResult<T, M = undefined>
-  extends CardHistoryState<T>,
-    CardHistoryActions<T, M> {
+  extends CardHistoryState<T>, CardHistoryActions<T, M> {
   isViewingHistory: boolean;
   historyCard: T | null;
   historyMeta: M | null;
@@ -30,9 +29,7 @@ export function useCardHistory<T, M = undefined>(): CardHistoryResult<T, M> {
 
   const isViewingHistory = historyIndex !== null;
   const historyCard = isViewingHistory ? history[historyIndex] : null;
-  const historyMeta = isViewingHistory
-    ? ((metaHistory[historyIndex] ?? null) as M | null)
-    : null;
+  const historyMeta = isViewingHistory ? ((metaHistory[historyIndex] ?? null) as M | null) : null;
   const canGoBack = history.length > 0 && (historyIndex === null || historyIndex > 0);
   const canGoForward = historyIndex !== null;
 

@@ -23,7 +23,6 @@ interface DeclensionFlashcardProps {
   intervals?: DeclensionRatingIntervals;
   reassessIntervals?: DeclensionRatingIntervals;
   canEdit?: boolean;
-  isAdmin?: boolean;
   onRate?: (rating: Grade) => void;
   onReassess?: (rating: Grade) => void;
   onNext?: () => void;
@@ -72,7 +71,6 @@ export function DeclensionFlashcard({
   intervals,
   reassessIntervals,
   canEdit = false,
-  isAdmin = false,
   onRate,
   onReassess,
   onNext,
@@ -103,16 +101,8 @@ export function DeclensionFlashcard({
       onDailyLimitReached: handleDailyLimitReached,
       onUpdateTranslation,
       sentenceContext: card.back,
-      isAdmin,
     }),
-    [
-      handleDailyLimitReached,
-      card.back,
-      card.translations,
-      declensionCardId,
-      onUpdateTranslation,
-      isAdmin,
-    ]
+    [handleDailyLimitReached, card.back, card.translations, declensionCardId, onUpdateTranslation]
   );
 
   const header = card.isCustom ? <CustomLabel>Custom</CustomLabel> : undefined;

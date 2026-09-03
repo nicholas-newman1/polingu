@@ -16,9 +16,7 @@ function getServiceAccount() {
   }
 
   if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-    return JSON.parse(
-      readFileSync(process.env.GOOGLE_APPLICATION_CREDENTIALS, 'utf-8')
-    );
+    return JSON.parse(readFileSync(process.env.GOOGLE_APPLICATION_CREDENTIALS, 'utf-8'));
   }
 
   console.error(

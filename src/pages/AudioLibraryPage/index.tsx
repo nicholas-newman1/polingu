@@ -392,8 +392,7 @@ export function AudioLibraryPage() {
                 </Typography>
                 <Stack direction="row" spacing={1} alignItems="center">
                   <MetaText noWrap>
-                    {item.source === 'system' ||
-                    ('fileSize' in item && item.fileSize === 0)
+                    {item.source === 'system' || ('fileSize' in item && item.fileSize === 0)
                       ? 'Generating audio & transcript...'
                       : 'fileName' in item
                         ? item.fileName
@@ -552,11 +551,7 @@ export function AudioLibraryPage() {
         </UploadProgressOverlay>
       )}
 
-      <Menu
-        anchorEl={addMenuAnchor}
-        open={!!addMenuAnchor}
-        onClose={() => setAddMenuAnchor(null)}
-      >
+      <Menu anchorEl={addMenuAnchor} open={!!addMenuAnchor} onClose={() => setAddMenuAnchor(null)}>
         <MenuItem
           onClick={() => {
             setAddMenuAnchor(null);
@@ -721,9 +716,7 @@ export function AudioLibraryPage() {
             minRows={4}
             sx={{ mt: 2 }}
             helperText={
-              createMode === 'user'
-                ? `${createText.length}/${MAX_USER_TEXT_CHARS}`
-                : undefined
+              createMode === 'user' ? `${createText.length}/${MAX_USER_TEXT_CHARS}` : undefined
             }
           />
         </DialogContent>

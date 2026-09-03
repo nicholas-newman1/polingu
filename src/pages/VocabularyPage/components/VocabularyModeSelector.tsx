@@ -15,4 +15,3 @@ export function VocabularyModeSelector({
 }: VocabularyModeSelectorProps) {
   return <ModeSelector stats={stats} loading={loading} onSelectMode={onSelectMode} />;
 }
-

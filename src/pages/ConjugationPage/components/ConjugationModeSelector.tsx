@@ -15,4 +15,3 @@ export function ConjugationModeSelector({
 }: ConjugationModeSelectorProps) {
   return <ModeSelector stats={stats} loading={loading} onSelectMode={onSelectMode} />;
 }
-

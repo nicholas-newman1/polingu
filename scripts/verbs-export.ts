@@ -80,4 +80,3 @@ exportVerbs(resolve(process.cwd(), outputFile), filters).catch((err) => {
   console.error('❌ Export failed:', err.message);
   process.exit(1);
 });
-

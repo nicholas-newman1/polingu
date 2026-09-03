@@ -301,6 +301,7 @@ export function TranscriptView({
         translations={translations}
         onDailyLimitReached={onDailyLimitReached}
         onUpdateTranslation={handleUpdateTranslation}
+        onWordTap={onWordTap}
       >
         {transcript.map((segment, segIdx) => (
           <LazyTranscriptRow
@@ -314,7 +315,6 @@ export function TranscriptView({
             wordOffset={segmentWordOffsets[segIdx]}
             translations={translations}
             onDailyLimitReached={onDailyLimitReached}
-            onWordTap={onWordTap}
             onSeekClick={seekEnabled ? handleSeekToSegmentClick : undefined}
             editMode={editMode}
             onEditSegment={onEditSegment}
@@ -334,7 +334,6 @@ interface TranscriptRowProps {
   wordOffset: number;
   translations: Record<string, string>;
   onDailyLimitReached?: (resetTime: string) => void;
-  onWordTap?: () => void;
   onSeekClick?: (segIdx: number, time: number) => void;
   editMode?: boolean;
   onEditSegment?: (segIdx: number) => void;
@@ -402,7 +401,6 @@ const TranscriptRow = memo(function TranscriptRow({
   wordOffset,
   translations,
   onDailyLimitReached,
-  onWordTap,
   onSeekClick,
   editMode = false,
   onEditSegment,
@@ -467,7 +465,6 @@ const TranscriptRow = memo(function TranscriptRow({
           wordOffset={wordOffset}
           translations={translations}
           onDailyLimitReached={onDailyLimitReached}
-          onWordTap={onWordTap}
         />
       </SegmentText>
     </SegmentRow>
@@ -479,7 +476,6 @@ interface SegmentContentProps {
   wordOffset: number;
   translations: Record<string, string>;
   onDailyLimitReached?: (resetTime: string) => void;
-  onWordTap?: () => void;
 }
 
 const SegmentContent = memo(function SegmentContent({
@@ -487,7 +483,6 @@ const SegmentContent = memo(function SegmentContent({
   wordOffset,
   translations,
   onDailyLimitReached,
-  onWordTap,
 }: SegmentContentProps) {
   const tokens = useMemo(() => segment.text.split(/(\s+)/), [segment.text]);
 
@@ -507,11 +502,10 @@ const SegmentContent = memo(function SegmentContent({
           translations={translations}
           onDailyLimitReached={onDailyLimitReached}
           disableHoverTranslate
-          onTranslateRequest={onWordTap}
         />
       );
     });
-  }, [tokens, wordOffset, segment.text, translations, onDailyLimitReached, onWordTap]);
+  }, [tokens, wordOffset, segment.text, translations, onDailyLimitReached]);
 
   return <>{elements}</>;
 });

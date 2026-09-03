@@ -1,6 +1,5 @@
 import { readFileSync, existsSync } from 'fs';
 import { resolve } from 'path';
-import type { Verb } from './verb-types.js';
 import { validateVerb } from './verb-types.js';
 
 async function validateVerbs(filePath: string) {
@@ -71,4 +70,3 @@ validateVerbs(resolve(process.cwd(), filePath)).catch((err) => {
   console.error('❌ Validation failed:', err.message);
   process.exit(1);
 });
-

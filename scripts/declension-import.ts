@@ -19,13 +19,9 @@ function checkDuplicates(
   existingIndex: DeclensionCardIndex[]
 ): { duplicateIds: number[]; duplicateFronts: string[] } {
   const existingIds = new Set(existingIndex.map((c) => c.id));
-  const existingFronts = new Set(
-    existingIndex.map((c) => c.front.toLowerCase())
-  );
+  const existingFronts = new Set(existingIndex.map((c) => c.front.toLowerCase()));
 
-  const duplicateIds = newCards
-    .filter((c) => existingIds.has(c.id))
-    .map((c) => c.id);
+  const duplicateIds = newCards.filter((c) => existingIds.has(c.id)).map((c) => c.id);
 
   const duplicateFronts = newCards
     .filter((c) => existingFronts.has(c.front.toLowerCase()))
@@ -69,9 +65,7 @@ async function importCards(filePath: string) {
   }
 
   if (hasErrors) {
-    console.error(
-      '\n❌ Validation failed. Fix the errors above and try again.'
-    );
+    console.error('\n❌ Validation failed. Fix the errors above and try again.');
     process.exit(1);
   }
 
@@ -112,11 +106,7 @@ async function importCards(filePath: string) {
     }
 
     await batch.commit();
-    console.log(
-      `✓ Batch ${Math.floor(i / BATCH_SIZE) + 1}: Uploaded ${
-        chunk.length
-      } cards`
-    );
+    console.log(`✓ Batch ${Math.floor(i / BATCH_SIZE) + 1}: Uploaded ${chunk.length} cards`);
   }
 
   console.log(`✓ Added ${validCards.length} cards to Firestore`);
