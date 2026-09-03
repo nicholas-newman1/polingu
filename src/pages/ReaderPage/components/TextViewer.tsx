@@ -107,7 +107,7 @@ interface TextViewerProps {
   onBookmarkToggle?: (paragraphIndex: number) => void;
 }
 
-export function TextViewer({
+export const TextViewer = memo(function TextViewer({
   text,
   initialScrollPercent = 0,
   initialParagraphIndex,
@@ -406,7 +406,7 @@ export function TextViewer({
       </Menu>
     </>
   );
-}
+});
 
 interface ParagraphRowProps {
   paragraph: string;

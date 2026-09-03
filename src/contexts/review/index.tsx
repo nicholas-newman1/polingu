@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
+import { useState, useEffect, useCallback, useRef, memo, type ReactNode } from 'react';
 import type { DeclensionCard } from '../../types';
 import type { VocabularyWord } from '../../types/vocabulary';
 import type { Sentence } from '../../types/sentences';
@@ -50,6 +50,10 @@ interface LoadedData {
   systemSentences: Sentence[];
   verbs: Verb[];
 }
+
+const MemoizedChildTree = memo(function MemoizedChildTree({ children }: { children: ReactNode }) {
+  return children;
+});
 
 export function ReviewDataProvider({ children }: ReviewDataProviderProps) {
   const { user } = useAuthContext();
@@ -199,7 +203,9 @@ export function ReviewDataProvider({ children }: ReviewDataProviderProps) {
               initialReviewStore={data?.aspectPairsData?.reviewData}
               initialSettings={data?.aspectPairsData?.settings}
             >
-              <ReviewCountsProvider loading={loading}>{children}</ReviewCountsProvider>
+              <ReviewCountsProvider loading={loading}>
+                <MemoizedChildTree>{children}</MemoizedChildTree>
+              </ReviewCountsProvider>
             </AspectPairsProvider>
           </ConjugationProvider>
         </SentenceProvider>

@@ -17,7 +17,8 @@ import CheckIcon from '@mui/icons-material/Check';
 import CloseIcon from '@mui/icons-material/Close';
 import { styled } from '../lib/styled';
 import { TranslatableTextProvider } from '../contexts/TranslatableTextContext';
-import { useTranslatableText } from '../hooks/useTranslatableText';
+import { useTranslatableTextActions } from '../hooks/useTranslatableTextActions';
+import { useTranslatableTextUI } from '../hooks/useTranslatableTextUI';
 import { useAddToVocabulary } from '../hooks/useAddToVocabulary';
 import { useAddSentence } from '../hooks/useAddSentence';
 import { useSnackbar } from '../hooks/useSnackbar';
@@ -84,7 +85,8 @@ function PhraseTooltip({
   onDailyLimitReached,
   onUpdateTranslation,
 }: PhraseTooltipProps) {
-  const context = useTranslatableText();
+  const actions = useTranslatableTextActions();
+  const ui = useTranslatableTextUI();
   const addToVocabulary = useAddToVocabulary();
   const addSentence = useAddSentence();
   const { showSnackbar } = useSnackbar();
@@ -94,10 +96,10 @@ function PhraseTooltip({
   const [showSaveMenu, setShowSaveMenu] = useState(false);
   const popperRef = useRef<HTMLDivElement>(null);
 
-  const selectedPhrase = context?.selectedPhrase;
-  const phraseAnchorEl = context?.phraseAnchorEl;
-  const closePhraseTooltip = context?.closePhraseTooltip;
-  const getSelectedIndices = context?.getSelectedIndices;
+  const selectedPhrase = ui?.selectedPhrase;
+  const phraseAnchorEl = ui?.phraseAnchorEl;
+  const closePhraseTooltip = actions?.closePhraseTooltip;
+  const getSelectedIndices = actions?.getSelectedIndices;
 
   const getSentenceContextRef = useRef(getSentenceContext);
   useEffect(() => {
@@ -338,7 +340,8 @@ function WordTooltip({
   onDailyLimitReached,
   onUpdateTranslation,
 }: WordTooltipProps) {
-  const context = useTranslatableText();
+  const actions = useTranslatableTextActions();
+  const ui = useTranslatableTextUI();
   const addToVocabulary = useAddToVocabulary();
   const { showSnackbar } = useSnackbar();
   const { isAdmin } = useAuthContext();
@@ -351,8 +354,8 @@ function WordTooltip({
   const popperRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const activeWord = context?.activeWord;
-  const closeWordTooltip = context?.closeWordTooltip;
+  const activeWord = ui?.activeWord;
+  const closeWordTooltip = actions?.closeWordTooltip;
 
   useEffect(() => {
     if (!activeWord) {
@@ -591,24 +594,30 @@ export function TranslatableText({
   onWordTap,
 }: TranslatableTextProps) {
   return (
-    <TranslatableTextProvider onWordTap={onWordTap}>
+    <TranslatableTextProvider
+      onWordTap={onWordTap}
+      overlays={
+        <>
+          <WordTooltip
+            translations={translations}
+            declensionCardId={declensionCardId}
+            sentenceId={sentenceId}
+            onDailyLimitReached={onDailyLimitReached}
+            onUpdateTranslation={onUpdateTranslation}
+          />
+          <PhraseTooltip
+            sentenceContext={sentenceContext}
+            getSentenceContext={getSentenceContext}
+            translations={translations}
+            declensionCardId={declensionCardId}
+            sentenceId={sentenceId}
+            onDailyLimitReached={onDailyLimitReached}
+            onUpdateTranslation={onUpdateTranslation}
+          />
+        </>
+      }
+    >
       <TranslatableTextInner>{children}</TranslatableTextInner>
-      <WordTooltip
-        translations={translations}
-        declensionCardId={declensionCardId}
-        sentenceId={sentenceId}
-        onDailyLimitReached={onDailyLimitReached}
-        onUpdateTranslation={onUpdateTranslation}
-      />
-      <PhraseTooltip
-        sentenceContext={sentenceContext}
-        getSentenceContext={getSentenceContext}
-        translations={translations}
-        declensionCardId={declensionCardId}
-        sentenceId={sentenceId}
-        onDailyLimitReached={onDailyLimitReached}
-        onUpdateTranslation={onUpdateTranslation}
-      />
     </TranslatableTextProvider>
   );
 }

@@ -12,7 +12,7 @@ import { styled } from '../../../lib/styled';
 import { alpha } from '../../../lib/theme';
 import { TranslatableWord } from '../../../components/TranslatableWord';
 import { TranslatableText } from '../../../components/TranslatableText';
-import { useTranslatableText } from '../../../hooks/useTranslatableText';
+import { useTranslatableTextActions } from '../../../hooks/useTranslatableTextActions';
 import { DRAWER_WIDTH } from '../../../components/Layout';
 import { PageProgressBar } from './PageProgressBar';
 
@@ -115,11 +115,11 @@ const pdfNoopSubscribe = () => () => {};
 const pdfReturnFalse = () => false;
 
 function PdfWordBox({ item, index, pageKey }: PdfWordBoxProps) {
-  const context = useTranslatableText();
-  const subscribe = context?.subscribeSelection ?? pdfNoopSubscribe;
+  const actions = useTranslatableTextActions();
+  const subscribe = actions?.subscribeSelection ?? pdfNoopSubscribe;
   const getSnapshot = useCallback(
-    () => (context ? context.isIndexSelected(index) : false),
-    [context, index]
+    () => (actions ? actions.isIndexSelected(index) : false),
+    [actions, index]
   );
   const isSelected = useSyncExternalStore(subscribe, getSnapshot, pdfReturnFalse);
 

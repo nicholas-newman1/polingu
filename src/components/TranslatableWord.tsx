@@ -11,7 +11,7 @@ import {
   TooltipContent,
   WordTooltipPopper,
 } from './shared';
-import { useTranslatableText } from '../hooks/useTranslatableText';
+import { useTranslatableTextActions } from '../hooks/useTranslatableTextActions';
 import { useAddToVocabulary } from '../hooks/useAddToVocabulary';
 import { useSnackbar } from '../hooks/useSnackbar';
 
@@ -58,6 +58,7 @@ const SelectableHighlightedSpan = styled(HighlightedSpan, {
 
 const noopSubscribe = () => () => {};
 const returnFalse = () => false;
+const defaultInteractionSnapshot = '0:0';
 
 export interface TranslatableWordProps {
   word: string;
@@ -86,23 +87,34 @@ function TranslatableWordComponent({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const dragContext = useTranslatableText();
+  const actions = useTranslatableTextActions();
   const addToVocabulary = useAddToVocabulary();
   const { showSnackbar } = useSnackbar();
-  const isDragEnabled = dragContext !== null && wordIndex !== undefined;
+  const isDragEnabled = actions !== null && wordIndex !== undefined;
   const usesSharedClickTooltip = isDragEnabled;
 
-  const subscribeSelection = dragContext?.subscribeSelection ?? noopSubscribe;
+  const subscribeSelection = actions?.subscribeSelection ?? noopSubscribe;
   const getSelectedSnapshot = useCallback(
-    () => (isDragEnabled ? dragContext.isIndexSelected(wordIndex) : false),
-    [isDragEnabled, dragContext, wordIndex]
+    () => (isDragEnabled ? actions!.isIndexSelected(wordIndex) : false),
+    [isDragEnabled, actions, wordIndex]
   );
   const isSelected = useSyncExternalStore(subscribeSelection, getSelectedSnapshot, returnFalse);
 
-  const isDragging = isDragEnabled && dragContext.isDragging;
-  const hasPhrase = isDragEnabled && dragContext.selectedPhrase !== null;
+  const subscribeInteraction = actions?.subscribeInteractionState ?? noopSubscribe;
+  const getInteractionSnapshot = useCallback(() => {
+    if (!isDragEnabled) return defaultInteractionSnapshot;
+    const { isDragging, hasPhrase } = actions!.getInteractionState();
+    return `${isDragging ? 1 : 0}:${hasPhrase ? 1 : 0}`;
+  }, [isDragEnabled, actions]);
+  const interactionSnapshot = useSyncExternalStore(
+    subscribeInteraction,
+    getInteractionSnapshot,
+    () => defaultInteractionSnapshot
+  );
+  const isDragging = isDragEnabled && interactionSnapshot.startsWith('1:');
+  const hasPhrase = isDragEnabled && interactionSnapshot.endsWith(':1');
 
-  const registerWord = dragContext?.registerWord;
+  const registerWord = actions?.registerWord;
   useEffect(() => {
     if (registerWord && wordIndex !== undefined) {
       registerWord(wordIndex, word);
@@ -217,20 +229,20 @@ function TranslatableWordComponent({
         if (dx * dx + dy * dy < THRESHOLD_SQ) return;
         dragStarted = true;
         document.removeEventListener('mousemove', onMove);
-        dragContext.startDrag(wordIndex, element);
+        actions!.startDrag(wordIndex, element);
       };
 
       const onUp = () => {
         removeAll();
         if (dragStarted) {
-          dragContext.endDrag();
+          actions!.endDrag();
         }
       };
 
       document.addEventListener('mousemove', onMove);
       document.addEventListener('mouseup', onUp);
     },
-    [isDragEnabled, dragContext, wordIndex]
+    [isDragEnabled, actions, wordIndex]
   );
 
   const handleTouchStart = useCallback(
@@ -246,7 +258,7 @@ function TranslatableWordComponent({
       let holdTimer: ReturnType<typeof setTimeout> | null = setTimeout(() => {
         holdTimer = null;
         dragStarted = true;
-        dragContext.startDrag(wordIndex, element);
+        actions!.startDrag(wordIndex, element);
       }, LONG_PRESS_MS);
 
       const removeAll = () => {
@@ -275,7 +287,7 @@ function TranslatableWordComponent({
       const onEnd = () => {
         removeAll();
         if (dragStarted) {
-          dragContext.endDrag();
+          actions!.endDrag();
         }
       };
 
@@ -283,13 +295,13 @@ function TranslatableWordComponent({
       document.addEventListener('touchend', onEnd);
       document.addEventListener('touchcancel', onEnd);
     },
-    [isDragEnabled, dragContext, wordIndex]
+    [isDragEnabled, actions, wordIndex]
   );
 
   const handleMouseEnterWord = useCallback(
     (event: React.MouseEvent<HTMLSpanElement>) => {
       if (isDragEnabled) {
-        dragContext.updateDrag(wordIndex);
+        actions!.updateDrag(wordIndex);
       }
       if (!isDragging && !hasPhrase && !disableHoverTranslate) {
         baseHandleMouseEnter(event);
@@ -298,7 +310,7 @@ function TranslatableWordComponent({
     },
     [
       isDragEnabled,
-      dragContext,
+      actions,
       wordIndex,
       isDragging,
       hasPhrase,
@@ -317,13 +329,13 @@ function TranslatableWordComponent({
   const handleClick = useCallback(
     (event: React.MouseEvent<HTMLSpanElement>) => {
       if (hasPhrase) {
-        dragContext?.closePhraseTooltip();
+        actions?.closePhraseTooltip();
         return;
       }
       if (isDragging) return;
 
       if (usesSharedClickTooltip) {
-        dragContext.handleWordClick({
+        actions!.handleWordClick({
           index: wordIndex,
           word,
           anchorEl: event.currentTarget,
@@ -348,7 +360,7 @@ function TranslatableWordComponent({
       hasPhrase,
       isDragging,
       usesSharedClickTooltip,
-      dragContext,
+      actions,
       wordIndex,
       word,
       sentenceContext,

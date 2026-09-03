@@ -6,6 +6,8 @@ import {
   useMemo,
   useEffect,
   startTransition,
+  memo,
+  type ReactNode,
 } from 'react';
 
 export interface ActiveWordState {
@@ -17,11 +19,7 @@ export interface ActiveWordState {
   sentenceId?: string;
 }
 
-export interface TranslatableTextContextValue {
-  isDragging: boolean;
-  phraseAnchorEl: HTMLElement | null;
-  selectedPhrase: string | null;
-  activeWord: ActiveWordState | null;
+export interface TranslatableTextActionsContextValue {
   startDrag: (index: number, element: HTMLElement) => void;
   updateDrag: (index: number) => void;
   endDrag: () => void;
@@ -33,44 +31,98 @@ export interface TranslatableTextContextValue {
   subscribeSelection: (callback: () => void) => () => void;
   isIndexSelected: (index: number) => boolean;
   getSelectedIndices: () => number[];
+  subscribeInteractionState: (callback: () => void) => () => void;
+  getInteractionState: () => { isDragging: boolean; hasPhrase: boolean };
+}
+
+export interface TranslatableTextUIContextValue {
+  activeWord: ActiveWordState | null;
+  phraseAnchorEl: HTMLElement | null;
+  selectedPhrase: string | null;
+}
+
+/** @deprecated Use TranslatableTextActionsContextValue or TranslatableTextUIContextValue */
+export interface TranslatableTextContextValue extends TranslatableTextActionsContextValue {
+  isDragging: boolean;
+  phraseAnchorEl: HTMLElement | null;
+  selectedPhrase: string | null;
+  activeWord: ActiveWordState | null;
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
-export const TranslatableTextContext = createContext<TranslatableTextContextValue | null>(null);
+export const TranslatableTextActionsContext =
+  createContext<TranslatableTextActionsContextValue | null>(null);
+
+// eslint-disable-next-line react-refresh/only-export-components
+export const TranslatableTextUIContext = createContext<TranslatableTextUIContextValue | null>(null);
+
+/** @deprecated Use TranslatableTextActionsContext */
+export const TranslatableTextContext = TranslatableTextActionsContext;
 
 interface TranslatableTextProviderProps {
   children: React.ReactNode;
+  overlays?: React.ReactNode;
   onTranslatePhrase?: (phrase: string) => void;
   onWordTap?: () => void;
 }
 
+const MemoizedChildTree = memo(function MemoizedChildTree({ children }: { children: ReactNode }) {
+  return children;
+});
+
 export function TranslatableTextProvider({
   children,
+  overlays,
   onTranslatePhrase,
   onWordTap,
 }: TranslatableTextProviderProps) {
-  const [isDragging, setIsDragging] = useState(false);
   const [phraseAnchorEl, setPhraseAnchorEl] = useState<HTMLElement | null>(null);
-  const [selectedPhrase, setSelectedPhrase] = useState<string | null>(null);
+  const [selectedPhrase, setSelectedPhraseState] = useState<string | null>(null);
   const [activeWord, setActiveWord] = useState<ActiveWordState | null>(null);
+
   const wordsRef = useRef<Map<number, string>>(new Map());
   const activeWordRef = useRef<ActiveWordState | null>(null);
   const dragStartElementRef = useRef<HTMLElement | null>(null);
   const isDraggingRef = useRef(false);
   const dragStartRef = useRef<number | null>(null);
   const dragEndRef = useRef<number | null>(null);
+  const selectedPhraseRef = useRef<string | null>(null);
   const subscribersRef = useRef<Set<() => void>>(new Set());
+  const interactionSubscribersRef = useRef<Set<() => void>>(new Set());
   const documentListenersCleanupRef = useRef<(() => void) | null>(null);
   const updateDragRef = useRef<((index: number) => void) | null>(null);
   const endDragRef = useRef<(() => void) | null>(null);
+  const onTranslatePhraseRef = useRef(onTranslatePhrase);
+  const onWordTapRef = useRef(onWordTap);
 
   useEffect(() => {
     activeWordRef.current = activeWord;
   }, [activeWord]);
 
+  useEffect(() => {
+    onTranslatePhraseRef.current = onTranslatePhrase;
+  }, [onTranslatePhrase]);
+
+  useEffect(() => {
+    onWordTapRef.current = onWordTap;
+  }, [onWordTap]);
+
   const notifySelectionChange = useCallback(() => {
     subscribersRef.current.forEach((cb) => cb());
   }, []);
+
+  const notifyInteractionChange = useCallback(() => {
+    interactionSubscribersRef.current.forEach((cb) => cb());
+  }, []);
+
+  const setSelectedPhrase = useCallback(
+    (phrase: string | null) => {
+      selectedPhraseRef.current = phrase;
+      setSelectedPhraseState(phrase);
+      notifyInteractionChange();
+    },
+    [notifyInteractionChange]
+  );
 
   const subscribeSelection = useCallback((callback: () => void) => {
     subscribersRef.current.add(callback);
@@ -79,26 +131,38 @@ export function TranslatableTextProvider({
     };
   }, []);
 
+  const subscribeInteractionState = useCallback((callback: () => void) => {
+    interactionSubscribersRef.current.add(callback);
+    return () => {
+      interactionSubscribersRef.current.delete(callback);
+    };
+  }, []);
+
+  const getInteractionState = useCallback(
+    () => ({
+      isDragging: isDraggingRef.current,
+      hasPhrase: selectedPhraseRef.current !== null,
+    }),
+    []
+  );
+
   const closeWordTooltip = useCallback(() => {
     setActiveWord(null);
   }, []);
 
-  const handleWordClick = useCallback(
-    (input: ActiveWordState) => {
-      const prev = activeWordRef.current;
-      if (prev?.index === input.index) {
-        setActiveWord(null);
-        return;
-      }
-      if (prev !== null) {
-        setActiveWord(null);
-        return;
-      }
-      onWordTap?.();
-      setActiveWord(input);
-    },
-    [onWordTap]
-  );
+  const handleWordClick = useCallback((input: ActiveWordState) => {
+    const prev = activeWordRef.current;
+    if (prev?.index === input.index) {
+      setActiveWord(null);
+      return;
+    }
+    if (prev !== null) {
+      setActiveWord(null);
+      return;
+    }
+    onWordTapRef.current?.();
+    setActiveWord(input);
+  }, []);
 
   const isIndexSelected = useCallback((index: number): boolean => {
     const start = dragStartRef.current;
@@ -168,14 +232,19 @@ export function TranslatableTextProvider({
       dragStartElementRef.current = element;
       installDocumentDragListeners();
       notifySelectionChange();
+      notifyInteractionChange();
       startTransition(() => {
-        setIsDragging(true);
         setSelectedPhrase(null);
         setPhraseAnchorEl(null);
         setActiveWord(null);
       });
     },
-    [notifySelectionChange, installDocumentDragListeners]
+    [
+      notifySelectionChange,
+      notifyInteractionChange,
+      installDocumentDragListeners,
+      setSelectedPhrase,
+    ]
   );
 
   const updateDrag = useCallback(
@@ -213,6 +282,7 @@ export function TranslatableTextProvider({
     if (!isDraggingRef.current) return;
     isDraggingRef.current = false;
     removeDocumentDragListeners();
+    notifyInteractionChange();
 
     const start = dragStartRef.current;
     const end = dragEndRef.current;
@@ -222,17 +292,19 @@ export function TranslatableTextProvider({
     if (hasDragged && phrase) {
       setSelectedPhrase(phrase);
       setPhraseAnchorEl(dragStartElementRef.current);
-      onTranslatePhrase?.(phrase);
+      onTranslatePhraseRef.current?.(phrase);
     } else {
       dragStartRef.current = null;
       dragEndRef.current = null;
       notifySelectionChange();
     }
-
-    startTransition(() => {
-      setIsDragging(false);
-    });
-  }, [buildPhrase, onTranslatePhrase, notifySelectionChange, removeDocumentDragListeners]);
+  }, [
+    buildPhrase,
+    notifySelectionChange,
+    notifyInteractionChange,
+    removeDocumentDragListeners,
+    setSelectedPhrase,
+  ]);
 
   useEffect(() => {
     updateDragRef.current = updateDrag;
@@ -246,12 +318,17 @@ export function TranslatableTextProvider({
     dragStartElementRef.current = null;
     removeDocumentDragListeners();
     notifySelectionChange();
+    notifyInteractionChange();
     startTransition(() => {
-      setIsDragging(false);
       setSelectedPhrase(null);
       setPhraseAnchorEl(null);
     });
-  }, [notifySelectionChange, removeDocumentDragListeners]);
+  }, [
+    notifySelectionChange,
+    notifyInteractionChange,
+    removeDocumentDragListeners,
+    setSelectedPhrase,
+  ]);
 
   const closePhraseTooltip = useCallback(() => {
     dragStartRef.current = null;
@@ -259,14 +336,10 @@ export function TranslatableTextProvider({
     setSelectedPhrase(null);
     setPhraseAnchorEl(null);
     notifySelectionChange();
-  }, [notifySelectionChange]);
+  }, [notifySelectionChange, setSelectedPhrase]);
 
-  const value = useMemo<TranslatableTextContextValue>(
+  const actions = useMemo<TranslatableTextActionsContextValue>(
     () => ({
-      isDragging,
-      phraseAnchorEl,
-      selectedPhrase,
-      activeWord,
       startDrag,
       updateDrag,
       endDrag,
@@ -278,12 +351,10 @@ export function TranslatableTextProvider({
       subscribeSelection,
       isIndexSelected,
       getSelectedIndices,
+      subscribeInteractionState,
+      getInteractionState,
     }),
     [
-      isDragging,
-      phraseAnchorEl,
-      selectedPhrase,
-      activeWord,
       startDrag,
       updateDrag,
       endDrag,
@@ -295,10 +366,26 @@ export function TranslatableTextProvider({
       subscribeSelection,
       isIndexSelected,
       getSelectedIndices,
+      subscribeInteractionState,
+      getInteractionState,
     ]
   );
 
+  const uiValue = useMemo<TranslatableTextUIContextValue>(
+    () => ({
+      activeWord,
+      phraseAnchorEl,
+      selectedPhrase,
+    }),
+    [activeWord, phraseAnchorEl, selectedPhrase]
+  );
+
   return (
-    <TranslatableTextContext.Provider value={value}>{children}</TranslatableTextContext.Provider>
+    <TranslatableTextActionsContext.Provider value={actions}>
+      <TranslatableTextUIContext.Provider value={uiValue}>
+        <MemoizedChildTree>{children}</MemoizedChildTree>
+        {overlays}
+      </TranslatableTextUIContext.Provider>
+    </TranslatableTextActionsContext.Provider>
   );
 }
