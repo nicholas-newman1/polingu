@@ -16,7 +16,8 @@ export default defineConfig({
       },
     }),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
+      injectRegister: null,
       workbox: {
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
         globPatterns: ['**/*.{js,mjs,css,html,ico,png,svg,woff2}'],

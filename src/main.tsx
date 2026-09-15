@@ -13,6 +13,7 @@ import { AuthGate } from './components/AuthGate';
 import { SignIn } from './components/SignIn';
 import { Layout } from './components/Layout';
 import { AppSnackbar } from './components/AppSnackbar';
+import { PwaUpdatePrompt } from './components/PwaUpdatePrompt';
 import { OfflineIndicator } from './components/OfflineIndicator';
 import { DashboardPage } from './pages/DashboardPage';
 import { DeclensionPage } from './pages/DeclensionPage';
@@ -137,6 +138,7 @@ createRoot(document.getElementById('root')!).render(
             </AuthGate>
           </AuthProvider>
           <AppSnackbar />
+          <PwaUpdatePrompt />
           <OfflineIndicator />
         </SnackbarProvider>
       </ThemedApp>
