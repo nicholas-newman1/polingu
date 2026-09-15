@@ -6,8 +6,15 @@ import type { ConjugationReviewDataStore, ConjugationFormKey } from '../../types
 import type { AspectPairsReviewDataStore } from '../../types/aspectPairs';
 import { getCurrentUserId } from '../cachedAuth';
 
+/**
+ * Local calendar date as YYYY-MM-DD. Daily review counters roll over at the
+ * user's midnight, not UTC midnight.
+ */
 export function getTodayString(): string {
-  return new Date().toISOString().split('T')[0];
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${now.getFullYear()}-${month}-${day}`;
 }
 
 export function includesWordId(array: VocabularyWordId[], id: VocabularyWordId): boolean {
@@ -102,6 +109,22 @@ export const DECLENSION_SESSION_DOC_PATH = 'declensionReviewSession';
 export function includesVerbId(array: string[], id: string): boolean {
   return array.includes(id);
 }
+
+/**
+ * Docs holding per-day review counters. Two devices can both append to these on
+ * the same day, so writes to them are merged against the server copy rather
+ * than overwriting it.
+ */
+export const REVIEW_SESSION_DOC_PATHS = new Set<string>([
+  getSentenceSessionDocPath('pl-to-en'),
+  getSentenceSessionDocPath('en-to-pl'),
+  getVocabularySessionDocPath('pl-to-en'),
+  getVocabularySessionDocPath('en-to-pl'),
+  getConjugationSessionDocPath('pl-to-en'),
+  getConjugationSessionDocPath('en-to-pl'),
+  ASPECT_PAIRS_SESSION_DOC_PATH,
+  DECLENSION_SESSION_DOC_PATH,
+]);
 
 export function getDefaultAspectPairsReviewStore(): AspectPairsReviewDataStore {
   return {

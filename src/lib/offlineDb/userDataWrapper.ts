@@ -8,10 +8,10 @@
  * - REFRESH: Background-refresh all cached data from Firestore after initial load
  */
 
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, runTransaction, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { userDb } from './userDb';
-import { getUserId } from '../storage/helpers';
+import { getUserId, REVIEW_SESSION_DOC_PATHS } from '../storage/helpers';
 
 /**
  * Legacy single-document review data keys. These were per-user docs that held
@@ -35,6 +35,48 @@ export async function cleanupLegacyReviewUserDataRows(): Promise<void> {
   await Promise.all(
     Array.from(LEGACY_REVIEW_USER_DATA_KEYS).map((key) => userDb.userData.delete(key))
   );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Combine a session doc with the server's copy. On the same day the two devices
+ * have each seen a different subset of the day's cards, so the arrays are
+ * unioned; when the dates differ the later date wins outright because a new day
+ * resets the counters.
+ */
+function mergeSessionData(server: unknown, local: unknown): unknown {
+  if (!isRecord(server) || !isRecord(local)) return local;
+
+  const serverDate = typeof server.lastReviewDate === 'string' ? server.lastReviewDate : '';
+  const localDate = typeof local.lastReviewDate === 'string' ? local.lastReviewDate : '';
+  if (serverDate !== localDate) return localDate >= serverDate ? local : server;
+
+  const merged: Record<string, unknown> = { ...server, ...local };
+  for (const [key, localValue] of Object.entries(local)) {
+    const serverValue = server[key];
+    if (Array.isArray(localValue) && Array.isArray(serverValue)) {
+      merged[key] = Array.from(new Set([...serverValue, ...localValue]));
+    }
+  }
+  return merged;
+}
+
+/**
+ * Write a session doc without discarding counters another device recorded for
+ * the same day. Returns the value that actually landed on the server so the
+ * local cache can be brought in line with it.
+ */
+async function writeSessionData(userId: string, docPath: string, data: unknown): Promise<unknown> {
+  const docRef = doc(db, 'users', userId, 'data', docPath);
+  return runTransaction(db, async (tx) => {
+    const snap = await tx.get(docRef);
+    const merged = snap.exists() ? mergeSessionData(snap.data(), data) : data;
+    tx.set(docRef, merged as object);
+    return merged;
+  });
 }
 
 /**
@@ -63,6 +105,17 @@ export async function saveUserData<T>(
   if (!navigator.onLine) return;
 
   try {
+    if (REVIEW_SESSION_DOC_PATHS.has(docPath)) {
+      const merged = await writeSessionData(userId, docPath, serializedData);
+      await userDb.userData.put({
+        key: docPath,
+        data: merged,
+        lastModified: Date.now(),
+        pendingSync: 0,
+      });
+      return;
+    }
+
     const docRef = doc(db, 'users', userId, 'data', docPath);
     await setDoc(docRef, serializedData as object);
     await userDb.userData.update(docPath, { pendingSync: 0 });
@@ -157,9 +210,19 @@ export async function syncAllPendingToFirestore(): Promise<number> {
 
   for (const record of pending) {
     try {
-      const docRef = doc(db, 'users', userId, 'data', record.key);
-      await setDoc(docRef, record.data as object);
-      await userDb.userData.update(record.key, { pendingSync: 0 });
+      if (REVIEW_SESSION_DOC_PATHS.has(record.key)) {
+        const merged = await writeSessionData(userId, record.key, record.data);
+        await userDb.userData.put({
+          key: record.key,
+          data: merged,
+          lastModified: Date.now(),
+          pendingSync: 0,
+        });
+      } else {
+        const docRef = doc(db, 'users', userId, 'data', record.key);
+        await setDoc(docRef, record.data as object);
+        await userDb.userData.update(record.key, { pendingSync: 0 });
+      }
       synced++;
     } catch (e) {
       console.error(`Failed to sync ${record.key}:`, e);

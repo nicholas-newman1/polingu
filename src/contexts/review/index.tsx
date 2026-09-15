@@ -12,6 +12,10 @@ import {
   cleanupLegacyReviewUserDataRows,
 } from '../../lib/offlineDb/userDataWrapper';
 import { refreshSentenceTagsFromFirestore } from '../../lib/storage/sentenceTags';
+import {
+  refreshAllReviewCardsFromFirestore,
+  syncAllPendingReviewCards,
+} from '../../lib/storage/reviewStorageRegistry';
 import { DeclensionProvider, DeclensionContext, loadDeclensionData } from './DeclensionContext';
 import { VocabularyProvider, VocabularyContext, loadVocabularyData } from './VocabularyContext';
 import { SentenceProvider, SentenceContext, loadSentenceData } from './SentenceContext';
@@ -118,19 +122,23 @@ export function ReviewDataProvider({ children }: ReviewDataProviderProps) {
   }, []);
 
   const syncInFlightRef = useRef(false);
+  const freshDataAppliedRef = useRef(false);
   const performBackgroundSync = useCallback(async () => {
     if (!navigator.onLine || !getUserId()) return;
     if (syncInFlightRef.current) return;
     syncInFlightRef.current = true;
+    const syncUid = getUserId();
     try {
-      await syncAllPendingToFirestore();
+      await Promise.all([syncAllPendingToFirestore(), syncAllPendingReviewCards()]);
       await Promise.all([
         refreshAllUserDataFromFirestore(),
+        refreshAllReviewCardsFromFirestore(),
         syncContentFromFirestore(),
         refreshSentenceTagsFromFirestore(),
       ]);
       const fresh = await fetchAllData();
-      if (mountedRef.current && fresh) {
+      if (mountedRef.current && fresh && getUserId() === syncUid) {
+        freshDataAppliedRef.current = true;
         setData(fresh);
       }
     } catch (e) {
@@ -142,6 +150,7 @@ export function ReviewDataProvider({ children }: ReviewDataProviderProps) {
 
   useEffect(() => {
     let active = true;
+    freshDataAppliedRef.current = false;
 
     cleanupLegacyReviewUserDataRows().catch((e) => {
       console.error('Failed to remove legacy review IndexedDB rows:', e);
@@ -149,7 +158,7 @@ export function ReviewDataProvider({ children }: ReviewDataProviderProps) {
 
     fetchAllData().then((result) => {
       if (!active) return;
-      setData(result);
+      if (!freshDataAppliedRef.current) setData(result);
       setLoading(false);
       performBackgroundSync();
     });

@@ -12,8 +12,19 @@ import { getUserId } from './helpers';
  *
  * Each save diffs the new card map against the previous map (by reference equality
  * for unchanged cards) and only issues per-card writes/deletes for the deltas.
+ *
+ * Reads are cache-first so the UI paints instantly and works offline. Firestore
+ * remains the source of truth, so `refreshFromFirestore` must be called in the
+ * background after load to pull in reviews made on other devices.
  */
-export interface ReviewSubcollectionStorage<TCard> {
+
+/** Sync operations that are independent of the card type, so all collections can be driven together. */
+export interface ReviewSubcollectionSync {
+  refreshFromFirestore(): Promise<void>;
+  syncPendingCards(): Promise<void>;
+}
+
+export interface ReviewSubcollectionStorage<TCard> extends ReviewSubcollectionSync {
   loadCards(): Promise<Record<string, TCard>>;
   saveCardsDiff(prev: Record<string, TCard> | null, next: Record<string, TCard>): Promise<void>;
   clearAllCards(): Promise<void>;
@@ -57,29 +68,85 @@ export function createReviewSubcollectionStorage<TCard>(
     if (!navigator.onLine) return cached;
 
     try {
-      const snapshot = await getDocs(collection(db, 'users', userId, collectionName));
-      if (snapshot.empty) return cached;
-
-      const now = Date.now();
-      const records: ReviewCardRecord[] = snapshot.docs.map((d) => ({
-        compoundKey: compoundKey(collectionName, d.id),
-        collection: collectionName,
-        cardId: d.id,
-        data: d.data(),
-        lastModified: now,
-        pendingSync: 0,
-        pendingDelete: 0,
-      }));
-      await userDb.reviewCards.bulkPut(records);
-
-      const fresh: Record<string, TCard> = {};
-      for (const d of snapshot.docs) {
-        fresh[d.id] = deserialize(d.data());
-      }
-      return fresh;
+      await refreshFromFirestore();
     } catch (e) {
       console.error(`Failed to load ${collectionName} from Firestore:`, e);
       return cached;
+    }
+
+    return readCachedCardEntries(collectionName, deserialize);
+  }
+
+  /**
+   * Overwrite the local cache with Firestore's copy so reviews made on other
+   * devices show up here. Rows that still hold unsynced local changes are left
+   * alone, as are rows written while the fetch was in flight.
+   */
+  async function refreshFromFirestore(): Promise<void> {
+    const userId = getUserId();
+    if (!userId || !navigator.onLine) return;
+
+    const startedAt = Date.now();
+    const snapshot = await getDocs(collection(db, 'users', userId, collectionName));
+
+    const localRows = await userDb.reviewCards.where('collection').equals(collectionName).toArray();
+    const protectedKeys = new Set(
+      localRows
+        .filter((r) => r.pendingSync === 1 || r.pendingDelete === 1 || r.lastModified > startedAt)
+        .map((r) => r.compoundKey)
+    );
+
+    const serverKeys = new Set<string>();
+    const records: ReviewCardRecord[] = [];
+    for (const d of snapshot.docs) {
+      const key = compoundKey(collectionName, d.id);
+      serverKeys.add(key);
+      if (protectedKeys.has(key)) continue;
+      records.push({
+        compoundKey: key,
+        collection: collectionName,
+        cardId: d.id,
+        data: d.data(),
+        lastModified: startedAt,
+        pendingSync: 0,
+        pendingDelete: 0,
+      });
+    }
+
+    const removedKeys = localRows
+      .filter((r) => !serverKeys.has(r.compoundKey) && !protectedKeys.has(r.compoundKey))
+      .map((r) => r.compoundKey);
+
+    await userDb.transaction('rw', userDb.reviewCards, async () => {
+      if (removedKeys.length > 0) await userDb.reviewCards.bulkDelete(removedKeys);
+      if (records.length > 0) await userDb.reviewCards.bulkPut(records);
+    });
+  }
+
+  /**
+   * Retry card writes that never reached Firestore, e.g. reviews done offline.
+   * Without this they would stay in the local cache forever and never reach
+   * the user's other devices.
+   */
+  async function syncPendingCards(): Promise<void> {
+    const userId = getUserId();
+    if (!userId || !navigator.onLine) return;
+
+    const rows = await userDb.reviewCards.where('collection').equals(collectionName).toArray();
+
+    for (const row of rows.filter((r) => r.pendingSync === 1)) {
+      const ref = doc(db, 'users', userId, collectionName, row.cardId);
+      try {
+        if (row.pendingDelete === 1) {
+          await deleteDoc(ref);
+          await userDb.reviewCards.delete(row.compoundKey);
+        } else {
+          await setDoc(ref, row.data as object);
+          await userDb.reviewCards.update(row.compoundKey, { pendingSync: 0 });
+        }
+      } catch (e) {
+        console.error(`Failed to sync pending ${collectionName}/${row.cardId}:`, e);
+      }
     }
   }
 
@@ -162,21 +229,28 @@ export function createReviewSubcollectionStorage<TCard>(
     await Promise.all([...upserts, ...deletes]);
   }
 
-  async function clearAllCards(): Promise<void> {
-    const userId = getUserId();
-
+  async function clearLocalCards(): Promise<void> {
     const cachedRows = await userDb.reviewCards
       .where('collection')
       .equals(collectionName)
       .toArray();
     await userDb.reviewCards.bulkDelete(cachedRows.map((r) => r.compoundKey));
+  }
 
-    if (!userId || !navigator.onLine) return;
+  /**
+   * Firestore is emptied before the local cache so a background refresh landing
+   * mid-clear cannot resurrect the cards it is still able to read.
+   */
+  async function clearAllCards(): Promise<void> {
+    const userId = getUserId();
+
+    if (!userId || !navigator.onLine) {
+      await clearLocalCards();
+      return;
+    }
 
     try {
       const snapshot = await getDocs(collection(db, 'users', userId, collectionName));
-      if (snapshot.empty) return;
-
       const docs = snapshot.docs;
       for (let i = 0; i < docs.length; i += 400) {
         const chunk = docs.slice(i, i + 400);
@@ -187,8 +261,10 @@ export function createReviewSubcollectionStorage<TCard>(
     } catch (e) {
       console.error(`Failed to clear ${collectionName} from Firestore:`, e);
       throw e;
+    } finally {
+      await clearLocalCards();
     }
   }
 
-  return { loadCards, saveCardsDiff, clearAllCards };
+  return { loadCards, saveCardsDiff, clearAllCards, refreshFromFirestore, syncPendingCards };
 }
