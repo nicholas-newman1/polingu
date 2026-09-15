@@ -1,4 +1,15 @@
-import { collection, doc, setDoc, deleteDoc, getDocs, writeBatch } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  setDoc,
+  deleteDoc,
+  getDocs,
+  getDocsFromServer,
+  runTransaction,
+  writeBatch,
+  type DocumentData,
+  type QuerySnapshot,
+} from 'firebase/firestore';
 import { db } from '../firebase';
 import { userDb, type ReviewCardCollection, type ReviewCardRecord } from '../offlineDb/userDb';
 import { getUserId } from './helpers';
@@ -15,7 +26,9 @@ import { getUserId } from './helpers';
  *
  * Reads are cache-first so the UI paints instantly and works offline. Firestore
  * remains the source of truth, so `refreshFromFirestore` must be called in the
- * background after load to pull in reviews made on other devices.
+ * background after load to pull in reviews made on other devices. That pull has
+ * to come from the server: the Firestore SDK keeps its own persistent cache, and
+ * a snapshot served from it only reflects what this device already knew.
  */
 
 /** Sync operations that are independent of the card type, so all collections can be driven together. */
@@ -38,6 +51,26 @@ export interface ReviewSubcollectionConfig<TCard> {
 
 function compoundKey(collectionName: ReviewCardCollection, cardId: string): string {
   return `${collectionName}:${cardId}`;
+}
+
+/**
+ * When a card was last rated, in epoch ms, read from the serialized form every
+ * card type shares. Used to decide which side of a conflict is newer; cards that
+ * have never been rated return 0 so any rated copy beats them.
+ */
+function lastRatedAt(raw: unknown): number {
+  if (typeof raw !== 'object' || raw === null) return 0;
+  const lastReview = (raw as { fsrsCard?: { last_review?: unknown } }).fsrsCard?.last_review;
+
+  if (typeof lastReview === 'string') {
+    const parsed = Date.parse(lastReview);
+    return Number.isNaN(parsed) ? 0 : parsed;
+  }
+  if (lastReview instanceof Date) return lastReview.getTime();
+  if (typeof (lastReview as { toMillis?: () => number })?.toMillis === 'function') {
+    return (lastReview as { toMillis: () => number }).toMillis();
+  }
+  return 0;
 }
 
 async function readCachedCardEntries<TCard>(
@@ -69,26 +102,31 @@ export function createReviewSubcollectionStorage<TCard>(
 
     try {
       await refreshFromFirestore();
-    } catch (e) {
-      console.error(`Failed to load ${collectionName} from Firestore:`, e);
-      return cached;
+    } catch {
+      // Nothing cached locally and the server is unreachable, so fall back to
+      // whatever the Firestore SDK has. There is no local data to clobber here.
+      try {
+        const startedAt = Date.now();
+        const snapshot = await getDocs(collection(db, 'users', userId, collectionName));
+        await applySnapshot(snapshot, startedAt);
+      } catch (e) {
+        console.error(`Failed to load ${collectionName} from Firestore:`, e);
+        return cached;
+      }
     }
 
     return readCachedCardEntries(collectionName, deserialize);
   }
 
   /**
-   * Overwrite the local cache with Firestore's copy so reviews made on other
+   * Replace the local cache with the server's copy so reviews made on other
    * devices show up here. Rows that still hold unsynced local changes are left
    * alone, as are rows written while the fetch was in flight.
    */
-  async function refreshFromFirestore(): Promise<void> {
-    const userId = getUserId();
-    if (!userId || !navigator.onLine) return;
-
-    const startedAt = Date.now();
-    const snapshot = await getDocs(collection(db, 'users', userId, collectionName));
-
+  async function applySnapshot(
+    snapshot: QuerySnapshot<DocumentData>,
+    startedAt: number
+  ): Promise<void> {
     const localRows = await userDb.reviewCards.where('collection').equals(collectionName).toArray();
     const protectedKeys = new Set(
       localRows
@@ -124,9 +162,29 @@ export function createReviewSubcollectionStorage<TCard>(
   }
 
   /**
+   * Throws when the server cannot be reached, rather than quietly applying a
+   * cached snapshot, so callers can leave the existing cache in place and retry.
+   */
+  async function refreshFromFirestore(): Promise<void> {
+    const userId = getUserId();
+    if (!userId || !navigator.onLine) return;
+
+    const startedAt = Date.now();
+    const snapshot = await getDocsFromServer(collection(db, 'users', userId, collectionName));
+    if (snapshot.metadata.fromCache) return;
+
+    await applySnapshot(snapshot, startedAt);
+  }
+
+  /**
    * Retry card writes that never reached Firestore, e.g. reviews done offline.
    * Without this they would stay in the local cache forever and never reach
    * the user's other devices.
+   *
+   * A pending row can be arbitrarily old, so it must not overwrite a review the
+   * user has since done elsewhere. Each push compares the two copies and yields
+   * to the server when the server's rating is newer; the row then stops being
+   * pending so the next refresh can replace it.
    */
   async function syncPendingCards(): Promise<void> {
     const userId = getUserId();
@@ -140,10 +198,21 @@ export function createReviewSubcollectionStorage<TCard>(
         if (row.pendingDelete === 1) {
           await deleteDoc(ref);
           await userDb.reviewCards.delete(row.compoundKey);
-        } else {
-          await setDoc(ref, row.data as object);
-          await userDb.reviewCards.update(row.compoundKey, { pendingSync: 0 });
+          continue;
         }
+
+        const localRatedAt = lastRatedAt(row.data);
+        const serverWins = await runTransaction(db, async (tx) => {
+          const snap = await tx.get(ref);
+          if (snap.exists() && lastRatedAt(snap.data()) > localRatedAt) return true;
+          tx.set(ref, row.data as object);
+          return false;
+        });
+
+        await userDb.reviewCards.update(row.compoundKey, {
+          pendingSync: 0,
+          ...(serverWins ? { lastModified: 0 } : {}),
+        });
       } catch (e) {
         console.error(`Failed to sync pending ${collectionName}/${row.cardId}:`, e);
       }
