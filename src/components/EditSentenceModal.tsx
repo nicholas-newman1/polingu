@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useForm, Controller, useWatch } from 'react-hook-form';
 import {
   Dialog,
@@ -15,6 +15,8 @@ import {
   MenuItem,
   Stack,
   Divider,
+  Alert,
+  Typography,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import { styled } from '../lib/styled';
@@ -26,6 +28,7 @@ import { AudioRegenerator } from './AudioRegenerator';
 import { FieldEndAdornment } from './FieldEndAdornment';
 import type { Sentence, CEFRLevel } from '../types/sentences';
 import { ALL_LEVELS } from '../types/sentences';
+import { findLinkedVocabularyWord } from '../lib/sentences/findLinkedVocabularyWord';
 
 const StyledDialog = styled(Dialog)(({ theme }) => ({
   '& .MuiDialog-paper': {
@@ -101,9 +104,17 @@ export function EditSentenceModal({
   initialValues,
 }: EditSentenceModalProps) {
   const { isAdmin } = useAuthContext();
-  const { sentenceTags } = useReviewData();
+  const { sentenceTags, vocabularyWords } = useReviewData();
   const allTags = [...sentenceTags.topics, ...sentenceTags.grammar, ...sentenceTags.style];
   const [pendingAudioUrl, setPendingAudioUrl] = useState<string | null>(null);
+
+  const linkedVocabularyWord = useMemo(
+    () => findLinkedVocabularyWord(sentence, vocabularyWords),
+    [sentence, vocabularyWords]
+  );
+
+  const showLinkedVocabulary =
+    !isCreating && sentence?.source === 'vocab-example' && !!sentence.sourceVocabularyId;
 
   const {
     control,
@@ -171,6 +182,25 @@ export function EditSentenceModal({
         </IconButton>
       </Header>
       <Content>
+        {showLinkedVocabulary && (
+          <Alert severity="info" data-qa="edit-sentence-linked-vocabulary">
+            {linkedVocabularyWord ? (
+              <Typography variant="body2" component="span" data-qa="edit-sentence-linked-word">
+                <strong>Linked word:</strong> {linkedVocabularyWord.polish} ·{' '}
+                {linkedVocabularyWord.english}
+              </Typography>
+            ) : (
+              <Typography
+                variant="body2"
+                component="span"
+                data-qa="edit-sentence-linked-word-missing"
+              >
+                <strong>Linked word:</strong> unavailable (vocabulary entry not found)
+              </Typography>
+            )}
+          </Alert>
+        )}
+
         {isAdmin && sentence && !isCreating && (
           <>
             <AudioRegenerator
