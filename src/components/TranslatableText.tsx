@@ -218,12 +218,7 @@ function PhraseTooltip({
   if (!selectedPhrase || !phraseAnchorEl) return null;
 
   return (
-    <WordTooltipPopper
-      open={true}
-      anchorEl={phraseAnchorEl}
-      popperRef={popperRef}
-      modifiers={[{ name: 'offset', options: { offset: [0, 4] } }]}
-    >
+    <WordTooltipPopper open={true} anchorEl={phraseAnchorEl} popperRef={popperRef}>
       <TooltipContent>
         {loading ? (
           <CircularProgress size={16} sx={{ color: 'tooltip.text' }} />
@@ -498,12 +493,7 @@ function WordTooltip({
   if (!activeWord) return null;
 
   return (
-    <WordTooltipPopper
-      open={true}
-      anchorEl={activeWord.anchorEl}
-      popperRef={popperRef}
-      modifiers={[{ name: 'offset', options: { offset: [0, 4] } }]}
-    >
+    <WordTooltipPopper open={true} anchorEl={activeWord.anchorEl} popperRef={popperRef}>
       <TooltipContent>
         {loading || isSaving ? (
           <CircularProgress size={16} sx={{ color: 'tooltip.text' }} />

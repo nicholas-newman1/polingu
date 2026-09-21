@@ -394,12 +394,7 @@ function TranslatableWordComponent({
         {word}
       </WordComponent>
       {showLocalTooltip && (
-        <WordTooltipPopper
-          open={showLocalTooltip}
-          anchorEl={anchorEl}
-          popperRef={popperRef}
-          modifiers={[{ name: 'offset', options: { offset: [0, 4] } }]}
-        >
+        <WordTooltipPopper open={showLocalTooltip} anchorEl={anchorEl} popperRef={popperRef}>
           <TooltipContent>
             {loading ? (
               <CircularProgress size={16} sx={{ color: 'tooltip.text' }} />
