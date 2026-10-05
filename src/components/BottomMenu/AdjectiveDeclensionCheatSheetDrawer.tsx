@@ -1,18 +1,18 @@
 import { CheatSheetDrawer } from './CheatSheetDrawer';
 import { DeclensionCheatSheet } from './DeclensionCheatSheet';
-import { allTables } from '../../data/declensionPatterns';
+import { adjectiveDeclensionTables } from '../../data/adjectiveDeclensionPatterns';
 import { useCheatSheetContext } from '../../hooks/useCheatSheetContext';
 
-export function DeclensionCheatSheetDrawer() {
+export function AdjectiveDeclensionCheatSheetDrawer() {
   const { activeSheet, closeSheet } = useCheatSheetContext();
 
   return (
     <CheatSheetDrawer
-      open={activeSheet === 'declension'}
+      open={activeSheet === 'adjective-declension'}
       onClose={closeSheet}
-      title="Noun Declension Cheat Sheet"
+      title="Adjective Declension Cheat Sheet"
     >
-      <DeclensionCheatSheet tables={allTables} />
+      <DeclensionCheatSheet tables={adjectiveDeclensionTables} pluralGridColumns={2} />
     </CheatSheetDrawer>
   );
 }

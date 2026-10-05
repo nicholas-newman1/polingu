@@ -284,9 +284,13 @@ export function DeclensionCheatSheetTable({ table }: CheatSheetTableProps) {
 
 interface DeclensionCheatSheetProps {
   tables: DeclensionTable[];
+  pluralGridColumns?: 2 | 3;
 }
 
-export function DeclensionCheatSheet({ tables }: DeclensionCheatSheetProps) {
+export function DeclensionCheatSheet({
+  tables,
+  pluralGridColumns = 3,
+}: DeclensionCheatSheetProps) {
   const singularTables = tables.filter((t) => t.number === 'singular');
   const pluralTables = tables.filter((t) => t.number === 'plural');
 
@@ -313,7 +317,7 @@ export function DeclensionCheatSheet({ tables }: DeclensionCheatSheetProps) {
             }}
           >
             {singularTables.map((table) => (
-              <DeclensionCheatSheetTable key={`${table.gender}-${table.number}`} table={table} />
+              <DeclensionCheatSheetTable key={`${table.title}-${table.number}`} table={table} />
             ))}
           </Box>
         </Box>
@@ -335,12 +339,15 @@ export function DeclensionCheatSheet({ tables }: DeclensionCheatSheetProps) {
           <Box
             sx={{
               display: 'grid',
-              gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' },
+              gridTemplateColumns: {
+                xs: '1fr',
+                md: pluralGridColumns === 2 ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)',
+              },
               gap: 3,
             }}
           >
             {pluralTables.map((table) => (
-              <DeclensionCheatSheetTable key={`${table.gender}-${table.number}`} table={table} />
+              <DeclensionCheatSheetTable key={`${table.title}-${table.number}`} table={table} />
             ))}
           </Box>
         </Box>

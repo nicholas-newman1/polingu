@@ -1,6 +1,12 @@
 import { createContext, useState, useCallback, type ReactNode } from 'react';
 
-export type CheatSheetType = 'declension' | 'consonants' | 'yi-rule' | 'conjugation' | null;
+export type CheatSheetType =
+  | 'declension'
+  | 'adjective-declension'
+  | 'consonants'
+  | 'yi-rule'
+  | 'conjugation'
+  | null;
 
 export interface CheatSheetContextValue {
   activeSheet: CheatSheetType;

@@ -24,6 +24,7 @@ import type { ReviewCounts } from '../contexts/review';
 import { alpha } from '../lib/theme';
 import { Header } from './Header';
 import { DeclensionCheatSheetDrawer } from './BottomMenu/DeclensionCheatSheetDrawer';
+import { AdjectiveDeclensionCheatSheetDrawer } from './BottomMenu/AdjectiveDeclensionCheatSheetDrawer';
 import { ConsonantsCheatSheetDrawer } from './BottomMenu/ConsonantsCheatSheetDrawer';
 import { YiRuleCheatSheetDrawer } from './BottomMenu/YiRuleCheatSheetDrawer';
 import { ConjugationCheatSheetDrawer } from './BottomMenu/ConjugationCheatSheetDrawer';
@@ -420,6 +421,7 @@ function LayoutContent() {
           </MainArea>
 
           <DeclensionCheatSheetDrawer />
+          <AdjectiveDeclensionCheatSheetDrawer />
           <ConsonantsCheatSheetDrawer />
           <YiRuleCheatSheetDrawer />
           <ConjugationCheatSheetDrawer />

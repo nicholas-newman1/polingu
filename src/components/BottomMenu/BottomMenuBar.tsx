@@ -15,6 +15,7 @@ import AbcIcon from '@mui/icons-material/Abc';
 import TranslateIcon from '@mui/icons-material/Translate';
 import SpellcheckIcon from '@mui/icons-material/Spellcheck';
 import AutoStoriesIcon from '@mui/icons-material/AutoStories';
+import LibraryBooksOutlinedIcon from '@mui/icons-material/LibraryBooksOutlined';
 import LibraryBooksIcon from '@mui/icons-material/LibraryBooks';
 import { useTranslationContext } from '../../hooks/useTranslationContext';
 import { useCheatSheetContext } from '../../hooks/useCheatSheetContext';
@@ -81,7 +82,8 @@ const Label = styled(Typography)({
 });
 
 const CHEAT_SHEETS = [
-  { key: 'declension', label: 'Declensions', icon: MenuBookIcon },
+  { key: 'declension', label: 'Noun Declensions', icon: MenuBookIcon },
+  { key: 'adjective-declension', label: 'Adjective Declensions', icon: LibraryBooksOutlinedIcon },
   { key: 'consonants', label: 'Consonants', icon: AbcIcon },
   { key: 'yi-rule', label: '-y/-i Rule', icon: SpellcheckIcon },
   { key: 'conjugation', label: 'Conjugations', icon: AutoStoriesIcon },
