@@ -2,39 +2,17 @@ import { useRef, useEffect, useLayoutEffect, useCallback, useState, useMemo, mem
 import { Box, IconButton, Typography } from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import { styled } from '../../lib/styled';
-import { TranslatableWord } from '../../components/TranslatableWord';
+import { TranslatableWords } from '../../components/lazyText/TranslatableWords';
+import { useLazyVisibility } from '../../components/lazyText/useLazyVisibility';
+import {
+  TEXT_LINE_HEIGHT,
+  FONT_SIZE_MAP,
+  estimatePlaceholderHeight,
+} from '../../components/lazyText/textSizing';
 import { TranslatableText } from '../../components/TranslatableText';
 import type { TranscriptSegment } from '../../types/audio';
 import type { TranscriptFontSize } from '../../types/appSettings';
 import { countWords } from '../../lib/utils/countWords';
-
-const SEGMENT_LINE_HEIGHT = 1.8;
-
-const FONT_SIZE_MAP: Record<TranscriptFontSize, { base: string; sm: string }> = {
-  small: { base: '1rem', sm: '1.2rem' },
-  medium: { base: '1.3rem', sm: '1.5rem' },
-  large: { base: '1.9rem', sm: '2.1rem' },
-};
-
-const PLACEHOLDER_FONT_PX: Record<TranscriptFontSize, number> = {
-  small: 19,
-  medium: 24,
-  large: 34,
-};
-
-const PLACEHOLDER_WORDS_PER_LINE: Record<TranscriptFontSize, number> = {
-  small: 12,
-  medium: 10,
-  large: 7,
-};
-
-function estimatePlaceholderHeight(wordCount: number, fontSize: TranscriptFontSize): number {
-  const fontPx = PLACEHOLDER_FONT_PX[fontSize];
-  const lineHeightPx = fontPx * SEGMENT_LINE_HEIGHT;
-  const wordsPerLine = PLACEHOLDER_WORDS_PER_LINE[fontSize];
-  const lines = Math.max(1, Math.ceil(wordCount / wordsPerLine));
-  return Math.ceil(lines * lineHeightPx);
-}
 
 const INITIAL_VISIBLE_BUFFER = 5;
 const LAZY_ROOT_MARGIN = '800px 0px';
@@ -69,7 +47,7 @@ const SegmentRow = styled(Box)<{
   minWidth: 0,
   transition: 'opacity 0.3s ease, font-size 0.2s ease',
   opacity: $editMode || $isActive ? 1 : 0.4,
-  lineHeight: SEGMENT_LINE_HEIGHT,
+  lineHeight: TEXT_LINE_HEIGHT,
   fontWeight: 900,
   fontSize: FONT_SIZE_MAP[$fontSize].base,
   overflowWrap: 'normal',
@@ -99,7 +77,7 @@ const SeekButtonSlot = styled(Box)({
   flexShrink: 0,
   display: 'flex',
   alignItems: 'center',
-  height: `${SEGMENT_LINE_HEIGHT}em`,
+  height: `${TEXT_LINE_HEIGHT}em`,
 });
 
 const EditModeBanner = styled(Box)(({ theme }) => ({
@@ -351,34 +329,16 @@ const LazyTranscriptRow = memo(function LazyTranscriptRow({
   ...rowProps
 }: LazyTranscriptRowProps) {
   const { isActive, fontSize, segIdx, registerRef } = rowProps;
-  const [hasBeenVisible, setHasBeenVisible] = useState(initiallyVisible || isActive);
-  const placeholderRef = useRef<HTMLDivElement | null>(null);
+  const { hasBeenVisible, setHasBeenVisible, setPlaceholder } = useLazyVisibility({
+    initiallyVisible: initiallyVisible || isActive,
+    rootMargin: LAZY_ROOT_MARGIN,
+    index: segIdx,
+    registerRef,
+  });
 
   if (!hasBeenVisible && isActive) {
     setHasBeenVisible(true);
   }
-
-  useEffect(() => {
-    if (hasBeenVisible) return;
-    const el = placeholderRef.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) setHasBeenVisible(true);
-      },
-      { rootMargin: LAZY_ROOT_MARGIN }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [hasBeenVisible]);
-
-  const handlePlaceholderRef = useCallback(
-    (el: HTMLDivElement | null) => {
-      placeholderRef.current = el;
-      registerRef(segIdx, el);
-    },
-    [registerRef, segIdx]
-  );
 
   if (hasBeenVisible) {
     return <TranscriptRow {...rowProps} />;
@@ -386,7 +346,7 @@ const LazyTranscriptRow = memo(function LazyTranscriptRow({
 
   return (
     <SegmentPlaceholder
-      ref={handlePlaceholderRef}
+      ref={setPlaceholder}
       data-qa={`segment-placeholder-${segIdx}`}
       sx={{ minHeight: estimatePlaceholderHeight(wordCount, fontSize) }}
     />
@@ -460,8 +420,8 @@ const TranscriptRow = memo(function TranscriptRow({
         </SeekButtonSlot>
       )}
       <SegmentText>
-        <SegmentContent
-          segment={segment}
+        <TranslatableWords
+          text={segment.text}
           wordOffset={wordOffset}
           translations={translations}
           onDailyLimitReached={onDailyLimitReached}
@@ -469,43 +429,4 @@ const TranscriptRow = memo(function TranscriptRow({
       </SegmentText>
     </SegmentRow>
   );
-});
-
-interface SegmentContentProps {
-  segment: TranscriptSegment;
-  wordOffset: number;
-  translations: Record<string, string>;
-  onDailyLimitReached?: (resetTime: string) => void;
-}
-
-const SegmentContent = memo(function SegmentContent({
-  segment,
-  wordOffset,
-  translations,
-  onDailyLimitReached,
-}: SegmentContentProps) {
-  const tokens = useMemo(() => segment.text.split(/(\s+)/), [segment.text]);
-
-  const elements = useMemo(() => {
-    let wordIndex = 0;
-    return tokens.map((token, index) => {
-      if (/^\s+$/.test(token)) return token;
-      const currentWordIndex = wordIndex;
-      wordIndex++;
-
-      return (
-        <TranslatableWord
-          key={index}
-          word={token}
-          wordIndex={wordOffset + currentWordIndex}
-          sentenceContext={segment.text}
-          translations={translations}
-          onDailyLimitReached={onDailyLimitReached}
-          disableHoverTranslate
-        />
-      );
-    });
-  }, [tokens, wordOffset, segment.text, translations, onDailyLimitReached]);
-
-  return <>{elements}</>;
 });

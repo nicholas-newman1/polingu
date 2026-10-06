@@ -7,7 +7,8 @@ import type { CEFRLevel } from '../../types/sentences';
 import { ALL_LEVELS } from '../../types/sentences';
 import { deleteSentence } from '../../lib/storage/systemSentences';
 import { ChipGroup } from './shared';
-import { computeCoverageStats, useDebouncedValue, formatCreatedAt } from './utils';
+import { computeCoverageStats, formatCreatedAt } from './utils';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import type { BrowseTabProps } from './types';
 
 export const BrowseTab = memo(function BrowseTab({

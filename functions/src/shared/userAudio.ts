@@ -5,6 +5,8 @@ export const MAX_DURATION_SECONDS = 600;
 const MAX_ITEMS_REGULAR = 1;
 export const MAX_TEXT_CHARS_USER = 2000;
 
+// Mirrors the client-side check in src/lib/audio/uploadAudio.ts; functions can't import app code.
+// fallow-ignore-next-line code-duplication
 const ACCEPTED_CONTENT_TYPES = new Set([
   'audio/mpeg',
   'audio/mp3',

@@ -21,8 +21,7 @@ import type {
 } from '../../types/conjugation';
 import type { TranslationDirection } from '../../types/common';
 import getConjugationSessionCards from '../../lib/conjugationScheduler/getConjugationSessionCards';
-import getConjugationPracticeAheadCards from '../../lib/conjugationScheduler/getConjugationPracticeAheadCards';
-import getConjugationExtraNewCards from '../../lib/conjugationScheduler/getConjugationExtraNewCards';
+import getConjugationExtraCards from '../../lib/conjugationScheduler/getConjugationExtraCards';
 import { recordFormReview } from '../../lib/reviewSession/recordReview';
 import { DIRECTION_ROUTES, otherDirection, toModeStats } from '../../lib/reviewSession/directions';
 import { useAuthContext } from '../../hooks/useAuthContext';
@@ -87,9 +86,7 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
     sessionKey: currentDirection,
     getSessionCards: () =>
       getConjugationSessionCards(verbs, reviewStore, filters, directionSettings),
-    getPracticeAheadCards: (count) =>
-      getConjugationPracticeAheadCards(verbs, reviewStore, filters, count),
-    getExtraNewCards: (count) => getConjugationExtraNewCards(verbs, reviewStore, filters, count),
+    ...getConjugationExtraCards(verbs, reviewStore, filters),
     reviewStore,
     recordReview: recordFormReview,
     saveReviewStore: (store) => updateConjugationReviewStore(currentDirection, store),

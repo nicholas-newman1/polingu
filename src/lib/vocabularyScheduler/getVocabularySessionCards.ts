@@ -5,7 +5,7 @@ import type {
 } from '../../types/vocabulary';
 import getOrCreateVocabularyCardReviewData from '../storage/getOrCreateVocabularyCardReviewData';
 import { includesWordId } from '../storage/helpers';
-import isDue from '../fsrsUtils/isDue';
+import getReviewBucket from '../fsrsUtils/getReviewBucket';
 import sortByDueDate from '../fsrsUtils/sortByDueDate';
 import type { VocabularySessionCard } from './types';
 
@@ -22,28 +22,19 @@ export default function getVocabularySessionCards(
 
   for (const word of allWords) {
     const reviewData = getOrCreateVocabularyCardReviewData(word.id, reviewStore);
-    const state = reviewData.fsrsCard.state;
-    const isNew = state === 0;
-    const isLearning = state === 1 || state === 3;
+    const bucket = getReviewBucket(
+      reviewData.fsrsCard,
+      includesWordId(reviewStore.newCardsToday, word.id),
+      includesWordId(reviewStore.reviewedToday, word.id)
+    );
     const isCustom = word.isCustom === true;
     const targetNewCards = isCustom ? customNewCards : systemNewCards;
     const targetReviewCards = isCustom ? customReviewCards : systemReviewCards;
 
-    if (isNew) {
-      if (
-        !includesWordId(reviewStore.newCardsToday, word.id) &&
-        customNewCards.length + systemNewCards.length < remainingNewCardsToday
-      ) {
-        targetNewCards.push({ word, reviewData, isNew: true });
-      }
-    } else if (isLearning) {
-      if (!includesWordId(reviewStore.reviewedToday, word.id)) {
-        targetReviewCards.push({ word, reviewData, isNew: false });
-      }
-    } else if (isDue(reviewData.fsrsCard)) {
-      if (!includesWordId(reviewStore.reviewedToday, word.id)) {
-        targetReviewCards.push({ word, reviewData, isNew: false });
-      }
+    if (bucket === 'new' && customNewCards.length + systemNewCards.length < remainingNewCardsToday) {
+      targetNewCards.push({ word, reviewData, isNew: true });
+    } else if (bucket === 'review') {
+      targetReviewCards.push({ word, reviewData, isNew: false });
     }
   }
 

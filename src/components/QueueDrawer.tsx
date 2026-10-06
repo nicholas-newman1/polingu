@@ -23,6 +23,8 @@ import type { AudioItem, SystemAudioItem } from '../types/audio';
 
 type AnyAudioItem = AudioItem | SystemAudioItem;
 import type { QueueSection } from '../hooks/useQueueManager';
+import { TrackIcon } from './audioStyles';
+import { formatDuration } from '../lib/utils/formatDuration';
 
 const DrawerContent = styled(Box)({
   height: '100%',
@@ -67,18 +69,6 @@ const TrackRow = styled(Box)(({ theme }) => ({
   },
 }));
 
-const TrackIconWrap = styled(Box)(({ theme }) => ({
-  width: 36,
-  height: 36,
-  borderRadius: 999,
-  backgroundColor: theme.palette.primary.main,
-  color: theme.palette.primary.contrastText,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  flexShrink: 0,
-}));
-
 const SectionLabel = styled(Typography)(({ theme }) => ({
   padding: theme.spacing(1.5, 2, 0.5),
   letterSpacing: 1,
@@ -90,12 +80,6 @@ const EmptyQueue = styled(Box)(({ theme }) => ({
   padding: theme.spacing(4, 2),
   color: theme.palette.text.secondary,
 }));
-
-function formatDuration(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  return `${m}:${s.toString().padStart(2, '0')}`;
-}
 
 interface SortableTrackRowProps {
   id: string;
@@ -280,13 +264,13 @@ export function QueueDrawer({ open, onClose }: QueueDrawerProps) {
               Now Playing
             </SectionLabel>
             <NowPlayingRow>
-              <TrackIconWrap sx={{ width: 40, height: 40 }}>
+              <TrackIcon sx={{ width: 40, height: 40 }}>
                 {isPlaying ? (
                   <GraphicEqRoundedIcon sx={{ fontSize: 20 }} />
                 ) : (
                   <PlayArrowIcon sx={{ fontSize: 20 }} />
                 )}
-              </TrackIconWrap>
+              </TrackIcon>
               <Box sx={{ flex: 1, minWidth: 0 }}>
                 <Typography variant="body2" fontWeight={700} noWrap>
                   {nowPlayingItem.title}

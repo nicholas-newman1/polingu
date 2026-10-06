@@ -13,6 +13,8 @@ import {
 import { db } from '../firebase';
 import { userDb, type ReviewCardCollection, type ReviewCardRecord } from '../offlineDb/userDb';
 import { getUserId } from './helpers';
+import type { Card as FSRSCard } from 'ts-fsrs';
+import type { TranslationDirection } from '../../types/common';
 
 /**
  * Per-card subcollection storage for review data.
@@ -43,10 +45,29 @@ export interface ReviewSubcollectionStorage<TCard> extends ReviewSubcollectionSy
   clearAllCards(): Promise<void>;
 }
 
-export interface ReviewSubcollectionConfig<TCard> {
-  collectionName: ReviewCardCollection;
-  serialize: (card: TCard) => unknown;
-  deserialize: (raw: unknown) => TCard;
+type ReviewCardData = { fsrsCard: FSRSCard };
+
+function serialize<TCard extends ReviewCardData>(card: TCard): unknown {
+  const { due, last_review } = card.fsrsCard;
+  return {
+    ...card,
+    fsrsCard: {
+      ...card.fsrsCard,
+      due: due instanceof Date ? due.toISOString() : due,
+      last_review: last_review instanceof Date ? last_review.toISOString() : last_review,
+    },
+  };
+}
+
+function deserialize<TCard extends ReviewCardData>(raw: unknown): TCard {
+  const card = raw as TCard;
+  if (card?.fsrsCard) {
+    if (card.fsrsCard.due) card.fsrsCard.due = new Date(card.fsrsCard.due);
+    if (card.fsrsCard.last_review) {
+      card.fsrsCard.last_review = new Date(card.fsrsCard.last_review);
+    }
+  }
+  return card;
 }
 
 function compoundKey(collectionName: ReviewCardCollection, cardId: string): string {
@@ -73,29 +94,26 @@ function lastRatedAt(raw: unknown): number {
   return 0;
 }
 
-async function readCachedCardEntries<TCard>(
-  collectionName: ReviewCardCollection,
-  deserialize: (raw: unknown) => TCard
+async function readCachedCardEntries<TCard extends ReviewCardData>(
+  collectionName: ReviewCardCollection
 ): Promise<Record<string, TCard>> {
   const rows = await userDb.reviewCards.where('collection').equals(collectionName).toArray();
   const result: Record<string, TCard> = {};
   for (const row of rows) {
     if (row.pendingDelete) continue;
-    result[row.cardId] = deserialize(row.data);
+    result[row.cardId] = deserialize<TCard>(row.data);
   }
   return result;
 }
 
-export function createReviewSubcollectionStorage<TCard>(
-  config: ReviewSubcollectionConfig<TCard>
+export function createReviewSubcollectionStorage<TCard extends ReviewCardData>(
+  collectionName: ReviewCardCollection
 ): ReviewSubcollectionStorage<TCard> {
-  const { collectionName, serialize, deserialize } = config;
-
   async function loadCards(): Promise<Record<string, TCard>> {
     const userId = getUserId();
     if (!userId) return {};
 
-    const cached = await readCachedCardEntries(collectionName, deserialize);
+    const cached = await readCachedCardEntries<TCard>(collectionName);
     if (Object.keys(cached).length > 0) return cached;
 
     if (!navigator.onLine) return cached;
@@ -115,7 +133,7 @@ export function createReviewSubcollectionStorage<TCard>(
       }
     }
 
-    return readCachedCardEntries(collectionName, deserialize);
+    return readCachedCardEntries<TCard>(collectionName);
   }
 
   /**
@@ -336,4 +354,13 @@ export function createReviewSubcollectionStorage<TCard>(
   }
 
   return { loadCards, saveCardsDiff, clearAllCards, refreshFromFirestore, syncPendingCards };
+}
+
+/** One storage per translation direction, for features reviewed both ways. */
+export function createDirectionalReviewStorage<TCard extends ReviewCardData>(
+  collectionNames: Record<TranslationDirection, ReviewCardCollection>
+): (direction: TranslationDirection) => ReviewSubcollectionStorage<TCard> {
+  const plToEn = createReviewSubcollectionStorage<TCard>(collectionNames['pl-to-en']);
+  const enToPl = createReviewSubcollectionStorage<TCard>(collectionNames['en-to-pl']);
+  return (direction) => (direction === 'pl-to-en' ? plToEn : enToPl);
 }

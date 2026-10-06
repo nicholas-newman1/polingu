@@ -14,6 +14,15 @@ interface ConjugationFormData {
 
 type ConjugationsData = Record<string, Record<string, ConjugationFormData>>;
 
+function trimmed(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+/** On create, fills in missing audio; on update, regenerates only when the text changed. */
+function needsAudio(isCreate: boolean, hasAudio: boolean, before: string, after: string) {
+  return isCreate ? !hasAudio : before !== after;
+}
+
 function collectVerbAudioJobs(
   docId: string,
   before: FirebaseFirestore.DocumentData | undefined,
@@ -22,18 +31,12 @@ function collectVerbAudioJobs(
   const isCreate = !before;
   const jobs: VerbAudioJob[] = [];
 
-  const beforeInf = ((before?.infinitive as string) ?? '').trim();
-  const afterInf = ((after.infinitive as string) ?? '').trim();
-  if (afterInf) {
-    const infinitiveExists = !!(after.infinitiveAudioUrl as string | undefined);
-    const shouldGenerateInfinitive = isCreate ? !infinitiveExists : beforeInf !== afterInf;
-    if (shouldGenerateInfinitive) {
-      jobs.push({
-        fieldPath: 'infinitiveAudioUrl',
-        text: afterInf,
-        audioType: 'verb-infinitive',
-      });
-    }
+  const afterInf = trimmed(after.infinitive);
+  if (
+    afterInf &&
+    needsAudio(isCreate, !!after.infinitiveAudioUrl, trimmed(before?.infinitive), afterInf)
+  ) {
+    jobs.push({ fieldPath: 'infinitiveAudioUrl', text: afterInf, audioType: 'verb-infinitive' });
   }
 
   const beforeConj = (before?.conjugations ?? {}) as ConjugationsData;
@@ -41,14 +44,9 @@ function collectVerbAudioJobs(
 
   for (const [tense, forms] of Object.entries(afterConj)) {
     for (const [formKey, form] of Object.entries(forms)) {
-      const afterPl = (form.pl ?? '').trim();
-      if (!afterPl) continue;
-
-      const beforePl = (beforeConj[tense]?.[formKey]?.pl ?? '').trim();
-      const formHasAudio = !!form.audioUrl;
-
-      const shouldGenerate = isCreate ? !formHasAudio : beforePl !== afterPl;
-      if (!shouldGenerate) continue;
+      const afterPl = trimmed(form.pl);
+      const beforePl = trimmed(beforeConj[tense]?.[formKey]?.pl);
+      if (!afterPl || !needsAudio(isCreate, !!form.audioUrl, beforePl, afterPl)) continue;
 
       jobs.push({
         fieldPath: `conjugations.${tense}.${formKey}.audioUrl`,

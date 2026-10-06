@@ -4,7 +4,6 @@ import {
   Alert,
   Box,
   Button,
-  Chip,
   FormControl,
   InputLabel,
   MenuItem,
@@ -19,6 +18,7 @@ import { useReviewData } from '../../hooks/useReviewData';
 import { useListening } from '../../contexts/ListeningContext';
 import { useAuthContext } from '../../hooks/useAuthContext';
 import { ListeningSettingsPanel } from '../../components/ListeningSettingsPanel';
+import { ToggleLevelChip } from '../../components/LevelChip';
 import type { TranslationDirection } from '../../types/common';
 import type {
   ListeningFeature,
@@ -53,19 +53,6 @@ const Section = styled(Box)(({ theme }) => ({
   backgroundColor: theme.palette.background.paper,
   border: `1px solid ${theme.palette.divider}`,
 }));
-
-const LevelChip = styled(Chip)<{ $level: CEFRLevel; $active?: boolean }>(
-  ({ theme, $level, $active = true }) => ({
-    backgroundColor: $active ? theme.palette.levels[$level] : theme.palette.neutral.main,
-    color: theme.palette.common.white,
-    fontWeight: 600,
-    fontSize: '0.75rem',
-    cursor: 'pointer',
-    '&:hover': {
-      backgroundColor: $active ? theme.palette.levels[$level] : theme.palette.neutral.dark,
-    },
-  })
-);
 
 const StartButton = styled(Button)(({ theme }) => ({
   borderRadius: theme.spacing(1.5),
@@ -306,7 +293,7 @@ export function ListeningHubPage() {
               </Typography>
               <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
                 {ALL_LEVELS.map((level) => (
-                  <LevelChip
+                  <ToggleLevelChip
                     key={level}
                     label={level}
                     $level={level}

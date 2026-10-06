@@ -20,7 +20,8 @@ import type {
   AspectPairsReviewDataStore,
   AspectPairsSettings,
 } from '../../types/aspectPairs';
-import isDue from '../../lib/fsrsUtils/isDue';
+import getReviewBucket from '../../lib/fsrsUtils/getReviewBucket';
+import countDueCards from '../../lib/fsrsUtils/countDueCards';
 import getOrCreateDeclensionCardReviewData from '../../lib/storage/getOrCreateDeclensionCardReviewData';
 import getOrCreateVocabularyCardReviewData from '../../lib/storage/getOrCreateVocabularyCardReviewData';
 import getOrCreateSentenceCardReviewData from '../../lib/storage/getOrCreateSentenceCardReviewData';
@@ -32,6 +33,7 @@ import {
   includesSentenceId,
   includesFormKey,
   includesVerbId,
+  includesWordId,
 } from '../../lib/storage/helpers';
 import { getDrillableFormsForVerb } from '../../lib/conjugationUtils';
 import { DeclensionContext } from './DeclensionContext';
@@ -61,35 +63,15 @@ function computeDeclensionDueCount(
   reviewStore: DeclensionReviewDataStore,
   settings: DeclensionSettings
 ): number {
-  let dueReviews = 0;
-  let newCards = 0;
-  const remainingNewCardsToday = settings.newCardsPerDay - reviewStore.newCardsToday.length;
-
-  for (const card of cards) {
-    const reviewData = getOrCreateDeclensionCardReviewData(card.id, reviewStore);
-    const state = reviewData.fsrsCard.state;
-    const isNew = state === 0;
-    const isLearning = state === 1 || state === 3;
-
-    if (isNew) {
-      if (
-        !includesDeclensionCardId(reviewStore.newCardsToday, card.id) &&
-        newCards < remainingNewCardsToday
-      ) {
-        newCards++;
-      }
-    } else if (isLearning) {
-      if (!includesDeclensionCardId(reviewStore.reviewedToday, card.id)) {
-        dueReviews++;
-      }
-    } else if (isDue(reviewData.fsrsCard)) {
-      if (!includesDeclensionCardId(reviewStore.reviewedToday, card.id)) {
-        dueReviews++;
-      }
-    }
-  }
-
-  return dueReviews + newCards;
+  const { newCardsToday, reviewedToday } = reviewStore;
+  const buckets = cards.map((card) =>
+    getReviewBucket(
+      getOrCreateDeclensionCardReviewData(card.id, reviewStore).fsrsCard,
+      includesDeclensionCardId(newCardsToday, card.id),
+      includesDeclensionCardId(reviewedToday, card.id)
+    )
+  );
+  return countDueCards(buckets, settings.newCardsPerDay - newCardsToday.length);
 }
 
 function computeVocabularyDueCount(
@@ -97,39 +79,15 @@ function computeVocabularyDueCount(
   reviewStore: VocabularyReviewDataStore,
   settings: VocabularyDirectionSettings
 ): number {
-  let dueReviews = 0;
-  let newCards = 0;
-  const remainingNewCardsToday = settings.newCardsPerDay - reviewStore.newCardsToday.length;
-
-  for (const word of words) {
-    const reviewData = getOrCreateVocabularyCardReviewData(word.id, reviewStore);
-    const state = reviewData.fsrsCard.state;
-    const isNew = state === 0;
-    const isLearning = state === 1 || state === 3;
-
-    if (isNew) {
-      const isAlreadyNew = reviewStore.newCardsToday.some((id) => String(id) === String(word.id));
-      if (!isAlreadyNew && newCards < remainingNewCardsToday) {
-        newCards++;
-      }
-    } else if (isLearning) {
-      const isAlreadyReviewed = reviewStore.reviewedToday.some(
-        (id) => String(id) === String(word.id)
-      );
-      if (!isAlreadyReviewed) {
-        dueReviews++;
-      }
-    } else if (isDue(reviewData.fsrsCard)) {
-      const isAlreadyReviewed = reviewStore.reviewedToday.some(
-        (id) => String(id) === String(word.id)
-      );
-      if (!isAlreadyReviewed) {
-        dueReviews++;
-      }
-    }
-  }
-
-  return dueReviews + newCards;
+  const { newCardsToday, reviewedToday } = reviewStore;
+  const buckets = words.map((word) =>
+    getReviewBucket(
+      getOrCreateVocabularyCardReviewData(word.id, reviewStore).fsrsCard,
+      includesWordId(newCardsToday, word.id),
+      includesWordId(reviewedToday, word.id)
+    )
+  );
+  return countDueCards(buckets, settings.newCardsPerDay - newCardsToday.length);
 }
 
 function computeSentenceDueCount(
@@ -137,37 +95,17 @@ function computeSentenceDueCount(
   reviewStore: SentenceReviewDataStore,
   settings: SentenceDirectionSettings
 ): number {
-  let dueReviews = 0;
-  let newCards = 0;
-  const remainingNewCardsToday = settings.newCardsPerDay - reviewStore.newCardsToday.length;
-
-  const filteredSentences = sentences.filter((s) => settings.selectedLevels.includes(s.level));
-
-  for (const sentence of filteredSentences) {
-    const reviewData = getOrCreateSentenceCardReviewData(sentence.id, reviewStore);
-    const state = reviewData.fsrsCard.state;
-    const isNew = state === 0;
-    const isLearning = state === 1 || state === 3;
-
-    if (isNew) {
-      if (
-        !includesSentenceId(reviewStore.newCardsToday, sentence.id) &&
-        newCards < remainingNewCardsToday
-      ) {
-        newCards++;
-      }
-    } else if (isLearning) {
-      if (!includesSentenceId(reviewStore.reviewedToday, sentence.id)) {
-        dueReviews++;
-      }
-    } else if (isDue(reviewData.fsrsCard)) {
-      if (!includesSentenceId(reviewStore.reviewedToday, sentence.id)) {
-        dueReviews++;
-      }
-    }
-  }
-
-  return dueReviews + newCards;
+  const { newCardsToday, reviewedToday } = reviewStore;
+  const buckets = sentences
+    .filter((sentence) => settings.selectedLevels.includes(sentence.level))
+    .map((sentence) =>
+      getReviewBucket(
+        getOrCreateSentenceCardReviewData(sentence.id, reviewStore).fsrsCard,
+        includesSentenceId(newCardsToday, sentence.id),
+        includesSentenceId(reviewedToday, sentence.id)
+      )
+    );
+  return countDueCards(buckets, settings.newCardsPerDay - newCardsToday.length);
 }
 
 function computeConjugationDueCount(
@@ -175,39 +113,15 @@ function computeConjugationDueCount(
   reviewStore: ConjugationReviewDataStore,
   settings: ConjugationDirectionSettings
 ): number {
-  let dueReviews = 0;
-  let newForms = 0;
-  const remainingNewFormsToday = settings.newCardsPerDay - reviewStore.newFormsToday.length;
-
-  for (const verb of verbs) {
-    const drillableForms = getDrillableFormsForVerb(verb);
-
-    for (const form of drillableForms) {
-      const reviewData = getOrCreateConjugationFormReviewData(form.fullFormKey, reviewStore);
-      const state = reviewData.fsrsCard.state;
-      const isNew = state === 0;
-      const isLearning = state === 1 || state === 3;
-
-      if (isNew) {
-        if (
-          !includesFormKey(reviewStore.newFormsToday, form.fullFormKey) &&
-          newForms < remainingNewFormsToday
-        ) {
-          newForms++;
-        }
-      } else if (isLearning) {
-        if (!includesFormKey(reviewStore.reviewedToday, form.fullFormKey)) {
-          dueReviews++;
-        }
-      } else if (isDue(reviewData.fsrsCard)) {
-        if (!includesFormKey(reviewStore.reviewedToday, form.fullFormKey)) {
-          dueReviews++;
-        }
-      }
-    }
-  }
-
-  return dueReviews + newForms;
+  const { newFormsToday, reviewedToday } = reviewStore;
+  const buckets = verbs.flatMap(getDrillableFormsForVerb).map(({ fullFormKey }) =>
+    getReviewBucket(
+      getOrCreateConjugationFormReviewData(fullFormKey, reviewStore).fsrsCard,
+      includesFormKey(newFormsToday, fullFormKey),
+      includesFormKey(reviewedToday, fullFormKey)
+    )
+  );
+  return countDueCards(buckets, settings.newCardsPerDay - newFormsToday.length);
 }
 
 function computeAspectPairsDueCount(
@@ -215,33 +129,15 @@ function computeAspectPairsDueCount(
   reviewStore: AspectPairsReviewDataStore,
   settings: AspectPairsSettings
 ): number {
-  let dueReviews = 0;
-  let newCards = 0;
-  const remainingNewCardsToday = settings.newCardsPerDay - reviewStore.newCardsToday.length;
-
-  for (const card of aspectPairCards) {
-    const verbId = card.verb.id;
-    const reviewData = getOrCreateAspectPairsCardReviewData(verbId, reviewStore);
-    const state = reviewData.fsrsCard.state;
-    const isNew = state === 0;
-    const isLearning = state === 1 || state === 3;
-
-    if (isNew) {
-      if (!includesVerbId(reviewStore.newCardsToday, verbId) && newCards < remainingNewCardsToday) {
-        newCards++;
-      }
-    } else if (isLearning) {
-      if (!includesVerbId(reviewStore.reviewedToday, verbId)) {
-        dueReviews++;
-      }
-    } else if (isDue(reviewData.fsrsCard)) {
-      if (!includesVerbId(reviewStore.reviewedToday, verbId)) {
-        dueReviews++;
-      }
-    }
-  }
-
-  return dueReviews + newCards;
+  const { newCardsToday, reviewedToday } = reviewStore;
+  const buckets = aspectPairCards.map(({ verb }) =>
+    getReviewBucket(
+      getOrCreateAspectPairsCardReviewData(verb.id, reviewStore).fsrsCard,
+      includesVerbId(newCardsToday, verb.id),
+      includesVerbId(reviewedToday, verb.id)
+    )
+  );
+  return countDueCards(buckets, settings.newCardsPerDay - newCardsToday.length);
 }
 
 interface ReviewCountsProviderProps {

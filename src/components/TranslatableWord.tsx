@@ -3,7 +3,7 @@ import { CircularProgress, Typography, IconButton } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { styled } from '../lib/styled';
-import { translate, RateLimitMinuteError, RateLimitDailyError } from '../lib/translate';
+import { translate, handleTooltipTranslationError } from '../lib/translate';
 import {
   useTooltipInteraction,
   TappableSpan,
@@ -164,16 +164,14 @@ function TranslatableWordComponent({
       );
       setTranslation(result.translatedText);
     } catch (err) {
-      if (err instanceof RateLimitMinuteError) {
-        setError('Too many requests');
-        showSnackbar('Too many requests. Please wait a moment.', 'warning');
-      } else if (err instanceof RateLimitDailyError) {
-        setIsClicked(false);
-        onDailyLimitReached?.(err.resetTime);
-      } else {
-        setError('Translation failed');
-        showSnackbar('Translation failed. Please try again.', 'error');
-      }
+      handleTooltipTranslationError(err, {
+        setError,
+        showSnackbar,
+        onDailyLimit: (resetTime) => {
+          setIsClicked(false);
+          onDailyLimitReached?.(resetTime);
+        },
+      });
     } finally {
       setLoading(false);
     }

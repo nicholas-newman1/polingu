@@ -1,6 +1,5 @@
 import { Box, LinearProgress, Typography } from '@mui/material';
-import { styled } from '../../../lib/styled';
-import type { UploadProgress } from '../../../types/reader';
+import { styled } from '../lib/styled';
 
 const Overlay = styled(Box)(({ theme }) => ({
   position: 'fixed',
@@ -16,15 +15,16 @@ const Overlay = styled(Box)(({ theme }) => ({
 }));
 
 interface UploadProgressOverlayProps {
-  progress: UploadProgress;
+  progress: { status: string; uploadPercent?: number; error?: string };
+  processingLabel: string;
 }
 
-export function UploadProgressOverlay({ progress }: UploadProgressOverlayProps) {
+export function UploadProgressOverlay({ progress, processingLabel }: UploadProgressOverlayProps) {
   return (
     <Overlay>
       <Typography variant="body2" gutterBottom>
         {progress.status === 'uploading' && 'Uploading...'}
-        {progress.status === 'processing' && 'Processing book...'}
+        {progress.status === 'processing' && processingLabel}
         {progress.status === 'error' && `Error: ${progress.error}`}
       </Typography>
       {progress.status === 'uploading' && progress.uploadPercent !== undefined && (

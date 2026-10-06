@@ -14,7 +14,51 @@
         "functions": ["useReviewSession"],
         "maxCognitive": 20,
         "reason": "Composer hook; the score comes from nesting inside small closures rather than branching."
+      },
+      {
+        "files": [
+          "src/contexts/AudioPlayerContext.tsx",
+          "src/contexts/ListeningContext.tsx",
+          "src/contexts/TranslatableTextContext.tsx",
+          "src/contexts/review/SentenceContext.tsx",
+          "src/hooks/useQueueManager.ts"
+        ],
+        "functions": [
+          "AudioPlayerProvider",
+          "ListeningProvider",
+          "TranslatableTextProvider",
+          "SentenceProvider",
+          "useQueueManager"
+        ],
+        "maxCognitive": 60,
+        "reason": "Context providers and the queue hook are flat lists of useState/useCallback/useMemo; nearly the whole score is fallow's +1-per-hook density penalty (branching contributes under 5)."
+      },
+      {
+        "files": [
+          "src/components/TranslatableWord.tsx",
+          "src/components/TranslatableText.tsx",
+          "src/pages/AudioPlayerPage/index.tsx",
+          "src/pages/ReaderPage/index.tsx",
+          "src/pages/ReaderPage/components/PdfViewer.tsx",
+          "src/pages/ReaderPage/components/TextViewer.tsx",
+          "src/pages/AspectPairsPage/components/AspectPairsFlashcard.tsx"
+        ],
+        "functions": [
+          "TranslatableWordComponent",
+          "PhraseTooltip",
+          "WordTooltip",
+          "AudioPlayerPage",
+          "ReaderPage",
+          "PdfViewer",
+          "TextViewer",
+          "AspectPairsFlashcard"
+        ],
+        "maxCognitive": 40,
+        "reason": "Interactive views wiring several hooks (refs, effects, context reads); with hook density excluded each scores under the 25 component ceiling, and splitting would only move hooks into prop-drilled children."
       }
     ]
+  },
+  "duplicates": {
+    "ignore": ["src/data/**"]
   }
 }

@@ -9,12 +9,11 @@ import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { styled } from '../../../lib/styled';
-import { alpha } from '../../../lib/theme';
 import { TranslatableWord } from '../../../components/TranslatableWord';
 import { TranslatableText } from '../../../components/TranslatableText';
 import { useTranslatableTextActions } from '../../../hooks/useTranslatableTextActions';
-import { DRAWER_WIDTH } from '../../../constants/layout';
 import { PageProgressBar } from './PageProgressBar';
+import { ReaderNavigationBar } from './ReaderNavigationBar';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
@@ -59,25 +58,6 @@ const TextLayer = styled(Box)({
   overflow: 'hidden',
   lineHeight: 1,
 });
-
-const NavigationBar = styled(Box)(({ theme }) => ({
-  position: 'fixed',
-  bottom: BOTTOM_MENU_HEIGHT + PROGRESS_BAR_HEIGHT,
-  left: 0,
-  right: 0,
-  display: 'flex',
-  justifyContent: 'center',
-  alignItems: 'center',
-  gap: theme.spacing(2),
-  padding: theme.spacing(1),
-  backgroundColor: alpha(theme.palette.background.paper, 0.95),
-  backdropFilter: 'blur(8px)',
-  borderTop: `1px solid ${theme.palette.divider}`,
-  zIndex: 10,
-  [theme.breakpoints.up('md')]: {
-    left: DRAWER_WIDTH,
-  },
-}));
 
 interface TextItem {
   str: string;
@@ -464,7 +444,7 @@ export function PdfViewer({
           </TextLayer>
         </PageWrapper>
       </PageContainer>
-      <NavigationBar>
+      <ReaderNavigationBar $bottom={BOTTOM_MENU_HEIGHT + PROGRESS_BAR_HEIGHT} $gap={2}>
         <Box sx={{ position: 'absolute', left: 8, display: 'flex', alignItems: 'center' }}>
           <Tooltip title={bookmarks.includes(currentPage) ? 'Remove bookmark' : 'Add bookmark'}>
             <IconButton onClick={() => onBookmarkToggle?.(currentPage)} size="small">
@@ -508,7 +488,7 @@ export function PdfViewer({
             <AddIcon fontSize="small" />
           </IconButton>
         </Box>
-      </NavigationBar>
+      </ReaderNavigationBar>
       <PageProgressBar
         currentPage={currentPage}
         totalPages={totalPages}

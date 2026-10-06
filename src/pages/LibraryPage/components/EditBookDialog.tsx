@@ -6,12 +6,12 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  TextField,
   Typography,
 } from '@mui/material';
 import { updateBook } from '../../../lib/reader';
 import type { Book, BookColor } from '../../../types/reader';
 import { BOOK_COLORS } from '../../../types/reader';
+import { BookTitleAuthorFields } from './BookTitleAuthorFields';
 
 interface EditBookDialogProps {
   book: Book | null;
@@ -60,18 +60,11 @@ export function EditBookDialog({ book, onClose }: EditBookDialogProps) {
       <DialogTitle>Edit Book</DialogTitle>
       <DialogContent>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
-          <TextField
-            autoFocus
-            fullWidth
-            label="Title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-          />
-          <TextField
-            fullWidth
-            label="Author"
-            value={author}
-            onChange={(e) => setAuthor(e.target.value)}
+          <BookTitleAuthorFields
+            title={title}
+            author={author}
+            onTitleChange={setTitle}
+            onAuthorChange={setAuthor}
           />
           <Box>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>

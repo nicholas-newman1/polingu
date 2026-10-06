@@ -1,36 +1,21 @@
 import { createTheme, alpha, type Theme } from '@mui/material/styles';
 
+type ColorSwatch = { main: string; dark: string; gradient: string };
+
+type CustomPalette = {
+  gender: { masculine: ColorSwatch; feminine: ColorSwatch; neuter: ColorSwatch };
+  levels: Record<'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2', string>;
+  consonants: ColorSwatch;
+  yiRule: { i: ColorSwatch; y: ColorSwatch };
+  tooltip: { main: string; text: string; muted: string; accent: string; error: string };
+  neutral: { main: string; dark: string };
+};
+
 declare module '@mui/material/styles' {
-  interface Palette {
-    gender: {
-      masculine: { main: string; dark: string; gradient: string };
-      feminine: { main: string; dark: string; gradient: string };
-      neuter: { main: string; dark: string; gradient: string };
-    };
-    levels: Record<'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2', string>;
-    consonants: { main: string; dark: string; gradient: string };
-    yiRule: {
-      i: { main: string; dark: string; gradient: string };
-      y: { main: string; dark: string; gradient: string };
-    };
-    tooltip: { main: string; text: string; muted: string; accent: string; error: string };
-    neutral: { main: string; dark: string };
-  }
-  interface PaletteOptions {
-    gender?: {
-      masculine: { main: string; dark: string; gradient: string };
-      feminine: { main: string; dark: string; gradient: string };
-      neuter: { main: string; dark: string; gradient: string };
-    };
-    levels?: Record<'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2', string>;
-    consonants?: { main: string; dark: string; gradient: string };
-    yiRule?: {
-      i: { main: string; dark: string; gradient: string };
-      y: { main: string; dark: string; gradient: string };
-    };
-    tooltip?: { main: string; text: string; muted: string; accent: string; error: string };
-    neutral?: { main: string; dark: string };
-  }
+  // eslint-disable-next-line @typescript-eslint/no-empty-object-type
+  interface Palette extends CustomPalette {}
+  // eslint-disable-next-line @typescript-eslint/no-empty-object-type
+  interface PaletteOptions extends Partial<CustomPalette> {}
 }
 
 export { alpha };

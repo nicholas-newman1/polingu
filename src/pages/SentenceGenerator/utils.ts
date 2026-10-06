@@ -1,15 +1,5 @@
-import { useState, useEffect } from 'react';
 import type { Timestamp } from 'firebase/firestore';
 import type { CEFRLevel, Sentence } from '../../types/sentences';
-
-export function useDebouncedValue<T>(value: T, delay: number): T {
-  const [debouncedValue, setDebouncedValue] = useState(value);
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedValue(value), delay);
-    return () => clearTimeout(timer);
-  }, [value, delay]);
-  return debouncedValue;
-}
 
 export function formatCreatedAt(createdAt: unknown): string | null {
   if (!createdAt) return null;

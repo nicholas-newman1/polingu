@@ -4,8 +4,7 @@ import { db, storage } from '../shared/firebase.js';
 import { openaiApiKey } from '../shared/secrets.js';
 import { isKilled } from '../shared/killSwitch.js';
 import { isAdmin } from '../shared/auth.js';
-import { synthesizeChunkedTTS } from '../shared/tts.js';
-import { transcribePolishAudio } from '../shared/transcription.js';
+import { synthesizeAndTranscribe } from '../shared/textAudio.js';
 
 interface ProcessUserTextAudioTaskData {
   userId: string;
@@ -31,21 +30,11 @@ export const processUserTextAudio = onTaskDispatched(
         throw new Error('Audio processing is temporarily unavailable.');
       }
 
-      const audioBuffer = await synthesizeChunkedTTS(text);
       const finalPath = `audio/users/${userId}/${audioId}/audio.mp3`;
-      const bucket = storage.bucket(DEFAULT_BUCKET);
-
-      await bucket.file(finalPath).save(audioBuffer, {
-        contentType: 'audio/mpeg',
-      });
-
-      const apiKey = openaiApiKey.value();
-      if (!apiKey) throw new Error('OpenAI API key not configured.');
-
-      const { segments, words, duration } = await transcribePolishAudio(
-        audioBuffer,
-        'audio.mp3',
-        apiKey
+      const { audioBuffer, segments, words, duration } = await synthesizeAndTranscribe(
+        text,
+        finalPath,
+        'audio.mp3'
       );
 
       await audioRef.update({

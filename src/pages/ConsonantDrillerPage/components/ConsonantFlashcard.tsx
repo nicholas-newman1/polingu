@@ -6,32 +6,12 @@ import { styled } from '../../../lib/styled';
 import { alpha } from '../../../lib/theme';
 import type { ConsonantCard, ConsonantType, ConsonantWord } from '../../../types/consonants';
 import { getExampleWordsForConsonant } from '../../../data/consonants';
+import { FlashcardSurface, FlashcardWrapper } from '../../../components/flashcardStyles';
 
 interface ConsonantFlashcardProps {
   card: ConsonantCard;
   onNext: () => void;
 }
-
-const CardWrapper = styled(Box)({
-  width: '100%',
-  maxWidth: 420,
-  margin: '0 auto',
-});
-
-const StyledCard = styled(Box)(({ theme }) => ({
-  padding: theme.spacing(3),
-  minHeight: 420,
-  display: 'flex',
-  flexDirection: 'column',
-  backgroundColor: alpha(theme.palette.background.paper, 0.95),
-  backdropFilter: 'blur(8px)',
-  boxShadow: `0 8px 32px ${alpha(theme.palette.consonants.main, 0.4)}`,
-  borderRadius: theme.spacing(2),
-  [theme.breakpoints.up('sm')]: {
-    padding: theme.spacing(4),
-    minHeight: 460,
-  },
-}));
 
 const HeaderLabel = styled(Typography)(({ theme }) => ({
   color: theme.palette.text.disabled,
@@ -184,8 +164,8 @@ export function ConsonantFlashcard({ card, onNext }: ConsonantFlashcardProps) {
       );
 
   return (
-    <CardWrapper className="animate-fade-up">
-      <StyledCard>
+    <FlashcardWrapper $maxWidth={420} className="animate-fade-up">
+      <FlashcardSurface $accent="consonants">
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
           <HeaderLabel>
             {isWordMode ? 'Word Mode' : 'Consonant Mode'} · Is this hard or soft?
@@ -367,7 +347,7 @@ export function ConsonantFlashcard({ card, onNext }: ConsonantFlashcardProps) {
             </>
           )}
         </ButtonsRow>
-      </StyledCard>
-    </CardWrapper>
+      </FlashcardSurface>
+    </FlashcardWrapper>
   );
 }

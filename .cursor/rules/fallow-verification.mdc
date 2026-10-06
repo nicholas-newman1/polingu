@@ -1,0 +1,37 @@
+---
+description: Run fallow after code changes and verify no dead-code, duplication, or complexity regressions
+alwaysApply: true
+---
+
+# Verify changes with fallow
+
+After editing code in `src/`, `functions/src/` or `scripts/`, run the checks below before finishing. The baseline is fully clean (0 dead code, 0 duplication, 0 complexity findings above threshold), so any finding is a regression from your change.
+
+```bash
+npx -y fallow@3.31.0          # must exit 0 with "No issues found" for all three sections
+npx tsc -b                    # app
+(cd functions && npx tsc --noEmit)
+npx tsc --noEmit --module esnext --moduleResolution bundler --target es2022 --skipLibCheck --esModuleInterop --strict --allowImportingTsExtensions scripts/*.ts scripts/lib/*.ts
+```
+
+Run prettier/eslint only on files you edited. In zsh, use an array: `F=(a.ts b.tsx); npx prettier --write $F; npx eslint $F`. Never lint-fix `WordTooltip.tsx`, `DeclensionCheatSheet.tsx` or `adjectiveDeclensionPatterns.ts`.
+
+The "Large functions", "refactoring targets" and "churn hotspot" lists are advisory, not findings. Ignore them unless asked.
+
+## Fixing a regression
+
+- **Fix it in code first.** Remove unused exports/files, extract a shared helper for a clone, split a function that branches too much. Configure it away only when it's genuine noise, and always add a `reason`.
+- **Complexity:** see why it scores high with `npx -y fallow@3.31.0 health --complexity-breakdown --format json` and group `contributions` by `kind`.
+  - fallow adds +1 cognitive per hook call (`hook-density`) and about one per prop over 5 (`prop-count`). No config turns these off.
+  - If the score minus hook-density is under the threshold, add the function to the matching `thresholdOverrides` entry in `.fallowrc.json` instead of splitting.
+  - If branching alone is too high, split it (subcomponents that read context directly, pure helpers, dialogs that own their state).
+- **Duplication:** don't pin `ignoredClones` fingerprints, they change whenever code moves. `functions/` can't import app code, so a required cross-package copy gets `// fallow-ignore-next-line code-duplication` plus a reason comment.
+- **Dead code:** `functions/src/index.ts` is a manual entry. Before deleting a file fallow calls unused, check it isn't loaded dynamically or by a script.
+
+## Project notes from the cleanup
+
+- `maxCrap: 0` is deliberate: the project has no tests and doesn't want any. Don't add tests or coverage setup to satisfy fallow.
+- `src/data/**` (static language data) is excluded from duplication.
+- Never run audio generation scripts with `--test`.
+- `functions/` uses NodeNext: relative imports need `.js` suffixes.
+- Overrides raise the ceiling for all complexity, not just hooks. Keep new branching out of listed functions instead of leaning on the override.

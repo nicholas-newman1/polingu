@@ -1,7 +1,7 @@
 import { db } from './firebase-admin.js';
 import { writeFileSync } from 'fs';
 import { resolve } from 'path';
-import type { Verb, Aspect, VerbClass } from './verb-types.js';
+import type { ImportedVerb, Aspect, VerbClass } from './verb-types.js';
 
 interface ExportFilters {
   aspect?: Aspect;
@@ -30,7 +30,7 @@ async function exportVerbs(outputFile: string, filters: ExportFilters) {
   console.log('🔄 Fetching verbs from Firestore...');
 
   const snapshot = await db.collection('verbs').get();
-  let verbs = snapshot.docs.map((doc) => doc.data() as Verb);
+  let verbs = snapshot.docs.map((doc) => doc.data() as ImportedVerb);
 
   console.log(`📊 Found ${verbs.length} total verbs`);
 
@@ -53,7 +53,7 @@ async function exportVerbs(outputFile: string, filters: ExportFilters) {
   verbs.sort((a, b) => a.infinitive.localeCompare(b.infinitive, 'pl'));
 
   const cleanVerbs = verbs.map((v) => {
-    const { ...rest } = v as Verb & { createdAt?: unknown };
+    const { ...rest } = v as ImportedVerb & { createdAt?: unknown };
     delete (rest as { createdAt?: unknown }).createdAt;
     return rest;
   });

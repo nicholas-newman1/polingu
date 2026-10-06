@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Box, Chip, Stack, Typography } from '@mui/material';
+import { Box, Stack, Typography } from '@mui/material';
 import { styled } from '../../../lib/styled';
 import { FlashcardShell, type ReviewFlashcardProps } from '../../../components/FlashcardShell';
 import { AudioButton } from '../../../components/AudioButton';
@@ -10,6 +10,7 @@ import { renderTappableText } from '../../../lib/renderTappableText';
 import { useTranslationContext } from '../../../hooks/useTranslationContext';
 import { useAudioPlayer } from '../../../hooks/useAudioPlayer';
 import { useAppSettings } from '../../../contexts/AppSettingsContext';
+import { FlashcardMetaChip, FlashcardHint } from '../../../components/flashcardStyles';
 
 interface DeclensionFlashcardProps extends ReviewFlashcardProps {
   card: DeclensionCard;
@@ -32,15 +33,6 @@ const AnswerText = styled(Box)(({ theme }) => ({
   color: theme.palette.text.primary,
 }));
 
-const MetaChip = styled(Chip)(({ theme }) => ({
-  backgroundColor: theme.palette.background.default,
-  color: theme.palette.text.secondary,
-}));
-
-const HintText = styled(Typography)({
-  fontStyle: 'italic',
-});
-
 const CustomLabel = styled(Typography)(({ theme }) => ({
   color: theme.palette.primary.main,
   fontSize: '0.75rem',
@@ -50,20 +42,11 @@ const CustomLabel = styled(Typography)(({ theme }) => ({
 
 export function DeclensionFlashcard({
   card,
-  practiceMode = false,
   isViewingHistory = false,
-  canGoBack = false,
-  intervals,
-  reassessIntervals,
   canEdit = false,
-  onRate,
-  onReassess,
-  onNext,
-  onGoBack,
-  onContinue,
-  onEdit,
   onDelete,
   onUpdateTranslation,
+  ...shellProps
 }: DeclensionFlashcardProps) {
   const [revealed, setRevealed] = useState(isViewingHistory);
   const { handleDailyLimitReached } = useTranslationContext();
@@ -114,35 +97,26 @@ export function DeclensionFlashcard({
       </AnswerText>
 
       <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: 'wrap', gap: 1 }}>
-        <MetaChip label={card.case} size="small" />
-        <MetaChip label={card.gender} size="small" />
-        <MetaChip label={card.number} size="small" />
+        <FlashcardMetaChip label={card.case} size="small" />
+        <FlashcardMetaChip label={card.gender} size="small" />
+        <FlashcardMetaChip label={card.number} size="small" />
       </Stack>
 
       {card.hint && (
-        <HintText variant="body2" color="text.disabled" sx={{ mb: 2 }}>
+        <FlashcardHint variant="body2" color="text.disabled" sx={{ mb: 2 }}>
           💡 {card.hint}
-        </HintText>
+        </FlashcardHint>
       )}
     </>
   );
 
   return (
     <FlashcardShell
+      {...shellProps}
       revealed={revealed}
-      practiceMode={practiceMode}
       isViewingHistory={isViewingHistory}
-      canGoBack={canGoBack}
-      intervals={intervals}
-      reassessIntervals={reassessIntervals}
       canEdit={canEdit}
       onReveal={() => setRevealed(true)}
-      onRate={onRate}
-      onReassess={onReassess}
-      onNext={onNext}
-      onGoBack={onGoBack}
-      onContinue={onContinue}
-      onEdit={onEdit}
       onDelete={onDelete}
       header={header}
       headerActions={headerActions}

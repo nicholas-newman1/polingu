@@ -1,37 +1,19 @@
 import type { DeclensionReviewDataStore } from '../../types';
-import {
-  getTodayString,
-  getDefaultDeclensionReviewStore,
-  DECLENSION_SESSION_DOC_PATH,
-} from './helpers';
-import { loadUserData } from '../offlineDb/userDataWrapper';
+import { getDefaultDeclensionReviewStore, DECLENSION_SESSION_DOC_PATH } from './helpers';
 import { declensionReviewStorage } from './declensionReviewStorage';
-
-interface DeclensionReviewSession {
-  reviewedToday: DeclensionReviewDataStore['reviewedToday'];
-  newCardsToday: DeclensionReviewDataStore['newCardsToday'];
-  lastReviewDate: string;
-}
+import loadDailyReviewSession from './loadDailyReviewSession';
 
 export default async function loadDeclensionReviewData(): Promise<DeclensionReviewDataStore> {
-  const today = getTodayString();
-  const defaults = getDefaultDeclensionReviewStore();
-  const defaultSession: DeclensionReviewSession = {
-    reviewedToday: defaults.reviewedToday,
-    newCardsToday: defaults.newCardsToday,
-    lastReviewDate: defaults.lastReviewDate,
-  };
-
-  const [cards, session] = await Promise.all([
-    declensionReviewStorage.loadCards(),
-    loadUserData<DeclensionReviewSession>(DECLENSION_SESSION_DOC_PATH, defaultSession),
-  ]);
-
-  if (session.lastReviewDate !== today) {
-    session.reviewedToday = [];
-    session.newCardsToday = [];
-    session.lastReviewDate = today;
-  }
+  const { reviewedToday, newCardsToday, lastReviewDate } = getDefaultDeclensionReviewStore();
+  const [cards, session] = await loadDailyReviewSession(
+    declensionReviewStorage,
+    DECLENSION_SESSION_DOC_PATH,
+    {
+      reviewedToday,
+      newCardsToday,
+      lastReviewDate,
+    }
+  );
 
   return {
     cards,

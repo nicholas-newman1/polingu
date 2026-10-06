@@ -26,12 +26,7 @@ function buildFirebaseDownloadUrl(bucket: string, filePath: string, token: strin
   return `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encoded}?alt=media&token=${token}`;
 }
 
-function getAudioPath(
-  type: AudioType,
-  id: string,
-  subPath?: string,
-  userId?: string
-): string {
+function getAudioPath(type: AudioType, id: string, subPath?: string, userId?: string): string {
   switch (type) {
     case 'sentence':
       return `sentences/${id}.mp3`;

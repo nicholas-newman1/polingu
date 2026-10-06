@@ -1,7 +1,7 @@
 import { onCall, HttpsError } from 'firebase-functions/https';
 import OpenAI from 'openai';
 import { deeplApiKey, openaiApiKey } from '../shared/secrets.js';
-import { CEFRLevel, isCEFRLevel } from '../shared/cefr.js';
+import { CEFRLevel, requestCEFRLevel } from '../shared/cefr.js';
 
 interface ProcessSentenceRequest {
   text: string;
@@ -68,22 +68,7 @@ export const processSentence = onCall<ProcessSentenceRequest, Promise<ProcessSen
 
     const openai = new OpenAI({ apiKey: openaiKey });
 
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        {
-          role: 'system',
-          content:
-            'You assess Polish sentences for CEFR level. Respond with ONLY the level: A1, A2, B1, B2, C1, or C2.',
-        },
-        { role: 'user', content: polish },
-      ],
-      temperature: 0.2,
-      max_tokens: 10,
-    });
-
-    const levelResponse = completion.choices[0]?.message?.content?.trim().toUpperCase();
-    const level: CEFRLevel = isCEFRLevel(levelResponse) ? levelResponse : 'B1';
+    const level: CEFRLevel = (await requestCEFRLevel(openai, polish)) ?? 'B1';
 
     return { polish, english, level };
   }

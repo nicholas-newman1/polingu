@@ -13,7 +13,8 @@ import { FinishedState } from '../../components/FinishedState';
 import { ReviewStage } from '../../components/ReviewStage';
 import { SessionStatusLine } from '../../components/SessionStatusLine';
 import { ReviewControlsRow, ReviewMainContent } from '../../components/ReviewLayout';
-import { SentenceSettingsPanel, LevelChip } from './components/SentenceSettingsPanel';
+import { SettingsPanel } from '../../components/SettingsPanel';
+import { ToggleLevelChip } from '../../components/LevelChip';
 import { EditSentenceModal } from '../../components/EditSentenceModal';
 import type { Sentence, CustomSentence, CEFRLevel } from '../../types/sentences';
 import { ALL_LEVELS } from '../../types/sentences';
@@ -335,7 +336,7 @@ export function SentencesPage({ mode }: SentencesPageProps) {
 
       <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mb: 2 }}>
         {ALL_LEVELS.map((level) => (
-          <LevelChip
+          <ToggleLevelChip
             key={level}
             $level={level}
             label={level}
@@ -346,10 +347,10 @@ export function SentencesPage({ mode }: SentencesPageProps) {
       </Stack>
 
       {showSettings && !practice.active && (
-        <SentenceSettingsPanel
+        <SettingsPanel
           newCardsPerDay={directionSettings.newCardsPerDay}
           user={user}
-          onNewCardsChange={handleNewCardsChange}
+          onSettingsChange={handleNewCardsChange}
           onResetAllData={handleResetAllData}
           resetButtonLabel={`Reset ${currentDirection === 'pl-to-en' ? 'PL→EN' : 'EN→PL'} Progress`}
         />

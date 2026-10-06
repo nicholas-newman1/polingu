@@ -41,6 +41,25 @@ export class RateLimitDailyError extends Error {
   }
 }
 
+interface TooltipErrorHandlers {
+  setError: (message: string) => void;
+  showSnackbar: (message: string, severity: 'warning' | 'error') => void;
+  onDailyLimit: (resetTime: string) => void;
+}
+
+/** Shared error handling for the inline word/phrase translation tooltips. */
+export function handleTooltipTranslationError(err: unknown, handlers: TooltipErrorHandlers) {
+  if (err instanceof RateLimitMinuteError) {
+    handlers.setError('Too many requests');
+    handlers.showSnackbar('Too many requests. Please wait a moment.', 'warning');
+  } else if (err instanceof RateLimitDailyError) {
+    handlers.onDailyLimit(err.resetTime);
+  } else {
+    handlers.setError('Translation failed');
+    handlers.showSnackbar('Translation failed. Please try again.', 'error');
+  }
+}
+
 export interface TranslationResult {
   translatedText: string;
   charsUsedToday: number;

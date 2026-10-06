@@ -18,6 +18,7 @@ import { alpha } from '../../../lib/theme';
 import { VerbConjugationTooltip } from '../../../components/VerbConjugationTooltip';
 import { useAudioPlayer } from '../../../hooks/useAudioPlayer';
 import { useAppSettings } from '../../../contexts/AppSettingsContext';
+import { FlashcardMetaChip, AccentNoteBox } from '../../../components/flashcardStyles';
 
 interface ConjugationFlashcardProps extends ReviewFlashcardProps {
   form: DrillableForm;
@@ -47,11 +48,6 @@ const InfinitiveLabel = styled(Box)(({ theme }) => ({
   color: theme.palette.text.secondary,
   fontSize: '0.875rem',
   marginTop: theme.spacing(1),
-}));
-
-const MetaChip = styled(Chip)(({ theme }) => ({
-  backgroundColor: theme.palette.background.default,
-  color: theme.palette.text.secondary,
 }));
 
 const TenseChip = styled(Chip)(({ theme }) => ({
@@ -88,35 +84,80 @@ const VerbClassChip = styled(Chip)(({ theme }) => ({
   color: theme.palette.neutral.dark,
 }));
 
-const AspectPairBox = styled(Box)(({ theme }) => ({
-  marginTop: theme.spacing(2),
-  padding: theme.spacing(1.5),
-  backgroundColor: alpha(theme.palette.text.primary, 0.03),
-  borderRadius: theme.spacing(1),
-  borderLeft: `3px solid ${alpha(theme.palette.info.main, 0.5)}`,
-}));
+type Gender = 'Masculine' | 'Feminine' | 'Neuter';
+const GENDER_SYMBOLS: Record<Gender, string> = { Masculine: '♂', Feminine: '♀', Neuter: '○' };
+
+function GenderBadge({ gender }: { gender: Gender }) {
+  return <GenderChip $gender={gender} label={`${GENDER_SYMBOLS[gender]} ${gender}`} size="small" />;
+}
+
+interface SideTextProps {
+  form: DrillableForm;
+  text: string;
+  isPolish: boolean;
+  polishShown: boolean;
+  Text: typeof QuestionText | typeof AnswerText;
+}
+
+/** One side of the card; the Polish side gets the conjugation tooltip and respects "hide Polish". */
+function SideText({ form, text, isPolish, polishShown, Text }: SideTextProps) {
+  if (isPolish && !polishShown) return <HiddenPolishPlaceholder />;
+  return (
+    <Text variant="h4" color="text.primary">
+      {isPolish ? (
+        <VerbConjugationTooltip verb={form.verb} tense={form.tense}>
+          {text}
+        </VerbConjugationTooltip>
+      ) : (
+        text
+      )}
+    </Text>
+  );
+}
+
+function InfinitiveLine({ form }: { form: DrillableForm }) {
+  return (
+    <InfinitiveLabel>
+      <VerbConjugationTooltip verb={form.verb} tense={form.tense} />
+    </InfinitiveLabel>
+  );
+}
+
+function PromptChips({ form }: { form: DrillableForm }) {
+  return (
+    <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', gap: 0.5 }}>
+      <TenseChip label={getTenseLabel(form.tense)} size="small" />
+      {form.person === '2nd' && form.number === 'Plural' && (
+        <PluralChip label="⊕ Plural" size="small" />
+      )}
+      {form.gender && <GenderBadge gender={form.gender} />}
+    </Stack>
+  );
+}
+
+function VerbMetaChips({ form, showGender }: { form: DrillableForm; showGender: boolean }) {
+  return (
+    <Stack direction="row" spacing={0.75} sx={{ mt: 2, flexWrap: 'wrap', gap: 0.5 }}>
+      <AspectChip label={getAspectLabel(form.verb.aspect)} size="small" />
+      <VerbClassChip label={getVerbClassLabel(form.verb.verbClass)} size="small" />
+      {form.verb.isReflexive && <FlashcardMetaChip label="↩ Reflexive" size="small" />}
+      {showGender && form.gender && <GenderBadge gender={form.gender} />}
+    </Stack>
+  );
+}
 
 export function ConjugationFlashcard({
   form,
   direction,
   aspectPairVerb,
-  practiceMode = false,
   isViewingHistory = false,
-  canGoBack = false,
-  intervals,
-  reassessIntervals,
   canEdit = false,
-  onRate,
-  onReassess,
-  onNext,
-  onGoBack,
-  onContinue,
-  onEdit,
   onDelete,
+  ...shellProps
 }: ConjugationFlashcardProps) {
   const [revealed, setRevealed] = useState(isViewingHistory);
   const { settings } = useAppSettings();
-  const hidePolish = settings.hidePolishText;
+  const polishShown = !settings.hidePolishText || revealed;
 
   const isPolishToEnglish = direction === 'pl-to-en';
 
@@ -128,126 +169,64 @@ export function ConjugationFlashcard({
     revealed,
   });
 
-  const questionDisplay = getQuestionDisplay(form, direction);
   const answerData = getAnswerDisplay(form, direction);
+  const alternatives = answerData.alternatives ?? [];
+  const aspectPairForm = aspectPairVerb && getCorrespondingAspectPairForm(form, aspectPairVerb);
 
-  const aspectPairForm = aspectPairVerb
-    ? getCorrespondingAspectPairForm(form, aspectPairVerb)
-    : null;
-
-  const headerActions = (
+  const headerActions = hasAudio && (
     <>
-      {hasAudio && <AudioButton isPlaying={isPlaying} onToggle={toggleAudio} />}
-      {hasAudio && <HidePolishButton />}
+      <AudioButton isPlaying={isPlaying} onToggle={toggleAudio} />
+      <HidePolishButton />
     </>
   );
 
   const question = (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-      {!isPolishToEnglish && (
-        <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', gap: 0.5 }}>
-          <TenseChip label={getTenseLabel(form.tense)} size="small" />
-          {form.person === '2nd' && form.number === 'Plural' && (
-            <PluralChip label="⊕ Plural" size="small" />
-          )}
-          {form.gender && (
-            <GenderChip
-              $gender={form.gender}
-              label={`${form.gender === 'Masculine' ? '♂' : form.gender === 'Feminine' ? '♀' : '○'} ${form.gender}`}
-              size="small"
-            />
-          )}
-        </Stack>
-      )}
-
-      {isPolishToEnglish && hidePolish && !revealed ? (
-        <HiddenPolishPlaceholder />
-      ) : (
-        <QuestionText variant="h4" color="text.primary">
-          {isPolishToEnglish ? (
-            <VerbConjugationTooltip verb={form.verb} tense={form.tense}>
-              {questionDisplay}
-            </VerbConjugationTooltip>
-          ) : (
-            questionDisplay
-          )}
-        </QuestionText>
-      )}
-
-      {isPolishToEnglish && (!hidePolish || revealed) && (
-        <InfinitiveLabel>
-          <VerbConjugationTooltip verb={form.verb} tense={form.tense} />
-        </InfinitiveLabel>
-      )}
+      {!isPolishToEnglish && <PromptChips form={form} />}
+      <SideText
+        form={form}
+        text={getQuestionDisplay(form, direction)}
+        isPolish={isPolishToEnglish}
+        polishShown={polishShown}
+        Text={QuestionText}
+      />
+      {isPolishToEnglish && polishShown && <InfinitiveLine form={form} />}
     </Box>
   );
 
   const answer = (
     <>
-      {!isPolishToEnglish && hidePolish && !revealed ? (
-        <HiddenPolishPlaceholder />
-      ) : (
-        <AnswerText variant="h4" color="text.primary">
-          {!isPolishToEnglish ? (
-            <VerbConjugationTooltip verb={form.verb} tense={form.tense}>
-              {answerData.primary}
-            </VerbConjugationTooltip>
-          ) : (
-            answerData.primary
-          )}
-        </AnswerText>
+      <SideText
+        form={form}
+        text={answerData.primary}
+        isPolish={!isPolishToEnglish}
+        polishShown={polishShown}
+        Text={AnswerText}
+      />
+      {alternatives.length > 0 && (isPolishToEnglish || polishShown) && (
+        <AlternativesText>Also: {alternatives.join(', ')}</AlternativesText>
       )}
-      {answerData.alternatives &&
-        answerData.alternatives.length > 0 &&
-        !(!isPolishToEnglish && hidePolish && !revealed) && (
-          <AlternativesText>Also: {answerData.alternatives.join(', ')}</AlternativesText>
-        )}
+      {!isPolishToEnglish && polishShown && <InfinitiveLine form={form} />}
 
-      {!isPolishToEnglish && (!hidePolish || revealed) && (
-        <InfinitiveLabel>
-          <VerbConjugationTooltip verb={form.verb} tense={form.tense} />
-        </InfinitiveLabel>
-      )}
+      <VerbMetaChips form={form} showGender={isPolishToEnglish} />
 
-      <Stack direction="row" spacing={0.75} sx={{ mt: 2, flexWrap: 'wrap', gap: 0.5 }}>
-        <AspectChip label={getAspectLabel(form.verb.aspect)} size="small" />
-        <VerbClassChip label={getVerbClassLabel(form.verb.verbClass)} size="small" />
-        {form.verb.isReflexive && <MetaChip label="↩ Reflexive" size="small" />}
-        {isPolishToEnglish && form.gender && (
-          <GenderChip
-            $gender={form.gender}
-            label={`${form.gender === 'Masculine' ? '♂' : form.gender === 'Feminine' ? '♀' : '○'} ${form.gender}`}
-            size="small"
-          />
-        )}
-      </Stack>
-
-      {aspectPairForm && aspectPairVerb && (!hidePolish || revealed) && (
-        <AspectPairBox>
+      {aspectPairForm && polishShown && (
+        <AccentNoteBox $accent="info">
           <Typography variant="body2" color="text.secondary">
             {aspectPairVerb.aspect}: <strong>{aspectPairForm}</strong>
           </Typography>
-        </AspectPairBox>
+        </AccentNoteBox>
       )}
     </>
   );
 
   return (
     <FlashcardShell
+      {...shellProps}
       revealed={revealed}
-      practiceMode={practiceMode}
       isViewingHistory={isViewingHistory}
-      canGoBack={canGoBack}
-      intervals={intervals}
-      reassessIntervals={reassessIntervals}
       canEdit={canEdit}
       onReveal={() => setRevealed(true)}
-      onRate={onRate}
-      onReassess={onReassess}
-      onNext={onNext}
-      onGoBack={onGoBack}
-      onContinue={onContinue}
-      onEdit={onEdit}
       onDelete={onDelete}
       headerActions={headerActions}
       question={question}

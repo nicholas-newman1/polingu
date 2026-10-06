@@ -26,32 +26,28 @@ const CurrentAudioSection = styled(Box)(({ theme }) => ({
   backgroundColor: alpha(theme.palette.text.primary, 0.04),
 }));
 
-interface AudioRegeneratorProps {
-  /** The text to generate audio for */
+interface AudioRegenerationOptions {
   text: string;
-  /** The type of audio (for storage path) */
   type: AudioType;
-  /** The ID for storage (e.g., sentence ID, card ID) */
   id: string;
-  /** Optional sub-path for conjugation forms */
   subPath?: string;
-  /** Current audio URL (if any) */
   currentAudioUrl?: string;
-  /** Callback when audio is saved */
   onAudioSaved: (audioUrl: string) => void;
-  /** Label for the section */
-  label?: string;
 }
 
-export function AudioRegenerator({
+function stopAudio(ref: React.MutableRefObject<HTMLAudioElement | null>) {
+  ref.current?.pause();
+  ref.current = null;
+}
+
+function useAudioRegeneration({
   text,
   type,
   id,
   subPath,
   currentAudioUrl,
   onAudioSaved,
-  label = 'Audio',
-}: AudioRegeneratorProps) {
+}: AudioRegenerationOptions) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isPlayingCurrent, setIsPlayingCurrent] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -61,32 +57,20 @@ export function AudioRegenerator({
 
   useEffect(() => {
     return () => {
-      if (currentAudioRef.current) {
-        currentAudioRef.current.pause();
-        currentAudioRef.current = null;
-      }
-      if (previewAudioRef.current) {
-        previewAudioRef.current.pause();
-        previewAudioRef.current = null;
-      }
+      stopAudio(currentAudioRef);
+      stopAudio(previewAudioRef);
     };
   }, []);
 
-  const handleGenerate = useCallback(async () => {
+  const generate = useCallback(async () => {
     if (!text.trim()) {
       setError('No text to generate audio for.');
       return;
     }
 
-    if (currentAudioRef.current) {
-      currentAudioRef.current.pause();
-      currentAudioRef.current = null;
-      setIsPlayingCurrent(false);
-    }
-    if (previewAudioRef.current) {
-      previewAudioRef.current.pause();
-      previewAudioRef.current = null;
-    }
+    stopAudio(currentAudioRef);
+    setIsPlayingCurrent(false);
+    stopAudio(previewAudioRef);
 
     setIsProcessing(true);
     setError(null);
@@ -113,36 +97,66 @@ export function AudioRegenerator({
     }
   }, [text, type, id, subPath, onAudioSaved]);
 
-  const handlePlayCurrent = useCallback(() => {
+  const playCurrent = useCallback(() => {
     if (!currentAudioUrl) return;
 
-    if (previewAudioRef.current) {
-      previewAudioRef.current.pause();
-      previewAudioRef.current = null;
-    }
+    stopAudio(previewAudioRef);
 
     if (isPlayingCurrent && currentAudioRef.current) {
-      currentAudioRef.current.pause();
+      stopAudio(currentAudioRef);
       setIsPlayingCurrent(false);
       return;
     }
 
     const audio = new Audio(currentAudioUrl);
     currentAudioRef.current = audio;
-
-    audio.onended = () => {
+    const reset = () => {
       setIsPlayingCurrent(false);
       currentAudioRef.current = null;
     };
-
-    audio.onerror = () => {
-      setIsPlayingCurrent(false);
-      currentAudioRef.current = null;
-    };
-
-    audio.play();
+    audio.onended = reset;
+    audio.onerror = reset;
+    audio.play().catch(reset);
     setIsPlayingCurrent(true);
   }, [currentAudioUrl, isPlayingCurrent]);
+
+  return { isProcessing, isPlayingCurrent, error, generate, playCurrent };
+}
+
+interface AudioRegeneratorProps {
+  /** The text to generate audio for */
+  text: string;
+  /** The type of audio (for storage path) */
+  type: AudioType;
+  /** The ID for storage (e.g., sentence ID, card ID) */
+  id: string;
+  /** Optional sub-path for conjugation forms */
+  subPath?: string;
+  /** Current audio URL (if any) */
+  currentAudioUrl?: string;
+  /** Callback when audio is saved */
+  onAudioSaved: (audioUrl: string) => void;
+  /** Label for the section */
+  label?: string;
+}
+
+export function AudioRegenerator({
+  text,
+  type,
+  id,
+  subPath,
+  currentAudioUrl,
+  onAudioSaved,
+  label = 'Audio',
+}: AudioRegeneratorProps) {
+  const { isProcessing, isPlayingCurrent, error, generate, playCurrent } = useAudioRegeneration({
+    text,
+    type,
+    id,
+    subPath,
+    currentAudioUrl,
+    onAudioSaved,
+  });
 
   return (
     <AudioSection>
@@ -154,7 +168,7 @@ export function AudioRegenerator({
         <CurrentAudioSection>
           <IconButton
             size="small"
-            onClick={handlePlayCurrent}
+            onClick={playCurrent}
             color={isPlayingCurrent ? 'error' : 'default'}
           >
             {isPlayingCurrent ? <StopIcon fontSize="small" /> : <VolumeUpIcon fontSize="small" />}
@@ -178,7 +192,7 @@ export function AudioRegenerator({
         startIcon={
           isProcessing ? <CircularProgress size={16} color="inherit" /> : <GraphicEqIcon />
         }
-        onClick={handleGenerate}
+        onClick={generate}
         disabled={isProcessing || !text.trim()}
         fullWidth
       >
@@ -197,14 +211,7 @@ export function AudioRegenerator({
 /**
  * A simpler, inline version for compact spaces (like conjugation forms)
  */
-interface InlineAudioRegeneratorProps {
-  text: string;
-  type: AudioType;
-  id: string;
-  subPath?: string;
-  currentAudioUrl?: string;
-  onAudioSaved: (audioUrl: string) => void;
-}
+type InlineAudioRegeneratorProps = AudioRegenerationOptions;
 
 export function InlineAudioRegenerator({
   text,
@@ -214,99 +221,21 @@ export function InlineAudioRegenerator({
   currentAudioUrl,
   onAudioSaved,
 }: InlineAudioRegeneratorProps) {
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [isPlayingCurrent, setIsPlayingCurrent] = useState(false);
-
-  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
-  const previewAudioRef = useRef<HTMLAudioElement | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (currentAudioRef.current) {
-        currentAudioRef.current.pause();
-        currentAudioRef.current = null;
-      }
-      if (previewAudioRef.current) {
-        previewAudioRef.current.pause();
-        previewAudioRef.current = null;
-      }
-    };
-  }, []);
-
-  const handleGenerate = useCallback(async () => {
-    if (!text.trim()) return;
-
-    if (currentAudioRef.current) {
-      currentAudioRef.current.pause();
-      currentAudioRef.current = null;
-      setIsPlayingCurrent(false);
-    }
-    if (previewAudioRef.current) {
-      previewAudioRef.current.pause();
-      previewAudioRef.current = null;
-    }
-
-    setIsProcessing(true);
-
-    try {
-      const audioBase64 = await generateAudioPreview(text, type);
-      const audioUrl = await saveAudio(audioBase64, type, id, subPath);
-      onAudioSaved(audioUrl);
-
-      const audio = new Audio(`data:audio/mpeg;base64,${audioBase64}`);
-      previewAudioRef.current = audio;
-      audio.onended = () => {
-        previewAudioRef.current = null;
-      };
-      audio.onerror = () => {
-        previewAudioRef.current = null;
-      };
-      audio.play().catch(() => {});
-    } catch (err) {
-      console.error('Failed to generate audio:', err);
-    } finally {
-      setIsProcessing(false);
-    }
-  }, [text, type, id, subPath, onAudioSaved]);
-
-  const handlePlayCurrent = useCallback(() => {
-    if (!currentAudioUrl) return;
-
-    if (previewAudioRef.current) {
-      previewAudioRef.current.pause();
-      previewAudioRef.current = null;
-    }
-
-    if (isPlayingCurrent && currentAudioRef.current) {
-      currentAudioRef.current.pause();
-      currentAudioRef.current = null;
-      setIsPlayingCurrent(false);
-      return;
-    }
-
-    const audio = new Audio(currentAudioUrl);
-    currentAudioRef.current = audio;
-    audio.onended = () => {
-      setIsPlayingCurrent(false);
-      currentAudioRef.current = null;
-    };
-    audio.onerror = () => {
-      setIsPlayingCurrent(false);
-      currentAudioRef.current = null;
-    };
-    audio.play().catch(() => {
-      setIsPlayingCurrent(false);
-      currentAudioRef.current = null;
-    });
-    setIsPlayingCurrent(true);
-  }, [currentAudioUrl, isPlayingCurrent]);
+  const { isProcessing, isPlayingCurrent, generate, playCurrent } = useAudioRegeneration({
+    text,
+    type,
+    id,
+    subPath,
+    currentAudioUrl,
+    onAudioSaved,
+  });
 
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
       {currentAudioUrl && (
         <IconButton
           size="small"
-          onClick={handlePlayCurrent}
+          onClick={playCurrent}
           color={isPlayingCurrent ? 'error' : 'default'}
           sx={{ p: 0.5 }}
         >
@@ -315,7 +244,7 @@ export function InlineAudioRegenerator({
       )}
       <IconButton
         size="small"
-        onClick={handleGenerate}
+        onClick={generate}
         disabled={isProcessing || !text.trim()}
         color="info"
         sx={{ p: 0.5 }}

@@ -7,9 +7,8 @@ import type {
 } from '../../types';
 import type { ListeningOrdering, ListeningQueueItem } from '../../types/listening';
 import getOrCreateDeclensionCardReviewData from '../storage/getOrCreateDeclensionCardReviewData';
-import isDue from '../fsrsUtils/isDue';
-import shuffleArray from '../utils/shuffleArray';
 import isFsrsCardLearned from './isFsrsCardLearned';
+import orderListeningPool from './orderListeningPool';
 
 export interface DeclensionListeningFilters {
   cases?: Case[];
@@ -48,58 +47,16 @@ export default function buildDeclensionListeningQueue({
 }: BuildDeclensionListeningQueueArgs): ListeningQueueItem[] {
   const filtered = cards.filter((c) => !!c.audioUrl && matchesFilters(c, filters));
 
-  const withMeta = filtered.map((card) => {
-    const reviewData = getOrCreateDeclensionCardReviewData(card.id, reviewStore);
-    return { card, reviewData };
-  });
+  const pool = orderListeningPool(
+    filtered.map((card) => ({
+      item: card,
+      reviewData: getOrCreateDeclensionCardReviewData(card.id, reviewStore),
+    })),
+    ordering,
+    limit
+  );
 
-  let pool: typeof withMeta;
-  switch (ordering) {
-    case 'due':
-      pool = withMeta.filter(
-        (c) => c.reviewData.fsrsCard.state !== 0 && isDue(c.reviewData.fsrsCard)
-      );
-      pool.sort(
-        (a, b) =>
-          new Date(a.reviewData.fsrsCard.due).getTime() -
-          new Date(b.reviewData.fsrsCard.due).getTime()
-      );
-      break;
-    case 'practice-ahead':
-      pool = withMeta.filter(
-        (c) => c.reviewData.fsrsCard.state !== 0 && !isDue(c.reviewData.fsrsCard)
-      );
-      pool.sort(
-        (a, b) =>
-          new Date(a.reviewData.fsrsCard.due).getTime() -
-          new Date(b.reviewData.fsrsCard.due).getTime()
-      );
-      break;
-    case 'learned':
-      pool = withMeta.filter((c) => isFsrsCardLearned(c.reviewData.fsrsCard));
-      pool = shuffleArray(pool);
-      break;
-    case 'recently-added': {
-      const custom = withMeta.filter((c) => c.card.isCustom);
-      const system = withMeta.filter((c) => !c.card.isCustom);
-      custom.sort((a, b) => {
-        const aCreated = ((a.card as { createdAt?: number }).createdAt as number | undefined) ?? 0;
-        const bCreated = ((b.card as { createdAt?: number }).createdAt as number | undefined) ?? 0;
-        return bCreated - aCreated;
-      });
-      system.reverse();
-      pool = [...custom, ...system];
-      break;
-    }
-    case 'random':
-    default:
-      pool = shuffleArray(withMeta);
-      break;
-  }
-
-  const sliced = typeof limit === 'number' ? pool.slice(0, limit) : pool;
-
-  return sliced.map(({ card, reviewData }) => ({
+  return pool.map(({ item: card, reviewData }) => ({
     id: `declension:${card.id}`,
     feature: 'declension',
     audioUrl: card.audioUrl!,

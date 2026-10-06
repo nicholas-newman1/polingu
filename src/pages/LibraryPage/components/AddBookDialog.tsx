@@ -11,6 +11,7 @@ import {
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import { uploadBook, uploadText } from '../../../lib/reader';
 import type { UploadProgress } from '../../../types/reader';
+import { BookTitleAuthorFields } from './BookTitleAuthorFields';
 
 interface AddBookDialogProps {
   open: boolean;
@@ -107,19 +108,12 @@ export function AddBookDialog({
         <DialogTitle>Add Book</DialogTitle>
         <DialogContent>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
-            <TextField
-              autoFocus
-              fullWidth
-              label="Title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Optional — first line used if blank"
-            />
-            <TextField
-              fullWidth
-              label="Author"
-              value={author}
-              onChange={(e) => setAuthor(e.target.value)}
+            <BookTitleAuthorFields
+              title={title}
+              author={author}
+              onTitleChange={setTitle}
+              onAuthorChange={setAuthor}
+              titlePlaceholder="Optional — first line used if blank"
             />
             <TextField
               fullWidth

@@ -22,6 +22,8 @@ import CheckIcon from '@mui/icons-material/Check';
 import { styled } from '../../lib/styled';
 import { BOTTOM_MENU_BAR_HEIGHT, DRAWER_WIDTH } from '../../constants/layout';
 import type { TranscriptFontSize } from '../../types/appSettings';
+import { formatDuration } from '../../lib/utils/formatDuration';
+import { useAudioPlayerContext } from '../../contexts/AudioPlayerContext';
 
 const ControlsBar = styled(Box)(({ theme }) => ({
   position: 'fixed',
@@ -114,38 +116,9 @@ const SpeedButton = styled(ButtonBase)(({ theme }) => ({
   },
 }));
 
-function formatTime(seconds: number): string {
-  if (!isFinite(seconds) || seconds < 0) return '0:00';
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  return `${m}:${s.toString().padStart(2, '0')}`;
-}
-
 const SPEED_MIN = 0.5;
 const SPEED_MAX = 2;
 const SPEED_STEP = 0.1;
-
-interface AudioControlsProps {
-  isPlaying: boolean;
-  currentTime: number;
-  duration: number;
-  playbackRate: number;
-  hasNext: boolean;
-  hasPrevious: boolean;
-  fontSize: TranscriptFontSize;
-  onTogglePlay: () => void;
-  onSeek: (time: number) => void;
-  onSeekStart?: () => void;
-  onSeekEnd?: () => void;
-  onSetPlaybackRate: (rate: number) => void;
-  onNextTrack: () => void;
-  onPreviousTrack: () => void;
-  onFontSizeChange: (size: TranscriptFontSize) => void;
-  onHeightChange?: (height: number) => void;
-  editModeAvailable?: boolean;
-  editMode?: boolean;
-  onToggleEditMode?: () => void;
-}
 
 const FONT_SIZE_OPTIONS: { value: TranscriptFontSize; label: string }[] = [
   { value: 'small', label: 'Small' },
@@ -153,109 +126,84 @@ const FONT_SIZE_OPTIONS: { value: TranscriptFontSize; label: string }[] = [
   { value: 'large', label: 'Large' },
 ];
 
-export function AudioControls({
-  isPlaying,
-  currentTime,
-  duration,
-  playbackRate,
-  hasNext,
-  hasPrevious,
-  fontSize,
-  onTogglePlay,
-  onSeek,
-  onSeekStart,
-  onSeekEnd,
-  onSetPlaybackRate,
-  onNextTrack,
-  onPreviousTrack,
-  onFontSizeChange,
-  onHeightChange,
-  editModeAvailable = false,
-  editMode = false,
-  onToggleEditMode,
-}: AudioControlsProps) {
-  const [speedMenuAnchor, setSpeedMenuAnchor] = useState<HTMLElement | null>(null);
-  const [fontSizeMenuAnchor, setFontSizeMenuAnchor] = useState<HTMLElement | null>(null);
-  const [isSeeking, setIsSeeking] = useState(false);
-  const [seekValue, setSeekValue] = useState(0);
-  const [hoverPercent, setHoverPercent] = useState<number | null>(null);
-  const controlsRef = useRef<HTMLDivElement>(null);
-  const sliderWrapperRef = useRef<HTMLDivElement>(null);
-  const lastHeightRef = useRef(0);
+const SKIP_BUTTON_SX = { width: 36, height: 36, color: 'text.primary' } as const;
 
+/** Reports the bar's rendered height (plus the bottom menu) whenever it changes. */
+function useReportHeight(
+  ref: React.RefObject<HTMLDivElement | null>,
+  onHeightChange: ((height: number) => void) | undefined
+) {
+  const lastHeightRef = useRef(0);
   useEffect(() => {
-    if (!onHeightChange || !controlsRef.current) return;
+    const el = ref.current;
+    if (!onHeightChange || !el) return;
 
     const notifyHeight = () => {
-      if (!controlsRef.current) return;
-      const nextHeight = Math.round(controlsRef.current.getBoundingClientRect().height);
+      const nextHeight = Math.round(el.getBoundingClientRect().height);
       if (!nextHeight || nextHeight === lastHeightRef.current) return;
       lastHeightRef.current = nextHeight;
       onHeightChange(nextHeight + BOTTOM_MENU_BAR_HEIGHT);
     };
 
     notifyHeight();
-
-    const observer = new ResizeObserver(() => {
-      notifyHeight();
-    });
-
-    observer.observe(controlsRef.current);
+    const observer = new ResizeObserver(notifyHeight);
+    observer.observe(el);
     return () => observer.disconnect();
-  }, [onHeightChange]);
+  }, [ref, onHeightChange]);
+}
+
+/** Progress slider with a hover/drag time preview; playback pauses while dragging. */
+function SeekBar() {
+  const { isPlaying, currentTime, duration, seek, play, pause } = useAudioPlayerContext();
+  const [isSeeking, setIsSeeking] = useState(false);
+  const [seekValue, setSeekValue] = useState(0);
+  const [hoverPercent, setHoverPercent] = useState<number | null>(null);
+  const sliderWrapperRef = useRef<HTMLDivElement>(null);
+  const wasPlayingBeforeSeekRef = useRef(false);
 
   const handleSeekChange = (_: Event, value: number | number[]) => {
-    const nextTime = value as number;
     if (!isSeeking) {
       setIsSeeking(true);
-      onSeekStart?.();
+      wasPlayingBeforeSeekRef.current = isPlaying;
+      if (isPlaying) pause();
     }
-    setSeekValue(nextTime);
+    setSeekValue(value as number);
   };
 
   const handleSeekCommit = (_: unknown, value: number | number[]) => {
     const nextTime = value as number;
-    onSeek(nextTime);
+    seek(nextTime);
     setSeekValue(nextTime);
     setIsSeeking(false);
-    onSeekEnd?.();
+    if (wasPlayingBeforeSeekRef.current) play();
+    wasPlayingBeforeSeekRef.current = false;
   };
 
-  const handleSpeedChange = (_: Event, value: number | number[]) => {
-    onSetPlaybackRate(value as number);
-  };
-
-  const handleSliderHoverMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!sliderWrapperRef.current || !duration) return;
-    const rect = sliderWrapperRef.current.getBoundingClientRect();
-    if (rect.width <= 0) return;
+  const handleHoverMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = sliderWrapperRef.current?.getBoundingClientRect();
+    if (!rect || rect.width <= 0 || !duration) return;
     const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     setHoverPercent(ratio * 100);
-  };
-
-  const handleSliderHoverLeave = () => {
-    setHoverPercent(null);
   };
 
   const seekingPercent = duration > 0 ? (seekValue / duration) * 100 : 0;
   const tooltipPercent = isSeeking ? seekingPercent : hoverPercent;
   const displayedTime = isSeeking ? seekValue : currentTime;
-  const isPreviewing = isSeeking;
 
   return (
-    <ControlsBar ref={controlsRef}>
+    <>
       <ProgressSliderWrapper
         ref={sliderWrapperRef}
-        onMouseMove={handleSliderHoverMove}
-        onMouseLeave={handleSliderHoverLeave}
+        onMouseMove={handleHoverMove}
+        onMouseLeave={() => setHoverPercent(null)}
       >
         {tooltipPercent !== null && duration > 0 && (
           <SeekTooltip sx={{ left: `${tooltipPercent}%` }}>
-            {formatTime((tooltipPercent / 100) * duration)}
+            {formatDuration((tooltipPercent / 100) * duration)}
           </SeekTooltip>
         )}
         <ProgressSlider
-          value={isSeeking ? seekValue : currentTime}
+          value={displayedTime}
           max={duration || 1}
           onChange={handleSeekChange}
           onChangeCommitted={handleSeekCommit}
@@ -263,167 +211,246 @@ export function AudioControls({
         />
       </ProgressSliderWrapper>
       <TimeRow>
-        <Typography variant="caption" color={isPreviewing ? 'text.primary' : 'text.secondary'}>
-          {formatTime(displayedTime)}
+        <Typography variant="caption" color={isSeeking ? 'text.primary' : 'text.secondary'}>
+          {formatDuration(displayedTime)}
         </Typography>
         <Typography variant="caption" color="text.secondary">
-          {formatTime(duration)}
+          {formatDuration(duration)}
         </Typography>
       </TimeRow>
-      <ButtonRow>
-        <SpeedButton
-          onClick={(e) => setSpeedMenuAnchor(e.currentTarget)}
-          aria-controls={speedMenuAnchor ? 'speed-menu' : undefined}
-          aria-haspopup="true"
-          aria-expanded={!!speedMenuAnchor}
-          sx={{ flexShrink: 0 }}
-        >
-          {playbackRate === 1 ? '1x' : `${playbackRate}x`}
-        </SpeedButton>
-        <PlaybackGroup>
-          <IconButton
-            onClick={onPreviousTrack}
-            disabled={!hasPrevious}
-            aria-label="Previous track"
-            sx={{ width: 36, height: 36, color: 'text.primary' }}
+    </>
+  );
+}
+
+function SpeedControl() {
+  const { playbackRate, setPlaybackRate } = useAudioPlayerContext();
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+
+  return (
+    <>
+      <SpeedButton
+        onClick={(e) => setAnchor(e.currentTarget)}
+        aria-controls={anchor ? 'speed-menu' : undefined}
+        aria-haspopup="true"
+        aria-expanded={!!anchor}
+        sx={{ flexShrink: 0 }}
+      >
+        {`${playbackRate}x`}
+      </SpeedButton>
+      <Menu
+        id="speed-menu"
+        anchorEl={anchor}
+        open={!!anchor}
+        onClose={() => setAnchor(null)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        transformOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        slotProps={{
+          paper: { sx: { minWidth: 220 } },
+        }}
+      >
+        <Box sx={{ px: 2, pt: 1, pb: 2 }}>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ display: 'block', mb: 1, fontWeight: 600 }}
           >
-            <SkipPreviousIcon />
-          </IconButton>
-          <IconButton
-            onClick={() => onSeek(Math.max(0, currentTime - 10))}
-            aria-label="Skip back 10 seconds"
-            sx={{ width: 36, height: 36, color: 'text.primary' }}
-          >
-            <Replay10Icon />
-          </IconButton>
-          <IconButton
-            onClick={onTogglePlay}
+            Speed
+          </Typography>
+          <Slider
+            value={playbackRate}
+            min={SPEED_MIN}
+            max={SPEED_MAX}
+            step={SPEED_STEP}
+            onChange={(_, value) => setPlaybackRate(value as number)}
+            valueLabelDisplay="auto"
+            valueLabelFormat={(v) => `${v}x`}
+            marks={[
+              { value: 0.5, label: '0.5x' },
+              { value: 1, label: '1x' },
+              { value: 1.5, label: '1.5x' },
+              { value: 2, label: '2x' },
+            ]}
             sx={{
-              bgcolor: 'primary.main',
-              color: 'primary.contrastText',
-              '&:hover': { bgcolor: 'primary.dark' },
-              width: 40,
-              height: 40,
+              width: '100%',
+              '& .MuiSlider-valueLabel': {
+                fontSize: '0.75rem',
+                fontWeight: 600,
+              },
+              '& .MuiSlider-markLabel': {
+                fontSize: '0.75rem',
+                fontWeight: 600,
+              },
             }}
-          >
-            {isPlaying ? <PauseIcon fontSize="small" /> : <PlayArrowIcon fontSize="small" />}
-          </IconButton>
-          <IconButton
-            onClick={() => onSeek(Math.min(duration, currentTime + 10))}
-            aria-label="Skip ahead 10 seconds"
-            sx={{ width: 36, height: 36, color: 'text.primary' }}
-          >
-            <Forward10Icon />
-          </IconButton>
-          <IconButton
-            onClick={onNextTrack}
-            disabled={!hasNext}
-            aria-label="Next track"
-            sx={{ width: 36, height: 36, color: 'text.primary' }}
-          >
-            <SkipNextIcon />
-          </IconButton>
-        </PlaybackGroup>
-        {editModeAvailable && (
-          <IconButton
-            onClick={onToggleEditMode}
-            aria-label={editMode ? 'Exit transcript edit mode' : 'Edit transcript'}
-            aria-pressed={editMode}
-            sx={{
-              width: 32,
-              height: 32,
-              flexShrink: 0,
-              mr: 0.5,
-              color: editMode ? 'primary.contrastText' : 'text.secondary',
-              bgcolor: editMode ? 'primary.main' : 'transparent',
-              '&:hover': { bgcolor: editMode ? 'primary.dark' : 'action.hover' },
-            }}
-          >
-            <EditNoteIcon fontSize="small" />
-          </IconButton>
-        )}
-        <FontSizeButton
-          onClick={(e) => setFontSizeMenuAnchor(e.currentTarget)}
-          aria-controls={fontSizeMenuAnchor ? 'font-size-menu' : undefined}
-          aria-haspopup="true"
-          aria-expanded={!!fontSizeMenuAnchor}
-          aria-label="Change font size"
-        >
-          <FormatSizeIcon fontSize="small" />
-        </FontSizeButton>
-        <Menu
-          id="font-size-menu"
-          anchorEl={fontSizeMenuAnchor}
-          open={!!fontSizeMenuAnchor}
-          onClose={() => setFontSizeMenuAnchor(null)}
-          anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-          transformOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-        >
-          {FONT_SIZE_OPTIONS.map((option) => (
+          />
+        </Box>
+      </Menu>
+    </>
+  );
+}
+
+function PlaybackButtons() {
+  const {
+    isPlaying,
+    currentTime,
+    duration,
+    hasNext,
+    hasPrevious,
+    togglePlay,
+    seek,
+    nextTrack,
+    previousTrack,
+  } = useAudioPlayerContext();
+
+  return (
+    <PlaybackGroup>
+      <IconButton
+        onClick={previousTrack}
+        disabled={!hasPrevious}
+        aria-label="Previous track"
+        sx={SKIP_BUTTON_SX}
+      >
+        <SkipPreviousIcon />
+      </IconButton>
+      <IconButton
+        onClick={() => seek(Math.max(0, currentTime - 10))}
+        aria-label="Skip back 10 seconds"
+        sx={SKIP_BUTTON_SX}
+      >
+        <Replay10Icon />
+      </IconButton>
+      <IconButton
+        onClick={togglePlay}
+        sx={{
+          bgcolor: 'primary.main',
+          color: 'primary.contrastText',
+          '&:hover': { bgcolor: 'primary.dark' },
+          width: 40,
+          height: 40,
+        }}
+      >
+        {isPlaying ? <PauseIcon fontSize="small" /> : <PlayArrowIcon fontSize="small" />}
+      </IconButton>
+      <IconButton
+        onClick={() => seek(Math.min(duration, currentTime + 10))}
+        aria-label="Skip ahead 10 seconds"
+        sx={SKIP_BUTTON_SX}
+      >
+        <Forward10Icon />
+      </IconButton>
+      <IconButton
+        onClick={nextTrack}
+        disabled={!hasNext}
+        aria-label="Next track"
+        sx={SKIP_BUTTON_SX}
+      >
+        <SkipNextIcon />
+      </IconButton>
+    </PlaybackGroup>
+  );
+}
+
+function EditModeButton({ editMode, onToggle }: { editMode: boolean; onToggle?: () => void }) {
+  return (
+    <IconButton
+      onClick={onToggle}
+      aria-label={editMode ? 'Exit transcript edit mode' : 'Edit transcript'}
+      aria-pressed={editMode}
+      sx={{
+        width: 32,
+        height: 32,
+        flexShrink: 0,
+        mr: 0.5,
+        color: editMode ? 'primary.contrastText' : 'text.secondary',
+        bgcolor: editMode ? 'primary.main' : 'transparent',
+        '&:hover': { bgcolor: editMode ? 'primary.dark' : 'action.hover' },
+      }}
+    >
+      <EditNoteIcon fontSize="small" />
+    </IconButton>
+  );
+}
+
+function FontSizeControl({
+  fontSize,
+  onChange,
+}: {
+  fontSize: TranscriptFontSize;
+  onChange: (size: TranscriptFontSize) => void;
+}) {
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+
+  return (
+    <>
+      <FontSizeButton
+        onClick={(e) => setAnchor(e.currentTarget)}
+        aria-controls={anchor ? 'font-size-menu' : undefined}
+        aria-haspopup="true"
+        aria-expanded={!!anchor}
+        aria-label="Change font size"
+      >
+        <FormatSizeIcon fontSize="small" />
+      </FontSizeButton>
+      <Menu
+        id="font-size-menu"
+        anchorEl={anchor}
+        open={!!anchor}
+        onClose={() => setAnchor(null)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        transformOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        {FONT_SIZE_OPTIONS.map((option) => {
+          const selected = fontSize === option.value;
+          return (
             <MenuItem
               key={option.value}
-              selected={fontSize === option.value}
+              selected={selected}
               onClick={() => {
-                onFontSizeChange(option.value);
-                setFontSizeMenuAnchor(null);
+                onChange(option.value);
+                setAnchor(null);
               }}
             >
-              {fontSize === option.value && (
+              {selected && (
                 <ListItemIcon>
                   <CheckIcon fontSize="small" />
                 </ListItemIcon>
               )}
-              <ListItemText inset={fontSize !== option.value}>{option.label}</ListItemText>
+              <ListItemText inset={!selected}>{option.label}</ListItemText>
             </MenuItem>
-          ))}
-        </Menu>
-        <Menu
-          id="speed-menu"
-          anchorEl={speedMenuAnchor}
-          open={!!speedMenuAnchor}
-          onClose={() => setSpeedMenuAnchor(null)}
-          anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-          transformOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-          slotProps={{
-            paper: { sx: { minWidth: 220 } },
-          }}
-        >
-          <Box sx={{ px: 2, pt: 1, pb: 2 }}>
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              sx={{ display: 'block', mb: 1, fontWeight: 600 }}
-            >
-              Speed
-            </Typography>
-            <Slider
-              value={playbackRate}
-              min={SPEED_MIN}
-              max={SPEED_MAX}
-              step={SPEED_STEP}
-              onChange={handleSpeedChange}
-              valueLabelDisplay="auto"
-              valueLabelFormat={(v) => `${v}x`}
-              marks={[
-                { value: 0.5, label: '0.5x' },
-                { value: 1, label: '1x' },
-                { value: 1.5, label: '1.5x' },
-                { value: 2, label: '2x' },
-              ]}
-              sx={{
-                width: '100%',
-                '& .MuiSlider-valueLabel': {
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                },
-                '& .MuiSlider-markLabel': {
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                },
-              }}
-            />
-          </Box>
-        </Menu>
+          );
+        })}
+      </Menu>
+    </>
+  );
+}
+
+interface AudioControlsProps {
+  fontSize: TranscriptFontSize;
+  onFontSizeChange: (size: TranscriptFontSize) => void;
+  onHeightChange?: (height: number) => void;
+  editModeAvailable?: boolean;
+  editMode?: boolean;
+  onToggleEditMode?: () => void;
+}
+
+export function AudioControls({
+  fontSize,
+  onFontSizeChange,
+  onHeightChange,
+  editModeAvailable = false,
+  editMode = false,
+  onToggleEditMode,
+}: AudioControlsProps) {
+  const controlsRef = useRef<HTMLDivElement>(null);
+  useReportHeight(controlsRef, onHeightChange);
+
+  return (
+    <ControlsBar ref={controlsRef}>
+      <SeekBar />
+      <ButtonRow>
+        <SpeedControl />
+        <PlaybackButtons />
+        {editModeAvailable && <EditModeButton editMode={editMode} onToggle={onToggleEditMode} />}
+        <FontSizeControl fontSize={fontSize} onChange={onFontSizeChange} />
       </ButtonRow>
     </ControlsBar>
   );

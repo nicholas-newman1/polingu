@@ -1,7 +1,7 @@
 import type { DeclensionCard, DeclensionReviewDataStore, DeclensionSettings } from '../../types';
 import getOrCreateDeclensionCardReviewData from '../storage/getOrCreateDeclensionCardReviewData';
 import { includesDeclensionCardId } from '../storage/helpers';
-import isDue from '../fsrsUtils/isDue';
+import getReviewBucket from '../fsrsUtils/getReviewBucket';
 import sortByDueDate from '../fsrsUtils/sortByDueDate';
 import shuffleArray from '../utils/shuffleArray';
 import type { DeclensionFilters, DeclensionSessionCard } from './types';
@@ -21,28 +21,19 @@ export default function getDeclensionSessionCards(
 
   for (const card of allCards) {
     const reviewData = getOrCreateDeclensionCardReviewData(card.id, reviewStore);
-    const state = reviewData.fsrsCard.state;
-    const isNew = state === 0;
-    const isLearning = state === 1 || state === 3;
+    const bucket = getReviewBucket(
+      reviewData.fsrsCard,
+      includesDeclensionCardId(reviewStore.newCardsToday, card.id),
+      includesDeclensionCardId(reviewStore.reviewedToday, card.id)
+    );
     const isCustom = card.isCustom === true;
     const targetNewCards = isCustom ? allCustomNewCards : allSystemNewCards;
     const targetReviewCards = isCustom ? customReviewCards : systemReviewCards;
 
-    if (isNew) {
-      if (
-        matchesDeclensionFilters(card, filters) &&
-        !includesDeclensionCardId(reviewStore.newCardsToday, card.id)
-      ) {
-        targetNewCards.push({ card, reviewData, isNew: true });
-      }
-    } else if (isLearning) {
-      if (!includesDeclensionCardId(reviewStore.reviewedToday, card.id)) {
-        targetReviewCards.push({ card, reviewData, isNew: false });
-      }
-    } else if (isDue(reviewData.fsrsCard)) {
-      if (!includesDeclensionCardId(reviewStore.reviewedToday, card.id)) {
-        targetReviewCards.push({ card, reviewData, isNew: false });
-      }
+    if (bucket === 'new' && matchesDeclensionFilters(card, filters)) {
+      targetNewCards.push({ card, reviewData, isNew: true });
+    } else if (bucket === 'review') {
+      targetReviewCards.push({ card, reviewData, isNew: false });
     }
   }
 

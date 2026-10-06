@@ -1,7 +1,7 @@
 import { onCall, HttpsError } from 'firebase-functions/https';
 import OpenAI from 'openai';
 import { openaiApiKey } from '../shared/secrets.js';
-import { stripMarkdownCodeFences } from '../shared/json.js';
+import { requestJsonCompletion } from '../shared/openaiJson.js';
 import { CEFRLevel, isCEFRLevel } from '../shared/cefr.js';
 
 interface GeneratedSentence {
@@ -69,39 +69,28 @@ export const generateSentences = onCall<
     .filter(Boolean)
     .join('\n');
 
-  const completion = await openai.chat.completions.create({
-    model: 'gpt-4o',
-    messages: [
-      { role: 'system', content: SENTENCE_SYSTEM_PROMPT },
-      { role: 'user', content: userPrompt },
-    ],
-    temperature: 0.8,
-    max_tokens: 2000,
-  });
-
-  const content = completion.choices[0]?.message?.content;
-  if (!content) {
-    throw new HttpsError('internal', 'No response from AI.');
-  }
-
-  try {
-    const cleaned = stripMarkdownCodeFences(content);
-    const parsed = JSON.parse(cleaned) as GenerateSentencesResponse;
-    if (!parsed.sentences || !Array.isArray(parsed.sentences)) {
-      throw new Error('Invalid response structure');
-    }
-
-    for (const sentence of parsed.sentences) {
-      if (!sentence.polish || !sentence.english) {
-        throw new Error('Invalid sentence structure');
+  return requestJsonCompletion<GenerateSentencesResponse>(
+    openai,
+    {
+      model: 'gpt-4o',
+      messages: [
+        { role: 'system', content: SENTENCE_SYSTEM_PROMPT },
+        { role: 'user', content: userPrompt },
+      ],
+      temperature: 0.8,
+      max_tokens: 2000,
+    },
+    (parsed) => {
+      if (!parsed.sentences || !Array.isArray(parsed.sentences)) {
+        throw new Error('Invalid response structure');
       }
-      sentence.level = level;
-      sentence.tags = tags;
+      for (const sentence of parsed.sentences) {
+        if (!sentence.polish || !sentence.english) {
+          throw new Error('Invalid sentence structure');
+        }
+        sentence.level = level;
+        sentence.tags = tags;
+      }
     }
-
-    return parsed;
-  } catch {
-    console.error('Failed to parse AI response:', content);
-    throw new HttpsError('internal', 'Failed to parse AI response.');
-  }
+  );
 });

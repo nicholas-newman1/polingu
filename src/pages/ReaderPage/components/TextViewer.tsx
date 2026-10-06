@@ -6,45 +6,20 @@ import BookmarkIcon from '@mui/icons-material/Bookmark';
 import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
 import BookmarksIcon from '@mui/icons-material/Bookmarks';
 import { styled } from '../../../lib/styled';
-import { alpha } from '../../../lib/theme';
-import { TranslatableWord } from '../../../components/TranslatableWord';
+import { TranslatableWords } from '../../../components/lazyText/TranslatableWords';
+import { useLazyVisibility } from '../../../components/lazyText/useLazyVisibility';
+import { FONT_SIZE_MAP, estimatePlaceholderHeight } from '../../../components/lazyText/textSizing';
 import { TranslatableText } from '../../../components/TranslatableText';
-import { DRAWER_WIDTH } from '../../../constants/layout';
 import { useTranscriptFontSize } from '../../../hooks/useTranscriptFontSize';
 import { parseTextParagraphs } from '../../../lib/reader';
 import { countWords } from '../../../lib/utils/countWords';
 import type { TranscriptFontSize } from '../../../types/appSettings';
+import { ReaderNavigationBar } from './ReaderNavigationBar';
 
 const BOTTOM_MENU_HEIGHT = 70;
 const NAV_BAR_HEIGHT = 48;
 const HEADER_HEIGHT = 64;
 const SCROLL_ANCHOR_OFFSET = HEADER_HEIGHT + 8;
-
-const FONT_SIZE_MAP: Record<TranscriptFontSize, { base: string; sm: string }> = {
-  small: { base: '1rem', sm: '1.2rem' },
-  medium: { base: '1.3rem', sm: '1.5rem' },
-  large: { base: '1.9rem', sm: '2.1rem' },
-};
-
-const PLACEHOLDER_FONT_PX: Record<TranscriptFontSize, number> = {
-  small: 19,
-  medium: 24,
-  large: 34,
-};
-
-const PLACEHOLDER_WORDS_PER_LINE: Record<TranscriptFontSize, number> = {
-  small: 12,
-  medium: 10,
-  large: 7,
-};
-
-function estimatePlaceholderHeight(wordCount: number, fontSize: TranscriptFontSize): number {
-  const fontPx = PLACEHOLDER_FONT_PX[fontSize];
-  const lineHeightPx = fontPx * 1.8;
-  const wordsPerLine = PLACEHOLDER_WORDS_PER_LINE[fontSize];
-  const lines = Math.max(1, Math.ceil(wordCount / wordsPerLine));
-  return Math.ceil(lines * lineHeightPx);
-}
 
 const INITIAL_VISIBLE_BUFFER = 6;
 const LAZY_ROOT_MARGIN = '1200px 0px';
@@ -73,25 +48,6 @@ const Paragraph = styled('p')<{ $fontSize: TranscriptFontSize }>(({ theme, $font
 const ParagraphPlaceholder = styled(Box)({
   flexShrink: 0,
 });
-
-const NavigationBar = styled(Box)(({ theme }) => ({
-  position: 'fixed',
-  bottom: BOTTOM_MENU_HEIGHT,
-  left: 0,
-  right: 0,
-  display: 'flex',
-  justifyContent: 'center',
-  alignItems: 'center',
-  gap: theme.spacing(0.5),
-  padding: theme.spacing(1),
-  backgroundColor: alpha(theme.palette.background.paper, 0.95),
-  backdropFilter: 'blur(8px)',
-  borderTop: `1px solid ${theme.palette.divider}`,
-  zIndex: 10,
-  [theme.breakpoints.up('md')]: {
-    left: DRAWER_WIDTH,
-  },
-}));
 
 export interface TextReadingPosition {
   scrollPercent: number;
@@ -343,7 +299,7 @@ export const TextViewer = memo(function TextViewer({
         </TranslatableText>
       </ViewerContainer>
 
-      <NavigationBar>
+      <ReaderNavigationBar $bottom={BOTTOM_MENU_HEIGHT} $gap={0.5}>
         <Tooltip title="Smaller text">
           <span>
             <IconButton onClick={() => cycleFontSize('down')} disabled={fontSize === 'small'}>
@@ -384,7 +340,7 @@ export const TextViewer = memo(function TextViewer({
             </IconButton>
           </span>
         </Tooltip>
-      </NavigationBar>
+      </ReaderNavigationBar>
 
       <Menu
         anchorEl={bookmarkMenuAnchor}
@@ -428,30 +384,12 @@ const LazyParagraph = memo(function LazyParagraph({
   ...rowProps
 }: LazyParagraphProps) {
   const { paraIdx, fontSize, registerRef } = rowProps;
-  const [hasBeenVisible, setHasBeenVisible] = useState(initiallyVisible);
-  const placeholderRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (hasBeenVisible) return;
-    const el = placeholderRef.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) setHasBeenVisible(true);
-      },
-      { rootMargin: LAZY_ROOT_MARGIN }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [hasBeenVisible]);
-
-  const handlePlaceholderRef = useCallback(
-    (el: HTMLDivElement | null) => {
-      placeholderRef.current = el;
-      registerRef(paraIdx, el);
-    },
-    [registerRef, paraIdx]
-  );
+  const { hasBeenVisible, setPlaceholder } = useLazyVisibility({
+    initiallyVisible,
+    rootMargin: LAZY_ROOT_MARGIN,
+    index: paraIdx,
+    registerRef,
+  });
 
   if (hasBeenVisible) {
     return <ParagraphRow {...rowProps} />;
@@ -459,7 +397,7 @@ const LazyParagraph = memo(function LazyParagraph({
 
   return (
     <ParagraphPlaceholder
-      ref={handlePlaceholderRef}
+      ref={setPlaceholder}
       sx={{ minHeight: estimatePlaceholderHeight(wordCount, fontSize) }}
     />
   );
@@ -473,8 +411,6 @@ const ParagraphRow = memo(function ParagraphRow({
   translations,
   registerRef,
 }: ParagraphRowProps) {
-  const tokens = useMemo(() => paragraph.split(/(\s+)/), [paragraph]);
-
   const refCb = useCallback(
     (el: HTMLParagraphElement | null) => {
       registerRef(paraIdx, el);
@@ -482,29 +418,9 @@ const ParagraphRow = memo(function ParagraphRow({
     [registerRef, paraIdx]
   );
 
-  const elements = useMemo(() => {
-    let wordIndex = 0;
-    return tokens.map((token, index) => {
-      if (/^\s+$/.test(token)) return token;
-      const currentWordIndex = wordIndex;
-      wordIndex++;
-
-      return (
-        <TranslatableWord
-          key={index}
-          word={token}
-          wordIndex={wordOffset + currentWordIndex}
-          sentenceContext={paragraph}
-          translations={translations}
-          disableHoverTranslate
-        />
-      );
-    });
-  }, [tokens, wordOffset, paragraph, translations]);
-
   return (
     <Paragraph ref={refCb} $fontSize={fontSize}>
-      {elements}
+      <TranslatableWords text={paragraph} wordOffset={wordOffset} translations={translations} />
     </Paragraph>
   );
 });

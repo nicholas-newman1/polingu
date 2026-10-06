@@ -1,37 +1,19 @@
 import type { AspectPairsReviewDataStore } from '../../types/aspectPairs';
-import {
-  getTodayString,
-  getDefaultAspectPairsReviewStore,
-  ASPECT_PAIRS_SESSION_DOC_PATH,
-} from './helpers';
-import { loadUserData } from '../offlineDb/userDataWrapper';
+import { getDefaultAspectPairsReviewStore, ASPECT_PAIRS_SESSION_DOC_PATH } from './helpers';
 import { aspectPairsReviewStorage } from './aspectPairsReviewStorage';
-
-interface AspectPairsReviewSession {
-  reviewedToday: AspectPairsReviewDataStore['reviewedToday'];
-  newCardsToday: AspectPairsReviewDataStore['newCardsToday'];
-  lastReviewDate: string;
-}
+import loadDailyReviewSession from './loadDailyReviewSession';
 
 export default async function loadAspectPairsReviewData(): Promise<AspectPairsReviewDataStore> {
-  const today = getTodayString();
-  const defaults = getDefaultAspectPairsReviewStore();
-  const defaultSession: AspectPairsReviewSession = {
-    reviewedToday: defaults.reviewedToday,
-    newCardsToday: defaults.newCardsToday,
-    lastReviewDate: defaults.lastReviewDate,
-  };
-
-  const [cards, session] = await Promise.all([
-    aspectPairsReviewStorage.loadCards(),
-    loadUserData<AspectPairsReviewSession>(ASPECT_PAIRS_SESSION_DOC_PATH, defaultSession),
-  ]);
-
-  if (session.lastReviewDate !== today) {
-    session.reviewedToday = [];
-    session.newCardsToday = [];
-    session.lastReviewDate = today;
-  }
+  const { reviewedToday, newCardsToday, lastReviewDate } = getDefaultAspectPairsReviewStore();
+  const [cards, session] = await loadDailyReviewSession(
+    aspectPairsReviewStorage,
+    ASPECT_PAIRS_SESSION_DOC_PATH,
+    {
+      reviewedToday,
+      newCardsToday,
+      lastReviewDate,
+    }
+  );
 
   return {
     cards,

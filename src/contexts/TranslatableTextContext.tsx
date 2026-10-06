@@ -59,6 +59,60 @@ const MemoizedChildTree = memo(function MemoizedChildTree({ children }: { childr
   return children;
 });
 
+function getRange(start: number | null, end: number | null): [number, number] | null {
+  if (start === null || end === null) return null;
+  return [Math.min(start, end), Math.max(start, end)];
+}
+
+/** Joins the registered words in [min, max], collapsing a word repeated at consecutive indices. */
+function buildPhrase(words: Map<number, string>, [min, max]: [number, number]): string {
+  const phrase: string[] = [];
+  let lastAddedIndex: number | null = null;
+  for (let i = min; i <= max; i++) {
+    const word = words.get(i);
+    if (!word) continue;
+    if (lastAddedIndex === i - 1 && word === phrase[phrase.length - 1]) continue;
+    phrase.push(word);
+    lastAddedIndex = i;
+  }
+  return phrase.join(' ');
+}
+
+function wordIndexAtTouch(e: TouchEvent): number | null {
+  const touch = e.touches[0];
+  if (!touch) return null;
+  const attr = document
+    .elementFromPoint(touch.clientX, touch.clientY)
+    ?.getAttribute('data-word-index');
+  if (attr == null) return null;
+  const index = parseInt(attr, 10);
+  return isNaN(index) ? null : index;
+}
+
+/** Tracks a drag that leaves the word elements; returns the cleanup. */
+function addDocumentDragListeners(onUpdate: (index: number) => void, onEnd: () => void) {
+  const handleMouseLeave = (e: MouseEvent) => {
+    if (e.target === document.documentElement) onEnd();
+  };
+  const handleTouchMove = (e: TouchEvent) => {
+    if (e.cancelable) e.preventDefault();
+    const index = wordIndexAtTouch(e);
+    if (index !== null) onUpdate(index);
+  };
+
+  document.addEventListener('mouseup', onEnd);
+  document.addEventListener('mouseleave', handleMouseLeave);
+  document.addEventListener('touchend', onEnd);
+  document.addEventListener('touchmove', handleTouchMove, { passive: false });
+
+  return () => {
+    document.removeEventListener('mouseup', onEnd);
+    document.removeEventListener('mouseleave', handleMouseLeave);
+    document.removeEventListener('touchend', onEnd);
+    document.removeEventListener('touchmove', handleTouchMove);
+  };
+}
+
 export function TranslatableTextProvider({
   children,
   overlays,
@@ -154,21 +208,14 @@ export function TranslatableTextProvider({
   }, []);
 
   const isIndexSelected = useCallback((index: number): boolean => {
-    const start = dragStartRef.current;
-    const end = dragEndRef.current;
-    if (start === null || end === null) return false;
-    return index >= Math.min(start, end) && index <= Math.max(start, end);
+    const range = getRange(dragStartRef.current, dragEndRef.current);
+    return !!range && index >= range[0] && index <= range[1];
   }, []);
 
   const getSelectedIndices = useCallback((): number[] => {
-    const start = dragStartRef.current;
-    const end = dragEndRef.current;
-    if (start === null || end === null) return [];
-    const min = Math.min(start, end);
-    const max = Math.max(start, end);
-    const indices: number[] = [];
-    for (let i = min; i <= max; i++) indices.push(i);
-    return indices;
+    const range = getRange(dragStartRef.current, dragEndRef.current);
+    if (!range) return [];
+    return Array.from({ length: range[1] - range[0] + 1 }, (_, i) => range[0] + i);
   }, []);
 
   const registerWord = useCallback((index: number, word: string) => {
@@ -177,35 +224,10 @@ export function TranslatableTextProvider({
 
   const installDocumentDragListeners = useCallback(() => {
     if (documentListenersCleanupRef.current) return;
-
-    const handleMouseUp = () => endDragRef.current?.();
-    const handleMouseLeave = (e: MouseEvent) => {
-      if (e.target === document.documentElement) endDragRef.current?.();
-    };
-    const handleTouchEnd = () => endDragRef.current?.();
-    const handleTouchMove = (e: TouchEvent) => {
-      if (e.cancelable) e.preventDefault();
-      const touch = e.touches[0];
-      if (!touch) return;
-      const element = document.elementFromPoint(touch.clientX, touch.clientY);
-      if (!element) return;
-      const wordIndexAttr = element.getAttribute('data-word-index');
-      if (wordIndexAttr === null) return;
-      const wordIndex = parseInt(wordIndexAttr, 10);
-      if (!isNaN(wordIndex)) updateDragRef.current?.(wordIndex);
-    };
-
-    document.addEventListener('mouseup', handleMouseUp);
-    document.addEventListener('mouseleave', handleMouseLeave);
-    document.addEventListener('touchend', handleTouchEnd);
-    document.addEventListener('touchmove', handleTouchMove, { passive: false });
-
-    documentListenersCleanupRef.current = () => {
-      document.removeEventListener('mouseup', handleMouseUp);
-      document.removeEventListener('mouseleave', handleMouseLeave);
-      document.removeEventListener('touchend', handleTouchEnd);
-      document.removeEventListener('touchmove', handleTouchMove);
-    };
+    documentListenersCleanupRef.current = addDocumentDragListeners(
+      (index) => updateDragRef.current?.(index),
+      () => endDragRef.current?.()
+    );
   }, []);
 
   const removeDocumentDragListeners = useCallback(() => {
@@ -246,37 +268,15 @@ export function TranslatableTextProvider({
     [notifySelectionChange]
   );
 
-  const buildPhrase = useCallback(() => {
-    const start = dragStartRef.current;
-    const end = dragEndRef.current;
-    if (start === null || end === null) return null;
-    const min = Math.min(start, end);
-    const max = Math.max(start, end);
-
-    const words: string[] = [];
-    let lastAddedIndex: number | null = null;
-    for (let i = min; i <= max; i++) {
-      const word = wordsRef.current.get(i);
-      if (!word) continue;
-      if (lastAddedIndex !== null && i === lastAddedIndex + 1 && word === words[words.length - 1]) {
-        continue;
-      }
-      words.push(word);
-      lastAddedIndex = i;
-    }
-    return words.join(' ');
-  }, []);
-
   const endDrag = useCallback(() => {
     if (!isDraggingRef.current) return;
     isDraggingRef.current = false;
     removeDocumentDragListeners();
     notifyInteractionChange();
 
-    const start = dragStartRef.current;
-    const end = dragEndRef.current;
-    const phrase = buildPhrase();
-    const hasDragged = start !== null && end !== null && start !== end;
+    const range = getRange(dragStartRef.current, dragEndRef.current);
+    const phrase = range && buildPhrase(wordsRef.current, range);
+    const hasDragged = !!range && range[0] !== range[1];
 
     if (hasDragged && phrase) {
       setSelectedPhrase(phrase);
@@ -288,7 +288,6 @@ export function TranslatableTextProvider({
       notifySelectionChange();
     }
   }, [
-    buildPhrase,
     notifySelectionChange,
     notifyInteractionChange,
     removeDocumentDragListeners,

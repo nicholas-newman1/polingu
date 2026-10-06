@@ -4,17 +4,12 @@ import type {
   ConjugationDirectionSettings,
   ConjugationFilters,
 } from '../../types/conjugation';
-import { getDrillableFormsForVerb, matchesFilters } from '../conjugationUtils';
-import getOrCreateConjugationFormReviewData from '../storage/getOrCreateConjugationFormReviewData';
+import { matchesFilters } from '../conjugationUtils';
 import { includesFormKey } from '../storage/helpers';
-import isDue from '../fsrsUtils/isDue';
+import getReviewBucket from '../fsrsUtils/getReviewBucket';
+import sortByDueDate from '../fsrsUtils/sortByDueDate';
+import getFormsWithReviewData from './getFormsWithReviewData';
 import type { ConjugationSessionCard } from './types';
-
-function sortByDueDate(a: ConjugationSessionCard, b: ConjugationSessionCard): number {
-  const dateA = new Date(a.reviewData.fsrsCard.due).getTime();
-  const dateB = new Date(b.reviewData.fsrsCard.due).getTime();
-  return dateA - dateB;
-}
 
 export default function getConjugationSessionCards(
   verbs: Verb[],
@@ -26,31 +21,17 @@ export default function getConjugationSessionCards(
   const allNewCards: ConjugationSessionCard[] = [];
   const remainingNewFormsToday = settings.newCardsPerDay - reviewStore.newFormsToday.length;
 
-  for (const verb of verbs) {
-    const drillableForms = getDrillableFormsForVerb(verb);
+  for (const { form, reviewData } of getFormsWithReviewData(verbs, reviewStore)) {
+    const bucket = getReviewBucket(
+      reviewData.fsrsCard,
+      includesFormKey(reviewStore.newFormsToday, form.fullFormKey),
+      includesFormKey(reviewStore.reviewedToday, form.fullFormKey)
+    );
 
-    for (const form of drillableForms) {
-      const reviewData = getOrCreateConjugationFormReviewData(form.fullFormKey, reviewStore);
-      const state = reviewData.fsrsCard.state;
-      const isNew = state === 0;
-      const isLearning = state === 1 || state === 3;
-
-      if (isNew) {
-        if (
-          !includesFormKey(reviewStore.newFormsToday, form.fullFormKey) &&
-          matchesFilters(form, filters)
-        ) {
-          allNewCards.push({ form, reviewData, isNew: true });
-        }
-      } else if (isLearning) {
-        if (!includesFormKey(reviewStore.reviewedToday, form.fullFormKey)) {
-          reviewCards.push({ form, reviewData, isNew: false });
-        }
-      } else if (isDue(reviewData.fsrsCard)) {
-        if (!includesFormKey(reviewStore.reviewedToday, form.fullFormKey)) {
-          reviewCards.push({ form, reviewData, isNew: false });
-        }
-      }
+    if (bucket === 'new' && matchesFilters(form, filters)) {
+      allNewCards.push({ form, reviewData, isNew: true });
+    } else if (bucket === 'review') {
+      reviewCards.push({ form, reviewData, isNew: false });
     }
   }
 

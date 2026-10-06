@@ -1,7 +1,7 @@
 import { db } from './firebase-admin.js';
 import { writeFileSync } from 'fs';
 import { resolve } from 'path';
-import type { VerbIndex, Verb } from './verb-types.js';
+import type { VerbIndex, ImportedVerb } from './verb-types.js';
 
 const INDEX_PATH = resolve(process.cwd(), 'verbIndex.json');
 
@@ -9,7 +9,7 @@ async function syncVerbs() {
   console.log('🔄 Fetching verbs from Firestore...');
 
   const snapshot = await db.collection('verbs').get();
-  const verbs = snapshot.docs.map((doc) => doc.data() as Verb);
+  const verbs = snapshot.docs.map((doc) => doc.data() as ImportedVerb);
 
   console.log(`📊 Found ${verbs.length} verbs`);
 

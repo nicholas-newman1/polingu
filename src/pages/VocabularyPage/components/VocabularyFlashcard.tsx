@@ -1,15 +1,17 @@
 import { useState } from 'react';
-import { Box, Button, Chip, Stack, Typography } from '@mui/material';
+import { Box, Button, Stack, Typography } from '@mui/material';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import { styled } from '../../../lib/styled';
 import { FlashcardShell, type ReviewFlashcardProps } from '../../../components/FlashcardShell';
 import { AudioButton } from '../../../components/AudioButton';
 import { HidePolishButton } from '../../../components/HidePolishButton';
 import { HiddenPolishPlaceholder } from '../../../components/HiddenPolishPlaceholder';
-import type { VocabularyWord } from '../../../types/vocabulary';
+import type { ExampleSentence, VocabularyWord } from '../../../types/vocabulary';
+import capitalize from '../../../lib/utils/capitalize';
 import type { TranslationDirection } from '../../../types/common';
 import { useAudioPlayer } from '../../../hooks/useAudioPlayer';
 import { useAppSettings } from '../../../contexts/AppSettingsContext';
+import { FlashcardMetaChip, FlashcardHint } from '../../../components/flashcardStyles';
 
 interface VocabularyFlashcardProps extends ReviewFlashcardProps {
   word: VocabularyWord;
@@ -33,15 +35,6 @@ const QuestionText = styled(Typography)({
 
 const AnswerText = styled(Typography)({
   fontWeight: 500,
-});
-
-const MetaChip = styled(Chip)(({ theme }) => ({
-  backgroundColor: theme.palette.background.default,
-  color: theme.palette.text.secondary,
-}));
-
-const HintText = styled(Typography)({
-  fontStyle: 'italic',
 });
 
 const ExamplesList = styled(Box)(({ theme }) => ({
@@ -85,27 +78,88 @@ const GenerateSentencesButton = styled(Button)(({ theme }) => ({
   fontSize: '0.8125rem',
 }));
 
-function formatPartOfSpeech(pos: string): string {
-  return pos.charAt(0).toUpperCase() + pos.slice(1);
+function WordText({
+  text,
+  hidden,
+  Text,
+}: {
+  text: string;
+  hidden: boolean;
+  Text: typeof QuestionText | typeof AnswerText;
+}) {
+  if (hidden) {
+    return (
+      <Box sx={{ mb: 2 }}>
+        <HiddenPolishPlaceholder />
+      </Box>
+    );
+  }
+  return (
+    <Text variant="h4" color="text.primary" sx={{ mb: 2 }}>
+      {text}
+    </Text>
+  );
+}
+
+interface ExampleSentencesProps {
+  examples: ExampleSentence[];
+  isPolishToEnglish: boolean;
+  revealed: boolean;
+  animate: boolean;
+}
+
+function ExampleSentences({
+  examples,
+  isPolishToEnglish,
+  revealed,
+  animate,
+}: ExampleSentencesProps) {
+  return (
+    <ExamplesList className={animate ? 'animate-fade-up' : undefined}>
+      {examples.map((example, index) => (
+        <ExampleItem key={index}>
+          <Box>
+            <ExampleNumber>{index + 1}.</ExampleNumber>
+            <ExamplePrimary>{isPolishToEnglish ? example.polish : example.english}</ExamplePrimary>
+          </Box>
+          {revealed && (
+            <ExampleTranslation variant="body2" color="text.disabled" className="animate-fade-up">
+              {isPolishToEnglish ? example.english : example.polish}
+            </ExampleTranslation>
+          )}
+        </ExampleItem>
+      ))}
+    </ExamplesList>
+  );
+}
+
+function WordDetails({ word }: { word: VocabularyWord }) {
+  return (
+    <>
+      <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: 'wrap', gap: 1 }}>
+        {word.partOfSpeech && (
+          <FlashcardMetaChip label={capitalize(word.partOfSpeech)} size="small" />
+        )}
+        {word.gender && <FlashcardMetaChip label={word.gender} size="small" />}
+      </Stack>
+
+      {word.notes && (
+        <FlashcardHint variant="body2" color="text.disabled">
+          💡 {word.notes}
+        </FlashcardHint>
+      )}
+    </>
+  );
 }
 
 export function VocabularyFlashcard({
   word,
   direction,
-  practiceMode = false,
   isViewingHistory = false,
-  canGoBack = false,
-  intervals,
-  reassessIntervals,
   isAdmin = false,
-  onRate,
-  onReassess,
-  onNext,
-  onGoBack,
-  onContinue,
-  onEdit,
   onDelete,
   onGenerateSentences,
+  ...shellProps
 }: VocabularyFlashcardProps) {
   const [revealed, setRevealed] = useState(isViewingHistory);
   const { settings } = useAppSettings();
@@ -121,28 +175,20 @@ export function VocabularyFlashcard({
     revealed,
   });
 
-  const questionWord = isPolishToEnglish ? word.polish : word.english;
-  const answerWord = isPolishToEnglish ? word.english : word.polish;
   const isCustomWord = word.isCustom === true;
-  const canEditOrDelete = isCustomWord || isAdmin;
-
   const header = isCustomWord ? <CustomLabel>Custom</CustomLabel> : undefined;
 
-  const headerActions = (
+  const headerActions = hasAudio && (
     <>
-      {hasAudio && <AudioButton isPlaying={isPlaying} onToggle={toggleAudio} />}
-      {hasAudio && <HidePolishButton />}
+      <AudioButton isPlaying={isPlaying} onToggle={toggleAudio} />
+      <HidePolishButton />
     </>
   );
 
-  const questionIsPolishHidden = isPolishToEnglish && hidePolish && !revealed;
-  const answerIsPolishHidden = !isPolishToEnglish && hidePolish && !revealed;
+  const polishHidden = hidePolish && !revealed;
+  const examples = word.examples ?? [];
 
-  const hasExamples = word.examples && word.examples.length > 0;
-  const showExamples = hasExamples && (!hidePolish || revealed);
-  const showGenerateSentencesButton = !hasExamples && !!onGenerateSentences;
-
-  const generateSentencesButton = showGenerateSentencesButton ? (
+  const generateSentencesButton = examples.length === 0 && onGenerateSentences && (
     <GenerateSentencesButton
       size="small"
       variant="contained"
@@ -151,95 +197,46 @@ export function VocabularyFlashcard({
     >
       Generate sentences
     </GenerateSentencesButton>
-  ) : null;
+  );
 
   const question = (
     <>
-      {questionIsPolishHidden ? (
-        <Box sx={{ mb: 2 }}>
-          <HiddenPolishPlaceholder />
-        </Box>
-      ) : (
-        <QuestionText variant="h4" color="text.primary" sx={{ mb: 2 }}>
-          {questionWord}
-        </QuestionText>
+      <WordText
+        text={isPolishToEnglish ? word.polish : word.english}
+        hidden={isPolishToEnglish && polishHidden}
+        Text={QuestionText}
+      />
+      {examples.length > 0 && !polishHidden && (
+        <ExampleSentences
+          examples={examples}
+          isPolishToEnglish={isPolishToEnglish}
+          revealed={revealed}
+          animate={hidePolish}
+        />
       )}
-
-      {showExamples && (
-        <ExamplesList className={hidePolish ? 'animate-fade-up' : undefined}>
-          {word.examples!.map((example, index) => {
-            const primaryText = isPolishToEnglish ? example.polish : example.english;
-            const translationText = isPolishToEnglish ? example.english : example.polish;
-            return (
-              <ExampleItem key={index}>
-                <Box>
-                  <ExampleNumber>{index + 1}.</ExampleNumber>
-                  <ExamplePrimary>{primaryText}</ExamplePrimary>
-                </Box>
-                {revealed && (
-                  <ExampleTranslation
-                    variant="body2"
-                    color="text.disabled"
-                    className="animate-fade-up"
-                  >
-                    {translationText}
-                  </ExampleTranslation>
-                )}
-              </ExampleItem>
-            );
-          })}
-        </ExamplesList>
-      )}
-
       {!revealed && generateSentencesButton}
     </>
   );
 
   const answer = (
     <>
-      {answerIsPolishHidden ? (
-        <Box sx={{ mb: 2 }}>
-          <HiddenPolishPlaceholder />
-        </Box>
-      ) : (
-        <AnswerText variant="h4" color="text.primary" sx={{ mb: 2 }}>
-          {answerWord}
-        </AnswerText>
-      )}
-
-      <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: 'wrap', gap: 1 }}>
-        {word.partOfSpeech && (
-          <MetaChip label={formatPartOfSpeech(word.partOfSpeech)} size="small" />
-        )}
-        {word.gender && <MetaChip label={word.gender} size="small" />}
-      </Stack>
-
-      {word.notes && (
-        <HintText variant="body2" color="text.disabled">
-          💡 {word.notes}
-        </HintText>
-      )}
-
+      <WordText
+        text={isPolishToEnglish ? word.english : word.polish}
+        hidden={!isPolishToEnglish && polishHidden}
+        Text={AnswerText}
+      />
+      <WordDetails word={word} />
       {generateSentencesButton}
     </>
   );
 
   return (
     <FlashcardShell
+      {...shellProps}
       revealed={revealed}
-      practiceMode={practiceMode}
       isViewingHistory={isViewingHistory}
-      canGoBack={canGoBack}
-      intervals={intervals}
-      reassessIntervals={reassessIntervals}
-      canEdit={canEditOrDelete}
+      canEdit={isCustomWord || isAdmin}
       onReveal={() => setRevealed(true)}
-      onRate={onRate}
-      onReassess={onReassess}
-      onNext={onNext}
-      onGoBack={onGoBack}
-      onContinue={onContinue}
-      onEdit={onEdit}
       onDelete={onDelete}
       header={header}
       headerActions={headerActions}

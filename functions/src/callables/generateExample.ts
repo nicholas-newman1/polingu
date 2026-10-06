@@ -1,7 +1,7 @@
 import { onCall, HttpsError } from 'firebase-functions/https';
 import OpenAI from 'openai';
 import { openaiApiKey } from '../shared/secrets.js';
-import { stripMarkdownCodeFences } from '../shared/json.js';
+import { requestJsonCompletion } from '../shared/openaiJson.js';
 
 interface GenerateExampleRequest {
   polish: string;
@@ -74,43 +74,34 @@ Respond with ONLY valid JSON (no markdown):
 
 The "meaning" field is optional - only include it when distinguishing between different senses of the word.`);
 
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        {
-          role: 'system',
-          content:
-            'You are a Polish language expert helping create example sentences for vocabulary flashcards. Always respond with valid JSON only, no markdown formatting.',
-        },
-        {
-          role: 'user',
-          content: promptParts.join('\n'),
-        },
-      ],
-      temperature: 0.8,
-      max_tokens: 500,
-    });
-
-    const content = completion.choices[0]?.message?.content;
-    if (!content) {
-      throw new HttpsError('internal', 'No response from AI.');
-    }
-
-    try {
-      const cleaned = stripMarkdownCodeFences(content);
-      const parsed = JSON.parse(cleaned) as GenerateExampleResponse;
-      if (!parsed.examples || !Array.isArray(parsed.examples) || parsed.examples.length === 0) {
-        throw new Error('Invalid response structure');
-      }
-      for (const ex of parsed.examples) {
-        if (!ex.polish || !ex.english) {
-          throw new Error('Invalid example structure');
+    return requestJsonCompletion<GenerateExampleResponse>(
+      openai,
+      {
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content:
+              'You are a Polish language expert helping create example sentences for vocabulary flashcards. Always respond with valid JSON only, no markdown formatting.',
+          },
+          {
+            role: 'user',
+            content: promptParts.join('\n'),
+          },
+        ],
+        temperature: 0.8,
+        max_tokens: 500,
+      },
+      (parsed) => {
+        if (!parsed.examples || !Array.isArray(parsed.examples) || parsed.examples.length === 0) {
+          throw new Error('Invalid response structure');
+        }
+        for (const ex of parsed.examples) {
+          if (!ex.polish || !ex.english) {
+            throw new Error('Invalid example structure');
+          }
         }
       }
-      return parsed;
-    } catch {
-      console.error('Failed to parse AI response:', content);
-      throw new HttpsError('internal', 'Failed to parse AI response.');
-    }
+    );
   }
 );

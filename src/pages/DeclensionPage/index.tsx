@@ -18,8 +18,7 @@ import {
 import { saveCustomDeclension } from '../../lib/storage/customDeclension';
 import { generateCustomId } from '../../types/customItems';
 import getDeclensionSessionCards from '../../lib/declensionScheduler/getSessionCards';
-import getDeclensionPracticeAheadCards from '../../lib/declensionScheduler/getPracticeAheadCards';
-import getDeclensionExtraNewCards from '../../lib/declensionScheduler/getExtraNewCards';
+import getDeclensionExtraCards from '../../lib/declensionScheduler/getExtraCards';
 import matchesDeclensionFilters from '../../lib/declensionScheduler/matchesFilters';
 import type { DeclensionFilters } from '../../lib/declensionScheduler/types';
 import { recordCardReview } from '../../lib/reviewSession/recordReview';
@@ -92,10 +91,7 @@ export function DeclensionPage() {
     ready: !contextLoading && !filtersLoading && allDeclensionCards.length > 0,
     getSessionCards: () =>
       getDeclensionSessionCards(allDeclensionCards, reviewStore, filters, settings),
-    getPracticeAheadCards: (count) =>
-      getDeclensionPracticeAheadCards(allDeclensionCards, reviewStore, filters, count),
-    getExtraNewCards: (count) =>
-      getDeclensionExtraNewCards(allDeclensionCards, reviewStore, filters, count),
+    ...getDeclensionExtraCards(allDeclensionCards, reviewStore, filters),
     reviewStore,
     recordReview: recordCardReview,
     saveReviewStore: updateDeclensionReviewStore,

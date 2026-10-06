@@ -15,7 +15,7 @@ import { EditBookDialog } from './components/EditBookDialog';
 import { DeleteBookDialog } from './components/DeleteBookDialog';
 import { ProcessingBookCards, ReadyBookCards } from './components/BookCards';
 import { AddBookCard } from './components/AddBookCard';
-import { UploadProgressOverlay } from './components/UploadProgressOverlay';
+import { UploadProgressOverlay } from '../../components/UploadProgressOverlay';
 import { BookMenu } from './components/BookMenu';
 
 const PageContainer = styled(Box)(({ theme }) => ({
@@ -223,7 +223,9 @@ export function LibraryPage() {
         onError={handleUploadError}
       />
 
-      {uploadProgress && <UploadProgressOverlay progress={uploadProgress} />}
+      {uploadProgress && (
+        <UploadProgressOverlay progress={uploadProgress} processingLabel="Processing book..." />
+      )}
 
       <BookMenu
         anchorEl={menuAnchor?.el ?? null}

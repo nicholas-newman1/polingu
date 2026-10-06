@@ -5,7 +5,7 @@ import type {
 } from '../../types/aspectPairs';
 import getOrCreateAspectPairsCardReviewData from '../storage/getOrCreateAspectPairsCardReviewData';
 import { includesVerbId } from '../storage/helpers';
-import isDue from '../fsrsUtils/isDue';
+import getReviewBucket from '../fsrsUtils/getReviewBucket';
 import sortByDueDate from '../fsrsUtils/sortByDueDate';
 import type { AspectPairsSessionCard } from './types';
 
@@ -21,25 +21,16 @@ export default function getAspectPairsSessionCards(
   for (const card of aspectPairCards) {
     const verbId = card.verb.id;
     const reviewData = getOrCreateAspectPairsCardReviewData(verbId, reviewStore);
-    const state = reviewData.fsrsCard.state;
-    const isNew = state === 0;
-    const isLearning = state === 1 || state === 3;
+    const bucket = getReviewBucket(
+      reviewData.fsrsCard,
+      includesVerbId(reviewStore.newCardsToday, verbId),
+      includesVerbId(reviewStore.reviewedToday, verbId)
+    );
 
-    if (isNew) {
-      if (
-        !includesVerbId(reviewStore.newCardsToday, verbId) &&
-        newCards.length < remainingNewCardsToday
-      ) {
-        newCards.push({ card, reviewData, isNew: true });
-      }
-    } else if (isLearning) {
-      if (!includesVerbId(reviewStore.reviewedToday, verbId)) {
-        reviewCards.push({ card, reviewData, isNew: false });
-      }
-    } else if (isDue(reviewData.fsrsCard)) {
-      if (!includesVerbId(reviewStore.reviewedToday, verbId)) {
-        reviewCards.push({ card, reviewData, isNew: false });
-      }
+    if (bucket === 'new' && newCards.length < remainingNewCardsToday) {
+      newCards.push({ card, reviewData, isNew: true });
+    } else if (bucket === 'review') {
+      reviewCards.push({ card, reviewData, isNew: false });
     }
   }
 

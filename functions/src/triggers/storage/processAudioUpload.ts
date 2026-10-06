@@ -1,6 +1,7 @@
 import { onObjectFinalized } from 'firebase-functions/storage';
 import { getFunctions } from 'firebase-admin/functions';
 import { DEFAULT_BUCKET } from '../../shared/config.js';
+import { parsePendingUpload } from '../../shared/pendingUpload.js';
 import { db, storage } from '../../shared/firebase.js';
 import { isKilled } from '../../shared/killSwitch.js';
 import { isAdmin } from '../../shared/auth.js';
@@ -19,15 +20,10 @@ export const processAudioUpload = onObjectFinalized(
     timeoutSeconds: 60,
   },
   async (event) => {
-    const filePath = event.data.name;
-    const contentType = event.data.contentType;
-    const fileSize =
-      typeof event.data.size === 'string' ? parseInt(event.data.size, 10) : event.data.size;
+    const upload = parsePendingUpload(event.data, 'audio');
+    if (!upload) return;
 
-    const pathMatch = filePath.match(/^audio\/users\/([^/]+)\/pending\/([^/]+)\/(.+)$/);
-    if (!pathMatch) return;
-
-    const [, userId, audioId, fileName] = pathMatch;
+    const { filePath, userId, itemId: audioId, fileName, contentType, fileSize } = upload;
     const audioRef = db.collection('users').doc(userId).collection('audioItems').doc(audioId);
 
     try {

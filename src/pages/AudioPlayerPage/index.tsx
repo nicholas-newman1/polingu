@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Navigate } from 'react-router-dom';
 import { Box, CircularProgress, Typography } from '@mui/material';
 import { styled } from '../../lib/styled';
@@ -54,25 +54,16 @@ export function AudioPlayerPage() {
     audioItem,
     systemItems,
     isPlaying,
-    currentTime,
-    duration,
     activeSegmentIndex,
-    playbackRate,
     loading,
     error,
-    hasNext,
-    hasPrevious,
     play,
     pause,
     togglePlay,
     seek,
-    setPlaybackRate,
-    nextTrack,
-    previousTrack,
   } = useAudioPlayerContext();
   const { isAdmin } = useAuthContext();
   const [controlsHeight, setControlsHeight] = useState(CONTROLS_HEIGHT);
-  const wasPlayingBeforeSeekRef = useRef(false);
   const { handleDailyLimitReached } = useTranslationContext();
   const [transcriptFontSize, setTranscriptFontSize] = useTranscriptFontSize();
   const [editMode, setEditMode] = useState(false);
@@ -142,24 +133,6 @@ export function AudioPlayerPage() {
     [seek, play, isPlaying]
   );
 
-  const handleTogglePlay = useCallback(() => {
-    togglePlay();
-  }, [togglePlay]);
-
-  const handleSeekStart = useCallback(() => {
-    wasPlayingBeforeSeekRef.current = isPlaying;
-    if (isPlaying) {
-      pause();
-    }
-  }, [isPlaying, pause]);
-
-  const handleSeekEnd = useCallback(() => {
-    if (wasPlayingBeforeSeekRef.current) {
-      play();
-    }
-    wasPlayingBeforeSeekRef.current = false;
-  }, [play]);
-
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.code !== 'Space' && e.key !== ' ') return;
@@ -168,11 +141,11 @@ export function AudioPlayerPage() {
         return;
       }
       e.preventDefault();
-      handleTogglePlay();
+      togglePlay();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [handleTogglePlay]);
+  }, [togglePlay]);
 
   if (!activeAudioId) {
     return <Navigate to="/audio" replace />;
@@ -224,20 +197,7 @@ export function AudioPlayerPage() {
       </TranscriptArea>
 
       <AudioControls
-        isPlaying={isPlaying}
-        currentTime={currentTime}
-        duration={duration}
-        playbackRate={playbackRate}
-        hasNext={hasNext}
-        hasPrevious={hasPrevious}
         fontSize={transcriptFontSize}
-        onTogglePlay={handleTogglePlay}
-        onSeek={seek}
-        onSeekStart={handleSeekStart}
-        onSeekEnd={handleSeekEnd}
-        onSetPlaybackRate={setPlaybackRate}
-        onNextTrack={nextTrack}
-        onPreviousTrack={previousTrack}
         onFontSizeChange={setTranscriptFontSize}
         onHeightChange={setControlsHeight}
         editModeAvailable={canEditTranscript}

@@ -5,7 +5,7 @@ import type {
 } from '../../types/sentences';
 import getOrCreateSentenceCardReviewData from '../storage/getOrCreateSentenceCardReviewData';
 import { includesSentenceId } from '../storage/helpers';
-import isDue from '../fsrsUtils/isDue';
+import getReviewBucket from '../fsrsUtils/getReviewBucket';
 import sortByDueDate from '../fsrsUtils/sortByDueDate';
 import type { SentenceSessionCard } from './types';
 
@@ -22,28 +22,19 @@ export default function getSentenceSessionCards(
 
   for (const sentence of allSentences) {
     const reviewData = getOrCreateSentenceCardReviewData(sentence.id, reviewStore);
-    const state = reviewData.fsrsCard.state;
-    const isNew = state === 0;
-    const isLearning = state === 1 || state === 3;
+    const bucket = getReviewBucket(
+      reviewData.fsrsCard,
+      includesSentenceId(reviewStore.newCardsToday, sentence.id),
+      includesSentenceId(reviewStore.reviewedToday, sentence.id)
+    );
     const isCustom = sentence.isCustom === true;
     const targetNewCards = isCustom ? customNewCards : systemNewCards;
     const targetReviewCards = isCustom ? customReviewCards : systemReviewCards;
 
-    if (isNew) {
-      if (
-        !includesSentenceId(reviewStore.newCardsToday, sentence.id) &&
-        customNewCards.length + systemNewCards.length < remainingNewCardsToday
-      ) {
-        targetNewCards.push({ sentence, reviewData, isNew: true });
-      }
-    } else if (isLearning) {
-      if (!includesSentenceId(reviewStore.reviewedToday, sentence.id)) {
-        targetReviewCards.push({ sentence, reviewData, isNew: false });
-      }
-    } else if (isDue(reviewData.fsrsCard)) {
-      if (!includesSentenceId(reviewStore.reviewedToday, sentence.id)) {
-        targetReviewCards.push({ sentence, reviewData, isNew: false });
-      }
+    if (bucket === 'new' && customNewCards.length + systemNewCards.length < remainingNewCardsToday) {
+      targetNewCards.push({ sentence, reviewData, isNew: true });
+    } else if (bucket === 'review') {
+      targetReviewCards.push({ sentence, reviewData, isNew: false });
     }
   }
 

@@ -11,6 +11,7 @@ import { alpha } from '../../../lib/theme';
 import { VerbConjugationTooltip } from '../../../components/VerbConjugationTooltip';
 import { useAppSettings } from '../../../contexts/AppSettingsContext';
 import { resolvePlayableAudioUrl } from '../../../lib/audio/audioPrefetchCache';
+import { AccentNoteBox } from '../../../components/flashcardStyles';
 
 interface AspectPairsFlashcardProps extends ReviewFlashcardProps {
   card: AspectPairCard;
@@ -45,14 +46,6 @@ const AspectChip = styled(Chip)<{ $aspect: 'Imperfective' | 'Perfective' }>(
   })
 );
 
-const PairBox = styled(Box)(({ theme }) => ({
-  marginTop: theme.spacing(2),
-  padding: theme.spacing(1.5),
-  backgroundColor: alpha(theme.palette.text.primary, 0.03),
-  borderRadius: theme.spacing(1),
-  borderLeft: `3px solid ${alpha(theme.palette.primary.main, 0.5)}`,
-}));
-
 const EnglishMeaningText = styled(Typography)(({ theme }) => ({
   marginTop: theme.spacing(2),
   color: theme.palette.text.secondary,
@@ -71,19 +64,10 @@ function getDefaultTenseForVerb(verb: Verb): Tense {
 
 export function AspectPairsFlashcard({
   card,
-  practiceMode = false,
   isViewingHistory = false,
-  canGoBack = false,
-  intervals,
-  reassessIntervals,
   canEdit = false,
-  onRate,
-  onReassess,
-  onNext,
-  onGoBack,
-  onContinue,
-  onEdit,
   onUnlink,
+  ...shellProps
 }: AspectPairsFlashcardProps) {
   const { settings: appSettings } = useAppSettings();
   const hidePolish = appSettings.hidePolishText;
@@ -218,7 +202,7 @@ export function AspectPairsFlashcard({
           </BiaspectualNote>
         </>
       ) : (
-        <PairBox>
+        <AccentNoteBox $accent="primary">
           <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
             {backVerb.aspect}:
           </Typography>
@@ -239,7 +223,7 @@ export function AspectPairsFlashcard({
               <AudioButton isPlaying={playingAudio === 'back'} onToggle={toggleBackAudio} />
             )}
           </Box>
-        </PairBox>
+        </AccentNoteBox>
       )}
 
       <EnglishMeaningText variant="body1">{frontVerb.infinitiveEn}</EnglishMeaningText>
@@ -248,20 +232,11 @@ export function AspectPairsFlashcard({
 
   return (
     <FlashcardShell
+      {...shellProps}
       revealed={revealed}
-      practiceMode={practiceMode}
       isViewingHistory={isViewingHistory}
-      canGoBack={canGoBack}
-      intervals={intervals}
-      reassessIntervals={reassessIntervals}
       canEdit={canEdit}
       onReveal={() => setRevealed(true)}
-      onRate={onRate}
-      onReassess={onReassess}
-      onNext={onNext}
-      onGoBack={onGoBack}
-      onContinue={onContinue}
-      onEdit={onEdit}
       onDelete={onUnlink}
       header={header}
       headerActions={headerActions}

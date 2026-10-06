@@ -9,6 +9,8 @@ import { styled } from '../lib/styled';
 import { useAudioPlayerContext } from '../contexts/AudioPlayerContext';
 import { BOTTOM_MENU_BAR_HEIGHT, DRAWER_WIDTH } from '../constants/layout';
 import { QueueDrawer } from './QueueDrawer';
+import { TrackIcon } from './audioStyles';
+import { formatDuration } from '../lib/utils/formatDuration';
 
 export const MINI_PLAYER_HEIGHT = 64;
 
@@ -35,24 +37,6 @@ const TrackInfo = styled(Box)({
   flex: 1,
   minWidth: 0,
 });
-
-const TrackIcon = styled(Box)(({ theme }) => ({
-  width: 36,
-  height: 36,
-  borderRadius: 999,
-  backgroundColor: theme.palette.primary.main,
-  color: theme.palette.primary.contrastText,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  flexShrink: 0,
-}));
-
-function formatDuration(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  return `${m}:${s.toString().padStart(2, '0')}`;
-}
 
 export function MiniPlayerBar() {
   const navigate = useNavigate();

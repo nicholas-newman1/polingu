@@ -58,21 +58,12 @@ const AnswerTextBox = styled(Box)(({ theme }) => ({
 export function SentenceFlashcard({
   sentence,
   direction,
-  practiceMode = false,
   isViewingHistory = false,
-  canGoBack = false,
-  intervals,
-  reassessIntervals,
   canEdit = false,
-  onRate,
-  onReassess,
-  onNext,
-  onGoBack,
-  onContinue,
-  onEdit,
   onDelete,
   onDailyLimitReached,
   onUpdateTranslation,
+  ...shellProps
 }: SentenceFlashcardProps) {
   const [revealed, setRevealed] = useState(isViewingHistory);
   const { settings } = useAppSettings();
@@ -156,21 +147,12 @@ export function SentenceFlashcard({
 
   return (
     <FlashcardShell
+      {...shellProps}
       revealed={revealed}
-      practiceMode={practiceMode}
       isViewingHistory={isViewingHistory}
-      canGoBack={canGoBack}
-      intervals={intervals}
-      reassessIntervals={reassessIntervals}
       maxWidth={520}
       canEdit={canEdit}
       onReveal={() => setRevealed(true)}
-      onRate={onRate}
-      onReassess={onReassess}
-      onNext={onNext}
-      onGoBack={onGoBack}
-      onContinue={onContinue}
-      onEdit={onEdit}
       onDelete={handleDelete}
       header={header}
       headerActions={headerActions}

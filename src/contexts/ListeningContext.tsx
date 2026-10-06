@@ -47,6 +47,28 @@ interface ListeningContextType {
 
 const ListeningContext = createContext<ListeningContextType | null>(null);
 
+type AfterEnded =
+  | { type: 'finish' }
+  | { type: 'repeat'; gapMs: number }
+  | { type: 'advance'; gapMs: number };
+
+/** After a clip ends: repeat it, move to the next card (after the configured gap), or finish. */
+function decideAfterEnded(
+  queue: ListeningQueueItem[],
+  index: number,
+  repetition: number,
+  settings: ListeningSettings
+): AfterEnded {
+  const item = queue[index];
+  if (!item) return { type: 'finish' };
+  const group = item.isLearned ? settings.learned : settings.unknown;
+  if (repetition < group.repetitions) {
+    return { type: 'repeat', gapMs: group.gapBetweenRepetitions * 1000 };
+  }
+  if (index + 1 >= queue.length) return { type: 'finish' };
+  return { type: 'advance', gapMs: group.gapBetweenCards * 1000 };
+}
+
 // eslint-disable-next-line react-refresh/only-export-components
 export function useListening(): ListeningContextType {
   const ctx = useContext(ListeningContext);
@@ -118,6 +140,14 @@ export function ListeningProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const resetSession = useCallback(() => {
+    setQueue([]);
+    setMeta(null);
+    setCurrentIndex(0);
+    setCurrentRepetition(1);
+    setIsPlaying(false);
+  }, []);
+
   const currentItem = queue[currentIndex] ?? null;
   const currentAudioUrl = currentItem?.audioUrl ?? '';
 
@@ -129,50 +159,26 @@ export function ListeningProvider({ children }: { children: ReactNode }) {
     const handleEnded = () => {
       if (!isActiveRef.current) return;
       ended = true;
-      const q = queueRef.current;
       const idx = indexRef.current;
       const rep = repetitionRef.current;
-      const item = q[idx];
-      if (!item) {
+      const decision = decideAfterEnded(queueRef.current, idx, rep, settingsRef.current);
+      if (decision.type === 'finish') {
         isActiveRef.current = false;
-        setQueue([]);
-        setMeta(null);
-        setCurrentIndex(0);
-        setCurrentRepetition(1);
-        setIsPlaying(false);
+        resetSession();
         return;
       }
-      const group = item.isLearned ? settingsRef.current.learned : settingsRef.current.unknown;
-      const totalReps = group.repetitions;
-      if (rep < totalReps) {
-        const gap = group.gapBetweenRepetitions * 1000;
-        clearPendingTimer();
-        setIsPlaying(true);
-        timerRef.current = window.setTimeout(() => {
-          timerRef.current = null;
-          setCurrentRepetition(rep + 1);
-          setPlayToken((t) => t + 1);
-        }, gap);
-        return;
-      }
-      if (idx + 1 >= q.length) {
-        isActiveRef.current = false;
-        setQueue([]);
-        setMeta(null);
-        setCurrentIndex(0);
-        setCurrentRepetition(1);
-        setIsPlaying(false);
-        return;
-      }
-      const gap = group.gapBetweenCards * 1000;
       clearPendingTimer();
       setIsPlaying(true);
       timerRef.current = window.setTimeout(() => {
         timerRef.current = null;
-        setCurrentIndex(idx + 1);
-        setCurrentRepetition(1);
+        if (decision.type === 'repeat') {
+          setCurrentRepetition(rep + 1);
+        } else {
+          setCurrentIndex(idx + 1);
+          setCurrentRepetition(1);
+        }
         setPlayToken((t) => t + 1);
-      }, gap);
+      }, decision.gapMs);
     };
 
     const handlePlay = () => {
@@ -208,7 +214,7 @@ export function ListeningProvider({ children }: { children: ReactNode }) {
       unsubscribe();
       clearPendingTimer();
     };
-  }, [clearPendingTimer]);
+  }, [clearPendingTimer, resetSession]);
 
   useEffect(() => {
     const audio = audioElRef.current;
@@ -252,36 +258,35 @@ export function ListeningProvider({ children }: { children: ReactNode }) {
     audio.load();
   }, [stopToken, clearPendingTimer]);
 
+  const jumpTo = useCallback((index: number) => {
+    emitAudioModeEvent('listening-started');
+    indexRef.current = index;
+    repetitionRef.current = 1;
+    setCurrentIndex(index);
+    setCurrentRepetition(1);
+    setIsPlaying(true);
+    setPlayToken((t) => t + 1);
+  }, []);
+
   const start = useCallback(
     (newQueue: ListeningQueueItem[], options: ListeningStartOptions) => {
       if (newQueue.length === 0) return;
       clearPendingTimer();
-      emitAudioModeEvent('listening-started');
-      const startIdx = Math.min(Math.max(options.startIndex ?? 0, 0), newQueue.length - 1);
       queueRef.current = newQueue;
-      indexRef.current = startIdx;
-      repetitionRef.current = 1;
       isActiveRef.current = true;
       setQueue(newQueue);
       setMeta(options.meta);
-      setCurrentIndex(startIdx);
-      setCurrentRepetition(1);
-      setIsPlaying(true);
-      setPlayToken((t) => t + 1);
+      jumpTo(Math.min(Math.max(options.startIndex ?? 0, 0), newQueue.length - 1));
     },
-    [clearPendingTimer]
+    [clearPendingTimer, jumpTo]
   );
 
   const stop = useCallback(() => {
     clearPendingTimer();
     isActiveRef.current = false;
     setStopToken((t) => t + 1);
-    setQueue([]);
-    setMeta(null);
-    setCurrentIndex(0);
-    setCurrentRepetition(1);
-    setIsPlaying(false);
-  }, [clearPendingTimer]);
+    resetSession();
+  }, [clearPendingTimer, resetSession]);
 
   const play = useCallback(() => {
     if (!isActiveRef.current) return;
@@ -311,27 +316,14 @@ export function ListeningProvider({ children }: { children: ReactNode }) {
       stop();
       return;
     }
-    emitAudioModeEvent('listening-started');
-    indexRef.current = nextIdx;
-    repetitionRef.current = 1;
-    setCurrentIndex(nextIdx);
-    setCurrentRepetition(1);
-    setIsPlaying(true);
-    setPlayToken((t) => t + 1);
-  }, [clearPendingTimer, stop]);
+    jumpTo(nextIdx);
+  }, [clearPendingTimer, stop, jumpTo]);
 
   const previous = useCallback(() => {
     if (!isActiveRef.current) return;
     clearPendingTimer();
-    const prevIdx = Math.max(0, indexRef.current - 1);
-    emitAudioModeEvent('listening-started');
-    indexRef.current = prevIdx;
-    repetitionRef.current = 1;
-    setCurrentIndex(prevIdx);
-    setCurrentRepetition(1);
-    setIsPlaying(true);
-    setPlayToken((t) => t + 1);
-  }, [clearPendingTimer]);
+    jumpTo(Math.max(0, indexRef.current - 1));
+  }, [clearPendingTimer, jumpTo]);
 
   const updateSettings = useCallback(async (updates: Partial<ListeningSettings>) => {
     const nextSettings: ListeningSettings = {

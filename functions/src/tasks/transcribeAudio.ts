@@ -14,6 +14,16 @@ interface TranscribeTaskData {
   filePath: string;
 }
 
+async function assertHeaderDurationAllowed(buffer: Buffer, contentType: string | undefined) {
+  const headerDuration = await parseAudioDurationSeconds(buffer, contentType);
+  if (headerDuration === null) {
+    throw new Error('Could not determine audio duration. File may be corrupt.');
+  }
+  if (headerDuration > MAX_DURATION_SECONDS) {
+    throw new Error('Audio too long. Maximum duration is 10 minutes.');
+  }
+}
+
 export const transcribeAudio = onTaskDispatched(
   {
     secrets: [openaiApiKey],
@@ -46,16 +56,10 @@ export const transcribeAudio = onTaskDispatched(
       }
 
       if (!userIsAdmin) {
-        const headerDuration = await parseAudioDurationSeconds(
+        await assertHeaderDurationAllowed(
           buffer,
           typeof metadata.contentType === 'string' ? metadata.contentType : undefined
         );
-        if (headerDuration === null) {
-          throw new Error('Could not determine audio duration. File may be corrupt.');
-        }
-        if (headerDuration > MAX_DURATION_SECONDS) {
-          throw new Error('Audio too long. Maximum duration is 10 minutes.');
-        }
       }
 
       const apiKey = openaiApiKey.value();

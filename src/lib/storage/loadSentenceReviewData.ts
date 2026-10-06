@@ -1,41 +1,22 @@
 import type { SentenceReviewDataStore } from '../../types/sentences';
 import type { TranslationDirection } from '../../types/common';
-import {
-  getTodayString,
-  getDefaultSentenceReviewStore,
-  getSentenceSessionDocPath,
-} from './helpers';
-import { loadUserData } from '../offlineDb/userDataWrapper';
+import { getDefaultSentenceReviewStore, getSentenceSessionDocPath } from './helpers';
 import { sentenceReviewStorage } from './sentenceReviewStorage';
-
-interface SentenceReviewSession {
-  reviewedToday: SentenceReviewDataStore['reviewedToday'];
-  newCardsToday: SentenceReviewDataStore['newCardsToday'];
-  lastReviewDate: string;
-}
+import loadDailyReviewSession from './loadDailyReviewSession';
 
 export default async function loadSentenceReviewData(
   direction: TranslationDirection
 ): Promise<SentenceReviewDataStore> {
-  const storage = sentenceReviewStorage(direction);
-  const today = getTodayString();
-  const defaults = getDefaultSentenceReviewStore();
-  const defaultSession: SentenceReviewSession = {
-    reviewedToday: defaults.reviewedToday,
-    newCardsToday: defaults.newCardsToday,
-    lastReviewDate: defaults.lastReviewDate,
-  };
-
-  const [cards, session] = await Promise.all([
-    storage.loadCards(),
-    loadUserData<SentenceReviewSession>(getSentenceSessionDocPath(direction), defaultSession),
-  ]);
-
-  if (session.lastReviewDate !== today) {
-    session.reviewedToday = [];
-    session.newCardsToday = [];
-    session.lastReviewDate = today;
-  }
+  const { reviewedToday, newCardsToday, lastReviewDate } = getDefaultSentenceReviewStore();
+  const [cards, session] = await loadDailyReviewSession(
+    sentenceReviewStorage(direction),
+    getSentenceSessionDocPath(direction),
+    {
+      reviewedToday,
+      newCardsToday,
+      lastReviewDate,
+    }
+  );
 
   return {
     cards,

@@ -3,6 +3,7 @@ import { writeFileSync } from 'fs';
 import { resolve } from 'path';
 import type { DeclensionCard, DeclensionCase } from './types.js';
 import { isValidCase } from './types.js';
+import { printBreakdown } from './lib/printBreakdown.js';
 
 async function exportCards(caseFilter?: string) {
   if (caseFilter && !isValidCase(caseFilter)) {
@@ -42,22 +43,9 @@ async function exportCards(caseFilter?: string) {
 
   writeFileSync(outputPath, JSON.stringify(cards, null, 2));
 
-  const caseCounts = cards.reduce(
-    (acc, c) => {
-      acc[c.case] = (acc[c.case] || 0) + 1;
-      return acc;
-    },
-    {} as Record<string, number>
-  );
-
   console.log(`✓ Exported ${cards.length} cards to ${outputPath}`);
   if (!caseFilter) {
-    console.log('  Breakdown by case:');
-    Object.entries(caseCounts)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .forEach(([caseType, count]) => {
-        console.log(`    ${caseType}: ${count}`);
-      });
+    printBreakdown('case', cards, (c) => c.case);
   }
 }
 

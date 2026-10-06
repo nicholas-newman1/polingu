@@ -23,7 +23,8 @@ import { useAddToVocabulary } from '../hooks/useAddToVocabulary';
 import { useAddSentence } from '../hooks/useAddSentence';
 import { useSnackbar } from '../hooks/useSnackbar';
 import { useAuthContext } from '../hooks/useAuthContext';
-import { translate, RateLimitMinuteError, RateLimitDailyError } from '../lib/translate';
+import { translate, handleTooltipTranslationError } from '../lib/translate';
+import { useDismissOnOutsideClick } from '../hooks/useDismissOnOutsideClick';
 import { TooltipContent, WordTooltipPopper } from './shared';
 
 const TextContainer = styled(Box)({
@@ -164,16 +165,14 @@ function PhraseTooltip({
         setTranslation(result.translatedText);
         onUpdateTranslation?.(cacheKey, result.translatedText);
       } catch (err) {
-        if (err instanceof RateLimitMinuteError) {
-          setError('Too many requests');
-          showSnackbar('Too many requests. Please wait a moment.', 'warning');
-        } else if (err instanceof RateLimitDailyError) {
-          closePhraseTooltip?.();
-          onDailyLimitReached?.(err.resetTime);
-        } else {
-          setError('Translation failed');
-          showSnackbar('Translation failed. Please try again.', 'error');
-        }
+        handleTooltipTranslationError(err, {
+          setError,
+          showSnackbar,
+          onDailyLimit: (resetTime) => {
+            closePhraseTooltip?.();
+            onDailyLimitReached?.(resetTime);
+          },
+        });
       } finally {
         setLoading(false);
       }
@@ -193,27 +192,11 @@ function PhraseTooltip({
     getSelectedIndices,
   ]);
 
-  useEffect(() => {
-    if (!selectedPhrase) return;
-
-    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
-      const target = event.target as Node;
-      if (popperRef.current && !popperRef.current.contains(target)) {
-        closePhraseTooltip?.();
-      }
-    };
-
-    const timer = setTimeout(() => {
-      document.addEventListener('mousedown', handleClickOutside);
-      document.addEventListener('touchstart', handleClickOutside);
-    }, 0);
-
-    return () => {
-      clearTimeout(timer);
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('touchstart', handleClickOutside);
-    };
-  }, [selectedPhrase, closePhraseTooltip]);
+  useDismissOnOutsideClick(
+    !!selectedPhrase,
+    (target) => !popperRef.current || popperRef.current.contains(target),
+    closePhraseTooltip
+  );
 
   if (!selectedPhrase || !phraseAnchorEl) return null;
 
@@ -380,16 +363,14 @@ function WordTooltip({
         );
         setTranslation(result.translatedText);
       } catch (err) {
-        if (err instanceof RateLimitMinuteError) {
-          setError('Too many requests');
-          showSnackbar('Too many requests. Please wait a moment.', 'warning');
-        } else if (err instanceof RateLimitDailyError) {
-          closeWordTooltip?.();
-          onDailyLimitReached?.(err.resetTime);
-        } else {
-          setError('Translation failed');
-          showSnackbar('Translation failed. Please try again.', 'error');
-        }
+        handleTooltipTranslationError(err, {
+          setError,
+          showSnackbar,
+          onDailyLimit: (resetTime) => {
+            closeWordTooltip?.();
+            onDailyLimitReached?.(resetTime);
+          },
+        });
       } finally {
         setLoading(false);
       }
@@ -413,28 +394,14 @@ function WordTooltip({
     }
   }, [isEditing]);
 
-  useEffect(() => {
-    if (!activeWord) return;
-
-    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
-      const target = event.target as Node;
-      if (popperRef.current?.contains(target)) return;
-      if (activeWord.anchorEl.contains(target)) return;
-      if (target instanceof Element && target.closest('[data-word-index]')) return;
-      closeWordTooltip?.();
-    };
-
-    const timer = setTimeout(() => {
-      document.addEventListener('mousedown', handleClickOutside);
-      document.addEventListener('touchstart', handleClickOutside);
-    }, 0);
-
-    return () => {
-      clearTimeout(timer);
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('touchstart', handleClickOutside);
-    };
-  }, [activeWord, closeWordTooltip]);
+  useDismissOnOutsideClick(
+    !!activeWord,
+    (target) =>
+      !!popperRef.current?.contains(target) ||
+      !!activeWord?.anchorEl.contains(target) ||
+      (target instanceof Element && !!target.closest('[data-word-index]')),
+    closeWordTooltip
+  );
 
   const handleStartEdit = () => {
     setEditValue(translation || '');

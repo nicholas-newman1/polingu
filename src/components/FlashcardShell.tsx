@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Box, Button, Card, Divider, Stack } from '@mui/material';
+import { Box, Button, Divider, Stack } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -9,6 +9,7 @@ import { alpha } from '../lib/theme';
 import type { Grade } from 'ts-fsrs';
 import { RatingButtons, type RatingIntervals } from './RatingButtons';
 import { BoxIconButton } from './BoxIconButton';
+import { FlashcardSurface, FlashcardWrapper } from './flashcardStyles';
 
 /** Session-control props every review flashcard forwards to `FlashcardShell`. */
 export interface ReviewFlashcardProps {
@@ -36,26 +37,6 @@ interface FlashcardShellProps extends ReviewFlashcardProps {
   question: ReactNode;
   answer: ReactNode;
 }
-
-const CardWrapper = styled(Box)<{ $maxWidth: number }>(({ $maxWidth }) => ({
-  width: '100%',
-  maxWidth: $maxWidth,
-  margin: '0 auto',
-}));
-
-const StyledCard = styled(Card)(({ theme }) => ({
-  padding: theme.spacing(3),
-  minHeight: 420,
-  display: 'flex',
-  flexDirection: 'column',
-  backgroundColor: alpha(theme.palette.background.paper, 0.95),
-  backdropFilter: 'blur(8px)',
-  boxShadow: `0 8px 32px ${alpha(theme.palette.primary.main, 0.4)}`,
-  [theme.breakpoints.up('sm')]: {
-    padding: theme.spacing(4),
-    minHeight: 460,
-  },
-}));
 
 const NextButton = styled(Button)(({ theme }) => ({
   marginTop: 'auto',
@@ -230,8 +211,8 @@ export function FlashcardShell({
   };
 
   return (
-    <CardWrapper $maxWidth={maxWidth} className="animate-fade-up">
-      <StyledCard>
+    <FlashcardWrapper $maxWidth={maxWidth} className="animate-fade-up">
+      <FlashcardSurface>
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
           <CardHeader>
             {(headerActions || canEdit) && (
@@ -268,7 +249,7 @@ export function FlashcardShell({
         </Box>
 
         {renderBottomActions()}
-      </StyledCard>
-    </CardWrapper>
+      </FlashcardSurface>
+    </FlashcardWrapper>
   );
 }

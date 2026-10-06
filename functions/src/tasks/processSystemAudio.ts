@@ -2,8 +2,8 @@ import { onTaskDispatched } from 'firebase-functions/tasks';
 import { DEFAULT_BUCKET } from '../shared/config.js';
 import { db, storage } from '../shared/firebase.js';
 import { openaiApiKey } from '../shared/secrets.js';
-import { synthesizeChunkedTTS } from '../shared/tts.js';
-import { transcribePolishAudio, TranscriptSegment } from '../shared/transcription.js';
+import { synthesizeAndTranscribe } from '../shared/textAudio.js';
+import type { TranscriptSegment } from '../shared/transcription.js';
 
 interface ProcessSystemAudioTaskData {
   id: string;
@@ -27,21 +27,11 @@ export const processSystemAudio = onTaskDispatched(
       const row = docSnap.data() as { text: string };
       const { text } = row;
 
-      const audioBuffer = await synthesizeChunkedTTS(text);
       const finalPath = `audio/system/${id}/audio.mp3`;
-      const bucket = storage.bucket(DEFAULT_BUCKET);
-
-      await bucket.file(finalPath).save(audioBuffer, {
-        contentType: 'audio/mpeg',
-      });
-
-      const apiKey = openaiApiKey.value();
-      if (!apiKey) throw new Error('OpenAI API key not configured.');
-
-      const { segments, words, duration } = await transcribePolishAudio(
-        audioBuffer,
-        'system-audio.mp3',
-        apiKey
+      const { segments, words, duration } = await synthesizeAndTranscribe(
+        text,
+        finalPath,
+        'system-audio.mp3'
       );
 
       await docRef.update({

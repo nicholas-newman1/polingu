@@ -1,18 +1,18 @@
-import { db } from './firebase-admin.js';
-import { FieldValue } from 'firebase-admin/firestore';
-import { readFileSync, writeFileSync, existsSync, unlinkSync } from 'fs';
-import { resolve, basename } from 'path';
+import { writeFileSync } from 'fs';
+import { resolve } from 'path';
 import type { DeclensionCard, DeclensionCardIndex } from './types.js';
 import { validateDeclensionCard } from './types.js';
+import {
+  abortOnDuplicates,
+  abortOnValidationErrors,
+  loadJsonIndex,
+  readImportFile,
+  removeImportFiles,
+  runImportCli,
+  writeInBatches,
+} from './lib/importHelpers.js';
 
 const INDEX_PATH = resolve(process.cwd(), 'declensionCardIndex.json');
-
-function loadIndex(): DeclensionCardIndex[] {
-  if (!existsSync(INDEX_PATH)) {
-    return [];
-  }
-  return JSON.parse(readFileSync(INDEX_PATH, 'utf-8'));
-}
 
 function checkDuplicates(
   newCards: DeclensionCard[],
@@ -31,25 +31,7 @@ function checkDuplicates(
 }
 
 async function importCards(filePath: string) {
-  console.log(`📂 Reading ${filePath}...`);
-
-  if (!existsSync(filePath)) {
-    console.error(`❌ File not found: ${filePath}`);
-    process.exit(1);
-  }
-
-  let newCards: unknown[];
-  try {
-    const content = readFileSync(filePath, 'utf-8');
-    const parsed = JSON.parse(content);
-    newCards = Array.isArray(parsed) ? parsed : parsed.cards;
-    if (!Array.isArray(newCards)) {
-      throw new Error('Expected array or object with cards array');
-    }
-  } catch (err) {
-    console.error(`❌ Failed to parse JSON: ${(err as Error).message}`);
-    process.exit(1);
-  }
+  const newCards = readImportFile(filePath, 'cards');
 
   console.log(`📋 Validating ${newCards.length} cards...`);
 
@@ -64,52 +46,14 @@ async function importCards(filePath: string) {
     }
   }
 
-  if (hasErrors) {
-    console.error('\n❌ Validation failed. Fix the errors above and try again.');
-    process.exit(1);
-  }
-
-  console.log('✓ All cards validated');
+  abortOnValidationErrors(hasErrors, 'cards');
 
   console.log('🔍 Checking for duplicates...');
-  const index = loadIndex();
+  const index = loadJsonIndex<DeclensionCardIndex>(INDEX_PATH);
   const { duplicateIds, duplicateFronts } = checkDuplicates(validCards, index);
+  abortOnDuplicates(duplicateIds, duplicateFronts, 'front prompts');
 
-  if (duplicateIds.length > 0) {
-    console.error(`❌ Duplicate IDs found: ${duplicateIds.join(', ')}`);
-    hasErrors = true;
-  }
-
-  if (duplicateFronts.length > 0) {
-    console.error('❌ Duplicate front prompts found:');
-    duplicateFronts.forEach((f) => console.error(`   - "${f}"`));
-    hasErrors = true;
-  }
-
-  if (hasErrors) {
-    console.error('\n❌ Import aborted due to duplicates.');
-    process.exit(1);
-  }
-
-  console.log('✓ No duplicates found');
-
-  console.log('📤 Writing to Firestore...');
-  const BATCH_SIZE = 500;
-
-  for (let i = 0; i < validCards.length; i += BATCH_SIZE) {
-    const batch = db.batch();
-    const chunk = validCards.slice(i, i + BATCH_SIZE);
-
-    for (const card of chunk) {
-      const docRef = db.collection('declensionCards').doc(String(card.id));
-      batch.set(docRef, { ...card, createdAt: FieldValue.serverTimestamp() });
-    }
-
-    await batch.commit();
-    console.log(`✓ Batch ${Math.floor(i / BATCH_SIZE) + 1}: Uploaded ${chunk.length} cards`);
-  }
-
-  console.log(`✓ Added ${validCards.length} cards to Firestore`);
+  await writeInBatches('declensionCards', validCards, (card) => String(card.id), 'cards');
 
   const newIndex: DeclensionCardIndex[] = [
     ...index,
@@ -125,28 +69,9 @@ async function importCards(filePath: string) {
   writeFileSync(INDEX_PATH, JSON.stringify(newIndex, null, 2));
   console.log('✓ Updated declensionCardIndex.json');
 
-  unlinkSync(filePath);
-  console.log(`✓ Deleted ${basename(filePath)}`);
-
-  const reviewFileName = basename(filePath, '.json') + '-review.json';
-  const reviewFilePath = resolve(process.cwd(), reviewFileName);
-  if (existsSync(reviewFilePath)) {
-    unlinkSync(reviewFilePath);
-    console.log(`✓ Deleted ${reviewFileName}`);
-  }
+  removeImportFiles(filePath);
 
   console.log('\n✅ Import complete!');
 }
 
-const [, , filePath] = process.argv;
-
-if (!filePath) {
-  console.error('Usage: npm run declension:import <file.json>');
-  console.error('Example: npm run declension:import new-declension.json');
-  process.exit(1);
-}
-
-importCards(resolve(process.cwd(), filePath)).catch((err) => {
-  console.error('❌ Import failed:', err.message);
-  process.exit(1);
-});
+runImportCli('declension:import', 'new-declension.json', importCards);

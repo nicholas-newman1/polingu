@@ -26,6 +26,8 @@ const BOOK_COLORS: BookColor[] = [
   'pink',
 ];
 
+// Server copy of the `Book` document shape in src/types/reader.ts; functions can't import app code.
+// fallow-ignore-next-line code-duplication
 export interface BookMetadata {
   id: string;
   userId: string;

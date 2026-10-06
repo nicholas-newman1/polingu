@@ -1,7 +1,7 @@
 import { onCall, HttpsError } from 'firebase-functions/https';
 import OpenAI from 'openai';
 import { openaiApiKey } from '../shared/secrets.js';
-import { stripMarkdownCodeFences } from '../shared/json.js';
+import { requestJsonCompletion } from '../shared/openaiJson.js';
 import { CEFRLevel } from '../shared/cefr.js';
 
 interface CurriculumDiscoveryRequest {
@@ -109,30 +109,21 @@ Current curriculum tags:
 Suggest 3-5 high-value additions that are currently MISSING.`;
   }
 
-  const completion = await openai.chat.completions.create({
-    model: 'gpt-4o',
-    messages: [
-      { role: 'system', content: CURRICULUM_SYSTEM_PROMPT },
-      { role: 'user', content: userPrompt },
-    ],
-    temperature: 0.7,
-    max_tokens: 2000,
-  });
-
-  const content = completion.choices[0]?.message?.content;
-  if (!content) {
-    throw new HttpsError('internal', 'No response from AI.');
-  }
-
-  try {
-    const cleaned = stripMarkdownCodeFences(content);
-    const parsed = JSON.parse(cleaned) as CurriculumDiscoveryResponse;
-    if (!parsed.suggestions || !Array.isArray(parsed.suggestions)) {
-      throw new Error('Invalid response structure');
+  return requestJsonCompletion<CurriculumDiscoveryResponse>(
+    openai,
+    {
+      model: 'gpt-4o',
+      messages: [
+        { role: 'system', content: CURRICULUM_SYSTEM_PROMPT },
+        { role: 'user', content: userPrompt },
+      ],
+      temperature: 0.7,
+      max_tokens: 2000,
+    },
+    (parsed) => {
+      if (!parsed.suggestions || !Array.isArray(parsed.suggestions)) {
+        throw new Error('Invalid response structure');
+      }
     }
-    return parsed;
-  } catch {
-    console.error('Failed to parse AI response:', content);
-    throw new HttpsError('internal', 'Failed to parse AI response.');
-  }
+  );
 });

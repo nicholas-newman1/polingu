@@ -43,16 +43,57 @@ export interface ReviewDataProviderProps {
   children: ReactNode;
 }
 
+type Section<T extends () => Promise<unknown>> = Partial<Awaited<ReturnType<T>>>;
+
 interface LoadedData {
-  declensionData?: Awaited<ReturnType<typeof loadDeclensionData>>;
-  vocabularyData?: Awaited<ReturnType<typeof loadVocabularyData>>;
-  sentenceData?: Awaited<ReturnType<typeof loadSentenceData>>;
-  conjugationData?: Awaited<ReturnType<typeof loadConjugationData>>;
-  aspectPairsData?: Awaited<ReturnType<typeof loadAspectPairsData>>;
-  systemDeclensionCards: DeclensionCard[];
-  systemWords: VocabularyWord[];
-  systemSentences: Sentence[];
-  verbs: Verb[];
+  declensionData: Section<typeof loadDeclensionData>;
+  vocabularyData: Section<typeof loadVocabularyData>;
+  sentenceData: Section<typeof loadSentenceData>;
+  conjugationData: Section<typeof loadConjugationData>;
+  aspectPairsData: Section<typeof loadAspectPairsData>;
+  systemDeclensionCards?: DeclensionCard[];
+  systemWords?: VocabularyWord[];
+  systemSentences?: Sentence[];
+  verbs?: Verb[];
+}
+
+/** Signed-out users only get system content, so the user-data sections stay empty. */
+const EMPTY_DATA: LoadedData = {
+  declensionData: {},
+  vocabularyData: {},
+  sentenceData: {},
+  conjugationData: {},
+  aspectPairsData: {},
+};
+
+async function fetchAllData(): Promise<LoadedData> {
+  const loadUserData = getUserId()
+    ? Promise.all([
+        loadDeclensionData(),
+        loadVocabularyData(),
+        loadSentenceData(),
+        loadConjugationData(),
+        loadAspectPairsData(),
+      ])
+    : null;
+  const [userData, content] = await Promise.all([loadUserData, loadContentData()]);
+  const [declensionData, vocabularyData, sentenceData, conjugationData, aspectPairsData] =
+    userData ?? [];
+
+  return {
+    ...EMPTY_DATA,
+    ...(userData && {
+      declensionData,
+      vocabularyData,
+      sentenceData,
+      conjugationData,
+      aspectPairsData,
+    }),
+    systemDeclensionCards: content.declensionCards,
+    systemWords: content.vocabulary,
+    systemSentences: content.sentences,
+    verbs: content.verbs,
+  };
 }
 
 const MemoizedChildTree = memo(function MemoizedChildTree({ children }: { children: ReactNode }) {
@@ -63,48 +104,6 @@ export function ReviewDataProvider({ children }: ReviewDataProviderProps) {
   const { user } = useAuthContext();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<LoadedData | null>(null);
-
-  const fetchAllData = useCallback(async (): Promise<LoadedData> => {
-    const userId = getUserId();
-
-    if (userId) {
-      const [
-        loadedDeclensionData,
-        loadedVocabularyData,
-        loadedSentenceData,
-        loadedConjugationData,
-        loadedAspectPairsData,
-        content,
-      ] = await Promise.all([
-        loadDeclensionData(),
-        loadVocabularyData(),
-        loadSentenceData(),
-        loadConjugationData(),
-        loadAspectPairsData(),
-        loadContentData(),
-      ]);
-
-      return {
-        declensionData: loadedDeclensionData,
-        vocabularyData: loadedVocabularyData,
-        sentenceData: loadedSentenceData,
-        conjugationData: loadedConjugationData,
-        aspectPairsData: loadedAspectPairsData,
-        systemDeclensionCards: content.declensionCards,
-        systemWords: content.vocabulary,
-        systemSentences: content.sentences,
-        verbs: content.verbs,
-      };
-    }
-
-    const content = await loadContentData();
-    return {
-      systemDeclensionCards: content.declensionCards,
-      systemWords: content.vocabulary,
-      systemSentences: content.sentences,
-      verbs: content.verbs,
-    };
-  }, []);
 
   const [prevUid, setPrevUid] = useState(user?.uid);
   if (prevUid !== user?.uid) {
@@ -137,7 +136,7 @@ export function ReviewDataProvider({ children }: ReviewDataProviderProps) {
         refreshSentenceTagsFromFirestore(),
       ]);
       const fresh = await fetchAllData();
-      if (mountedRef.current && fresh && getUserId() === syncUid) {
+      if (mountedRef.current && getUserId() === syncUid) {
         freshDataAppliedRef.current = true;
         setData(fresh);
       }
@@ -146,7 +145,7 @@ export function ReviewDataProvider({ children }: ReviewDataProviderProps) {
     } finally {
       syncInFlightRef.current = false;
     }
-  }, [fetchAllData]);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -166,7 +165,7 @@ export function ReviewDataProvider({ children }: ReviewDataProviderProps) {
     return () => {
       active = false;
     };
-  }, [user?.uid, fetchAllData, performBackgroundSync]);
+  }, [user?.uid, performBackgroundSync]);
 
   useEffect(() => {
     const handleVisibility = () => {
@@ -182,35 +181,37 @@ export function ReviewDataProvider({ children }: ReviewDataProviderProps) {
     };
   }, [performBackgroundSync]);
 
+  const d = data ?? EMPTY_DATA;
+
   return (
     <DeclensionProvider
-      initialCustomCards={data?.declensionData?.customCards}
-      initialSystemCards={data?.systemDeclensionCards}
-      initialReviewStore={data?.declensionData?.reviewData}
-      initialSettings={data?.declensionData?.settings}
+      initialCustomCards={d.declensionData.customCards}
+      initialSystemCards={d.systemDeclensionCards}
+      initialReviewStore={d.declensionData.reviewData}
+      initialSettings={d.declensionData.settings}
     >
       <VocabularyProvider
-        initialCustomWords={data?.vocabularyData?.customWords}
-        initialSystemWords={data?.systemWords}
-        initialReviewStores={data?.vocabularyData?.reviewStores}
-        initialSettings={data?.vocabularyData?.settings}
+        initialCustomWords={d.vocabularyData.customWords}
+        initialSystemWords={d.systemWords}
+        initialReviewStores={d.vocabularyData.reviewStores}
+        initialSettings={d.vocabularyData.settings}
       >
         <SentenceProvider
-          initialCustomSentences={data?.sentenceData?.customSentences}
-          initialSystemSentences={data?.systemSentences}
-          initialReviewStores={data?.sentenceData?.reviewStores}
-          initialSettings={data?.sentenceData?.settings}
-          initialTags={data?.sentenceData?.tags}
+          initialCustomSentences={d.sentenceData.customSentences}
+          initialSystemSentences={d.systemSentences}
+          initialReviewStores={d.sentenceData.reviewStores}
+          initialSettings={d.sentenceData.settings}
+          initialTags={d.sentenceData.tags}
         >
           <ConjugationProvider
-            initialVerbs={data?.verbs}
-            initialReviewStores={data?.conjugationData?.reviewStores}
-            initialSettings={data?.conjugationData?.settings}
+            initialVerbs={d.verbs}
+            initialReviewStores={d.conjugationData.reviewStores}
+            initialSettings={d.conjugationData.settings}
           >
             <AspectPairsProvider
-              verbs={data?.verbs}
-              initialReviewStore={data?.aspectPairsData?.reviewData}
-              initialSettings={data?.aspectPairsData?.settings}
+              verbs={d.verbs}
+              initialReviewStore={d.aspectPairsData.reviewData}
+              initialSettings={d.aspectPairsData.settings}
             >
               <ReviewCountsProvider loading={loading}>
                 <MemoizedChildTree>{children}</MemoizedChildTree>
