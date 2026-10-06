@@ -1,19 +1,5 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import {
-  Typography,
-  Chip,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-  TableSortLabel,
-  InputAdornment,
-  InputLabel,
-  Select,
-  MenuItem,
-} from '@mui/material';
-import SearchIcon from '@mui/icons-material/Search';
+import { useState, useMemo, useCallback } from 'react';
+import { Typography, Chip, Table, TableBody, TableCell, TableRow } from '@mui/material';
 import { styled } from '../lib/styled';
 import { alpha } from '../lib/theme';
 import { EditDeclensionModal } from '../components/EditDeclensionModal';
@@ -24,15 +10,15 @@ import reprioritizeDeclensionCard, {
   canReprioritizeDeclensionCard,
 } from '../lib/storage/reprioritizeDeclensionCard';
 import type { CustomDeclensionCard, Case, Gender, Number, DeclensionCard } from '../types';
+import { createCustomItem } from '../types/customItems';
 import { useAuthContext } from '../hooks/useAuthContext';
+import { useCustomCollection } from '../hooks/useCustomCollection';
 import { useDeclension } from '../hooks/useReviewData';
 import { useOptimistic } from '../hooks/useOptimistic';
 import { useSnackbar } from '../hooks/useSnackbar';
 import {
   PageContainer,
   FiltersRow,
-  SearchField,
-  FilterSelect,
   StyledTableContainer,
   TruncatedCell,
   MetaChip,
@@ -40,11 +26,28 @@ import {
   CustomItemEmptyState,
   CustomItemLoadingState,
   CustomItemActions,
+  CustomItemSearchField,
+  FilterSelectField,
+  SortableHeaderCell,
   formatDate,
+  sortItems,
+  useSortState,
+  FilterResultCount,
+  CustomItemTableHead,
+  byCreatedAt,
 } from '../components/CustomItemPage';
 
 type SortField = 'front' | 'declined' | 'case' | 'gender' | 'number' | 'createdAt';
-type SortDirection = 'asc' | 'desc';
+
+const COMPARATORS: Record<SortField, (a: CustomDeclensionCard, b: CustomDeclensionCard) => number> =
+  {
+    front: (a, b) => a.front.localeCompare(b.front, 'pl'),
+    declined: (a, b) => a.declined.localeCompare(b.declined, 'pl'),
+    case: (a, b) => a.case.localeCompare(b.case),
+    gender: (a, b) => a.gender.localeCompare(b.gender),
+    number: (a, b) => a.number.localeCompare(b.number),
+    createdAt: byCreatedAt,
+  };
 
 const GenderChip = styled(Chip)<{
   $gender: 'Masculine' | 'Feminine' | 'Neuter' | 'Pronoun';
@@ -77,11 +80,14 @@ const GENDERS: Gender[] = ['Masculine', 'Feminine', 'Neuter', 'Pronoun'];
 const NUMBERS: Number[] = ['Singular', 'Plural'];
 
 export function CustomDeclensionPage() {
-  const { user, isAdmin } = useAuthContext();
+  const { isAdmin } = useAuthContext();
   const { showSnackbar } = useSnackbar();
   const { declensionReviewStore, updateDeclensionReviewStore } = useDeclension();
-  const [isLoading, setIsLoading] = useState(true);
-  const [customCardsBase, setCustomCardsBase] = useState<CustomDeclensionCard[]>([]);
+  const {
+    items: customCardsBase,
+    setItems: setCustomCardsBase,
+    isLoading,
+  } = useCustomCollection(subscribeCustomDeclension);
   const [customCards, applyOptimisticCustomCards] = useOptimistic(customCardsBase, {
     onError: () => showSnackbar('Failed to save. Please try again.', 'error'),
   });
@@ -92,24 +98,7 @@ export function CustomDeclensionPage() {
   const [caseFilter, setCaseFilter] = useState<Case | ''>('');
   const [genderFilter, setGenderFilter] = useState<Gender | ''>('');
   const [numberFilter, setNumberFilter] = useState<Number | ''>('');
-  const [sortField, setSortField] = useState<SortField>('createdAt');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
-
-  const [prevUid, setPrevUid] = useState(user?.uid);
-  if (prevUid !== user?.uid) {
-    setPrevUid(user?.uid);
-    setIsLoading(true);
-    setCustomCardsBase([]);
-  }
-
-  useEffect(() => {
-    if (!user) return;
-    const unsub = subscribeCustomDeclension((items) => {
-      setCustomCardsBase(items);
-      setIsLoading(false);
-    });
-    return unsub;
-  }, [user]);
+  const sort = useSortState<SortField>('createdAt');
 
   const handleReprioritize = useCallback(
     (cardId: string) => {
@@ -140,13 +129,7 @@ export function CustomDeclensionPage() {
       return false;
     }
 
-    const newCard: CustomDeclensionCard = {
-      ...cardData,
-      id: `custom_${Date.now()}`,
-      isCustom: true,
-      createdAt: Date.now(),
-    };
-    const newCustomCards = [newCard, ...customCardsBase];
+    const newCustomCards: CustomDeclensionCard[] = [createCustomItem(cardData), ...customCardsBase];
 
     applyOptimisticCustomCards(newCustomCards, async () => {
       await saveCustomDeclension(newCustomCards);
@@ -189,71 +172,28 @@ export function CustomDeclensionPage() {
     setShowAddModal(true);
   };
 
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
-  };
+  const handleAudioSaved = useCallback(
+    (cardId: string, audioUrl: string) => {
+      setCustomCardsBase((prev) => prev.map((c) => (c.id === cardId ? { ...c, audioUrl } : c)));
+    },
+    [setCustomCardsBase]
+  );
 
-  const handleAudioSaved = useCallback((cardId: string, audioUrl: string) => {
-    setCustomCardsBase((prev) => prev.map((c) => (c.id === cardId ? { ...c, audioUrl } : c)));
-  }, []);
-
+  const { sortField, sortDirection } = sort;
   const filteredAndSortedCards = useMemo(() => {
-    let result = [...customCards];
-
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      result = result.filter(
-        (card) =>
+    const query = searchQuery.toLowerCase();
+    const filtered = customCards.filter(
+      (card) =>
+        (!query ||
           card.front.toLowerCase().includes(query) ||
           card.back.toLowerCase().includes(query) ||
           card.declined.toLowerCase().includes(query) ||
-          card.hint?.toLowerCase().includes(query)
-      );
-    }
-
-    if (caseFilter) {
-      result = result.filter((card) => card.case === caseFilter);
-    }
-
-    if (genderFilter) {
-      result = result.filter((card) => card.gender === genderFilter);
-    }
-
-    if (numberFilter) {
-      result = result.filter((card) => card.number === numberFilter);
-    }
-
-    result.sort((a, b) => {
-      let comparison = 0;
-      switch (sortField) {
-        case 'front':
-          comparison = a.front.localeCompare(b.front, 'pl');
-          break;
-        case 'declined':
-          comparison = a.declined.localeCompare(b.declined, 'pl');
-          break;
-        case 'case':
-          comparison = a.case.localeCompare(b.case);
-          break;
-        case 'gender':
-          comparison = a.gender.localeCompare(b.gender);
-          break;
-        case 'number':
-          comparison = a.number.localeCompare(b.number);
-          break;
-        case 'createdAt':
-          comparison = a.createdAt - b.createdAt;
-          break;
-      }
-      return sortDirection === 'asc' ? comparison : -comparison;
-    });
-
-    return result;
+          card.hint?.toLowerCase().includes(query)) &&
+        (!caseFilter || card.case === caseFilter) &&
+        (!genderFilter || card.gender === genderFilter) &&
+        (!numberFilter || card.number === numberFilter)
+    );
+    return sortItems(filtered, COMPARATORS, { sortField, sortDirection });
   }, [customCards, searchQuery, caseFilter, genderFilter, numberFilter, sortField, sortDirection]);
 
   if (isLoading) {
@@ -280,141 +220,47 @@ export function CustomDeclensionPage() {
       ) : (
         <>
           <FiltersRow>
-            <SearchField
-              size="small"
-              placeholder="Search cards..."
+            <CustomItemSearchField
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              slotProps={{
-                input: {
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon fontSize="small" color="action" />
-                    </InputAdornment>
-                  ),
-                },
-              }}
+              onChange={setSearchQuery}
+              placeholder="Search cards..."
             />
-            <FilterSelect size="small">
-              <InputLabel>Case</InputLabel>
-              <Select
-                value={caseFilter}
-                onChange={(e) => setCaseFilter(e.target.value as Case | '')}
-                label="Case"
-              >
-                <MenuItem value="">
-                  <em>All</em>
-                </MenuItem>
-                {CASES.map((c) => (
-                  <MenuItem key={c} value={c}>
-                    {c}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FilterSelect>
-            <FilterSelect size="small">
-              <InputLabel>Gender</InputLabel>
-              <Select
-                value={genderFilter}
-                onChange={(e) => setGenderFilter(e.target.value as Gender | '')}
-                label="Gender"
-              >
-                <MenuItem value="">
-                  <em>All</em>
-                </MenuItem>
-                {GENDERS.map((g) => (
-                  <MenuItem key={g} value={g}>
-                    {g}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FilterSelect>
-            <FilterSelect size="small">
-              <InputLabel>Number</InputLabel>
-              <Select
-                value={numberFilter}
-                onChange={(e) => setNumberFilter(e.target.value as Number | '')}
-                label="Number"
-              >
-                <MenuItem value="">
-                  <em>All</em>
-                </MenuItem>
-                {NUMBERS.map((n) => (
-                  <MenuItem key={n} value={n}>
-                    {n}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FilterSelect>
-            {(searchQuery || caseFilter || genderFilter || numberFilter) && (
-              <Typography variant="body2" color="text.secondary">
-                {filteredAndSortedCards.length} of {customCards.length} cards
-              </Typography>
-            )}
+            <FilterSelectField
+              label="Case"
+              value={caseFilter}
+              options={CASES}
+              onChange={setCaseFilter}
+            />
+            <FilterSelectField
+              label="Gender"
+              value={genderFilter}
+              options={GENDERS}
+              onChange={setGenderFilter}
+            />
+            <FilterSelectField
+              label="Number"
+              value={numberFilter}
+              options={NUMBERS}
+              onChange={setNumberFilter}
+            />
+            <FilterResultCount
+              visible={Boolean(searchQuery || caseFilter || genderFilter || numberFilter)}
+              shown={filteredAndSortedCards.length}
+              total={customCards.length}
+              noun="cards"
+            />
           </FiltersRow>
 
           <StyledTableContainer elevation={0}>
             <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Actions</TableCell>
-                  {isAdmin && <TableCell>Audio</TableCell>}
-                  <TableCell>
-                    <TableSortLabel
-                      active={sortField === 'front'}
-                      direction={sortField === 'front' ? sortDirection : 'asc'}
-                      onClick={() => handleSort('front')}
-                    >
-                      Question
-                    </TableSortLabel>
-                  </TableCell>
-                  <TableCell>
-                    <TableSortLabel
-                      active={sortField === 'declined'}
-                      direction={sortField === 'declined' ? sortDirection : 'asc'}
-                      onClick={() => handleSort('declined')}
-                    >
-                      Answer
-                    </TableSortLabel>
-                  </TableCell>
-                  <TableCell>
-                    <TableSortLabel
-                      active={sortField === 'case'}
-                      direction={sortField === 'case' ? sortDirection : 'asc'}
-                      onClick={() => handleSort('case')}
-                    >
-                      Case
-                    </TableSortLabel>
-                  </TableCell>
-                  <TableCell>
-                    <TableSortLabel
-                      active={sortField === 'gender'}
-                      direction={sortField === 'gender' ? sortDirection : 'asc'}
-                      onClick={() => handleSort('gender')}
-                    >
-                      Gender
-                    </TableSortLabel>
-                  </TableCell>
-                  <TableCell>
-                    <TableSortLabel
-                      active={sortField === 'number'}
-                      direction={sortField === 'number' ? sortDirection : 'asc'}
-                      onClick={() => handleSort('number')}
-                    >
-                      Number
-                    </TableSortLabel>
-                  </TableCell>
-                  <TableCell>
-                    <TableSortLabel
-                      active={sortField === 'createdAt'}
-                      direction={sortField === 'createdAt' ? sortDirection : 'asc'}
-                      onClick={() => handleSort('createdAt')}
-                    >
-                      Added
-                    </TableSortLabel>
-                  </TableCell>
-                </TableRow>
-              </TableHead>
+              <CustomItemTableHead isAdmin={isAdmin}>
+                <SortableHeaderCell field="front" label="Question" sort={sort} />
+                <SortableHeaderCell field="declined" label="Answer" sort={sort} />
+                <SortableHeaderCell field="case" label="Case" sort={sort} />
+                <SortableHeaderCell field="gender" label="Gender" sort={sort} />
+                <SortableHeaderCell field="number" label="Number" sort={sort} />
+                <SortableHeaderCell field="createdAt" label="Added" sort={sort} />
+              </CustomItemTableHead>
               <TableBody>
                 {filteredAndSortedCards.map((card) => (
                   <TableRow key={card.id}>

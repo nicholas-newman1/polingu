@@ -17,7 +17,7 @@ interface TranslateResponse {
   resetTime: string;
 }
 
-export class TextTooLongError extends Error {
+class TextTooLongError extends Error {
   constructor() {
     super('Text exceeds maximum length of 500 characters.');
     this.name = 'TextTooLongError';

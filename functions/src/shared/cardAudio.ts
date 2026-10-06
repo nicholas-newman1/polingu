@@ -17,7 +17,7 @@ interface PerCardTriggerConfig {
   getText: (item: CustomCardItem) => string;
 }
 
-export const PER_CARD_CONFIGS: Record<
+const PER_CARD_CONFIGS: Record<
   'customSentences' | 'customVocabulary' | 'customDeclension',
   PerCardTriggerConfig
 > = {
@@ -84,7 +84,7 @@ interface SystemCardAudioConfig {
   getText: (data: FirebaseFirestore.DocumentData) => string;
 }
 
-export const SYSTEM_CARD_AUDIO_CONFIGS = {
+const SYSTEM_CARD_AUDIO_CONFIGS = {
   vocabulary: {
     audioType: 'vocabulary',
     getText: (d) => ((d.polish as string) ?? '').trim(),

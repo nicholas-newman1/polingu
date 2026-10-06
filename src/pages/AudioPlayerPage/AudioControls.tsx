@@ -20,8 +20,7 @@ import FormatSizeIcon from '@mui/icons-material/FormatSize';
 import EditNoteIcon from '@mui/icons-material/EditNote';
 import CheckIcon from '@mui/icons-material/Check';
 import { styled } from '../../lib/styled';
-import { DRAWER_WIDTH } from '../../components/Layout';
-import { BOTTOM_MENU_BAR_HEIGHT } from '../../components/BottomMenu/BottomMenuBar';
+import { BOTTOM_MENU_BAR_HEIGHT, DRAWER_WIDTH } from '../../constants/layout';
 import type { TranscriptFontSize } from '../../types/appSettings';
 
 const ControlsBar = styled(Box)(({ theme }) => ({

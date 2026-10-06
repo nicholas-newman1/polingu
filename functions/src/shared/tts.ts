@@ -10,7 +10,7 @@ export function getTtsClient(): TextToSpeechClient {
   return ttsClientInstance;
 }
 
-export function chunkTextForTTS(text: string): string[] {
+function chunkTextForTTS(text: string): string[] {
   if (Buffer.byteLength(text, 'utf8') <= TTS_BYTE_LIMIT) return [text];
 
   const sentences = text.match(/[^.!?]+[.!?]+\s*/g) || [text];

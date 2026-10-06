@@ -18,9 +18,7 @@ import {
   CONDITIONAL_FORM_KEYS,
 } from '../types/conjugation';
 
-const THIRD_PERSON_SUBJECTS = ['he', 'she', 'it', ''];
-
-export function parseFormKey(formKey: string): {
+function parseFormKey(formKey: string): {
   person: Person;
   number: GrammaticalNumber;
   gender?: ConjugationGender;
@@ -48,17 +46,8 @@ export function parseFormKey(formKey: string): {
   return { person, number, gender };
 }
 
-export function getFullFormKey(verbId: string, tense: Tense, formKey: string): string {
+function getFullFormKey(verbId: string, tense: Tense, formKey: string): string {
   return `${verbId}:${tense}:${formKey}`;
-}
-
-export function parseFullFormKey(fullFormKey: string): {
-  verbId: string;
-  tense: Tense;
-  formKey: string;
-} {
-  const [verbId, tense, formKey] = fullFormKey.split(':');
-  return { verbId, tense: tense as Tense, formKey };
 }
 
 export function getDrillableFormsForVerb(verb: Verb): DrillableForm[] {
@@ -151,11 +140,11 @@ export function getDefaultFilters(): ConjugationFilters {
   };
 }
 
-export function format3sgDisplay(translations: string[]): string {
+function format3sgDisplay(translations: string[]): string {
   return 'he/she/it ' + translations.join(' / ');
 }
 
-export function formatCompoundAlternatives(primary: string, alternatives: string[]): string {
+function formatCompoundAlternatives(primary: string, alternatives: string[]): string {
   const allForms = [primary, ...alternatives];
   const firstWords = allForms.map((f) => f.split(' ')[0]);
   const allSamePrefix = firstWords.every((w) => w === firstWords[0]);
@@ -174,52 +163,6 @@ export function formatCompoundAlternatives(primary: string, alternatives: string
   }
 
   return allForms.join(' / ');
-}
-
-export function validate3sgAnswer(userAnswer: string, storedVerbs: string[]): boolean {
-  const normalized = userAnswer
-    .toLowerCase()
-    .trim()
-    .replace(/[.,!?]/g, '');
-
-  for (const verb of storedVerbs) {
-    const normalizedVerb = verb
-      .toLowerCase()
-      .trim()
-      .replace(/[.,!?]/g, '');
-    for (const subject of THIRD_PERSON_SUBJECTS) {
-      const expected = subject ? `${subject} ${normalizedVerb}` : normalizedVerb;
-      if (normalized === expected) return true;
-    }
-  }
-  return false;
-}
-
-export function checkAnswer(
-  userAnswer: string,
-  form: ConjugationForm,
-  direction: TranslationDirection,
-  is3sgNonGendered: boolean
-): boolean {
-  const normalize = (s: string) =>
-    s
-      .toLowerCase()
-      .trim()
-      .replace(/[.,!?]/g, '');
-
-  if (direction === 'en-to-pl') {
-    const normalizedAnswer = normalize(userAnswer);
-    if (normalizedAnswer === normalize(form.pl)) return true;
-    if (form.plAlternatives) {
-      return form.plAlternatives.some((alt) => normalizedAnswer === normalize(alt));
-    }
-    return false;
-  } else {
-    if (is3sgNonGendered) {
-      return validate3sgAnswer(userAnswer, form.en);
-    }
-    return form.en.some((valid) => normalize(userAnswer) === normalize(valid));
-  }
 }
 
 export function getQuestionDisplay(form: DrillableForm, direction: TranslationDirection): string {
@@ -263,21 +206,6 @@ export function getAnswerDisplay(
     }
     return { primary: form.form.en.join(' / ') };
   }
-}
-
-export function getPersonNumberLabel(person: Person, number: GrammaticalNumber): string {
-  const personLabels: Record<Person, string> = {
-    '1st': 'I / We',
-    '2nd': 'You',
-    '3rd': 'He/She/It / They',
-  };
-
-  const numberSuffix = number === 'Singular' ? '(sg)' : '(pl)';
-  return `${personLabels[person]} ${numberSuffix}`;
-}
-
-export function getGenderLabel(gender: ConjugationGender): string {
-  return gender;
 }
 
 export function getTenseLabel(tense: Tense): string {

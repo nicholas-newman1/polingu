@@ -1,52 +1,34 @@
-import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Rating, type Grade } from 'ts-fsrs';
-import { Box, CircularProgress, Typography, styled } from '@mui/material';
-import {
-  DeclensionFlashcard,
-  type DeclensionRatingIntervals,
-} from './components/DeclensionFlashcard';
+import { Box, CircularProgress, styled } from '@mui/material';
+import { DeclensionFlashcard } from './components/DeclensionFlashcard';
 import { DeclensionFilterControls } from './components/DeclensionFilterControls';
 import { SettingsPanel } from '../../components/SettingsPanel';
 import { FinishedState } from '../../components/FinishedState';
-import { EmptyState } from '../../components/EmptyState';
-import { ReviewCountBadge } from '../../components/ReviewCountBadge';
+import { ReviewStage } from '../../components/ReviewStage';
+import { SessionStatusLine } from '../../components/SessionStatusLine';
+import { ReviewMainContent } from '../../components/ReviewLayout';
 import { EditDeclensionModal } from '../../components/EditDeclensionModal';
-import type {
-  DeclensionCard,
-  CustomDeclensionCard,
-  DeclensionCardReviewData,
-  Case,
-  Gender,
-  Number,
-  DeclensionReviewDataStore,
-  DeclensionSettings,
-} from '../../types';
+import type { DeclensionCard, CustomDeclensionCard, Case, Gender, Number } from '../../types';
 import {
   updateDeclensionCard,
   updateDeclensionCardTranslation,
   deleteDeclensionCard,
 } from '../../lib/storage/systemDeclension';
 import { saveCustomDeclension } from '../../lib/storage/customDeclension';
-import { includesDeclensionCardId } from '../../lib/storage/helpers';
 import { generateCustomId } from '../../types/customItems';
-import getOrCreateDeclensionCardReviewData from '../../lib/storage/getOrCreateDeclensionCardReviewData';
 import getDeclensionSessionCards from '../../lib/declensionScheduler/getSessionCards';
 import getDeclensionPracticeAheadCards from '../../lib/declensionScheduler/getPracticeAheadCards';
 import getDeclensionExtraNewCards from '../../lib/declensionScheduler/getExtraNewCards';
-import rateCard from '../../lib/fsrsUtils/rateCard';
-import getNextIntervals from '../../lib/fsrsUtils/getNextIntervals';
-import type { DeclensionSessionCard } from '../../lib/declensionScheduler/types';
+import matchesDeclensionFilters from '../../lib/declensionScheduler/matchesFilters';
+import type { DeclensionFilters } from '../../lib/declensionScheduler/types';
+import { recordCardReview } from '../../lib/reviewSession/recordReview';
 import { useAuthContext } from '../../hooks/useAuthContext';
 import { useReviewData } from '../../hooks/useReviewData';
 import { useOptimistic } from '../../hooks/useOptimistic';
 import { useSnackbar } from '../../hooks/useSnackbar';
-import { useProgressStats } from '../../hooks/useProgressStats';
-import { useCardHistory } from '../../hooks/useCardHistory';
-import { usePrefetchAudio } from '../../hooks/usePrefetchAudio';
+import { useReviewSession } from '../../hooks/useReviewSession';
 import { useUserFilters } from '../../contexts/UserFiltersContext';
-import { DEFAULT_DECLENSION_SETTINGS } from '../../constants';
-import shuffleArray from '../../lib/utils/shuffleArray';
 import { useListening } from '../../contexts/ListeningContext';
 import { buildDeclensionListeningQueue } from '../../lib/listeningScheduler';
 
@@ -57,19 +39,10 @@ const LoadingContainer = styled(Box)({
   justifyContent: 'center',
 });
 
-const MainContent = styled(Box)({
-  flex: 1,
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  justifyContent: 'center',
-});
-
 export function DeclensionPage() {
   const navigate = useNavigate();
   const { user, isAdmin } = useAuthContext();
   const { showSnackbar } = useSnackbar();
-  const progressStats = useProgressStats();
   const {
     loading: contextLoading,
     customDeclensionCards: contextCustomDeclensionCards,
@@ -103,273 +76,41 @@ export function DeclensionPage() {
   );
 
   const { filters: userFilters, filtersLoading, updateDeclensionFilters } = useUserFilters();
-  const { cases: caseFilter, genders: genderFilter, number: numberFilter } = userFilters.declension;
+  const filters: DeclensionFilters = userFilters.declension;
 
   const { start: startListening, settings: listeningSettings } = useListening();
 
   const [showSettings, setShowSettings] = useState(false);
-  const [practiceMode, setPracticeMode] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingCard, setEditingCard] = useState<DeclensionCard | null>(null);
   const [isCreatingNew, setIsCreatingNew] = useState(false);
 
-  const [learningQueue, setLearningQueue] = useState<DeclensionSessionCard[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [practiceIndex, setPracticeIndex] = useState(0);
-  const [practiceCards, setPracticeCards] = useState<DeclensionCard[]>([]);
-  const [sessionQueue, setSessionQueue] = useState<DeclensionSessionCard[]>([]);
-  const [reviewCount, setReviewCount] = useState(0);
-  const [newCount, setNewCount] = useState(0);
-  const [ratingCounter, setRatingCounter] = useState(0);
-  const [practiceAheadCount, setPracticeAheadCount] = useState(10);
-  const [isPracticeAhead, setIsPracticeAhead] = useState(false);
-  const [extraNewCardsCount, setExtraNewCardsCount] = useState(5);
-  const [sessionReady, setSessionReady] = useState(false);
-  const sessionBuiltRef = useRef(false);
-
-  const {
-    isViewingHistory,
-    historyCard,
-    historyMeta,
-    canGoBack,
-    addToHistory,
-    updateInHistory,
-    goBack,
-    goForward,
-    clearHistory,
-  } = useCardHistory<DeclensionCard, DeclensionCardReviewData>();
-
-  const filteredCards = useMemo(() => {
-    return allDeclensionCards.filter((card) => {
-      if (caseFilter.length > 0 && !caseFilter.includes(card.case)) return false;
-      if (genderFilter.length > 0 && !genderFilter.includes(card.gender)) return false;
-      if (numberFilter !== 'All' && card.number !== numberFilter) return false;
-      return true;
-    });
-  }, [allDeclensionCards, caseFilter, genderFilter, numberFilter]);
-
-  const buildSession = useCallback(
-    (store: DeclensionReviewDataStore, currentSettings: DeclensionSettings) => {
-      const filters = {
-        cases: caseFilter,
-        genders: genderFilter,
-        number: numberFilter,
-      };
-      const { reviewCards, newCards } = getDeclensionSessionCards(
-        allDeclensionCards,
-        store,
-        filters,
-        currentSettings
-      );
-      setSessionQueue([...reviewCards, ...newCards]);
-      setReviewCount(reviewCards.length);
-      setNewCount(newCards.length);
-      setLearningQueue([]);
-      setCurrentIndex(0);
-      clearHistory();
-    },
-    [allDeclensionCards, caseFilter, genderFilter, numberFilter, clearHistory]
-  );
-
-  useEffect(() => {
-    if (
-      !contextLoading &&
-      !filtersLoading &&
-      !sessionBuiltRef.current &&
-      allDeclensionCards.length > 0
-    ) {
-      sessionBuiltRef.current = true;
-      queueMicrotask(() => {
-        buildSession(reviewStore, settings);
-        setSessionReady(true);
-      });
-    }
-  }, [
-    contextLoading,
-    filtersLoading,
-    buildSession,
+  const session = useReviewSession({
+    cardKey: 'card',
+    getId: (card) => card.id,
+    getAudioUrls: (card) => [card.audioUrl],
+    ready: !contextLoading && !filtersLoading && allDeclensionCards.length > 0,
+    getSessionCards: () =>
+      getDeclensionSessionCards(allDeclensionCards, reviewStore, filters, settings),
+    getPracticeAheadCards: (count) =>
+      getDeclensionPracticeAheadCards(allDeclensionCards, reviewStore, filters, count),
+    getExtraNewCards: (count) =>
+      getDeclensionExtraNewCards(allDeclensionCards, reviewStore, filters, count),
     reviewStore,
-    settings,
-    allDeclensionCards.length,
-  ]);
+    recordReview: recordCardReview,
+    saveReviewStore: updateDeclensionReviewStore,
+  });
+  const { practice, history } = session;
+  const { canGoBack, goBack, goForward } = history;
 
-  const resetSession = useCallback(() => {
-    buildSession(reviewStore, settings);
-  }, [buildSession, reviewStore, settings]);
-
-  const startPracticeAhead = useCallback(() => {
-    const filters = {
-      cases: caseFilter,
-      genders: genderFilter,
-      number: numberFilter,
-    };
-    const aheadCards = getDeclensionPracticeAheadCards(
-      allDeclensionCards,
-      reviewStore,
-      filters,
-      practiceAheadCount
+  const handleFiltersChange = (newFilters: DeclensionFilters) => {
+    updateDeclensionFilters(newFilters);
+    session.startSession(
+      getDeclensionSessionCards(allDeclensionCards, reviewStore, newFilters, settings)
     );
-    setSessionQueue(aheadCards);
-    setReviewCount(aheadCards.length);
-    setNewCount(0);
-    setLearningQueue([]);
-    setCurrentIndex(0);
-    setIsPracticeAhead(true);
-  }, [allDeclensionCards, caseFilter, genderFilter, numberFilter, reviewStore, practiceAheadCount]);
-
-  const startExtraNewCards = useCallback(() => {
-    const filters = {
-      cases: caseFilter,
-      genders: genderFilter,
-      number: numberFilter,
-    };
-    const extraCards = getDeclensionExtraNewCards(
-      allDeclensionCards,
-      reviewStore,
-      filters,
-      extraNewCardsCount
-    );
-    setSessionQueue(extraCards);
-    setReviewCount(0);
-    setNewCount(extraCards.length);
-    setLearningQueue([]);
-    setCurrentIndex(0);
-    setIsPracticeAhead(false);
-  }, [allDeclensionCards, caseFilter, genderFilter, numberFilter, reviewStore, extraNewCardsCount]);
-
-  const handleFilterChange = useCallback(
-    (newCaseFilter: Case[], newGenderFilter: Gender[], newNumberFilter: Number | 'All') => {
-      if (practiceMode) {
-        setPracticeCards(
-          shuffleArray(
-            allDeclensionCards.filter((card) => {
-              if (newCaseFilter.length > 0 && !newCaseFilter.includes(card.case)) return false;
-              if (newGenderFilter.length > 0 && !newGenderFilter.includes(card.gender))
-                return false;
-              if (newNumberFilter !== 'All' && card.number !== newNumberFilter) return false;
-              return true;
-            })
-          )
-        );
-        setPracticeIndex(0);
-      }
-    },
-    [allDeclensionCards, practiceMode]
-  );
-
-  const handleCaseChange = useCallback(
-    (value: Case[]) => {
-      updateDeclensionFilters({ cases: value, genders: genderFilter, number: numberFilter });
-      resetSession();
-      handleFilterChange(value, genderFilter, numberFilter);
-    },
-    [resetSession, handleFilterChange, genderFilter, numberFilter, updateDeclensionFilters]
-  );
-
-  const handleGenderChange = useCallback(
-    (value: Gender[]) => {
-      updateDeclensionFilters({ cases: caseFilter, genders: value, number: numberFilter });
-      resetSession();
-      handleFilterChange(caseFilter, value, numberFilter);
-    },
-    [resetSession, handleFilterChange, caseFilter, numberFilter, updateDeclensionFilters]
-  );
-
-  const handleNumberChange = useCallback(
-    (value: Number | 'All') => {
-      updateDeclensionFilters({ cases: caseFilter, genders: genderFilter, number: value });
-      resetSession();
-      handleFilterChange(caseFilter, genderFilter, value);
-    },
-    [resetSession, handleFilterChange, caseFilter, genderFilter, updateDeclensionFilters]
-  );
-
-  const togglePracticeMode = useCallback(() => {
-    if (!practiceMode) {
-      setPracticeCards(shuffleArray(filteredCards));
-      setPracticeIndex(0);
+    if (practice.active) {
+      practice.reshuffle(allDeclensionCards.filter((c) => matchesDeclensionFilters(c, newFilters)));
     }
-    setPracticeMode(!practiceMode);
-  }, [practiceMode, filteredCards]);
-
-  const handlePracticeNext = useCallback(() => {
-    setPracticeIndex((prev) => (prev + 1) % practiceCards.length);
-  }, [practiceCards.length]);
-
-  const currentSessionCard = sessionQueue[currentIndex] ?? learningQueue[0];
-  const isFinished = currentIndex >= sessionQueue.length && learningQueue.length === 0;
-
-  const upcomingAudioUrls = practiceMode
-    ? Array.from({ length: 3 }, (_, i) => {
-        const len = practiceCards.length;
-        if (len === 0) return undefined;
-        return practiceCards[(practiceIndex + 1 + i) % len]?.audioUrl;
-      })
-    : [
-        ...sessionQueue.slice(currentIndex + 1, currentIndex + 4).map((c) => c.card.audioUrl),
-        ...learningQueue
-          .slice(currentIndex < sessionQueue.length ? 0 : 1)
-          .map((c) => c.card.audioUrl),
-      ].slice(0, 3);
-  usePrefetchAudio(upcomingAudioUrls);
-
-  const handleRate = async (rating: Grade) => {
-    if (!currentSessionCard) return;
-
-    addToHistory(currentSessionCard.card, currentSessionCard.reviewData);
-
-    const updatedReviewData = rateCard(currentSessionCard.reviewData, rating);
-
-    const newStore = { ...reviewStore };
-    newStore.cards = { ...newStore.cards };
-    newStore.cards[currentSessionCard.card.id] = updatedReviewData;
-
-    if (
-      currentSessionCard.isNew &&
-      !includesDeclensionCardId(newStore.newCardsToday, currentSessionCard.card.id)
-    ) {
-      newStore.newCardsToday = [...newStore.newCardsToday, currentSessionCard.card.id];
-    }
-
-    if (rating === Rating.Again) {
-      if (currentIndex < sessionQueue.length) {
-        setLearningQueue((prev) => [
-          ...prev,
-          { ...currentSessionCard, reviewData: updatedReviewData },
-        ]);
-        setCurrentIndex((prev) => prev + 1);
-      } else {
-        const updated = learningQueue.map((item, idx) =>
-          idx === 0 ? { ...item, reviewData: updatedReviewData } : item
-        );
-        setLearningQueue([...updated.slice(1), updated[0]]);
-      }
-    } else {
-      if (!includesDeclensionCardId(newStore.reviewedToday, currentSessionCard.card.id)) {
-        newStore.reviewedToday = [...newStore.reviewedToday, currentSessionCard.card.id];
-      }
-
-      if (currentIndex < sessionQueue.length) {
-        setCurrentIndex((prev) => prev + 1);
-      } else {
-        setLearningQueue((prev) => prev.slice(1));
-      }
-    }
-
-    setRatingCounter((c) => c + 1);
-    await updateDeclensionReviewStore(newStore);
-  };
-
-  const handleReassess = async (rating: Grade) => {
-    if (!historyCard || !historyMeta) return;
-
-    const updatedReviewData = rateCard(historyMeta, rating);
-
-    const newStore = { ...reviewStore };
-    newStore.cards = { ...newStore.cards, [historyCard.id]: updatedReviewData };
-
-    await updateDeclensionReviewStore(newStore);
-    goForward();
   };
 
   const handleSettingsChange = async (newCardsPerDay: number) => {
@@ -380,17 +121,16 @@ export function DeclensionPage() {
   const handleResetAllData = async () => {
     if (window.confirm('Are you sure? This will erase all your progress and cannot be undone.')) {
       await clearDeclensionData();
-      buildSession(reviewStore, DEFAULT_DECLENSION_SETTINGS);
+      session.rebuildSession();
       setShowSettings(false);
     }
   };
 
-  const handleOpenEditModal = useCallback(() => {
-    if (!currentSessionCard) return;
-    setEditingCard(currentSessionCard.card);
+  const openEditModal = (card: DeclensionCard) => {
+    setEditingCard(card);
     setIsCreatingNew(false);
     setShowEditModal(true);
-  }, [currentSessionCard]);
+  };
 
   const handleOpenCreateModal = useCallback(() => {
     setEditingCard(null);
@@ -398,236 +138,135 @@ export function DeclensionPage() {
     setShowEditModal(true);
   }, []);
 
-  const updateCardInQueues = useCallback(
-    (cardId: DeclensionCard['id'], updatedCard: DeclensionCard) => {
-      setSessionQueue((prev) =>
-        prev.map((item) => (item.card.id === cardId ? { ...item, card: updatedCard } : item))
-      );
-      setLearningQueue((prev) =>
-        prev.map((item) => (item.card.id === cardId ? { ...item, card: updatedCard } : item))
-      );
-      setPracticeCards((prev) => prev.map((card) => (card.id === cardId ? updatedCard : card)));
-      updateInHistory(
-        (c) => c.id === cardId,
-        () => updatedCard
-      );
-    },
-    [updateInHistory]
-  );
+  const replaceCard = (updatedCard: DeclensionCard) =>
+    session.updateCards(
+      (c) => c.id === updatedCard.id,
+      () => updatedCard
+    );
 
-  const removeCardFromQueues = (cardId: DeclensionCard['id']) => {
-    setSessionQueue((prev) => prev.filter((item) => item.card.id !== cardId));
-    setLearningQueue((prev) => prev.filter((item) => item.card.id !== cardId));
-    setPracticeCards((prev) => prev.filter((card) => card.id !== cardId));
+  const handleSaveCard = (cardData: Omit<DeclensionCard, 'id' | 'isCustom'>) => {
+    if (isCreatingNew) {
+      const newCard: CustomDeclensionCard = {
+        ...cardData,
+        id: generateCustomId(),
+        isCustom: true,
+        createdAt: Date.now(),
+      };
+      const newCustomCards = [...customDeclensionCards, newCard];
+
+      applyOptimisticCustomCards(newCustomCards, async () => {
+        await saveCustomDeclension(newCustomCards);
+        setContextCustomDeclensionCards(newCustomCards);
+      });
+
+      session.startSession(
+        getDeclensionSessionCards(
+          [...newCustomCards, ...systemDeclensionCards],
+          reviewStore,
+          filters,
+          settings
+        )
+      );
+      return;
+    }
+
+    if (!editingCard) return;
+    const updatedCard = { ...editingCard, ...cardData };
+    replaceCard(updatedCard);
+
+    if (editingCard.isCustom === true) {
+      const newCustomCards = customDeclensionCards.map((card) =>
+        card.id === editingCard.id ? { ...card, ...cardData } : card
+      );
+      applyOptimisticCustomCards(newCustomCards, async () => {
+        await saveCustomDeclension(newCustomCards);
+        setContextCustomDeclensionCards(newCustomCards);
+      });
+    } else {
+      const newSystemCards = systemDeclensionCards.map((card) =>
+        card.id === editingCard.id ? updatedCard : card
+      );
+      applyOptimisticSystemCards(newSystemCards, async () => {
+        await updateDeclensionCard(editingCard.id as number, cardData);
+        setContextSystemDeclensionCards(newSystemCards);
+      });
+    }
   };
 
-  const handleSaveCard = useCallback(
-    (cardData: Omit<DeclensionCard, 'id' | 'isCustom'>) => {
-      if (isCreatingNew) {
-        const newCard: CustomDeclensionCard = {
-          ...cardData,
-          id: generateCustomId(),
-          isCustom: true,
-          createdAt: Date.now(),
-        };
-        const newCustomCards = [...customDeclensionCards, newCard];
+  const deleteCard = (
+    card: DeclensionCard,
+    { skipConfirm = false }: { skipConfirm?: boolean } = {}
+  ): boolean => {
+    const isCustomCard = card.isCustom === true;
+    if (!isCustomCard && !isAdmin) return false;
 
-        applyOptimisticCustomCards(newCustomCards, async () => {
-          await saveCustomDeclension(newCustomCards);
-          setContextCustomDeclensionCards(newCustomCards);
-        });
+    if (!skipConfirm) {
+      const confirmMessage = isCustomCard
+        ? 'Are you sure you want to delete this custom card?'
+        : 'Are you sure you want to delete this system declension card? This will affect all users.';
+      if (!window.confirm(confirmMessage)) return false;
+    }
 
-        buildSession(reviewStore, settings);
-      } else if (editingCard) {
-        const isCustomCard = editingCard.isCustom === true;
-        const updatedCard = { ...editingCard, ...cardData };
+    session.removeCards((c) => c.id === card.id);
 
-        if (isCustomCard) {
-          const newCustomCards = customDeclensionCards.map((card) =>
-            card.id === editingCard.id ? { ...card, ...cardData } : card
-          );
+    if (isCustomCard) {
+      const newCustomCards = customDeclensionCards.filter((c) => c.id !== card.id);
+      applyOptimisticCustomCards(newCustomCards, async () => {
+        await saveCustomDeclension(newCustomCards);
+        setContextCustomDeclensionCards(newCustomCards);
+      });
+    } else {
+      const newSystemCards = systemDeclensionCards.filter((c) => c.id !== card.id);
+      applyOptimisticSystemCards(newSystemCards, async () => {
+        await deleteDeclensionCard(card.id as number);
+        setContextSystemDeclensionCards(newSystemCards);
+      });
+    }
+    return true;
+  };
 
-          updateCardInQueues(editingCard.id, updatedCard);
-
-          applyOptimisticCustomCards(newCustomCards, async () => {
-            await saveCustomDeclension(newCustomCards);
-            setContextCustomDeclensionCards(newCustomCards);
-          });
-        } else {
-          const newSystemCards = systemDeclensionCards.map((card) =>
-            card.id === editingCard.id ? updatedCard : card
-          );
-
-          updateCardInQueues(editingCard.id, updatedCard);
-
-          applyOptimisticSystemCards(newSystemCards, async () => {
-            await updateDeclensionCard(editingCard.id as number, cardData);
-            setContextSystemDeclensionCards(newSystemCards);
-          });
-        }
-      }
-    },
-    [
-      isCreatingNew,
-      editingCard,
-      customDeclensionCards,
-      systemDeclensionCards,
-      applyOptimisticCustomCards,
-      applyOptimisticSystemCards,
-      setContextCustomDeclensionCards,
-      setContextSystemDeclensionCards,
-      buildSession,
-      reviewStore,
-      settings,
-      updateCardInQueues,
-    ]
-  );
-
-  const deleteCardById = useCallback(
-    (card: DeclensionCard, { skipConfirm = false }: { skipConfirm?: boolean } = {}) => {
-      const isCustomCard = card.isCustom === true;
-      const isSystemCard = !isCustomCard && isAdmin;
-      if (!isCustomCard && !isSystemCard) return;
-
-      if (!skipConfirm) {
-        const confirmMessage = isCustomCard
-          ? 'Are you sure you want to delete this custom card?'
-          : 'Are you sure you want to delete this system declension card? This will affect all users.';
-        if (!window.confirm(confirmMessage)) return;
-      }
-
-      removeCardFromQueues(card.id);
-
-      if (isCustomCard) {
-        const newCustomCards = customDeclensionCards.filter((c) => c.id !== card.id);
-        applyOptimisticCustomCards(newCustomCards, async () => {
-          await saveCustomDeclension(newCustomCards);
-          setContextCustomDeclensionCards(newCustomCards);
-        });
-      } else {
-        const newSystemCards = systemDeclensionCards.filter((c) => c.id !== card.id);
-        applyOptimisticSystemCards(newSystemCards, async () => {
-          await deleteDeclensionCard(card.id as number);
-          setContextSystemDeclensionCards(newSystemCards);
-        });
-      }
-    },
-    [
-      isAdmin,
-      customDeclensionCards,
-      systemDeclensionCards,
-      applyOptimisticCustomCards,
-      applyOptimisticSystemCards,
-      setContextCustomDeclensionCards,
-      setContextSystemDeclensionCards,
-    ]
-  );
-
-  const handleDeleteCard = useCallback(() => {
+  const handleDeleteEditingCard = () => {
     if (!editingCard) return;
-    deleteCardById(editingCard, { skipConfirm: true });
+    deleteCard(editingCard, { skipConfirm: true });
     setShowEditModal(false);
     setEditingCard(null);
-  }, [editingCard, deleteCardById]);
+  };
 
-  const handleDeleteCurrentSessionCard = useCallback(() => {
-    if (!currentSessionCard) return;
-    deleteCardById(currentSessionCard.card);
-  }, [currentSessionCard, deleteCardById]);
-
-  const handleDeletePracticeCard = useCallback(() => {
-    const card = practiceCards[practiceIndex];
+  const handleUpdateTranslation = (
+    cardId: DeclensionCard['id'],
+    word: string,
+    translation: string
+  ) => {
+    const card = allDeclensionCards.find((c) => c.id === cardId);
     if (!card) return;
-    deleteCardById(card);
-    setPracticeIndex((prev) => prev % Math.max(practiceCards.length - 1, 1));
-  }, [practiceCards, practiceIndex, deleteCardById]);
 
-  const handleDeleteHistoryCard = useCallback(() => {
-    if (!historyCard) return;
-    deleteCardById(historyCard);
-    goForward();
-  }, [historyCard, deleteCardById, goForward]);
+    const updatedTranslations = { ...card.translations, [word]: translation };
+    const updatedCard = { ...card, translations: updatedTranslations };
+    replaceCard(updatedCard);
 
-  const handleUpdateTranslation = useCallback(
-    async (cardId: DeclensionCard['id'], word: string, translation: string) => {
-      const card = allDeclensionCards.find((c) => c.id === cardId);
-      if (!card) return;
-
-      const updatedTranslations = { ...card.translations, [word]: translation };
-      const updatedCard = { ...card, translations: updatedTranslations };
-
-      updateCardInQueues(cardId, updatedCard);
-
-      if (card.isCustom) {
-        const newCustomCards = customDeclensionCards.map((c) =>
-          c.id === cardId ? { ...c, translations: updatedTranslations } : c
-        );
-
-        applyOptimisticCustomCards(newCustomCards, async () => {
-          await saveCustomDeclension(newCustomCards);
-          setContextCustomDeclensionCards(newCustomCards);
-        });
-      } else {
-        const newSystemCards = systemDeclensionCards.map((c) =>
-          c.id === cardId ? updatedCard : c
-        );
-
-        applyOptimisticSystemCards(newSystemCards, async () => {
-          await updateDeclensionCardTranslation(cardId as number, word, translation);
-          setContextSystemDeclensionCards(newSystemCards);
-        });
-      }
-    },
-    [
-      allDeclensionCards,
-      customDeclensionCards,
-      systemDeclensionCards,
-      applyOptimisticCustomCards,
-      applyOptimisticSystemCards,
-      setContextCustomDeclensionCards,
-      setContextSystemDeclensionCards,
-      updateCardInQueues,
-    ]
-  );
-
-  const intervals: DeclensionRatingIntervals = useMemo(() => {
-    if (!currentSessionCard) {
-      return {
-        [Rating.Again]: '',
-        [Rating.Hard]: '',
-        [Rating.Good]: '',
-        [Rating.Easy]: '',
-      };
+    if (card.isCustom) {
+      const newCustomCards = customDeclensionCards.map((c) =>
+        c.id === cardId ? { ...c, translations: updatedTranslations } : c
+      );
+      applyOptimisticCustomCards(newCustomCards, async () => {
+        await saveCustomDeclension(newCustomCards);
+        setContextCustomDeclensionCards(newCustomCards);
+      });
+    } else {
+      const newSystemCards = systemDeclensionCards.map((c) => (c.id === cardId ? updatedCard : c));
+      applyOptimisticSystemCards(newSystemCards, async () => {
+        await updateDeclensionCardTranslation(cardId as number, word, translation);
+        setContextSystemDeclensionCards(newSystemCards);
+      });
     }
-    const allIntervals = getNextIntervals(
-      getOrCreateDeclensionCardReviewData(currentSessionCard.card.id, reviewStore).fsrsCard
-    );
-    return {
-      [Rating.Again]: allIntervals[Rating.Again],
-      [Rating.Hard]: allIntervals[Rating.Hard],
-      [Rating.Good]: allIntervals[Rating.Good],
-      [Rating.Easy]: allIntervals[Rating.Easy],
-    };
-  }, [currentSessionCard, reviewStore]);
+  };
 
-  const reassessIntervals: DeclensionRatingIntervals | undefined = useMemo(() => {
-    if (!historyMeta) return undefined;
-    const allIntervals = getNextIntervals(historyMeta.fsrsCard);
-    return {
-      [Rating.Again]: allIntervals[Rating.Again],
-      [Rating.Hard]: allIntervals[Rating.Hard],
-      [Rating.Good]: allIntervals[Rating.Good],
-      [Rating.Easy]: allIntervals[Rating.Easy],
-    };
-  }, [historyMeta]);
+  const translationHandler = (card: DeclensionCard) =>
+    isAdmin
+      ? (word: string, translation: string) => handleUpdateTranslation(card.id, word, translation)
+      : undefined;
 
-  const totalRemaining = sessionQueue.length - currentIndex + learningQueue.length;
-
-  const currentPracticeCard = practiceCards[practiceIndex];
-
-  const canEditCurrentCard = currentSessionCard?.card.isCustom || isAdmin;
-
-  if (contextLoading || filtersLoading || !sessionReady) {
+  if (contextLoading || filtersLoading || !session.isBuilt) {
     return (
       <LoadingContainer>
         <CircularProgress sx={{ color: 'text.disabled' }} />
@@ -638,15 +277,17 @@ export function DeclensionPage() {
   return (
     <>
       <DeclensionFilterControls
-        caseFilter={caseFilter}
-        genderFilter={genderFilter}
-        numberFilter={numberFilter}
-        practiceMode={practiceMode}
+        caseFilter={filters.cases}
+        genderFilter={filters.genders}
+        numberFilter={filters.number}
+        practiceMode={practice.active}
         showSettings={showSettings}
-        onCaseChange={handleCaseChange}
-        onGenderChange={handleGenderChange}
-        onNumberChange={handleNumberChange}
-        onTogglePractice={togglePracticeMode}
+        onCaseChange={(cases: Case[]) => handleFiltersChange({ ...filters, cases })}
+        onGenderChange={(genders: Gender[]) => handleFiltersChange({ ...filters, genders })}
+        onNumberChange={(number: Number | 'All') => handleFiltersChange({ ...filters, number })}
+        onTogglePractice={() =>
+          practice.toggle(allDeclensionCards.filter((c) => matchesDeclensionFilters(c, filters)))
+        }
         onToggleSettings={() => setShowSettings(!showSettings)}
         onAddCard={user ? handleOpenCreateModal : undefined}
         onStartListening={() => {
@@ -654,11 +295,7 @@ export function DeclensionPage() {
             cards: allDeclensionCards,
             reviewStore,
             ordering: listeningSettings.ordering,
-            filters: {
-              cases: caseFilter,
-              genders: genderFilter,
-              number: numberFilter,
-            },
+            filters,
           });
           if (queue.length === 0) {
             showSnackbar('No declensions with audio for the current filters.', 'info');
@@ -671,7 +308,7 @@ export function DeclensionPage() {
         }}
       />
 
-      {showSettings && !practiceMode && (
+      {showSettings && !practice.active && (
         <SettingsPanel
           newCardsPerDay={settings.newCardsPerDay}
           user={user}
@@ -680,137 +317,61 @@ export function DeclensionPage() {
         />
       )}
 
-      <MainContent>
-        <Typography
-          variant="body2"
-          color="text.disabled"
-          sx={{
-            mb: { xs: 3, sm: 4 },
-            textAlign: 'center',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 1,
-          }}
-        >
-          {practiceMode ? (
-            `Drill Mode · ${practiceCards.length} cards`
-          ) : isFinished ? null : isPracticeAhead ? (
-            <>
-              Drill Ahead · <ReviewCountBadge count={totalRemaining} /> remaining
-            </>
-          ) : (
-            <>
-              {reviewCount} reviews · {newCount} new · <ReviewCountBadge count={totalRemaining} />{' '}
-              remaining
-            </>
-          )}
-        </Typography>
+      <ReviewMainContent>
+        <SessionStatusLine session={session} unitLabel="cards" />
 
-        {practiceMode ? (
-          currentPracticeCard ? (
+        <ReviewStage
+          session={session}
+          practiceEmptyMessage="No cards match your filters"
+          renderPractice={(card) => (
             <DeclensionFlashcard
-              key={`practice-${currentPracticeCard.id}-${practiceIndex}`}
-              card={currentPracticeCard}
+              key={`practice-${card.id}-${practice.index}`}
+              card={card}
               practiceMode
-              canEdit={currentPracticeCard.isCustom || isAdmin}
-              onNext={handlePracticeNext}
-              onEdit={() => {
-                setEditingCard(currentPracticeCard);
-                setIsCreatingNew(false);
-                setShowEditModal(true);
-              }}
-              onDelete={handleDeletePracticeCard}
-              onUpdateTranslation={
-                isAdmin
-                  ? (word, translation) =>
-                      handleUpdateTranslation(currentPracticeCard.id, word, translation)
-                  : undefined
-              }
+              canEdit={card.isCustom || isAdmin}
+              onNext={practice.next}
+              onEdit={() => openEditModal(card)}
+              onDelete={() => deleteCard(card)}
+              onUpdateTranslation={translationHandler(card)}
             />
-          ) : (
-            <EmptyState message="No cards match your filters" />
-          )
-        ) : isViewingHistory && historyCard ? (
-          <DeclensionFlashcard
-            key={`history-${historyCard.id}`}
-            card={historyCard}
-            isViewingHistory
-            canGoBack={canGoBack}
-            canEdit={historyCard.isCustom || isAdmin}
-            reassessIntervals={reassessIntervals}
-            onGoBack={goBack}
-            onContinue={goForward}
-            onReassess={handleReassess}
-            onEdit={() => {
-              setEditingCard(historyCard);
-              setIsCreatingNew(false);
-              setShowEditModal(true);
-            }}
-            onDelete={handleDeleteHistoryCard}
-            onUpdateTranslation={
-              isAdmin
-                ? (word, translation) => handleUpdateTranslation(historyCard.id, word, translation)
-                : undefined
-            }
-          />
-        ) : isFinished ? (
-          <FinishedState
-            currentFeature="declension"
-            otherFeaturesDue={[
-              {
-                feature: 'vocabulary',
-                label: 'Vocabulary',
-                dueCount: progressStats.vocabulary.due,
-                path: '/vocabulary',
-              },
-              {
-                feature: 'conjugation',
-                label: 'Conjugation',
-                dueCount: progressStats.conjugation.due,
-                path: '/conjugation',
-              },
-              {
-                feature: 'sentences',
-                label: 'Sentences',
-                dueCount: progressStats.sentences.due,
-                path: '/sentences',
-              },
-              {
-                feature: 'aspectPairs',
-                label: 'Aspect Pairs',
-                dueCount: progressStats.aspectPairs.due,
-                path: '/aspect-pairs',
-              },
-            ]}
-            onNavigateToFeature={(path) => navigate(path)}
-            practiceAheadCount={practiceAheadCount}
-            setPracticeAheadCount={setPracticeAheadCount}
-            extraNewCardsCount={extraNewCardsCount}
-            setExtraNewCardsCount={setExtraNewCardsCount}
-            onPracticeAhead={startPracticeAhead}
-            onLearnExtra={startExtraNewCards}
-          />
-        ) : currentSessionCard ? (
-          <DeclensionFlashcard
-            key={`${currentSessionCard.card.id}-${ratingCounter}`}
-            card={currentSessionCard.card}
-            intervals={intervals}
-            canGoBack={canGoBack}
-            canEdit={canEditCurrentCard}
-            onRate={handleRate}
-            onGoBack={goBack}
-            onEdit={handleOpenEditModal}
-            onDelete={handleDeleteCurrentSessionCard}
-            onUpdateTranslation={
-              isAdmin
-                ? (word, translation) =>
-                    handleUpdateTranslation(currentSessionCard.card.id, word, translation)
-                : undefined
-            }
-          />
-        ) : null}
-      </MainContent>
+          )}
+          renderHistory={(card) => (
+            <DeclensionFlashcard
+              key={`history-${card.id}`}
+              card={card}
+              isViewingHistory
+              canGoBack={canGoBack}
+              canEdit={card.isCustom || isAdmin}
+              reassessIntervals={session.reassessIntervals}
+              onGoBack={goBack}
+              onContinue={goForward}
+              onReassess={session.reassess}
+              onEdit={() => openEditModal(card)}
+              onDelete={() => {
+                if (deleteCard(card)) goForward();
+              }}
+              onUpdateTranslation={translationHandler(card)}
+            />
+          )}
+          renderFinished={() => (
+            <FinishedState currentFeature="declension" {...session.finishedStateProps} />
+          )}
+          renderCurrent={({ card }) => (
+            <DeclensionFlashcard
+              key={`${card.id}-${session.ratingCounter}`}
+              card={card}
+              intervals={session.intervals}
+              canGoBack={canGoBack}
+              canEdit={card.isCustom || isAdmin}
+              onRate={session.rate}
+              onGoBack={goBack}
+              onEdit={() => openEditModal(card)}
+              onDelete={() => deleteCard(card)}
+              onUpdateTranslation={translationHandler(card)}
+            />
+          )}
+        />
+      </ReviewMainContent>
 
       <EditDeclensionModal
         open={showEditModal}
@@ -822,15 +383,13 @@ export function DeclensionPage() {
         onSave={handleSaveCard}
         onDelete={
           editingCard && !isCreatingNew && (editingCard.isCustom || isAdmin)
-            ? handleDeleteCard
+            ? handleDeleteEditingCard
             : undefined
         }
         card={editingCard}
         isCreating={isCreatingNew}
         onAudioUpdated={(audioUrl) => {
-          if (editingCard) {
-            updateCardInQueues(editingCard.id, { ...editingCard, audioUrl });
-          }
+          if (editingCard) replaceCard({ ...editingCard, audioUrl });
         }}
       />
     </>

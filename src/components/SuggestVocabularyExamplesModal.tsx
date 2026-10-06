@@ -1,16 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type Ref } from 'react';
 import {
-  Dialog,
   DialogTitle,
-  DialogContent,
-  DialogActions,
   IconButton,
   TextField,
   Box,
   Button,
   Typography,
   CircularProgress,
-  Checkbox,
   Skeleton,
   Stack,
   InputAdornment,
@@ -21,73 +17,245 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import AddIcon from '@mui/icons-material/Add';
 import { styled } from '../lib/styled';
-import { alpha } from '../lib/theme';
-import { generateExample, type GeneratedExample } from '../lib/generateExample';
+import {
+  ModalDialog,
+  ModalHeader,
+  ModalContent,
+  ModalActions,
+  ExamplePairBox,
+  ExampleRowHeader,
+} from './modalStyles';
+import { toExampleSentences } from '../lib/generateExample';
 import { translate } from '../lib/translate';
+import { useGeneratedExamples } from '../hooks/useGeneratedExamples';
+import { GeneratedExampleOptions } from './GeneratedExampleOptions';
 import type { ExampleSentence, VocabularyWord } from '../types/vocabulary';
 
 const SUGGESTION_CAP = 3;
-
-const StyledDialog = styled(Dialog)(({ theme }) => ({
-  '& .MuiDialog-paper': {
-    width: '100%',
-    maxWidth: 540,
-    margin: theme.spacing(2),
-  },
-}));
-
-const Header = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  padding: theme.spacing(2, 3),
-  borderBottom: `1px solid ${theme.palette.divider}`,
-}));
-
-const Content = styled(DialogContent)(({ theme }) => ({
-  padding: theme.spacing(3),
-  display: 'flex',
-  flexDirection: 'column',
-  gap: theme.spacing(2),
-}));
-
-const Actions = styled(DialogActions)(({ theme }) => ({
-  padding: theme.spacing(2, 3),
-  borderTop: `1px solid ${theme.palette.divider}`,
-}));
 
 const SectionLabel = styled(Typography)(({ theme }) => ({
   color: theme.palette.text.secondary,
   fontWeight: 500,
 }));
 
-const SuggestionRow = styled(Box)(({ theme }) => ({
+type GeneratedExamples = ReturnType<typeof useGeneratedExamples>;
+
+const ButtonRow = styled(Box)(({ theme }) => ({
   display: 'flex',
-  flexDirection: 'row',
-  alignItems: 'flex-start',
   gap: theme.spacing(1),
-  padding: theme.spacing(1.5),
-  borderRadius: theme.shape.borderRadius,
-  backgroundColor: alpha(theme.palette.success.main, 0.08),
-  border: `1px solid ${alpha(theme.palette.success.main, 0.3)}`,
-  cursor: 'pointer',
+  flexWrap: 'wrap',
 }));
 
-const AcceptedRow = styled(Box)(({ theme }) => ({
+const MessageBlock = styled(Box)(({ theme }) => ({
   display: 'flex',
   flexDirection: 'column',
   gap: theme.spacing(1),
-  padding: theme.spacing(1.5),
-  borderRadius: theme.shape.borderRadius,
-  backgroundColor: alpha(theme.palette.text.primary, 0.02),
-  border: `1px solid ${theme.palette.divider}`,
 }));
 
-const RowHeader = styled(Box)({
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-});
+function AddManuallyButton({ onClick }: { onClick: () => void }) {
+  return (
+    <Button
+      size="small"
+      variant="text"
+      color="inherit"
+      startIcon={<AddIcon />}
+      onClick={onClick}
+      data-qa="suggest-vocabulary-examples-add-manually"
+    >
+      Add manually
+    </Button>
+  );
+}
+
+function RegenerateButton({ onClick }: { onClick: () => void }) {
+  return (
+    <Button
+      size="small"
+      variant="outlined"
+      startIcon={<RefreshIcon />}
+      onClick={onClick}
+      data-qa="suggest-vocabulary-examples-regenerate"
+    >
+      Regenerate
+    </Button>
+  );
+}
+
+interface SuggestionsBodyProps {
+  suggestions: GeneratedExamples;
+  hasAccepted: boolean;
+  onFetch: () => void;
+  onAcceptSelected: () => void;
+  onAddManually: () => void;
+}
+
+function SuggestionsBody({
+  suggestions,
+  hasAccepted,
+  onFetch,
+  onAcceptSelected,
+  onAddManually,
+}: SuggestionsBodyProps) {
+  if (suggestions.isGenerating) {
+    return (
+      <Stack spacing={1} data-qa="suggest-vocabulary-examples-loading">
+        {Array.from({ length: SUGGESTION_CAP }).map((_, i) => (
+          <Skeleton key={i} variant="rounded" height={72} />
+        ))}
+      </Stack>
+    );
+  }
+
+  if (suggestions.error) {
+    return (
+      <MessageBlock data-qa="suggest-vocabulary-examples-error">
+        <Typography variant="body2" color="error">
+          {suggestions.error}
+        </Typography>
+        <ButtonRow>
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<RefreshIcon />}
+            onClick={onFetch}
+            data-qa="suggest-vocabulary-examples-retry"
+          >
+            Try again
+          </Button>
+          <AddManuallyButton onClick={onAddManually} />
+        </ButtonRow>
+      </MessageBlock>
+    );
+  }
+
+  if (suggestions.items.length > 0) {
+    const selectedCount = suggestions.selected.size;
+    return (
+      <Stack spacing={1}>
+        <GeneratedExampleOptions
+          examples={suggestions.items}
+          selected={suggestions.selected}
+          onToggle={suggestions.toggle}
+          dataQa="suggest-vocabulary-examples-suggestion"
+        />
+        <ButtonRow sx={{ mt: 1 }}>
+          <Button
+            size="small"
+            variant="contained"
+            onClick={onAcceptSelected}
+            disabled={selectedCount === 0}
+            data-qa="suggest-vocabulary-examples-accept-selected"
+          >
+            Accept Selected ({selectedCount})
+          </Button>
+          <RegenerateButton onClick={onFetch} />
+          <AddManuallyButton onClick={onAddManually} />
+        </ButtonRow>
+      </Stack>
+    );
+  }
+
+  if (hasAccepted) {
+    return (
+      <ButtonRow>
+        <RegenerateButton onClick={onFetch} />
+        <AddManuallyButton onClick={onAddManually} />
+      </ButtonRow>
+    );
+  }
+
+  return (
+    <MessageBlock data-qa="suggest-vocabulary-examples-empty">
+      <Typography variant="body2" color="text.secondary">
+        No suggestions to show.
+      </Typography>
+      <ButtonRow>
+        <Button
+          size="small"
+          variant="outlined"
+          startIcon={<AutoAwesomeIcon />}
+          onClick={onFetch}
+          data-qa="suggest-vocabulary-examples-generate"
+        >
+          Generate suggestions
+        </Button>
+        <AddManuallyButton onClick={onAddManually} />
+      </ButtonRow>
+    </MessageBlock>
+  );
+}
+
+interface AcceptedExampleRowProps {
+  example: ExampleSentence;
+  index: number;
+  isTranslating: boolean;
+  polishRef?: Ref<HTMLInputElement>;
+  onPolishChange: (id: string, value: string) => void;
+  onEnglishChange: (id: string, value: string) => void;
+  onRemove: (id: string) => void;
+}
+
+function AcceptedExampleRow({
+  example,
+  index,
+  isTranslating,
+  polishRef,
+  onPolishChange,
+  onEnglishChange,
+  onRemove,
+}: AcceptedExampleRowProps) {
+  const id = example.id!;
+  return (
+    <ExamplePairBox data-qa="suggest-vocabulary-examples-accepted-row">
+      <ExampleRowHeader>
+        <Typography variant="caption" color="text.disabled">
+          Example {index + 1}
+        </Typography>
+        <IconButton
+          size="small"
+          onClick={() => onRemove(id)}
+          aria-label="remove example"
+          sx={{ color: 'text.disabled' }}
+          data-qa="suggest-vocabulary-examples-remove-accepted"
+        >
+          <DeleteOutlineIcon fontSize="small" />
+        </IconButton>
+      </ExampleRowHeader>
+      <TextField
+        value={example.polish}
+        onChange={(e) => onPolishChange(id, e.target.value)}
+        inputRef={polishRef}
+        label="Polish"
+        size="small"
+        fullWidth
+        slotProps={{
+          htmlInput: {
+            'data-qa': 'suggest-vocabulary-examples-accepted-polish',
+          },
+        }}
+      />
+      <TextField
+        value={example.english}
+        onChange={(e) => onEnglishChange(id, e.target.value)}
+        label="English"
+        size="small"
+        fullWidth
+        slotProps={{
+          input: {
+            endAdornment: isTranslating ? (
+              <InputAdornment position="end">
+                <CircularProgress size={16} />
+              </InputAdornment>
+            ) : null,
+          },
+          htmlInput: {
+            'data-qa': 'suggest-vocabulary-examples-accepted-english',
+          },
+        }}
+      />
+    </ExamplePairBox>
+  );
+}
 
 interface SuggestVocabularyExamplesModalProps {
   open: boolean;
@@ -102,11 +270,12 @@ export function SuggestVocabularyExamplesModal({
   onClose,
   onSave,
 }: SuggestVocabularyExamplesModalProps) {
-  const [suggestions, setSuggestions] = useState<GeneratedExample[]>([]);
-  const [selectedIndexes, setSelectedIndexes] = useState<Set<number>>(new Set());
+  const suggestions = useGeneratedExamples({
+    errorMessage: 'Failed to generate suggestions. Please try again.',
+    limit: SUGGESTION_CAP,
+  });
+  const { generate, clear: clearSuggestions, reset: resetSuggestions } = suggestions;
   const [acceptedExamples, setAcceptedExamples] = useState<ExampleSentence[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [translatingIds, setTranslatingIds] = useState<Set<string>>(new Set());
 
@@ -121,38 +290,19 @@ export function SuggestVocabularyExamplesModal({
     };
   }, []);
 
-  const fetchSuggestions = useCallback(async () => {
+  const fetchSuggestions = useCallback(() => {
     if (!word) return;
-
-    setIsLoading(true);
-    setError(null);
-    setSuggestions([]);
-    setSelectedIndexes(new Set());
-
-    try {
-      const result = await generateExample({
-        polish: word.polish,
-        english: word.english,
-        partOfSpeech: word.partOfSpeech,
-        gender: word.gender,
-      });
-      const capped = result.examples.slice(0, SUGGESTION_CAP);
-      setSuggestions(capped);
-      setSelectedIndexes(new Set(capped.map((_, i) => i)));
-    } catch (err) {
-      console.error('Failed to generate sentence suggestions:', err);
-      setError('Failed to generate suggestions. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [word]);
+    void generate({
+      polish: word.polish,
+      english: word.english,
+      partOfSpeech: word.partOfSpeech,
+      gender: word.gender,
+    });
+  }, [word, generate]);
 
   useEffect(() => {
     if (open && word) {
-      setSuggestions([]);
-      setSelectedIndexes(new Set());
       setAcceptedExamples([]);
-      setError(null);
       translationTimeouts.current.forEach((timeout) => clearTimeout(timeout));
       translationTimeouts.current.clear();
       userEditedEnglishIds.current.clear();
@@ -161,31 +311,12 @@ export function SuggestVocabularyExamplesModal({
     }
   }, [open, word, fetchSuggestions]);
 
-  const handleToggleSuggestion = useCallback((index: number) => {
-    setSelectedIndexes((prev) => {
-      const next = new Set(prev);
-      if (next.has(index)) {
-        next.delete(index);
-      } else {
-        next.add(index);
-      }
-      return next;
-    });
-  }, []);
-
-  const handleAcceptSelected = useCallback(() => {
-    const selected = suggestions
-      .filter((_, i) => selectedIndexes.has(i))
-      .map<ExampleSentence>(({ polish, english }) => ({
-        id: crypto.randomUUID(),
-        polish,
-        english,
-      }));
+  const handleAcceptSelected = () => {
+    const selected = toExampleSentences(suggestions.selectedItems);
     if (selected.length === 0) return;
     setAcceptedExamples((prev) => [...prev, ...selected]);
-    setSuggestions([]);
-    setSelectedIndexes(new Set());
-  }, [suggestions, selectedIndexes]);
+    clearSuggestions();
+  };
 
   const translatePolishForRow = useCallback(async (id: string, polishText: string) => {
     const trimmed = polishText.trim();
@@ -256,18 +387,15 @@ export function SuggestVocabularyExamplesModal({
   }, []);
 
   const handleClose = useCallback(() => {
-    setSuggestions([]);
-    setSelectedIndexes(new Set());
+    resetSuggestions();
     setAcceptedExamples([]);
-    setError(null);
-    setIsLoading(false);
     setIsSaving(false);
     setTranslatingIds(new Set());
     translationTimeouts.current.forEach((timeout) => clearTimeout(timeout));
     translationTimeouts.current.clear();
     userEditedEnglishIds.current.clear();
     onClose();
-  }, [onClose]);
+  }, [onClose, resetSuggestions]);
 
   const handleSave = useCallback(async () => {
     const valid = acceptedExamples.filter((ex) => ex.polish.trim() && ex.english.trim());
@@ -292,13 +420,17 @@ export function SuggestVocabularyExamplesModal({
 
   if (!word) return null;
 
-  const selectedCount = selectedIndexes.size;
   const acceptedCount = acceptedExamples.length;
   const hasAcceptedToSave = acceptedExamples.some((ex) => ex.polish.trim() && ex.english.trim());
 
   return (
-    <StyledDialog open={open} onClose={handleClose} data-qa="suggest-vocabulary-examples-modal">
-      <Header>
+    <ModalDialog
+      $maxWidth={540}
+      open={open}
+      onClose={handleClose}
+      data-qa="suggest-vocabulary-examples-modal"
+    >
+      <ModalHeader>
         <DialogTitle sx={{ p: 0, fontWeight: 500 }}>Suggest Example Sentences</DialogTitle>
         <IconButton
           onClick={handleClose}
@@ -308,8 +440,8 @@ export function SuggestVocabularyExamplesModal({
         >
           <CloseIcon />
         </IconButton>
-      </Header>
-      <Content>
+      </ModalHeader>
+      <ModalContent>
         <Box>
           <Typography variant="body2" color="text.secondary">
             For
@@ -327,170 +459,13 @@ export function SuggestVocabularyExamplesModal({
             Suggestions
           </SectionLabel>
 
-          {isLoading && (
-            <Stack spacing={1} data-qa="suggest-vocabulary-examples-loading">
-              {Array.from({ length: SUGGESTION_CAP }).map((_, i) => (
-                <Skeleton key={i} variant="rounded" height={72} />
-              ))}
-            </Stack>
-          )}
-
-          {!isLoading && error && (
-            <Box
-              sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}
-              data-qa="suggest-vocabulary-examples-error"
-            >
-              <Typography variant="body2" color="error">
-                {error}
-              </Typography>
-              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                <Button
-                  size="small"
-                  variant="outlined"
-                  startIcon={<RefreshIcon />}
-                  onClick={fetchSuggestions}
-                  data-qa="suggest-vocabulary-examples-retry"
-                >
-                  Try again
-                </Button>
-                <Button
-                  size="small"
-                  variant="text"
-                  color="inherit"
-                  startIcon={<AddIcon />}
-                  onClick={handleAddManually}
-                  data-qa="suggest-vocabulary-examples-add-manually"
-                >
-                  Add manually
-                </Button>
-              </Box>
-            </Box>
-          )}
-
-          {!isLoading && !error && suggestions.length > 0 && (
-            <Stack spacing={1}>
-              {suggestions.map((example, index) => (
-                <SuggestionRow
-                  key={index}
-                  sx={{ opacity: selectedIndexes.has(index) ? 1 : 0.5 }}
-                  onClick={() => handleToggleSuggestion(index)}
-                  data-qa="suggest-vocabulary-examples-suggestion"
-                >
-                  <Checkbox
-                    checked={selectedIndexes.has(index)}
-                    size="small"
-                    sx={{ p: 0, mt: 0.25 }}
-                    tabIndex={-1}
-                  />
-                  <Box sx={{ flex: 1 }}>
-                    <Typography variant="body2" fontWeight={500}>
-                      {example.polish}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {example.english}
-                    </Typography>
-                    {example.meaning && (
-                      <Typography
-                        variant="caption"
-                        sx={{ color: 'primary.main', fontStyle: 'italic' }}
-                      >
-                        ({example.meaning})
-                      </Typography>
-                    )}
-                  </Box>
-                </SuggestionRow>
-              ))}
-
-              <Box sx={{ display: 'flex', gap: 1, mt: 1, flexWrap: 'wrap' }}>
-                <Button
-                  size="small"
-                  variant="contained"
-                  onClick={handleAcceptSelected}
-                  disabled={selectedCount === 0}
-                  data-qa="suggest-vocabulary-examples-accept-selected"
-                >
-                  Accept Selected ({selectedCount})
-                </Button>
-                <Button
-                  size="small"
-                  variant="outlined"
-                  startIcon={<RefreshIcon />}
-                  onClick={fetchSuggestions}
-                  disabled={isLoading}
-                  data-qa="suggest-vocabulary-examples-regenerate"
-                >
-                  Regenerate
-                </Button>
-                <Button
-                  size="small"
-                  variant="text"
-                  color="inherit"
-                  startIcon={<AddIcon />}
-                  onClick={handleAddManually}
-                  data-qa="suggest-vocabulary-examples-add-manually"
-                >
-                  Add manually
-                </Button>
-              </Box>
-            </Stack>
-          )}
-
-          {!isLoading && !error && suggestions.length === 0 && acceptedCount === 0 && (
-            <Box
-              sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}
-              data-qa="suggest-vocabulary-examples-empty"
-            >
-              <Typography variant="body2" color="text.secondary">
-                No suggestions to show.
-              </Typography>
-              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                <Button
-                  size="small"
-                  variant="outlined"
-                  startIcon={<AutoAwesomeIcon />}
-                  onClick={fetchSuggestions}
-                  data-qa="suggest-vocabulary-examples-generate"
-                >
-                  Generate suggestions
-                </Button>
-                <Button
-                  size="small"
-                  variant="text"
-                  color="inherit"
-                  startIcon={<AddIcon />}
-                  onClick={handleAddManually}
-                  data-qa="suggest-vocabulary-examples-add-manually"
-                >
-                  Add manually
-                </Button>
-              </Box>
-            </Box>
-          )}
-
-          {!isLoading && !error && suggestions.length === 0 && acceptedCount > 0 && (
-            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-              <Button
-                size="small"
-                variant="outlined"
-                startIcon={<RefreshIcon />}
-                onClick={fetchSuggestions}
-                disabled={isLoading}
-                data-qa="suggest-vocabulary-examples-regenerate"
-              >
-                Regenerate
-              </Button>
-              <Button
-                size="small"
-                variant="text"
-                color="inherit"
-                startIcon={<AddIcon />}
-                onClick={handleAddManually}
-                data-qa="suggest-vocabulary-examples-add-manually"
-              >
-                Add manually
-              </Button>
-            </Box>
-          )}
+          <SuggestionsBody
+            suggestions={suggestions}
+            hasAccepted={acceptedCount > 0}
+            onFetch={fetchSuggestions}
+            onAcceptSelected={handleAcceptSelected}
+            onAddManually={handleAddManually}
+          />
         </Box>
 
         {acceptedCount > 0 && (
@@ -500,60 +475,22 @@ export function SuggestVocabularyExamplesModal({
             </SectionLabel>
             <Stack spacing={1.5}>
               {acceptedExamples.map((ex, index) => (
-                <AcceptedRow key={ex.id} data-qa="suggest-vocabulary-examples-accepted-row">
-                  <RowHeader>
-                    <Typography variant="caption" color="text.disabled">
-                      Example {index + 1}
-                    </Typography>
-                    <IconButton
-                      size="small"
-                      onClick={() => handleRemoveAccepted(ex.id!)}
-                      aria-label="remove example"
-                      sx={{ color: 'text.disabled' }}
-                      data-qa="suggest-vocabulary-examples-remove-accepted"
-                    >
-                      <DeleteOutlineIcon fontSize="small" />
-                    </IconButton>
-                  </RowHeader>
-                  <TextField
-                    value={ex.polish}
-                    onChange={(e) => handleAcceptedPolishChange(ex.id!, e.target.value)}
-                    inputRef={index === acceptedExamples.length - 1 ? newRowPolishRef : undefined}
-                    label="Polish"
-                    size="small"
-                    fullWidth
-                    slotProps={{
-                      htmlInput: {
-                        'data-qa': 'suggest-vocabulary-examples-accepted-polish',
-                      },
-                    }}
-                  />
-                  <TextField
-                    value={ex.english}
-                    onChange={(e) => handleAcceptedEnglishChange(ex.id!, e.target.value)}
-                    label="English"
-                    size="small"
-                    fullWidth
-                    slotProps={{
-                      input: {
-                        endAdornment: translatingIds.has(ex.id!) ? (
-                          <InputAdornment position="end">
-                            <CircularProgress size={16} />
-                          </InputAdornment>
-                        ) : null,
-                      },
-                      htmlInput: {
-                        'data-qa': 'suggest-vocabulary-examples-accepted-english',
-                      },
-                    }}
-                  />
-                </AcceptedRow>
+                <AcceptedExampleRow
+                  key={ex.id}
+                  example={ex}
+                  index={index}
+                  isTranslating={translatingIds.has(ex.id!)}
+                  polishRef={index === acceptedExamples.length - 1 ? newRowPolishRef : undefined}
+                  onPolishChange={handleAcceptedPolishChange}
+                  onEnglishChange={handleAcceptedEnglishChange}
+                  onRemove={handleRemoveAccepted}
+                />
               ))}
             </Stack>
           </Box>
         )}
-      </Content>
-      <Actions>
+      </ModalContent>
+      <ModalActions>
         <Button
           onClick={handleClose}
           color="inherit"
@@ -572,7 +509,7 @@ export function SuggestVocabularyExamplesModal({
         >
           {isSaving ? 'Saving...' : 'Save'}
         </Button>
-      </Actions>
-    </StyledDialog>
+      </ModalActions>
+    </ModalDialog>
   );
 }

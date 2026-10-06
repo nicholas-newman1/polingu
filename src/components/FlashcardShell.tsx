@@ -10,22 +10,26 @@ import type { Grade } from 'ts-fsrs';
 import { RatingButtons, type RatingIntervals } from './RatingButtons';
 import { BoxIconButton } from './BoxIconButton';
 
-interface FlashcardShellProps {
-  revealed: boolean;
+/** Session-control props every review flashcard forwards to `FlashcardShell`. */
+export interface ReviewFlashcardProps {
   practiceMode?: boolean;
   isViewingHistory?: boolean;
   canGoBack?: boolean;
   intervals?: RatingIntervals;
   reassessIntervals?: RatingIntervals;
-  maxWidth?: number;
-  canEdit?: boolean;
-  onReveal: () => void;
   onRate?: (rating: Grade) => void;
   onReassess?: (rating: Grade) => void;
   onNext?: () => void;
   onGoBack?: () => void;
   onContinue?: () => void;
   onEdit?: () => void;
+}
+
+interface FlashcardShellProps extends ReviewFlashcardProps {
+  revealed: boolean;
+  maxWidth?: number;
+  canEdit?: boolean;
+  onReveal: () => void;
   onDelete?: () => void;
   header?: ReactNode;
   headerActions?: ReactNode;

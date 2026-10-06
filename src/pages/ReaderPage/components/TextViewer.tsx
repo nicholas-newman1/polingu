@@ -9,7 +9,7 @@ import { styled } from '../../../lib/styled';
 import { alpha } from '../../../lib/theme';
 import { TranslatableWord } from '../../../components/TranslatableWord';
 import { TranslatableText } from '../../../components/TranslatableText';
-import { DRAWER_WIDTH } from '../../../components/Layout';
+import { DRAWER_WIDTH } from '../../../constants/layout';
 import { useTranscriptFontSize } from '../../../hooks/useTranscriptFontSize';
 import { parseTextParagraphs } from '../../../lib/reader';
 import { countWords } from '../../../lib/utils/countWords';

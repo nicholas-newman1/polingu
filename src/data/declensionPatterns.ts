@@ -16,7 +16,7 @@ export interface DeclensionTable {
   footnotes: Record<number, string>;
 }
 
-export const masculineSingular: DeclensionTable = {
+const masculineSingular: DeclensionTable = {
   title: 'Masculine',
   gender: 'masculine',
   number: 'singular',
@@ -63,7 +63,7 @@ export const masculineSingular: DeclensionTable = {
   ],
 };
 
-export const masculinePlural: DeclensionTable = {
+const masculinePlural: DeclensionTable = {
   title: 'Masculine',
   gender: 'masculine',
   number: 'plural',
@@ -110,7 +110,7 @@ export const masculinePlural: DeclensionTable = {
   ],
 };
 
-export const feminineSingular: DeclensionTable = {
+const feminineSingular: DeclensionTable = {
   title: 'Feminine',
   gender: 'feminine',
   number: 'singular',
@@ -165,7 +165,7 @@ export const feminineSingular: DeclensionTable = {
   ],
 };
 
-export const femininePlural: DeclensionTable = {
+const femininePlural: DeclensionTable = {
   title: 'Feminine',
   gender: 'feminine',
   number: 'plural',
@@ -199,7 +199,7 @@ export const femininePlural: DeclensionTable = {
   ],
 };
 
-export const neuterSingular: DeclensionTable = {
+const neuterSingular: DeclensionTable = {
   title: 'Neuter',
   gender: 'neuter',
   number: 'singular',
@@ -230,7 +230,7 @@ export const neuterSingular: DeclensionTable = {
   ],
 };
 
-export const neuterPlural: DeclensionTable = {
+const neuterPlural: DeclensionTable = {
   title: 'Neuter',
   gender: 'neuter',
   number: 'plural',

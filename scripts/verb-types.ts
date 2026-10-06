@@ -67,12 +67,12 @@ export interface VerbIndex {
   verbClass: VerbClass;
 }
 
-export const VALID_ASPECTS: Aspect[] = ['Imperfective', 'Perfective'];
-export const VALID_VERB_CLASSES: VerbClass[] = ['-ać', '-ić', '-yć', '-eć', '-ować', 'Irregular'];
-export const VALID_TENSES: Tense[] = ['present', 'past', 'future', 'imperative', 'conditional'];
+const VALID_ASPECTS: Aspect[] = ['Imperfective', 'Perfective'];
+const VALID_VERB_CLASSES: VerbClass[] = ['-ać', '-ić', '-yć', '-eć', '-ować', 'Irregular'];
+const VALID_TENSES: Tense[] = ['present', 'past', 'future', 'imperative', 'conditional'];
 
-export const PRESENT_FORM_KEYS: PresentFormKey[] = ['1sg', '2sg', '3sg', '1pl', '2pl', '3pl'];
-export const PAST_FORM_KEYS: PastFormKey[] = [
+const PRESENT_FORM_KEYS: PresentFormKey[] = ['1sg', '2sg', '3sg', '1pl', '2pl', '3pl'];
+const PAST_FORM_KEYS: PastFormKey[] = [
   '1sg_m',
   '1sg_f',
   '2sg_m',
@@ -87,9 +87,9 @@ export const PAST_FORM_KEYS: PastFormKey[] = [
   '3pl_m',
   '3pl_f',
 ];
-export const FUTURE_FORM_KEYS: FutureFormKey[] = ['1sg', '2sg', '3sg', '1pl', '2pl', '3pl'];
-export const IMPERATIVE_FORM_KEYS: ImperativeFormKey[] = ['2sg', '1pl', '2pl'];
-export const CONDITIONAL_FORM_KEYS: ConditionalFormKey[] = [
+const FUTURE_FORM_KEYS: FutureFormKey[] = ['1sg', '2sg', '3sg', '1pl', '2pl', '3pl'];
+const IMPERATIVE_FORM_KEYS: ImperativeFormKey[] = ['2sg', '1pl', '2pl'];
+const CONDITIONAL_FORM_KEYS: ConditionalFormKey[] = [
   '1sg_m',
   '1sg_f',
   '2sg_m',
@@ -105,16 +105,16 @@ export const CONDITIONAL_FORM_KEYS: ConditionalFormKey[] = [
   '3pl_f',
 ];
 
-export const IMPERSONAL_PRESENT_FORM_KEYS: PresentFormKey[] = ['3sg', '3pl'];
-export const IMPERSONAL_PAST_FORM_KEYS: PastFormKey[] = [
+const IMPERSONAL_PRESENT_FORM_KEYS: PresentFormKey[] = ['3sg', '3pl'];
+const IMPERSONAL_PAST_FORM_KEYS: PastFormKey[] = [
   '3sg_m',
   '3sg_f',
   '3sg_n',
   '3pl_m',
   '3pl_f',
 ];
-export const IMPERSONAL_FUTURE_FORM_KEYS: FutureFormKey[] = ['3sg', '3pl'];
-export const IMPERSONAL_CONDITIONAL_FORM_KEYS: ConditionalFormKey[] = [
+const IMPERSONAL_FUTURE_FORM_KEYS: FutureFormKey[] = ['3sg', '3pl'];
+const IMPERSONAL_CONDITIONAL_FORM_KEYS: ConditionalFormKey[] = [
   '3sg_m',
   '3sg_f',
   '3sg_n',
@@ -122,11 +122,11 @@ export const IMPERSONAL_CONDITIONAL_FORM_KEYS: ConditionalFormKey[] = [
   '3pl_f',
 ];
 
-export function isValidAspect(value: string): value is Aspect {
+function isValidAspect(value: string): value is Aspect {
   return VALID_ASPECTS.includes(value as Aspect);
 }
 
-export function isValidVerbClass(value: string): value is VerbClass {
+function isValidVerbClass(value: string): value is VerbClass {
   return VALID_VERB_CLASSES.includes(value as VerbClass);
 }
 

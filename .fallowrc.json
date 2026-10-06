@@ -1,0 +1,20 @@
+{
+  "entry": ["functions/src/index.ts"],
+  "ignoreDependencies": ["@emotion/react", "@emotion/styled"],
+  "health": {
+    "maxCrap": 0,
+    "thresholdOverrides": [
+      {
+        "files": ["src/pages/**/*.tsx", "src/components/**/*.tsx"],
+        "maxCognitive": 25,
+        "reason": "Conditional JSX and inline event callbacks inflate cognitive complexity for page and modal components; cyclomatic stays at the default ceiling."
+      },
+      {
+        "files": ["src/hooks/useReviewSession.ts"],
+        "functions": ["useReviewSession"],
+        "maxCognitive": 20,
+        "reason": "Composer hook; the score comes from nesting inside small closures rather than branching."
+      }
+    ]
+  }
+}

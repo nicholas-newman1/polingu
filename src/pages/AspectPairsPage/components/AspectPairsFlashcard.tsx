@@ -1,9 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import type { Grade } from 'ts-fsrs';
 import { Box, Chip, Stack, Typography } from '@mui/material';
 import { styled } from '../../../lib/styled';
-import { FlashcardShell } from '../../../components/FlashcardShell';
-import type { RatingIntervals } from '../../../components/RatingButtons';
+import { FlashcardShell, type ReviewFlashcardProps } from '../../../components/FlashcardShell';
 import { AudioButton } from '../../../components/AudioButton';
 import { HidePolishButton } from '../../../components/HidePolishButton';
 import { HiddenPolishPlaceholder } from '../../../components/HiddenPolishPlaceholder';
@@ -14,20 +12,9 @@ import { VerbConjugationTooltip } from '../../../components/VerbConjugationToolt
 import { useAppSettings } from '../../../contexts/AppSettingsContext';
 import { resolvePlayableAudioUrl } from '../../../lib/audio/audioPrefetchCache';
 
-interface AspectPairsFlashcardProps {
+interface AspectPairsFlashcardProps extends ReviewFlashcardProps {
   card: AspectPairCard;
-  practiceMode?: boolean;
-  isViewingHistory?: boolean;
-  canGoBack?: boolean;
-  intervals?: RatingIntervals;
-  reassessIntervals?: RatingIntervals;
   canEdit?: boolean;
-  onRate?: (rating: Grade) => void;
-  onReassess?: (rating: Grade) => void;
-  onNext?: () => void;
-  onGoBack?: () => void;
-  onContinue?: () => void;
-  onEdit?: () => void;
   onUnlink?: () => void;
 }
 
@@ -283,5 +270,3 @@ export function AspectPairsFlashcard({
     />
   );
 }
-
-export type { RatingIntervals };

@@ -231,10 +231,3 @@ export async function syncAllPendingToFirestore(): Promise<number> {
 
   return synced;
 }
-
-/**
- * Get count of pending sync records
- */
-export async function getPendingSyncCount(): Promise<number> {
-  return await userDb.userData.where('pendingSync').equals(1).count();
-}

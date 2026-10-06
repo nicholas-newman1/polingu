@@ -15,7 +15,7 @@ function getVocabularySettingsDocPath(direction: TranslationDirection): string {
   return direction === 'pl-to-en' ? 'vocabularySettings-pl-en' : 'vocabularySettings-en-pl';
 }
 
-export async function loadVocabularyDirectionSettings(
+async function loadVocabularyDirectionSettings(
   direction: TranslationDirection
 ): Promise<VocabularyDirectionSettings> {
   return loadUserData(
@@ -39,4 +39,4 @@ export default async function loadVocabularySettings(): Promise<VocabularySettin
   };
 }
 
-export { DEFAULT_VOCABULARY_SETTINGS, DEFAULT_DIRECTION_SETTINGS, getVocabularySettingsDocPath };
+export { DEFAULT_VOCABULARY_SETTINGS, getVocabularySettingsDocPath };

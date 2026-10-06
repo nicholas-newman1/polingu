@@ -1,10 +1,8 @@
 import { useState } from 'react';
-import type { Grade } from 'ts-fsrs';
 import { Box, Button, Chip, Stack, Typography } from '@mui/material';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import { styled } from '../../../lib/styled';
-import { FlashcardShell } from '../../../components/FlashcardShell';
-import type { RatingIntervals } from '../../../components/RatingButtons';
+import { FlashcardShell, type ReviewFlashcardProps } from '../../../components/FlashcardShell';
 import { AudioButton } from '../../../components/AudioButton';
 import { HidePolishButton } from '../../../components/HidePolishButton';
 import { HiddenPolishPlaceholder } from '../../../components/HiddenPolishPlaceholder';
@@ -13,21 +11,10 @@ import type { TranslationDirection } from '../../../types/common';
 import { useAudioPlayer } from '../../../hooks/useAudioPlayer';
 import { useAppSettings } from '../../../contexts/AppSettingsContext';
 
-interface VocabularyFlashcardProps {
+interface VocabularyFlashcardProps extends ReviewFlashcardProps {
   word: VocabularyWord;
   direction: TranslationDirection;
-  practiceMode?: boolean;
-  isViewingHistory?: boolean;
-  canGoBack?: boolean;
-  intervals?: RatingIntervals;
-  reassessIntervals?: RatingIntervals;
   isAdmin?: boolean;
-  onRate?: (rating: Grade) => void;
-  onReassess?: (rating: Grade) => void;
-  onNext?: () => void;
-  onGoBack?: () => void;
-  onContinue?: () => void;
-  onEdit?: () => void;
   onDelete?: () => void;
   onGenerateSentences?: () => void;
 }
@@ -261,6 +248,3 @@ export function VocabularyFlashcard({
     />
   );
 }
-
-// Re-export RatingIntervals for backwards compatibility
-export type { RatingIntervals };

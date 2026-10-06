@@ -33,7 +33,7 @@ export const HighlightedSpan = styled('span')(({ theme }) => ({
   },
 }));
 
-export const TooltipPaper = styled(Paper, {
+const TooltipPaper = styled(Paper, {
   shouldForwardProp: (prop) => prop !== '$placement',
 })<{ $placement?: TooltipPlacement }>(({ theme, $placement = 'top' }) => ({
   position: 'relative',

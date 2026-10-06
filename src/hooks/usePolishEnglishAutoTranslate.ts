@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { UseFormReturn } from 'react-hook-form';
 import { translate } from '../lib/translate';
 
-export const AUTO_TRANSLATE_DEBOUNCE_MS = 500;
+const AUTO_TRANSLATE_DEBOUNCE_MS = 500;
 
 type TranslationKey = string | number;
 
@@ -204,7 +205,7 @@ export function usePolishEnglishAutoTranslate<K extends TranslationKey>({
 }
 
 /** Single Polish/English field pair variant of `usePolishEnglishAutoTranslate`. */
-export function useSinglePolishEnglishAutoTranslate({
+function useSinglePolishEnglishAutoTranslate({
   getPolish,
   getEnglish,
   onPolishTranslated,
@@ -248,4 +249,30 @@ export function useSinglePolishEnglishAutoTranslate({
     isTranslatingPolish: isTranslatingPolish(SINGLE_FIELD_KEY),
     cancel: cancelAll,
   };
+}
+
+export type SinglePolishEnglishAutoTranslate = ReturnType<
+  typeof useSinglePolishEnglishAutoTranslate
+>;
+
+export interface PolishEnglishFormValues {
+  polish: string;
+  english: string;
+}
+
+/** `useSinglePolishEnglishAutoTranslate` wired to a form with top-level `polish` and `english` fields. */
+export function usePolishEnglishFormAutoTranslate<T extends PolishEnglishFormValues>(
+  form: Pick<UseFormReturn<T>, 'getValues' | 'setValue'>
+) {
+  // react-hook-form can't resolve literal paths against an unresolved generic form type.
+  const { getValues, setValue } = form as unknown as Pick<
+    UseFormReturn<PolishEnglishFormValues>,
+    'getValues' | 'setValue'
+  >;
+  return useSinglePolishEnglishAutoTranslate({
+    getPolish: () => getValues('polish'),
+    getEnglish: () => getValues('english'),
+    onPolishTranslated: (polish) => setValue('polish', polish, { shouldValidate: true }),
+    onEnglishTranslated: (english) => setValue('english', english, { shouldValidate: true }),
+  });
 }

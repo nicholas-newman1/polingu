@@ -30,7 +30,7 @@ export interface DeclensionCardIndex {
   number: DeclensionNumber;
 }
 
-export const VALID_CASES: DeclensionCase[] = [
+const VALID_CASES: DeclensionCase[] = [
   'Nominative',
   'Genitive',
   'Dative',
@@ -40,19 +40,19 @@ export const VALID_CASES: DeclensionCase[] = [
   'Vocative',
 ];
 
-export const VALID_GENDERS: DeclensionGender[] = ['Masculine', 'Feminine', 'Neuter', 'Pronoun'];
+const VALID_GENDERS: DeclensionGender[] = ['Masculine', 'Feminine', 'Neuter', 'Pronoun'];
 
-export const VALID_NUMBERS: DeclensionNumber[] = ['Singular', 'Plural'];
+const VALID_NUMBERS: DeclensionNumber[] = ['Singular', 'Plural'];
 
 export function isValidCase(value: string): value is DeclensionCase {
   return VALID_CASES.includes(value as DeclensionCase);
 }
 
-export function isValidGender(value: string): value is DeclensionGender {
+function isValidGender(value: string): value is DeclensionGender {
   return VALID_GENDERS.includes(value as DeclensionGender);
 }
 
-export function isValidNumber(value: string): value is DeclensionNumber {
+function isValidNumber(value: string): value is DeclensionNumber {
   return VALID_NUMBERS.includes(value as DeclensionNumber);
 }
 

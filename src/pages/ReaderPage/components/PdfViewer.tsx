@@ -13,7 +13,7 @@ import { alpha } from '../../../lib/theme';
 import { TranslatableWord } from '../../../components/TranslatableWord';
 import { TranslatableText } from '../../../components/TranslatableText';
 import { useTranslatableTextActions } from '../../../hooks/useTranslatableTextActions';
-import { DRAWER_WIDTH } from '../../../components/Layout';
+import { DRAWER_WIDTH } from '../../../constants/layout';
 import { PageProgressBar } from './PageProgressBar';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;

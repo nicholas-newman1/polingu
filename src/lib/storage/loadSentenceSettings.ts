@@ -17,7 +17,7 @@ function getSentenceSettingsDocPath(direction: TranslationDirection): string {
   return direction === 'pl-to-en' ? 'sentenceSettings-pl-en' : 'sentenceSettings-en-pl';
 }
 
-export async function loadSentenceDirectionSettings(
+async function loadSentenceDirectionSettings(
   direction: TranslationDirection
 ): Promise<SentenceDirectionSettings> {
   return loadUserData(
@@ -41,4 +41,4 @@ export default async function loadSentenceSettings(): Promise<SentenceSettings> 
   };
 }
 
-export { DEFAULT_SENTENCE_SETTINGS, DEFAULT_DIRECTION_SETTINGS, getSentenceSettingsDocPath };
+export { DEFAULT_SENTENCE_SETTINGS, getSentenceSettingsDocPath };

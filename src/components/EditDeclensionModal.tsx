@@ -1,24 +1,11 @@
-import { useState } from 'react';
-import { useForm, Controller, useWatch } from 'react-hook-form';
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  IconButton,
-  TextField,
-  Box,
-  Button,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Divider,
-} from '@mui/material';
+import { useForm, useWatch } from 'react-hook-form';
+import { DialogTitle, IconButton, Divider } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import DeleteIcon from '@mui/icons-material/Delete';
-import { styled } from '../lib/styled';
-import { useBackClose } from '../hooks/useBackClose';
+import { ModalDialog, ModalHeader, ModalContent } from './modalStyles';
+import { ModalFooter } from './ModalFooter';
+import { FormSelectField, FormTextField } from './FormFields';
+import { useEditModalClose } from '../hooks/useEditModalClose';
 import { useAuthContext } from '../hooks/useAuthContext';
 import { AudioRegenerator } from './AudioRegenerator';
 import type { DeclensionCard, Case, Gender, Number } from '../types';
@@ -36,40 +23,6 @@ const CASES: Case[] = [
 const GENDERS: Gender[] = ['Masculine', 'Feminine', 'Neuter', 'Pronoun'];
 
 const NUMBERS: Number[] = ['Singular', 'Plural'];
-
-const StyledDialog = styled(Dialog)(({ theme }) => ({
-  '& .MuiDialog-paper': {
-    width: '100%',
-    maxWidth: 500,
-    margin: theme.spacing(2),
-  },
-}));
-
-const Header = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  padding: theme.spacing(2, 3),
-  borderBottom: `1px solid ${theme.palette.divider}`,
-}));
-
-const Content = styled(DialogContent)(({ theme }) => ({
-  padding: theme.spacing(3),
-  display: 'flex',
-  flexDirection: 'column',
-  gap: theme.spacing(2),
-}));
-
-const Actions = styled(DialogActions)(({ theme }) => ({
-  padding: theme.spacing(2, 3),
-  borderTop: `1px solid ${theme.palette.divider}`,
-  justifyContent: 'space-between',
-}));
-
-const RightActions = styled(Box)({
-  display: 'flex',
-  gap: 8,
-});
 
 interface FormData {
   front: string;
@@ -113,7 +66,6 @@ export function EditDeclensionModal({
   onAudioUpdated,
 }: EditDeclensionModalProps) {
   const { isAdmin } = useAuthContext();
-  const [pendingAudioUrl, setPendingAudioUrl] = useState<string | null>(null);
 
   const {
     control,
@@ -127,19 +79,12 @@ export function EditDeclensionModal({
 
   const backText = useWatch({ control, name: 'back' });
 
-  const handleClose = () => {
-    reset(getDefaultValues(null));
-    setPendingAudioUrl(null);
-    onClose();
-  };
-
-  const handleAudioSaved = (audioUrl: string) => {
-    setPendingAudioUrl(audioUrl);
-    onAudioUpdated?.(audioUrl);
-    handleClose();
-  };
-
-  useBackClose(open, handleClose);
+  const { pendingAudioUrl, handleClose, handleAudioSaved } = useEditModalClose({
+    open,
+    onClose,
+    resetForm: () => reset(getDefaultValues(null)),
+    onAudioUpdated,
+  });
 
   const onSubmit = async (data: FormData) => {
     const trimmedHint = data.hint.trim();
@@ -169,14 +114,14 @@ export function EditDeclensionModal({
       : 'Edit Declension Card';
 
   return (
-    <StyledDialog open={open} onClose={handleClose}>
-      <Header>
+    <ModalDialog open={open} onClose={handleClose}>
+      <ModalHeader>
         <DialogTitle sx={{ p: 0, fontWeight: 500 }}>{title}</DialogTitle>
         <IconButton onClick={handleClose} size="small" aria-label="close">
           <CloseIcon />
         </IconButton>
-      </Header>
-      <Content>
+      </ModalHeader>
+      <ModalContent>
         {isAdmin && card && !isCreating && (
           <>
             <AudioRegenerator
@@ -191,142 +136,62 @@ export function EditDeclensionModal({
           </>
         )}
 
-        <Controller
+        <FormTextField
           name="front"
           control={control}
-          rules={{ required: true, validate: (v) => v.trim().length > 0 }}
-          render={({ field }) => (
-            <TextField
-              {...field}
-              label="Front (Question)"
-              fullWidth
-              autoFocus
-              required
-              multiline
-              rows={2}
-              placeholder="e.g., To jest _____ (kot, masculine)"
-            />
-          )}
+          label="Front (Question)"
+          autoFocus
+          required
+          multiline
+          placeholder="e.g., To jest _____ (kot, masculine)"
         />
-
-        <Controller
+        <FormTextField
           name="back"
           control={control}
-          rules={{ required: true, validate: (v) => v.trim().length > 0 }}
-          render={({ field }) => (
-            <TextField
-              {...field}
-              label="Back (Answer)"
-              fullWidth
-              required
-              multiline
-              rows={2}
-              placeholder="e.g., To jest kot."
-            />
-          )}
+          label="Back (Answer)"
+          required
+          multiline
+          placeholder="e.g., To jest kot."
         />
-
-        <Controller
+        <FormTextField
           name="declined"
           control={control}
-          rules={{ required: true, validate: (v) => v.trim().length > 0 }}
-          render={({ field }) => (
-            <TextField
-              {...field}
-              label="Declined Word"
-              fullWidth
-              required
-              placeholder="e.g., kot"
-            />
-          )}
+          label="Declined Word"
+          required
+          placeholder="e.g., kot"
         />
-
-        <Controller
-          name="case"
-          control={control}
-          rules={{ required: true }}
-          render={({ field }) => (
-            <FormControl fullWidth required>
-              <InputLabel>Case</InputLabel>
-              <Select {...field} label="Case">
-                {CASES.map((c) => (
-                  <MenuItem key={c} value={c}>
-                    {c}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          )}
-        />
-
-        <Controller
+        <FormSelectField name="case" control={control} label="Case" options={CASES} required />
+        <FormSelectField
           name="gender"
           control={control}
-          rules={{ required: true }}
-          render={({ field }) => (
-            <FormControl fullWidth required>
-              <InputLabel>Gender</InputLabel>
-              <Select {...field} label="Gender">
-                {GENDERS.map((g) => (
-                  <MenuItem key={g} value={g}>
-                    {g}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          )}
+          label="Gender"
+          options={GENDERS}
+          required
         />
-
-        <Controller
+        <FormSelectField
           name="number"
           control={control}
-          rules={{ required: true }}
-          render={({ field }) => (
-            <FormControl fullWidth required>
-              <InputLabel>Number</InputLabel>
-              <Select {...field} label="Number">
-                {NUMBERS.map((n) => (
-                  <MenuItem key={n} value={n}>
-                    {n}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          )}
+          label="Number"
+          options={NUMBERS}
+          required
         />
-
-        <Controller
+        <FormTextField
           name="hint"
           control={control}
-          render={({ field }) => (
-            <TextField
-              {...field}
-              label="Hint (optional)"
-              fullWidth
-              multiline
-              rows={2}
-              placeholder="Explanation of the grammar rule..."
-            />
-          )}
+          label="Hint (optional)"
+          multiline
+          placeholder="Explanation of the grammar rule..."
         />
-      </Content>
-      <Actions>
-        <Box>
-          {onDelete && (
-            <Button onClick={handleDelete} color="error" startIcon={<DeleteIcon />}>
-              Delete
-            </Button>
-          )}
-        </Box>
-        <RightActions>
-          <Button onClick={handleClose} color="inherit">
-            Cancel
-          </Button>
-          <Button onClick={handleSubmit(onSubmit)} variant="contained" disabled={!isValid}>
-            {isCreating ? 'Create Card' : 'Save Changes'}
-          </Button>
-        </RightActions>
-      </Actions>
-    </StyledDialog>
+      </ModalContent>
+      <ModalFooter
+        onCancel={handleClose}
+        onSubmit={handleSubmit(onSubmit)}
+        submitLabel={isCreating ? 'Create Card' : 'Save Changes'}
+        submitDisabled={!isValid}
+        destructiveAction={
+          onDelete && { label: 'Delete', icon: <DeleteIcon />, onClick: handleDelete }
+        }
+      />
+    </ModalDialog>
   );
 }

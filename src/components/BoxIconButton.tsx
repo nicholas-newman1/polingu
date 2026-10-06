@@ -3,8 +3,8 @@ import { IconButton, type IconButtonProps } from '@mui/material';
 import { styled } from '../lib/styled';
 import { alpha } from '../lib/theme';
 
-export type BoxIconButtonVariant = 'subtle' | 'outlined';
-export type BoxIconButtonTone = 'default' | 'danger';
+type BoxIconButtonVariant = 'subtle' | 'outlined';
+type BoxIconButtonTone = 'default' | 'danger';
 
 interface StyledProps {
   $variant: BoxIconButtonVariant;
@@ -90,7 +90,7 @@ const StyledIconButton = styled(IconButton)<StyledProps>(({ theme, $variant, $to
   };
 });
 
-export interface BoxIconButtonProps extends Omit<IconButtonProps, 'color'> {
+interface BoxIconButtonProps extends Omit<IconButtonProps, 'color'> {
   variant?: BoxIconButtonVariant;
   tone?: BoxIconButtonTone;
   active?: boolean;

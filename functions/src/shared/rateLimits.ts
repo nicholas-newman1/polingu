@@ -10,7 +10,7 @@ interface RateLimitDoc {
   recentRequests: number[];
 }
 
-export function getUTCDateString(): string {
+function getUTCDateString(): string {
   return new Date().toISOString().split('T')[0];
 }
 

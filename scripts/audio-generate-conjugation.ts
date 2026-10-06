@@ -3,6 +3,7 @@ import { TextToSpeechClient, protos } from '@google-cloud/text-to-speech';
 import { Storage } from '@google-cloud/storage';
 import { writeFileSync, mkdirSync, existsSync, readFileSync } from 'fs';
 import { resolve } from 'path';
+import type { Tense } from './verb-types.js';
 
 function getServiceAccountPath(): string {
   const possiblePaths = [
@@ -53,8 +54,6 @@ const TEST_PHRASES = [
   { id: 'test-4', text: 'zrobiłbym' },
   { id: 'test-5', text: 'róbcie' },
 ];
-
-type Tense = 'present' | 'past' | 'future' | 'imperative' | 'conditional';
 
 interface ConjugationForm {
   pl: string;

@@ -2058,7 +2058,3 @@ export const CONSONANT_WORDS: ConsonantWord[] = [
 export function getExampleWordsForConsonant(consonant: string, limit = 3): ConsonantWord[] {
   return CONSONANT_WORDS.filter((w) => w.consonant === consonant).slice(0, limit);
 }
-
-export function getPairForConsonant(consonant: string): ConsonantPair | undefined {
-  return CONSONANT_PAIRS.find((p) => p.hard === consonant || p.soft === consonant);
-}

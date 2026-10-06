@@ -1,18 +1,8 @@
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  onSnapshot,
-  query,
-  orderBy,
-  updateDoc,
-} from 'firebase/firestore';
+import { collection, doc, getDoc, onSnapshot, query, orderBy, updateDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { getDownloadURL, ref } from 'firebase/storage';
 import { db, functions, storage } from '../firebase';
-import { saveUserData } from '../offlineDb/userSync';
-import { loadUserData } from '../offlineDb/userDataWrapper';
+import { loadUserData, saveUserData } from '../offlineDb/userDataWrapper';
 import { userDb } from '../offlineDb/userDb';
 import { getUserId } from '../storage/helpers';
 import { undefinedToDeleteField } from '../storage/firestoreUtils';
@@ -33,27 +23,6 @@ async function cacheBooks(books: Book[]): Promise<void> {
     lastModified: Date.now(),
     pendingSync: 0,
   });
-}
-
-export async function getBooks(): Promise<Book[]> {
-  const userId = getUserId();
-  if (!userId) return [];
-
-  const cached = await getCachedBooks();
-
-  if (!navigator.onLine) return cached;
-
-  try {
-    const booksRef = collection(db, 'users', userId, 'books');
-    const q = query(booksRef, orderBy('uploadedAt', 'desc'));
-    const snapshot = await getDocs(q);
-    const books = snapshot.docs.map((d) => d.data() as Book);
-    await cacheBooks(books);
-    return books;
-  } catch (e) {
-    console.error('Failed to fetch books from Firestore:', e);
-    return cached;
-  }
 }
 
 export function subscribeToBooksUpdates(callback: (books: Book[]) => void): () => void {
@@ -130,7 +99,7 @@ export async function getBookTextContent(bookId: string, storagePath: string): P
   return text;
 }
 
-export async function clearBookTextCache(bookId: string): Promise<void> {
+async function clearBookTextCache(bookId: string): Promise<void> {
   await userDb.userData.delete(`${BOOK_TEXT_CACHE_PREFIX}${bookId}`);
 }
 
@@ -140,7 +109,8 @@ export async function getReadingProgress(bookId: string): Promise<ReadingProgres
 }
 
 export async function saveReadingProgress(progress: ReadingProgress): Promise<void> {
-  await saveUserData(`reader-progress-${progress.bookId}`, progress);
+  // Callers fire-and-forget; a failed Firestore write stays pendingSync and is retried later.
+  await saveUserData(`reader-progress-${progress.bookId}`, progress).catch(() => {});
 }
 
 interface DeleteBookRequest {

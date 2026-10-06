@@ -93,26 +93,3 @@ export async function syncContentFromFirestore(): Promise<ContentData> {
 
   return { sentences, verbs, vocabulary, declensionCards };
 }
-
-/**
- * Clear all cached content (for debugging/reset)
- */
-export async function clearCachedContent(): Promise<void> {
-  await contentDb.transaction(
-    'rw',
-    [
-      contentDb.sentences,
-      contentDb.verbs,
-      contentDb.vocabulary,
-      contentDb.declensionCards,
-      contentDb.meta,
-    ],
-    async () => {
-      await contentDb.sentences.clear();
-      await contentDb.verbs.clear();
-      await contentDb.vocabulary.clear();
-      await contentDb.declensionCards.clear();
-      await contentDb.meta.delete('lastSync');
-    }
-  );
-}

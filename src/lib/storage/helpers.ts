@@ -49,10 +49,6 @@ export function getDefaultVocabularyReviewStore(): VocabularyReviewDataStore {
   };
 }
 
-export function getVocabularyDocPath(direction: TranslationDirection): string {
-  return direction === 'pl-to-en' ? 'vocabularyReviewData-pl-en' : 'vocabularyReviewData-en-pl';
-}
-
 export function getVocabularySessionDocPath(direction: TranslationDirection): string {
   return direction === 'pl-to-en'
     ? 'vocabularyReviewSession-pl-en'
@@ -72,10 +68,6 @@ export function getDefaultSentenceReviewStore(): SentenceReviewDataStore {
   };
 }
 
-export function getSentenceDocPath(direction: TranslationDirection): string {
-  return direction === 'pl-to-en' ? 'sentenceReviewData-pl-en' : 'sentenceReviewData-en-pl';
-}
-
 export function getSentenceSessionDocPath(direction: TranslationDirection): string {
   return direction === 'pl-to-en' ? 'sentenceReviewSession-pl-en' : 'sentenceReviewSession-en-pl';
 }
@@ -91,10 +83,6 @@ export function getDefaultConjugationReviewStore(): ConjugationReviewDataStore {
     newFormsToday: [],
     lastReviewDate: getTodayString(),
   };
-}
-
-export function getConjugationDocPath(direction: TranslationDirection): string {
-  return direction === 'pl-to-en' ? 'conjugationReviewData-pl-en' : 'conjugationReviewData-en-pl';
 }
 
 export function getConjugationSessionDocPath(direction: TranslationDirection): string {

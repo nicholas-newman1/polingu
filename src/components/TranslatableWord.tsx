@@ -60,7 +60,7 @@ const noopSubscribe = () => () => {};
 const returnFalse = () => false;
 const defaultInteractionSnapshot = '0:0';
 
-export interface TranslatableWordProps {
+interface TranslatableWordProps {
   word: string;
   wordIndex?: number;
   sentenceContext?: string;

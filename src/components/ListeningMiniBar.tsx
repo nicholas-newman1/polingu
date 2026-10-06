@@ -8,10 +8,9 @@ import SkipPreviousIcon from '@mui/icons-material/SkipPrevious';
 import CloseIcon from '@mui/icons-material/Close';
 import { styled } from '../lib/styled';
 import { useListening } from '../contexts/ListeningContext';
-import { DRAWER_WIDTH } from './Layout';
-import { BOTTOM_MENU_BAR_HEIGHT } from './BottomMenu/BottomMenuBar';
+import { BOTTOM_MENU_BAR_HEIGHT, DRAWER_WIDTH } from '../constants/layout';
 
-export const LISTENING_MINI_BAR_HEIGHT = 64;
+const LISTENING_MINI_BAR_HEIGHT = 64;
 
 const Bar = styled(Box)(({ theme }) => ({
   position: 'fixed',

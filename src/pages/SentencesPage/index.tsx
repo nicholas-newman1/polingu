@@ -1,68 +1,45 @@
-import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Rating, type Grade } from 'ts-fsrs';
-import { Box, CircularProgress, Typography, Stack } from '@mui/material';
-import { styled } from '../../lib/styled';
+import { CircularProgress, Stack } from '@mui/material';
 import { AddButton } from '../../components/AddButton';
 import { PracticeModeButton } from '../../components/PracticeModeButton';
 import { SettingsButton } from '../../components/SettingsButton';
 import { ListenButton } from '../../components/ListenButton';
 import { useListening } from '../../contexts/ListeningContext';
 import { buildSentenceListeningQueue } from '../../lib/listeningScheduler';
-import { SentenceFlashcard, type RatingIntervals } from './components/SentenceFlashcard';
+import { SentenceFlashcard } from './components/SentenceFlashcard';
 import { SentenceModeSelector } from './components/SentenceModeSelector';
 import { FinishedState } from '../../components/FinishedState';
-import { EmptyState } from '../../components/EmptyState';
-import { ReviewCountBadge } from '../../components/ReviewCountBadge';
+import { ReviewStage } from '../../components/ReviewStage';
+import { SessionStatusLine } from '../../components/SessionStatusLine';
+import { ReviewControlsRow, ReviewMainContent } from '../../components/ReviewLayout';
 import { SentenceSettingsPanel, LevelChip } from './components/SentenceSettingsPanel';
 import { EditSentenceModal } from '../../components/EditSentenceModal';
-import type {
-  Sentence,
-  CustomSentence,
-  SentenceCardReviewData,
-  SentenceReviewDataStore,
-  SentenceDirectionSettings,
-  CEFRLevel,
-} from '../../types/sentences';
+import type { Sentence, CustomSentence, CEFRLevel } from '../../types/sentences';
 import { ALL_LEVELS } from '../../types/sentences';
 import type { TranslationDirection } from '../../types/common';
-import getOrCreateSentenceCardReviewData from '../../lib/storage/getOrCreateSentenceCardReviewData';
 import getSentenceSessionCards from '../../lib/sentenceScheduler/getSentenceSessionCards';
 import getSentencePracticeAheadCards from '../../lib/sentenceScheduler/getSentencePracticeAheadCards';
 import getSentenceExtraNewCards from '../../lib/sentenceScheduler/getSentenceExtraNewCards';
-import rateSentenceCard from '../../lib/sentenceScheduler/rateSentenceCard';
-import getNextIntervals from '../../lib/fsrsUtils/getNextIntervals';
-import type { SentenceSessionCard } from '../../lib/sentenceScheduler/types';
+import { recordCardReview } from '../../lib/reviewSession/recordReview';
+import { DIRECTION_ROUTES, otherDirection } from '../../lib/reviewSession/directions';
+import toggleInArray from '../../lib/utils/toggleInArray';
 import { useAuthContext } from '../../hooks/useAuthContext';
 import { useReviewData } from '../../hooks/useReviewData';
 import { useProgressStats } from '../../hooks/useProgressStats';
 import { useOptimistic } from '../../hooks/useOptimistic';
 import { useSnackbar } from '../../hooks/useSnackbar';
 import { useTranslationContext } from '../../hooks/useTranslationContext';
-import { useCardHistory } from '../../hooks/useCardHistory';
-import { usePrefetchAudio } from '../../hooks/usePrefetchAudio';
+import { useReviewSession } from '../../hooks/useReviewSession';
 import {
   updateSentence,
   deleteSentence,
   updateSentenceTranslation,
 } from '../../lib/storage/systemSentences';
 import { saveCustomSentences } from '../../lib/storage/customSentences';
-import shuffleArray from '../../lib/utils/shuffleArray';
-import { includesSentenceId } from '../../lib/storage/helpers';
 
-const MainContent = styled(Box)({
-  flex: 1,
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  justifyContent: 'center',
-});
-
-const ControlsRow = styled(Stack)(({ theme }) => ({
-  marginBottom: theme.spacing(3),
-  flexWrap: 'wrap',
-  gap: theme.spacing(1),
-}));
+const filterByLevels = (sentences: Sentence[], levels: CEFRLevel[]) =>
+  sentences.filter((s) => levels.includes(s.level));
 
 interface SentencesPageProps {
   mode?: TranslationDirection;
@@ -98,242 +75,95 @@ export function SentencesPage({ mode }: SentencesPageProps) {
   const { start: startListening, settings: listeningSettings } = useListening();
 
   const [showSettings, setShowSettings] = useState(false);
-  const [practiceMode, setPracticeMode] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingSentence, setEditingSentence] = useState<Sentence | null>(null);
   const [isCreatingSentence, setIsCreatingSentence] = useState(false);
 
-  const [learningQueue, setLearningQueue] = useState<SentenceSessionCard[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [practiceIndex, setPracticeIndex] = useState(0);
-  const [practiceCards, setPracticeCards] = useState<Sentence[]>([]);
-  const [sessionQueue, setSessionQueue] = useState<SentenceSessionCard[]>([]);
-  const [reviewCount, setReviewCount] = useState(0);
-  const [newCount, setNewCount] = useState(0);
-  const [ratingCounter, setRatingCounter] = useState(0);
-  const [practiceAheadCount, setPracticeAheadCount] = useState(10);
-  const [isPracticeAhead, setIsPracticeAhead] = useState(false);
-  const [extraNewCardsCount, setExtraNewCardsCount] = useState(5);
-
-  const {
-    isViewingHistory,
-    historyCard,
-    historyMeta,
-    canGoBack,
-    addToHistory,
-    updateInHistory,
-    goBack,
-    goForward,
-    clearHistory,
-  } = useCardHistory<Sentence, SentenceCardReviewData>();
-
-  const sessionBuiltRef = useRef(false);
   const currentDirection = mode ?? 'pl-to-en';
-  const directionRef = useRef(currentDirection);
-
   const directionSettings = settings[currentDirection];
   const reviewStore = sentenceReviewStores[currentDirection];
 
   const filteredSentences = useMemo(
-    () => contextSentences.filter((s) => directionSettings.selectedLevels.includes(s.level)),
+    () => filterByLevels(contextSentences, directionSettings.selectedLevels),
     [contextSentences, directionSettings.selectedLevels]
   );
 
-  const buildSession = useCallback(
-    (
-      allSentences: Sentence[],
-      store: SentenceReviewDataStore,
-      currentSettings: SentenceDirectionSettings
-    ) => {
-      const { reviewCards, newCards } = getSentenceSessionCards(
-        allSentences,
-        store,
-        currentSettings
-      );
-      setSessionQueue([...reviewCards, ...newCards]);
-      setReviewCount(reviewCards.length);
-      setNewCount(newCards.length);
-      setLearningQueue([]);
-      setCurrentIndex(0);
-      setIsPracticeAhead(false);
-      clearHistory();
-    },
-    [clearHistory]
-  );
-
-  useEffect(() => {
-    if (!contextLoading && !sessionBuiltRef.current) {
-      sessionBuiltRef.current = true;
-      directionRef.current = currentDirection;
-      queueMicrotask(() => {
-        buildSession(filteredSentences, reviewStore, directionSettings);
-      });
-    }
-  }, [
-    contextLoading,
-    buildSession,
-    filteredSentences,
+  const session = useReviewSession({
+    cardKey: 'sentence',
+    getId: (sentence) => sentence.id,
+    getAudioUrls: (sentence) => [sentence.audioUrl],
+    ready: !contextLoading,
+    sessionKey: currentDirection,
+    getSessionCards: () =>
+      getSentenceSessionCards(filteredSentences, reviewStore, directionSettings),
+    getPracticeAheadCards: (count) =>
+      getSentencePracticeAheadCards(filteredSentences, reviewStore, count),
+    getExtraNewCards: (count) => getSentenceExtraNewCards(filteredSentences, reviewStore, count),
     reviewStore,
-    directionSettings,
-    currentDirection,
-  ]);
+    recordReview: recordCardReview,
+    saveReviewStore: (store) => updateSentenceReviewStore(currentDirection, store),
+  });
+  const { practice, history } = session;
+  const { canGoBack, goBack, goForward } = history;
 
   const progressStats = useProgressStats();
   const modeStats = progressStats.sentencesByDirection;
 
   const handleSelectMode = useCallback(
-    (direction: TranslationDirection) => {
-      const route = direction === 'pl-to-en' ? 'recognition' : 'production';
-      navigate(`/sentences/${route}`);
-    },
+    (direction: TranslationDirection) =>
+      navigate(`/sentences/${DIRECTION_ROUTES[direction].route}`),
     [navigate]
   );
-
-  useEffect(() => {
-    if (!mode || contextLoading) return;
-
-    if (directionRef.current !== mode) {
-      directionRef.current = mode;
-      const modeSettings = settings[mode];
-      const modeReviewStore = sentenceReviewStores[mode];
-      const modeSentences = contextSentences.filter((s) =>
-        modeSettings.selectedLevels.includes(s.level)
-      );
-      queueMicrotask(() => {
-        buildSession(modeSentences, modeReviewStore, modeSettings);
-      });
-    }
-  }, [mode, contextLoading, settings, sentenceReviewStores, contextSentences, buildSession]);
-
-  const startPracticeAhead = useCallback(() => {
-    const aheadCards = getSentencePracticeAheadCards(
-      filteredSentences,
-      reviewStore,
-      practiceAheadCount
-    );
-    setSessionQueue(aheadCards);
-    setReviewCount(aheadCards.length);
-    setNewCount(0);
-    setLearningQueue([]);
-    setCurrentIndex(0);
-    setIsPracticeAhead(true);
-  }, [filteredSentences, reviewStore, practiceAheadCount]);
-
-  const startExtraNewCards = useCallback(() => {
-    const extraCards = getSentenceExtraNewCards(filteredSentences, reviewStore, extraNewCardsCount);
-    setSessionQueue(extraCards);
-    setReviewCount(0);
-    setNewCount(extraCards.length);
-    setLearningQueue([]);
-    setCurrentIndex(0);
-    setIsPracticeAhead(false);
-  }, [filteredSentences, reviewStore, extraNewCardsCount]);
-
-  const togglePracticeMode = useCallback(() => {
-    if (!practiceMode) {
-      setPracticeCards(shuffleArray([...filteredSentences]));
-      setPracticeIndex(0);
-    }
-    setPracticeMode(!practiceMode);
-  }, [practiceMode, filteredSentences]);
-
-  const handlePracticeNext = useCallback(() => {
-    setPracticeIndex((prev) => (prev + 1) % practiceCards.length);
-  }, [practiceCards.length]);
-
-  const currentSessionCard = sessionQueue[currentIndex] ?? learningQueue[0];
-  const isFinished = currentIndex >= sessionQueue.length && learningQueue.length === 0;
-
-  const upcomingAudioUrls = practiceMode
-    ? Array.from({ length: 3 }, (_, i) => {
-        const len = practiceCards.length;
-        if (len === 0) return undefined;
-        return practiceCards[(practiceIndex + 1 + i) % len]?.audioUrl;
-      })
-    : [
-        ...sessionQueue.slice(currentIndex + 1, currentIndex + 4).map((c) => c.sentence.audioUrl),
-        ...learningQueue
-          .slice(currentIndex < sessionQueue.length ? 0 : 1)
-          .map((c) => c.sentence.audioUrl),
-      ].slice(0, 3);
-  usePrefetchAudio(upcomingAudioUrls);
-
-  const handleRate = async (rating: Grade) => {
-    if (!currentSessionCard) return;
-
-    addToHistory(currentSessionCard.sentence, currentSessionCard.reviewData);
-
-    const sentenceId = currentSessionCard.sentence.id;
-    const updatedReviewData = rateSentenceCard(currentSessionCard.reviewData, rating);
-
-    const newStore = { ...reviewStore };
-    newStore.cards = { ...newStore.cards };
-    newStore.cards[sentenceId] = updatedReviewData;
-
-    if (currentSessionCard.isNew && !includesSentenceId(newStore.newCardsToday, sentenceId)) {
-      newStore.newCardsToday = [...newStore.newCardsToday, sentenceId];
-    }
-
-    if (rating === Rating.Again) {
-      if (currentIndex < sessionQueue.length) {
-        setLearningQueue((prev) => [
-          ...prev,
-          { ...currentSessionCard, reviewData: updatedReviewData },
-        ]);
-        setCurrentIndex((prev) => prev + 1);
-      } else {
-        const updated = learningQueue.map((item, idx) =>
-          idx === 0 ? { ...item, reviewData: updatedReviewData } : item
-        );
-        setLearningQueue([...updated.slice(1), updated[0]]);
-      }
-    } else {
-      if (!includesSentenceId(newStore.reviewedToday, sentenceId)) {
-        newStore.reviewedToday = [...newStore.reviewedToday, sentenceId];
-      }
-
-      if (currentIndex < sessionQueue.length) {
-        setCurrentIndex((prev) => prev + 1);
-      } else {
-        setLearningQueue((prev) => prev.slice(1));
-      }
-    }
-
-    setRatingCounter((c) => c + 1);
-    await updateSentenceReviewStore(directionRef.current, newStore);
-  };
-
-  const handleReassess = async (rating: Grade) => {
-    if (!historyCard || !historyMeta) return;
-
-    const sentenceId = historyCard.id;
-    const updatedReviewData = rateSentenceCard(historyMeta, rating);
-
-    const newStore = { ...reviewStore };
-    newStore.cards = { ...newStore.cards, [sentenceId]: updatedReviewData };
-
-    await updateSentenceReviewStore(directionRef.current, newStore);
-    goForward();
-  };
 
   const handleNewCardsChange = async (newCardsPerDay: number) => {
     const newSettings = { ...directionSettings, newCardsPerDay };
     await updateSentenceSettings(currentDirection, newSettings);
-    const filtered = contextSentences.filter((s) => newSettings.selectedLevels.includes(s.level));
-    buildSession(filtered, reviewStore, newSettings);
+    session.startSession(
+      getSentenceSessionCards(
+        filterByLevels(contextSentences, newSettings.selectedLevels),
+        reviewStore,
+        newSettings
+      )
+    );
   };
 
   const handleLevelsChange = async (selectedLevels: CEFRLevel[]) => {
     const newSettings = { ...directionSettings, selectedLevels };
     await updateSentenceSettings(currentDirection, newSettings);
-    const filtered = contextSentences.filter((s) => selectedLevels.includes(s.level));
+    const filtered = filterByLevels(contextSentences, selectedLevels);
 
-    if (practiceMode) {
-      setPracticeCards(shuffleArray([...filtered]));
-      setPracticeIndex(0);
+    if (practice.active) {
+      practice.reshuffle(filtered);
     } else {
-      buildSession(filtered, reviewStore, newSettings);
+      session.startSession(getSentenceSessionCards(filtered, reviewStore, newSettings));
     }
+  };
+
+  const toggleLevel = (level: CEFRLevel) => {
+    const selected = directionSettings.selectedLevels;
+    if (selected.length === 1 && selected.includes(level)) return;
+    handleLevelsChange(toggleInArray(selected, level));
+  };
+
+  const handleListen = () => {
+    const queue = buildSentenceListeningQueue({
+      sentences: contextSentences,
+      reviewStore,
+      ordering: listeningSettings.ordering,
+      levels: directionSettings.selectedLevels,
+    });
+    if (queue.length === 0) {
+      showSnackbar('No sentences with audio for the current filters.', 'info');
+      return;
+    }
+    startListening(queue, {
+      meta: {
+        feature: 'sentences',
+        title: 'Sentences',
+        subtitle: directionSettings.selectedLevels.join(', '),
+      },
+    });
+    navigate('/listen/play');
   };
 
   const handleResetAllData = async () => {
@@ -343,235 +173,118 @@ export function SentencesPage({ mode }: SentencesPageProps) {
       )
     ) {
       await clearSentenceReviewData(currentDirection);
-      const freshStore = sentenceReviewStores[currentDirection];
-      buildSession(filteredSentences, freshStore, directionSettings);
+      session.rebuildSession();
       setShowSettings(false);
     }
   };
 
-  const handleOpenEditModal = useCallback(() => {
-    if (!currentSessionCard) return;
-    setEditingSentence(currentSessionCard.sentence);
+  const openEditModal = (sentence: Sentence) => {
+    setEditingSentence(sentence);
     setIsCreatingSentence(false);
     setShowEditModal(true);
-  }, [currentSessionCard]);
-
-  const updateSentenceInQueues = useCallback(
-    (sentenceId: string, updatedSentence: Sentence) => {
-      setSessionQueue((prev) =>
-        prev.map((item) =>
-          item.sentence.id === sentenceId ? { ...item, sentence: updatedSentence } : item
-        )
-      );
-      setLearningQueue((prev) =>
-        prev.map((item) =>
-          item.sentence.id === sentenceId ? { ...item, sentence: updatedSentence } : item
-        )
-      );
-      setPracticeCards((prev) => prev.map((s) => (s.id === sentenceId ? updatedSentence : s)));
-      updateInHistory(
-        (s) => s.id === sentenceId,
-        () => updatedSentence
-      );
-    },
-    [updateInHistory]
-  );
-
-  const removeSentenceFromQueues = (sentenceId: string) => {
-    setSessionQueue((prev) => prev.filter((item) => item.sentence.id !== sentenceId));
-    setLearningQueue((prev) => prev.filter((item) => item.sentence.id !== sentenceId));
-    setPracticeCards((prev) => prev.filter((s) => s.id !== sentenceId));
   };
 
-  const handleAddSentence = useCallback(
-    (sentenceData: Omit<Sentence, 'id'>) => {
-      const newSentence: CustomSentence = {
-        ...sentenceData,
-        id: `custom_${Date.now()}`,
-        isCustom: true,
-        createdAt: Date.now(),
-      };
-      const newCustomSentences = [...customSentences, newSentence];
-
-      applyOptimisticCustomSentences(newCustomSentences, async () => {
-        await saveCustomSentences(newCustomSentences);
-        setContextCustomSentences(newCustomSentences);
-      });
-
-      const mergedSentences = [...newCustomSentences, ...contextSystemSentences];
-      const filtered = mergedSentences.filter((s) =>
-        directionSettings.selectedLevels.includes(s.level)
-      );
-      buildSession(filtered, reviewStore, directionSettings);
-    },
-    [
-      customSentences,
-      contextSystemSentences,
-      applyOptimisticCustomSentences,
-      setContextCustomSentences,
-      buildSession,
-      reviewStore,
-      directionSettings,
-    ]
-  );
-
-  const handleSaveSentence = useCallback(
-    (sentenceData: Omit<Sentence, 'id'>) => {
-      if (!editingSentence) return;
-
-      const updatedSentence: Sentence = {
-        ...editingSentence,
-        ...sentenceData,
-      };
-
-      updateSentenceInQueues(editingSentence.id, updatedSentence);
-
-      if (editingSentence.isCustom) {
-        const newCustomSentences = customSentences.map((s) =>
-          s.id === editingSentence.id ? (updatedSentence as CustomSentence) : s
-        );
-
-        applyOptimisticCustomSentences(newCustomSentences, async () => {
-          await saveCustomSentences(newCustomSentences);
-          setContextCustomSentences(newCustomSentences);
-        });
-        return;
-      }
-
-      const newSystemSentences = contextSystemSentences.map((s) =>
-        s.id === editingSentence.id ? updatedSentence : s
-      );
-
-      applyOptimisticSentences([...customSentences, ...newSystemSentences], async () => {
-        await updateSentence(editingSentence.id, sentenceData);
-        setContextSystemSentences(newSystemSentences);
-      });
-    },
-    [
-      editingSentence,
-      customSentences,
-      contextSystemSentences,
-      applyOptimisticCustomSentences,
-      applyOptimisticSentences,
-      setContextCustomSentences,
-      setContextSystemSentences,
-      updateSentenceInQueues,
-    ]
-  );
-
-  const deleteSentenceById = useCallback(
-    (sentenceToDelete: Sentence) => {
-      removeSentenceFromQueues(sentenceToDelete.id);
-
-      if (sentenceToDelete.isCustom) {
-        const newCustomSentences = customSentences.filter((s) => s.id !== sentenceToDelete.id);
-
-        applyOptimisticCustomSentences(newCustomSentences, async () => {
-          await saveCustomSentences(newCustomSentences);
-          setContextCustomSentences(newCustomSentences);
-        });
-        return;
-      }
-
-      const newSystemSentences = contextSystemSentences.filter((s) => s.id !== sentenceToDelete.id);
-
-      applyOptimisticSentences([...customSentences, ...newSystemSentences], async () => {
-        await deleteSentence(sentenceToDelete.id);
-        setContextSystemSentences(newSystemSentences);
-      });
-    },
-    [
-      customSentences,
-      contextSystemSentences,
-      applyOptimisticCustomSentences,
-      applyOptimisticSentences,
-      setContextCustomSentences,
-      setContextSystemSentences,
-    ]
-  );
-
-  const handleDeleteSentence = useCallback(() => {
-    if (!currentSessionCard) return;
-    deleteSentenceById(currentSessionCard.sentence);
-  }, [currentSessionCard, deleteSentenceById]);
-
-  const handleUpdateTranslation = useCallback(
-    async (sentenceId: string, word: string, translation: string) => {
-      const sentence = sentences.find((s) => s.id === sentenceId);
-      if (!sentence) return;
-
-      const updatedTranslations = { ...sentence.translations, [word]: translation };
-      const updatedSentence = { ...sentence, translations: updatedTranslations };
-
-      updateSentenceInQueues(sentenceId, updatedSentence);
-
-      if (sentence.isCustom) {
-        const newCustomSentences = customSentences.map((s) =>
-          s.id === sentenceId ? { ...s, translations: updatedTranslations } : s
-        );
-
-        applyOptimisticCustomSentences(newCustomSentences, async () => {
-          await saveCustomSentences(newCustomSentences);
-          setContextCustomSentences(newCustomSentences);
-        });
-        return;
-      }
-
-      const newSystemSentences = contextSystemSentences.map((s) =>
-        s.id === sentenceId ? updatedSentence : s
-      );
-
-      applyOptimisticSentences([...customSentences, ...newSystemSentences], async () => {
-        await updateSentenceTranslation(sentenceId, word, translation);
-        setContextSystemSentences(newSystemSentences);
-      });
-    },
-    [
-      sentences,
-      customSentences,
-      contextSystemSentences,
-      applyOptimisticCustomSentences,
-      applyOptimisticSentences,
-      setContextCustomSentences,
-      setContextSystemSentences,
-      updateSentenceInQueues,
-    ]
-  );
-
-  const intervals: RatingIntervals = useMemo(() => {
-    if (!currentSessionCard) {
-      return {
-        [Rating.Again]: '',
-        [Rating.Hard]: '',
-        [Rating.Good]: '',
-        [Rating.Easy]: '',
-      };
-    }
-    const allIntervals = getNextIntervals(
-      getOrCreateSentenceCardReviewData(currentSessionCard.sentence.id, reviewStore).fsrsCard
+  const replaceSentence = (updatedSentence: Sentence) =>
+    session.updateCards(
+      (s) => s.id === updatedSentence.id,
+      () => updatedSentence
     );
-    return {
-      [Rating.Again]: allIntervals[Rating.Again],
-      [Rating.Hard]: allIntervals[Rating.Hard],
-      [Rating.Good]: allIntervals[Rating.Good],
-      [Rating.Easy]: allIntervals[Rating.Easy],
+
+  const saveCustom = (newCustomSentences: CustomSentence[]) =>
+    applyOptimisticCustomSentences(newCustomSentences, async () => {
+      await saveCustomSentences(newCustomSentences);
+      setContextCustomSentences(newCustomSentences);
+    });
+
+  const saveSystem = (newSystemSentences: Sentence[], persist: () => Promise<void>) =>
+    applyOptimisticSentences([...customSentences, ...newSystemSentences], async () => {
+      await persist();
+      setContextSystemSentences(newSystemSentences);
+    });
+
+  const handleAddSentence = (sentenceData: Omit<Sentence, 'id'>) => {
+    const newSentence: CustomSentence = {
+      ...sentenceData,
+      id: `custom_${Date.now()}`,
+      isCustom: true,
+      createdAt: Date.now(),
     };
-  }, [currentSessionCard, reviewStore]);
+    const newCustomSentences = [...customSentences, newSentence];
+    saveCustom(newCustomSentences);
 
-  const reassessIntervals: RatingIntervals | undefined = useMemo(() => {
-    if (!historyMeta) return undefined;
-    const allIntervals = getNextIntervals(historyMeta.fsrsCard);
-    return {
-      [Rating.Again]: allIntervals[Rating.Again],
-      [Rating.Hard]: allIntervals[Rating.Hard],
-      [Rating.Good]: allIntervals[Rating.Good],
-      [Rating.Easy]: allIntervals[Rating.Easy],
-    };
-  }, [historyMeta]);
+    const merged = [...newCustomSentences, ...contextSystemSentences];
+    session.startSession(
+      getSentenceSessionCards(
+        filterByLevels(merged, directionSettings.selectedLevels),
+        reviewStore,
+        directionSettings
+      )
+    );
+  };
 
-  const totalRemaining = sessionQueue.length - currentIndex + learningQueue.length;
+  const handleSaveSentence = (sentenceData: Omit<Sentence, 'id'>) => {
+    if (!editingSentence) return;
 
-  const currentPracticeSentence = practiceCards[practiceIndex];
+    const updatedSentence: Sentence = { ...editingSentence, ...sentenceData };
+    replaceSentence(updatedSentence);
+
+    if (editingSentence.isCustom) {
+      saveCustom(
+        customSentences.map((s) =>
+          s.id === editingSentence.id ? (updatedSentence as CustomSentence) : s
+        )
+      );
+      return;
+    }
+
+    saveSystem(
+      contextSystemSentences.map((s) => (s.id === editingSentence.id ? updatedSentence : s)),
+      () => updateSentence(editingSentence.id, sentenceData)
+    );
+  };
+
+  const deleteSentenceById = (sentenceToDelete: Sentence) => {
+    session.removeCards((s) => s.id === sentenceToDelete.id);
+
+    if (sentenceToDelete.isCustom) {
+      saveCustom(customSentences.filter((s) => s.id !== sentenceToDelete.id));
+      return;
+    }
+
+    saveSystem(
+      contextSystemSentences.filter((s) => s.id !== sentenceToDelete.id),
+      () => deleteSentence(sentenceToDelete.id)
+    );
+  };
+
+  const handleUpdateTranslation = (sentenceId: string, word: string, translation: string) => {
+    const sentence = sentences.find((s) => s.id === sentenceId);
+    if (!sentence) return;
+
+    const updatedTranslations = { ...sentence.translations, [word]: translation };
+    const updatedSentence = { ...sentence, translations: updatedTranslations };
+    replaceSentence(updatedSentence);
+
+    if (sentence.isCustom) {
+      saveCustom(
+        customSentences.map((s) =>
+          s.id === sentenceId ? { ...s, translations: updatedTranslations } : s
+        )
+      );
+      return;
+    }
+
+    saveSystem(
+      contextSystemSentences.map((s) => (s.id === sentenceId ? updatedSentence : s)),
+      () => updateSentenceTranslation(sentenceId, word, translation)
+    );
+  };
+
+  const translationHandler = (sentence: Sentence) =>
+    isAdmin
+      ? (word: string, translation: string) =>
+          handleUpdateTranslation(sentence.id, word, translation)
+      : undefined;
 
   const isLoading = contextLoading;
 
@@ -587,14 +300,14 @@ export function SentencesPage({ mode }: SentencesPageProps) {
 
   return (
     <>
-      <ControlsRow direction="row" alignItems="center">
+      <ReviewControlsRow direction="row" alignItems="center">
         <PracticeModeButton
-          active={practiceMode}
-          onClick={togglePracticeMode}
+          active={practice.active}
+          onClick={() => practice.toggle(filteredSentences)}
           disabled={isLoading}
         />
 
-        {!practiceMode && (
+        {!practice.active && (
           <SettingsButton
             active={showSettings}
             onClick={() => setShowSettings(!showSettings)}
@@ -603,26 +316,7 @@ export function SentencesPage({ mode }: SentencesPageProps) {
         )}
 
         <ListenButton
-          onClick={() => {
-            const queue = buildSentenceListeningQueue({
-              sentences: contextSentences,
-              reviewStore: sentenceReviewStores[currentDirection],
-              ordering: listeningSettings.ordering,
-              levels: directionSettings.selectedLevels,
-            });
-            if (queue.length === 0) {
-              showSnackbar('No sentences with audio for the current filters.', 'info');
-              return;
-            }
-            startListening(queue, {
-              meta: {
-                feature: 'sentences',
-                title: 'Sentences',
-                subtitle: directionSettings.selectedLevels.join(', '),
-              },
-            });
-            navigate('/listen/play');
-          }}
+          onClick={handleListen}
           disabled={isLoading}
           aria-label="Start listening mode"
         />
@@ -637,7 +331,7 @@ export function SentencesPage({ mode }: SentencesPageProps) {
             disabled={isLoading}
           />
         )}
-      </ControlsRow>
+      </ReviewControlsRow>
 
       <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mb: 2 }}>
         {ALL_LEVELS.map((level) => (
@@ -646,20 +340,12 @@ export function SentencesPage({ mode }: SentencesPageProps) {
             $level={level}
             label={level}
             $active={directionSettings.selectedLevels.includes(level)}
-            onClick={() => {
-              const selected = directionSettings.selectedLevels;
-              if (selected.includes(level)) {
-                if (selected.length === 1) return;
-                handleLevelsChange(selected.filter((l) => l !== level));
-              } else {
-                handleLevelsChange([...selected, level]);
-              }
-            }}
+            onClick={() => toggleLevel(level)}
           />
         ))}
       </Stack>
 
-      {showSettings && !practiceMode && (
+      {showSettings && !practice.active && (
         <SentenceSettingsPanel
           newCardsPerDay={directionSettings.newCardsPerDay}
           user={user}
@@ -669,171 +355,83 @@ export function SentencesPage({ mode }: SentencesPageProps) {
         />
       )}
 
-      <MainContent>
+      <ReviewMainContent>
         {isLoading ? (
           <CircularProgress sx={{ color: 'text.disabled' }} />
         ) : (
           <>
-            <Typography
-              variant="body2"
-              color="text.disabled"
-              sx={{
-                mb: { xs: 3, sm: 4 },
-                textAlign: 'center',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 1,
-              }}
-            >
-              {practiceMode ? (
-                `Drill Mode · ${practiceCards.length} sentences`
-              ) : isFinished ? null : isPracticeAhead ? (
-                <>
-                  Drill Ahead · <ReviewCountBadge count={totalRemaining} /> remaining
-                </>
-              ) : (
-                <>
-                  {reviewCount} reviews · {newCount} new ·{' '}
-                  <ReviewCountBadge count={totalRemaining} /> remaining
-                </>
-              )}
-            </Typography>
+            <SessionStatusLine session={session} unitLabel="sentences" />
 
-            {practiceMode ? (
-              currentPracticeSentence ? (
+            <ReviewStage
+              session={session}
+              practiceEmptyMessage="No sentences available"
+              renderPractice={(sentence) => (
                 <SentenceFlashcard
-                  key={`practice-${currentPracticeSentence.id}-${practiceIndex}`}
-                  sentence={currentPracticeSentence}
+                  key={`practice-${sentence.id}-${practice.index}`}
+                  sentence={sentence}
                   direction={currentDirection}
                   practiceMode
                   canEdit={isAdmin}
-                  onNext={handlePracticeNext}
-                  onEdit={() => {
-                    setEditingSentence(currentPracticeSentence);
-                    setIsCreatingSentence(false);
-                    setShowEditModal(true);
-                  }}
+                  onNext={practice.next}
+                  onEdit={() => openEditModal(sentence)}
+                  onDelete={() => deleteSentenceById(sentence)}
+                  onDailyLimitReached={handleDailyLimitReached}
+                  onUpdateTranslation={translationHandler(sentence)}
+                />
+              )}
+              renderHistory={(sentence) => (
+                <SentenceFlashcard
+                  key={`history-${sentence.id}`}
+                  sentence={sentence}
+                  direction={currentDirection}
+                  isViewingHistory
+                  canGoBack={canGoBack}
+                  canEdit={isAdmin}
+                  reassessIntervals={session.reassessIntervals}
+                  onGoBack={goBack}
+                  onContinue={goForward}
+                  onReassess={session.reassess}
+                  onEdit={() => openEditModal(sentence)}
                   onDelete={() => {
-                    if (window.confirm('Are you sure you want to delete this sentence?')) {
-                      deleteSentenceById(currentPracticeSentence);
-                      handlePracticeNext();
-                    }
+                    deleteSentenceById(sentence);
+                    goForward();
                   }}
                   onDailyLimitReached={handleDailyLimitReached}
-                  onUpdateTranslation={
-                    isAdmin
-                      ? (word, translation) =>
-                          handleUpdateTranslation(currentPracticeSentence.id, word, translation)
-                      : undefined
-                  }
+                  onUpdateTranslation={translationHandler(sentence)}
                 />
-              ) : (
-                <EmptyState message="No sentences available" />
-              )
-            ) : isViewingHistory && historyCard ? (
-              <SentenceFlashcard
-                key={`history-${historyCard.id}`}
-                sentence={historyCard}
-                direction={currentDirection}
-                isViewingHistory
-                canGoBack={canGoBack}
-                canEdit={isAdmin}
-                reassessIntervals={reassessIntervals}
-                onGoBack={goBack}
-                onContinue={goForward}
-                onReassess={handleReassess}
-                onEdit={() => {
-                  setEditingSentence(historyCard);
-                  setIsCreatingSentence(false);
-                  setShowEditModal(true);
-                }}
-                onDelete={() => {
-                  if (window.confirm('Are you sure you want to delete this sentence?')) {
-                    deleteSentenceById(historyCard);
-                    goForward();
+              )}
+              renderFinished={() => (
+                <FinishedState
+                  currentFeature="sentences"
+                  currentDirection={currentDirection}
+                  otherDirectionDueCount={
+                    progressStats.sentencesByDirection[otherDirection(currentDirection)].total.due
                   }
-                }}
-                onDailyLimitReached={handleDailyLimitReached}
-                onUpdateTranslation={
-                  isAdmin
-                    ? (word, translation) =>
-                        handleUpdateTranslation(historyCard.id, word, translation)
-                    : undefined
-                }
-              />
-            ) : isFinished ? (
-              <FinishedState
-                currentFeature="sentences"
-                currentDirection={currentDirection}
-                otherDirectionDueCount={
-                  currentDirection === 'pl-to-en'
-                    ? progressStats.sentencesByDirection['en-to-pl'].total.due
-                    : progressStats.sentencesByDirection['pl-to-en'].total.due
-                }
-                otherDirectionLabel={currentDirection === 'pl-to-en' ? 'Production' : 'Recognition'}
-                onSwitchDirection={() => {
-                  const route = currentDirection === 'pl-to-en' ? 'production' : 'recognition';
-                  navigate(`/sentences/${route}`);
-                }}
-                otherFeaturesDue={[
-                  {
-                    feature: 'vocabulary',
-                    label: 'Vocabulary',
-                    dueCount: progressStats.vocabulary.due,
-                    path: '/vocabulary',
-                  },
-                  {
-                    feature: 'declension',
-                    label: 'Declension',
-                    dueCount: progressStats.declension.due,
-                    path: '/declension',
-                  },
-                  {
-                    feature: 'conjugation',
-                    label: 'Conjugation',
-                    dueCount: progressStats.conjugation.due,
-                    path: '/conjugation',
-                  },
-                  {
-                    feature: 'aspectPairs',
-                    label: 'Aspect Pairs',
-                    dueCount: progressStats.aspectPairs.due,
-                    path: '/aspect-pairs',
-                  },
-                ]}
-                onNavigateToFeature={(path) => navigate(path)}
-                practiceAheadCount={practiceAheadCount}
-                setPracticeAheadCount={setPracticeAheadCount}
-                extraNewCardsCount={extraNewCardsCount}
-                setExtraNewCardsCount={setExtraNewCardsCount}
-                onPracticeAhead={startPracticeAhead}
-                onLearnExtra={startExtraNewCards}
-              />
-            ) : currentSessionCard ? (
-              <SentenceFlashcard
-                key={`${currentSessionCard.sentence.id}-${ratingCounter}`}
-                sentence={currentSessionCard.sentence}
-                direction={currentDirection}
-                intervals={intervals}
-                canGoBack={canGoBack}
-                canEdit={isAdmin}
-                onRate={handleRate}
-                onGoBack={goBack}
-                onEdit={handleOpenEditModal}
-                onDelete={handleDeleteSentence}
-                onDailyLimitReached={handleDailyLimitReached}
-                onUpdateTranslation={
-                  isAdmin
-                    ? (word, translation) =>
-                        handleUpdateTranslation(currentSessionCard.sentence.id, word, translation)
-                    : undefined
-                }
-              />
-            ) : null}
+                  otherDirectionLabel={DIRECTION_ROUTES[otherDirection(currentDirection)].label}
+                  onSwitchDirection={() => handleSelectMode(otherDirection(currentDirection))}
+                  {...session.finishedStateProps}
+                />
+              )}
+              renderCurrent={({ sentence }) => (
+                <SentenceFlashcard
+                  key={`${sentence.id}-${session.ratingCounter}`}
+                  sentence={sentence}
+                  direction={currentDirection}
+                  intervals={session.intervals}
+                  canGoBack={canGoBack}
+                  canEdit={isAdmin}
+                  onRate={session.rate}
+                  onGoBack={goBack}
+                  onEdit={() => openEditModal(sentence)}
+                  onDelete={() => deleteSentenceById(sentence)}
+                  onDailyLimitReached={handleDailyLimitReached}
+                  onUpdateTranslation={translationHandler(sentence)}
+                />
+              )}
+            />
           </>
         )}
-      </MainContent>
+      </ReviewMainContent>
 
       <EditSentenceModal
         open={showEditModal}
@@ -846,9 +444,7 @@ export function SentencesPage({ mode }: SentencesPageProps) {
         sentence={editingSentence}
         isCreating={isCreatingSentence}
         onAudioUpdated={(audioUrl) => {
-          if (editingSentence) {
-            updateSentenceInQueues(editingSentence.id, { ...editingSentence, audioUrl });
-          }
+          if (editingSentence) replaceSentence({ ...editingSentence, audioUrl });
         }}
       />
     </>

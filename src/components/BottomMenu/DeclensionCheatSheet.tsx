@@ -244,7 +244,7 @@ interface CheatSheetTableProps {
   table: DeclensionTable;
 }
 
-export function DeclensionCheatSheetTable({ table }: CheatSheetTableProps) {
+function DeclensionCheatSheetTable({ table }: CheatSheetTableProps) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 

@@ -1,9 +1,7 @@
 import { useState } from 'react';
-import type { Grade } from 'ts-fsrs';
 import { Box, Chip, Stack, Typography } from '@mui/material';
 import { styled } from '../../../lib/styled';
-import { FlashcardShell } from '../../../components/FlashcardShell';
-import type { RatingIntervals } from '../../../components/RatingButtons';
+import { FlashcardShell, type ReviewFlashcardProps } from '../../../components/FlashcardShell';
 import { AudioButton } from '../../../components/AudioButton';
 import { HidePolishButton } from '../../../components/HidePolishButton';
 import { HiddenPolishPlaceholder } from '../../../components/HiddenPolishPlaceholder';
@@ -21,25 +19,12 @@ import { VerbConjugationTooltip } from '../../../components/VerbConjugationToolt
 import { useAudioPlayer } from '../../../hooks/useAudioPlayer';
 import { useAppSettings } from '../../../contexts/AppSettingsContext';
 
-export type ConjugationRatingIntervals = RatingIntervals;
-
-interface ConjugationFlashcardProps {
+interface ConjugationFlashcardProps extends ReviewFlashcardProps {
   form: DrillableForm;
   direction: TranslationDirection;
   aspectPairVerb?: Verb;
-  practiceMode?: boolean;
-  isViewingHistory?: boolean;
-  canGoBack?: boolean;
-  intervals?: ConjugationRatingIntervals;
-  reassessIntervals?: ConjugationRatingIntervals;
   canEdit?: boolean;
   isAdmin?: boolean;
-  onRate?: (rating: Grade) => void;
-  onReassess?: (rating: Grade) => void;
-  onNext?: () => void;
-  onGoBack?: () => void;
-  onContinue?: () => void;
-  onEdit?: () => void;
   onDelete?: () => void;
 }
 

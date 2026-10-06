@@ -1,5 +1,6 @@
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { app } from './firebase';
+import type { ExampleSentence } from '../types/vocabulary';
 
 const functions = getFunctions(app);
 
@@ -32,3 +33,6 @@ export async function generateExample(
   const result = await generateExampleFn(params);
   return result.data;
 }
+
+export const toExampleSentences = (examples: GeneratedExample[]): ExampleSentence[] =>
+  examples.map(({ polish, english }) => ({ id: crypto.randomUUID(), polish, english }));

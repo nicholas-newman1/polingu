@@ -1,7 +1,6 @@
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { userDb } from '../offlineDb/userDb';
-import type { TagCategory } from '../../types/sentences';
 
 export interface SentenceTagsData {
   topics: string[];
@@ -75,22 +74,6 @@ export async function saveSentenceTags(tags: SentenceTagsData): Promise<void> {
   });
   const docRef = doc(db, TAGS_DOC_PATH);
   await setDoc(docRef, tags);
-}
-
-export async function addTag(category: TagCategory, tag: string): Promise<SentenceTagsData> {
-  const current = await loadSentenceTags();
-  if (!current[category].includes(tag)) {
-    current[category] = [...current[category], tag];
-    await saveSentenceTags(current);
-  }
-  return current;
-}
-
-export async function removeTag(category: TagCategory, tag: string): Promise<SentenceTagsData> {
-  const current = await loadSentenceTags();
-  current[category] = current[category].filter((t) => t !== tag);
-  await saveSentenceTags(current);
-  return current;
 }
 
 export { DEFAULT_TAGS };

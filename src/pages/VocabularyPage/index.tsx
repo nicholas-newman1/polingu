@@ -1,38 +1,31 @@
-import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Rating, type Grade } from 'ts-fsrs';
-import { Box, CircularProgress, Typography, Stack } from '@mui/material';
-import { styled } from '../../lib/styled';
+import { CircularProgress } from '@mui/material';
 import { AddButton } from '../../components/AddButton';
 import { PracticeModeButton } from '../../components/PracticeModeButton';
 import { SettingsButton } from '../../components/SettingsButton';
 import { ListenButton } from '../../components/ListenButton';
 import { useListening } from '../../contexts/ListeningContext';
 import { buildVocabularyListeningQueue } from '../../lib/listeningScheduler';
-import { VocabularyFlashcard, type RatingIntervals } from './components/VocabularyFlashcard';
+import { VocabularyFlashcard } from './components/VocabularyFlashcard';
 import { VocabularyModeSelector } from './components/VocabularyModeSelector';
 import { FinishedState } from '../../components/FinishedState';
-import { EmptyState } from '../../components/EmptyState';
-import { ReviewCountBadge } from '../../components/ReviewCountBadge';
+import { ReviewStage } from '../../components/ReviewStage';
 import { SettingsPanel } from '../../components/SettingsPanel';
+import { SessionStatusLine } from '../../components/SessionStatusLine';
+import { ReviewControlsRow, ReviewMainContent } from '../../components/ReviewLayout';
 import { AddVocabularyModal } from '../../components/AddVocabularyModal';
 import { SuggestVocabularyExamplesModal } from '../../components/SuggestVocabularyExamplesModal';
 import type {
   VocabularyWord,
   VocabularyWordId,
-  VocabularyCardReviewData,
-  VocabularyReviewDataStore,
-  VocabularyDirectionSettings,
   CustomVocabularyWord,
   ExampleSentence,
 } from '../../types/vocabulary';
 import type { TranslationDirection } from '../../types/common';
-import getOrCreateVocabularyCardReviewData from '../../lib/storage/getOrCreateVocabularyCardReviewData';
+import { createCustomItem } from '../../types/customItems';
 import { saveCustomVocabulary } from '../../lib/storage/customVocabulary';
 import { findCustomWordWithSamePolish } from '../../lib/utils/findDuplicateCustomVocabularyPolish';
-import reprioritizeVocabularyWord, {
-  canReprioritizeVocabularyWord,
-} from '../../lib/storage/reprioritizeVocabularyWord';
 import {
   updateSystemVocabularyWord,
   deleteSystemVocabularyWord,
@@ -40,9 +33,8 @@ import {
 import getVocabularySessionCards from '../../lib/vocabularyScheduler/getVocabularySessionCards';
 import getVocabularyPracticeAheadCards from '../../lib/vocabularyScheduler/getVocabularyPracticeAheadCards';
 import getVocabularyExtraNewCards from '../../lib/vocabularyScheduler/getVocabularyExtraNewCards';
-import rateVocabularyCard from '../../lib/vocabularyScheduler/rateVocabularyCard';
-import getVocabularyNextIntervals from '../../lib/fsrsUtils/getNextIntervals';
-import type { VocabularySessionCard } from '../../lib/vocabularyScheduler/types';
+import { recordCardReview } from '../../lib/reviewSession/recordReview';
+import { DIRECTION_ROUTES, otherDirection, toModeStats } from '../../lib/reviewSession/directions';
 import { useAuthContext } from '../../hooks/useAuthContext';
 import { useAppSettings } from '../../contexts/AppSettingsContext';
 import { useAddToVocabulary } from '../../hooks/useAddToVocabulary';
@@ -50,24 +42,10 @@ import { useOptimistic } from '../../hooks/useOptimistic';
 import { useSnackbar } from '../../hooks/useSnackbar';
 import { useReviewData } from '../../hooks/useReviewData';
 import { useProgressStats } from '../../hooks/useProgressStats';
-import { useCardHistory } from '../../hooks/useCardHistory';
-import { usePrefetchAudio } from '../../hooks/usePrefetchAudio';
-import shuffleArray from '../../lib/utils/shuffleArray';
-import { includesWordId } from '../../lib/storage/helpers';
+import { useReviewSession } from '../../hooks/useReviewSession';
+import { useReprioritizeVocabularyWord } from '../../hooks/useReprioritizeVocabularyWord';
 
-const MainContent = styled(Box)({
-  flex: 1,
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  justifyContent: 'center',
-});
-
-const ControlsRow = styled(Stack)(({ theme }) => ({
-  marginBottom: theme.spacing(3),
-  flexWrap: 'wrap',
-  gap: theme.spacing(1),
-}));
+type WordFormData = Omit<CustomVocabularyWord, 'id' | 'isCustom' | 'createdAt'>;
 
 interface VocabularyPageProps {
   mode?: TranslationDirection;
@@ -79,11 +57,11 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
   const { settings: appSettings } = useAppSettings();
   const addToVocabulary = useAddToVocabulary();
   const { showSnackbar } = useSnackbar();
+  const { showDuplicateError } = useReprioritizeVocabularyWord();
   const {
     loading: contextLoading,
     vocabularyReviewStores,
     vocabularySettings: settings,
-    vocabularyWords,
     customWords: contextCustomWords,
     systemWords: contextSystemWords,
     updateVocabularyReviewStore,
@@ -103,45 +81,15 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
   const { start: startListening, settings: listeningSettings } = useListening();
 
   const [showSettings, setShowSettings] = useState(false);
-  const [practiceMode, setPracticeMode] = useState(false);
-
-  const [learningQueue, setLearningQueue] = useState<VocabularySessionCard[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [practiceIndex, setPracticeIndex] = useState(0);
-  const [practiceCards, setPracticeCards] = useState<VocabularyWord[]>([]);
-  const [sessionQueue, setSessionQueue] = useState<VocabularySessionCard[]>([]);
-  const [reviewCount, setReviewCount] = useState(0);
-  const [newCount, setNewCount] = useState(0);
-  const [ratingCounter, setRatingCounter] = useState(0);
-  const [practiceAheadCount, setPracticeAheadCount] = useState(10);
-  const [isPracticeAhead, setIsPracticeAhead] = useState(false);
-  const [extraNewCardsCount, setExtraNewCardsCount] = useState(5);
-
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingWord, setEditingWord] = useState<CustomVocabularyWord | VocabularyWord | null>(
     null
   );
-  const [editingSystemWord, setEditingSystemWord] = useState(false);
   const [generateSentencesForWord, setGenerateSentencesForWord] = useState<VocabularyWord | null>(
     null
   );
 
-  const {
-    isViewingHistory,
-    historyCard,
-    historyMeta,
-    canGoBack,
-    addToHistory,
-    updateInHistory,
-    goBack,
-    goForward,
-    clearHistory,
-  } = useCardHistory<VocabularyWord, VocabularyCardReviewData>();
-
-  const sessionBuiltRef = useRef(false);
   const currentDirection = mode ?? 'pl-to-en';
-  const directionRef = useRef(currentDirection);
-
   const directionSettings = settings[currentDirection];
   const reviewStore = vocabularyReviewStores[currentDirection];
 
@@ -150,282 +98,108 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
     [customWords, systemWords]
   );
 
-  const buildSession = useCallback(
-    (
-      words: VocabularyWord[],
-      store: VocabularyReviewDataStore,
-      currentSettings: VocabularyDirectionSettings
-    ) => {
-      const { reviewCards, newCards } = getVocabularySessionCards(words, store, currentSettings);
-      setSessionQueue([...reviewCards, ...newCards]);
-      setReviewCount(reviewCards.length);
-      setNewCount(newCards.length);
-      setLearningQueue([]);
-      setCurrentIndex(0);
-      setIsPracticeAhead(false);
-      clearHistory();
-    },
-    [clearHistory]
-  );
-
-  useEffect(() => {
-    if (!contextLoading && !sessionBuiltRef.current) {
-      sessionBuiltRef.current = true;
-      directionRef.current = currentDirection;
-      queueMicrotask(() => {
-        buildSession(vocabularyWords, reviewStore, directionSettings);
-      });
-    }
-  }, [
-    contextLoading,
-    buildSession,
-    vocabularyWords,
+  const session = useReviewSession({
+    cardKey: 'word',
+    getId: (word) => word.id,
+    getAudioUrls: (word) => [word.audioUrl],
+    ready: !contextLoading,
+    sessionKey: currentDirection,
+    getSessionCards: () => getVocabularySessionCards(allWords, reviewStore, directionSettings),
+    getPracticeAheadCards: (count) => getVocabularyPracticeAheadCards(allWords, reviewStore, count),
+    getExtraNewCards: (count) => getVocabularyExtraNewCards(allWords, reviewStore, count),
     reviewStore,
-    directionSettings,
-    currentDirection,
-  ]);
+    recordReview: recordCardReview,
+    saveReviewStore: (store) => updateVocabularyReviewStore(currentDirection, store),
+  });
+  const { practice, history } = session;
+  const { canGoBack, goBack, goForward } = history;
 
   const progressStats = useProgressStats();
-  const modeStats = {
-    'pl-to-en': {
-      dueCount: progressStats.vocabularyByDirection['pl-to-en'].due,
-      learnedCount: progressStats.vocabularyByDirection['pl-to-en'].learned,
-      totalCount: progressStats.vocabularyByDirection['pl-to-en'].total,
-    },
-    'en-to-pl': {
-      dueCount: progressStats.vocabularyByDirection['en-to-pl'].due,
-      learnedCount: progressStats.vocabularyByDirection['en-to-pl'].learned,
-      totalCount: progressStats.vocabularyByDirection['en-to-pl'].total,
-    },
-  };
+  const modeStats = toModeStats(progressStats.vocabularyByDirection);
 
   const handleSelectMode = useCallback(
-    (direction: TranslationDirection) => {
-      const route = direction === 'pl-to-en' ? 'recognition' : 'production';
-      navigate(`/vocabulary/${route}`);
-    },
+    (direction: TranslationDirection) =>
+      navigate(`/vocabulary/${DIRECTION_ROUTES[direction].route}`),
     [navigate]
   );
 
-  useEffect(() => {
-    if (!mode || contextLoading) return;
+  const canModify = (word: VocabularyWord) => word.isCustom === true || isAdmin;
 
-    if (directionRef.current !== mode) {
-      directionRef.current = mode;
-      const modeSettings = settings[mode];
-      const modeReviewStore = vocabularyReviewStores[mode];
-      queueMicrotask(() => {
-        buildSession(allWords, modeReviewStore, modeSettings);
-      });
-    }
-  }, [mode, contextLoading, settings, vocabularyReviewStores, allWords, buildSession]);
-
-  const startPracticeAhead = useCallback(() => {
-    const aheadCards = getVocabularyPracticeAheadCards(allWords, reviewStore, practiceAheadCount);
-    setSessionQueue(aheadCards);
-    setReviewCount(aheadCards.length);
-    setNewCount(0);
-    setLearningQueue([]);
-    setCurrentIndex(0);
-    setIsPracticeAhead(true);
-  }, [allWords, reviewStore, practiceAheadCount]);
-
-  const startExtraNewCards = useCallback(() => {
-    const extraCards = getVocabularyExtraNewCards(allWords, reviewStore, extraNewCardsCount);
-    setSessionQueue(extraCards);
-    setReviewCount(0);
-    setNewCount(extraCards.length);
-    setLearningQueue([]);
-    setCurrentIndex(0);
-    setIsPracticeAhead(false);
-  }, [allWords, reviewStore, extraNewCardsCount]);
-
-  const togglePracticeMode = useCallback(() => {
-    if (!practiceMode) {
-      setPracticeCards(shuffleArray([...allWords]));
-      setPracticeIndex(0);
-    }
-    setPracticeMode(!practiceMode);
-  }, [practiceMode, allWords]);
-
-  const handlePracticeNext = useCallback(() => {
-    setPracticeIndex((prev) => (prev + 1) % practiceCards.length);
-  }, [practiceCards.length]);
-
-  const currentSessionCard = sessionQueue[currentIndex] ?? learningQueue[0];
-  const isFinished = currentIndex >= sessionQueue.length && learningQueue.length === 0;
-
-  const upcomingAudioUrls = practiceMode
-    ? Array.from({ length: 3 }, (_, i) => {
-        const len = practiceCards.length;
-        if (len === 0) return undefined;
-        return practiceCards[(practiceIndex + 1 + i) % len]?.audioUrl;
-      })
-    : [
-        ...sessionQueue.slice(currentIndex + 1, currentIndex + 4).map((c) => c.word.audioUrl),
-        ...learningQueue
-          .slice(currentIndex < sessionQueue.length ? 0 : 1)
-          .map((c) => c.word.audioUrl),
-      ].slice(0, 3);
-  usePrefetchAudio(upcomingAudioUrls);
-
-  const handleRate = async (rating: Grade) => {
-    if (!currentSessionCard) return;
-
-    addToHistory(currentSessionCard.word, currentSessionCard.reviewData);
-
-    const wordId = currentSessionCard.word.id;
-    const wordIdKey = String(wordId);
-    const updatedReviewData = rateVocabularyCard(currentSessionCard.reviewData, rating);
-
-    const newStore = { ...reviewStore };
-    newStore.cards = { ...newStore.cards };
-    newStore.cards[wordIdKey] = updatedReviewData;
-
-    if (currentSessionCard.isNew && !includesWordId(newStore.newCardsToday, wordId)) {
-      newStore.newCardsToday = [...newStore.newCardsToday, wordId];
-    }
-
-    if (rating === Rating.Again) {
-      if (currentIndex < sessionQueue.length) {
-        setLearningQueue((prev) => [
-          ...prev,
-          { ...currentSessionCard, reviewData: updatedReviewData },
-        ]);
-        setCurrentIndex((prev) => prev + 1);
-      } else {
-        const updated = learningQueue.map((item, idx) =>
-          idx === 0 ? { ...item, reviewData: updatedReviewData } : item
-        );
-        setLearningQueue([...updated.slice(1), updated[0]]);
-      }
-    } else {
-      if (!includesWordId(newStore.reviewedToday, wordId)) {
-        newStore.reviewedToday = [...newStore.reviewedToday, wordId];
-      }
-
-      if (currentIndex < sessionQueue.length) {
-        setCurrentIndex((prev) => prev + 1);
-      } else {
-        setLearningQueue((prev) => prev.slice(1));
-      }
-    }
-
-    setRatingCounter((c) => c + 1);
-    await updateVocabularyReviewStore(directionRef.current, newStore);
-  };
-
-  const handleReassess = async (rating: Grade) => {
-    if (!historyCard || !historyMeta) return;
-
-    const wordId = historyCard.id;
-    const wordIdKey = String(wordId);
-    const updatedReviewData = rateVocabularyCard(historyMeta, rating);
-
-    const newStore = { ...reviewStore };
-    newStore.cards = { ...newStore.cards, [wordIdKey]: updatedReviewData };
-
-    await updateVocabularyReviewStore(directionRef.current, newStore);
-    goForward();
-  };
-
-  const handleSettingsChange = async (newCardsPerDay: number) => {
-    const newSettings = { ...directionSettings, newCardsPerDay };
-    await updateVocabularySettings(currentDirection, newSettings);
-    buildSession(allWords, reviewStore, newSettings);
-  };
-
-  const handleReprioritizeWord = (wordId: VocabularyWordId) => {
-    const key = String(wordId);
-    const plToEnNext = reprioritizeVocabularyWord(vocabularyReviewStores['pl-to-en'], key);
-    const enToPlNext = reprioritizeVocabularyWord(vocabularyReviewStores['en-to-pl'], key);
-    const promises: Promise<void>[] = [];
-    if (plToEnNext !== vocabularyReviewStores['pl-to-en']) {
-      promises.push(updateVocabularyReviewStore('pl-to-en', plToEnNext));
-    }
-    if (enToPlNext !== vocabularyReviewStores['en-to-pl']) {
-      promises.push(updateVocabularyReviewStore('en-to-pl', enToPlNext));
-    }
-    if (promises.length === 0) return;
-    void Promise.all(promises);
-    showSnackbar('Word queued for review again.', 'success');
-  };
-
-  const handleAddWord = (wordData: Omit<CustomVocabularyWord, 'id' | 'isCustom' | 'createdAt'>) => {
-    const duplicate = findCustomWordWithSamePolish(customWords, wordData.polish);
-    if (duplicate) {
-      const reviewable = canReprioritizeVocabularyWord(vocabularyReviewStores, duplicate.id);
-      showSnackbar(
-        'This Polish word is already in your custom vocabulary.',
-        'error',
-        reviewable
-          ? {
-              action: {
-                label: 'Review again',
-                onClick: () => handleReprioritizeWord(duplicate.id),
-              },
-            }
-          : undefined
-      );
-      return false;
-    }
-    const newWord: CustomVocabularyWord = {
-      ...wordData,
-      id: `custom_${Date.now()}`,
-      isCustom: true,
-      createdAt: Date.now(),
-    };
-    const newCustomWords = [...customWords, newWord];
-
+  const saveCustom = (newCustomWords: CustomVocabularyWord[]) =>
     applyOptimisticCustomWords(newCustomWords, async () => {
       await saveCustomVocabulary(newCustomWords);
       setContextCustomWords(newCustomWords);
     });
 
-    const mergedWords = [...newCustomWords, ...systemWords];
-    buildSession(mergedWords, reviewStore, directionSettings);
+  const saveSystem = (newSystemWords: VocabularyWord[], persist: () => Promise<void>) =>
+    applyOptimisticSystemWords(newSystemWords, async () => {
+      await persist();
+      setContextSystemWords(newSystemWords);
+    });
+
+  const updateWordEverywhere = (wordId: VocabularyWordId, updates: Partial<VocabularyWord>) =>
+    session.updateCards(
+      (w) => w.id === wordId,
+      (w) => ({ ...w, ...updates })
+    );
+
+  const handleSettingsChange = async (newCardsPerDay: number) => {
+    const newSettings = { ...directionSettings, newCardsPerDay };
+    await updateVocabularySettings(currentDirection, newSettings);
+    session.startSession(getVocabularySessionCards(allWords, reviewStore, newSettings));
+  };
+
+  const handleListen = () => {
+    const queue = buildVocabularyListeningQueue({
+      words: allWords,
+      reviewStore,
+      ordering: listeningSettings.ordering,
+    });
+    if (queue.length === 0) {
+      showSnackbar('No vocabulary with audio available.', 'info');
+      return;
+    }
+    startListening(queue, {
+      meta: { feature: 'vocabulary', title: 'Vocabulary' },
+    });
+    navigate('/listen/play');
+  };
+
+  const handleResetAllData = async () => {
+    if (
+      window.confirm(
+        'Are you sure? This will erase all your vocabulary progress for this direction and cannot be undone.'
+      )
+    ) {
+      await clearVocabularyReviewData(currentDirection);
+      session.rebuildSession();
+      setShowSettings(false);
+    }
+  };
+
+  const handleAddWord = (wordData: WordFormData) => {
+    const duplicate = findCustomWordWithSamePolish(customWords, wordData.polish);
+    if (duplicate) {
+      showDuplicateError(duplicate.id);
+      return false;
+    }
+    const newWord = createCustomItem(wordData);
+    const newCustomWords = [...customWords, newWord];
+    saveCustom(newCustomWords);
+
+    session.startSession(
+      getVocabularySessionCards([...newCustomWords, ...systemWords], reviewStore, directionSettings)
+    );
 
     if (isAdmin && appSettings.suggestExamplesAfterAddingWord) {
       addToVocabulary?.openSuggestExamples(newWord);
     }
   };
 
-  const updateWordInQueues = (wordId: VocabularyWordId, updates: Partial<VocabularyWord>) => {
-    setSessionQueue((prev) =>
-      prev.map((card) =>
-        card.word.id === wordId ? { ...card, word: { ...card.word, ...updates } } : card
-      )
-    );
-    setLearningQueue((prev) =>
-      prev.map((card) =>
-        card.word.id === wordId ? { ...card, word: { ...card.word, ...updates } } : card
-      )
-    );
-    setPracticeCards((prev) =>
-      prev.map((word) => (word.id === wordId ? { ...word, ...updates } : word))
-    );
-    updateInHistory(
-      (w) => w.id === wordId,
-      (w) => ({ ...w, ...updates })
-    );
-  };
-
-  const removeWordFromQueues = (wordId: VocabularyWordId) => {
-    if (currentIndex < sessionQueue.length) {
-      setSessionQueue((prev) => prev.filter((card) => card.word.id !== wordId));
-    } else {
-      setLearningQueue((prev) => prev.filter((card) => card.word.id !== wordId));
-    }
-    setPracticeCards((prev) => prev.filter((word) => word.id !== wordId));
-  };
-
-  const handleEditWord = (
-    wordData: Omit<CustomVocabularyWord, 'id' | 'isCustom' | 'createdAt'>
-  ) => {
+  const handleEditWord = (wordData: WordFormData) => {
     if (!editingWord) return;
 
     const wordId = editingWord.id;
-
     const mergeWordData = <T extends VocabularyWord>(w: T): T => ({
       ...w,
       polish: wordData.polish,
@@ -436,175 +210,73 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
       examples: wordData.examples,
     });
 
-    if (editingSystemWord) {
-      const newSystemWords = systemWords.map((w) => (w.id === wordId ? mergeWordData(w) : w));
-      setEditingWord(null);
-      setEditingSystemWord(false);
-
-      applyOptimisticSystemWords(newSystemWords, async () => {
-        await updateSystemVocabularyWord(wordId as number, wordData);
-        setContextSystemWords(newSystemWords);
-      });
-      updateWordInQueues(wordId, wordData);
-    } else {
+    if (editingWord.isCustom === true) {
       if (findCustomWordWithSamePolish(customWords, wordData.polish, wordId)) {
         showSnackbar('This Polish word is already in your custom vocabulary.', 'error');
         return false;
       }
-      const newCustomWords = customWords.map((w) => (w.id === wordId ? mergeWordData(w) : w));
       setEditingWord(null);
-
-      applyOptimisticCustomWords(newCustomWords, async () => {
-        await saveCustomVocabulary(newCustomWords);
-        setContextCustomWords(newCustomWords);
-      });
-      updateWordInQueues(wordId, wordData);
+      saveCustom(customWords.map((w) => (w.id === wordId ? mergeWordData(w) : w)));
+    } else {
+      setEditingWord(null);
+      saveSystem(
+        systemWords.map((w) => (w.id === wordId ? mergeWordData(w) : w)),
+        () => updateSystemVocabularyWord(wordId as number, wordData)
+      );
     }
+    updateWordEverywhere(wordId, wordData);
   };
 
-  const handleDeleteWord = () => {
-    if (!currentSessionCard) return;
+  const openEditModal = (word: VocabularyWord) => {
+    if (!canModify(word)) return;
+    setEditingWord(word);
+    setShowAddModal(true);
+  };
 
-    const word = currentSessionCard.word;
+  const deleteWord = (word: VocabularyWord): boolean => {
+    if (!canModify(word)) return false;
     const isCustomWord = word.isCustom === true;
-    const isSystemWord = !isCustomWord && isAdmin;
-
-    if (!isCustomWord && !isSystemWord) return;
 
     const confirmMessage = isCustomWord
       ? 'Are you sure you want to delete this custom word?'
       : 'Are you sure you want to delete this system vocabulary word? This will affect all users.';
-
-    if (!window.confirm(confirmMessage)) {
-      return;
-    }
-
-    const wordId = word.id;
+    if (!window.confirm(confirmMessage)) return false;
 
     if (isCustomWord) {
-      const newCustomWords = customWords.filter((w) => w.id !== wordId);
-
-      applyOptimisticCustomWords(newCustomWords, async () => {
-        await saveCustomVocabulary(newCustomWords);
-        setContextCustomWords(newCustomWords);
-      });
+      saveCustom(customWords.filter((w) => w.id !== word.id));
     } else {
-      const newSystemWords = systemWords.filter((w) => w.id !== wordId);
-
-      applyOptimisticSystemWords(newSystemWords, async () => {
-        await deleteSystemVocabularyWord(wordId as number);
-        setContextSystemWords(newSystemWords);
-      });
+      saveSystem(
+        systemWords.filter((w) => w.id !== word.id),
+        () => deleteSystemVocabularyWord(word.id as number)
+      );
     }
-
-    removeWordFromQueues(wordId);
+    session.removeCards((w) => w.id === word.id);
+    return true;
   };
 
-  const handleOpenEditModal = () => {
-    if (!currentSessionCard) return;
-
-    const word = currentSessionCard.word;
-    const isCustomWord = word.isCustom === true;
-    const isSystemWord = !isCustomWord && isAdmin;
-
-    if (isCustomWord) {
-      setEditingWord(word as CustomVocabularyWord);
-      setEditingSystemWord(false);
-      setShowAddModal(true);
-    } else if (isSystemWord) {
-      setEditingWord(word);
-      setEditingSystemWord(true);
-      setShowAddModal(true);
-    }
-  };
-
-  const handleOpenGenerateSentences = (word: VocabularyWord) => {
-    setGenerateSentencesForWord(word);
-  };
-
-  const getGenerateSentencesHandler = (word: VocabularyWord) => {
-    const isCustomWord = word.isCustom === true;
-    if (!isCustomWord && !isAdmin) return undefined;
-    return () => handleOpenGenerateSentences(word);
-  };
+  const getGenerateSentencesHandler = (word: VocabularyWord) =>
+    canModify(word) ? () => setGenerateSentencesForWord(word) : undefined;
 
   const handleSaveGeneratedSentences = async (newExamples: ExampleSentence[]) => {
     if (!generateSentencesForWord || newExamples.length === 0) return;
     const targetWord = generateSentencesForWord;
     const wordId = targetWord.id;
-    const isCustomWord = targetWord.isCustom === true;
-    const existingExamples = targetWord.examples ?? [];
-    const mergedExamples = [...existingExamples, ...newExamples];
+    const mergedExamples = [...(targetWord.examples ?? []), ...newExamples];
 
-    if (isCustomWord) {
-      const newCustomWords = customWords.map((w) =>
-        w.id === wordId ? { ...w, examples: mergedExamples } : w
+    if (targetWord.isCustom === true) {
+      saveCustom(
+        customWords.map((w) => (w.id === wordId ? { ...w, examples: mergedExamples } : w))
       );
-      applyOptimisticCustomWords(newCustomWords, async () => {
-        await saveCustomVocabulary(newCustomWords);
-        setContextCustomWords(newCustomWords);
-      });
     } else {
       if (!isAdmin) return;
-      const newSystemWords = systemWords.map((w) =>
-        w.id === wordId ? { ...w, examples: mergedExamples } : w
+      saveSystem(
+        systemWords.map((w) => (w.id === wordId ? { ...w, examples: mergedExamples } : w)),
+        () => updateSystemVocabularyWord(wordId as number, { examples: mergedExamples })
       );
-      applyOptimisticSystemWords(newSystemWords, async () => {
-        await updateSystemVocabularyWord(wordId as number, { examples: mergedExamples });
-        setContextSystemWords(newSystemWords);
-      });
     }
 
-    updateWordInQueues(wordId, { examples: mergedExamples });
+    updateWordEverywhere(wordId, { examples: mergedExamples });
   };
-
-  const handleResetAllData = async () => {
-    if (
-      window.confirm(
-        'Are you sure? This will erase all your vocabulary progress for this direction and cannot be undone.'
-      )
-    ) {
-      await clearVocabularyReviewData(currentDirection);
-      const freshStore = vocabularyReviewStores[currentDirection];
-      buildSession(allWords, freshStore, directionSettings);
-      setShowSettings(false);
-    }
-  };
-
-  const intervals: RatingIntervals = useMemo(() => {
-    if (!currentSessionCard) {
-      return {
-        [Rating.Again]: '',
-        [Rating.Hard]: '',
-        [Rating.Good]: '',
-        [Rating.Easy]: '',
-      };
-    }
-    const allIntervals = getVocabularyNextIntervals(
-      getOrCreateVocabularyCardReviewData(currentSessionCard.word.id, reviewStore).fsrsCard
-    );
-    return {
-      [Rating.Again]: allIntervals[Rating.Again],
-      [Rating.Hard]: allIntervals[Rating.Hard],
-      [Rating.Good]: allIntervals[Rating.Good],
-      [Rating.Easy]: allIntervals[Rating.Easy],
-    };
-  }, [currentSessionCard, reviewStore]);
-
-  const reassessIntervals: RatingIntervals | undefined = useMemo(() => {
-    if (!historyMeta) return undefined;
-    const allIntervals = getVocabularyNextIntervals(historyMeta.fsrsCard);
-    return {
-      [Rating.Again]: allIntervals[Rating.Again],
-      [Rating.Hard]: allIntervals[Rating.Hard],
-      [Rating.Good]: allIntervals[Rating.Good],
-      [Rating.Easy]: allIntervals[Rating.Easy],
-    };
-  }, [historyMeta]);
-
-  const totalRemaining = sessionQueue.length - currentIndex + learningQueue.length;
-
-  const currentPracticeWord = practiceCards[practiceIndex];
 
   const isLoading = contextLoading;
 
@@ -620,10 +292,10 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
 
   return (
     <>
-      <ControlsRow direction="row" alignItems="center">
+      <ReviewControlsRow direction="row" alignItems="center">
         <PracticeModeButton
-          active={practiceMode}
-          onClick={togglePracticeMode}
+          active={practice.active}
+          onClick={() => practice.toggle(allWords)}
           disabled={isLoading}
         />
 
@@ -634,21 +306,7 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
         />
 
         <ListenButton
-          onClick={() => {
-            const queue = buildVocabularyListeningQueue({
-              words: allWords,
-              reviewStore: vocabularyReviewStores[currentDirection],
-              ordering: listeningSettings.ordering,
-            });
-            if (queue.length === 0) {
-              showSnackbar('No vocabulary with audio available.', 'info');
-              return;
-            }
-            startListening(queue, {
-              meta: { feature: 'vocabulary', title: 'Vocabulary' },
-            });
-            navigate('/listen/play');
-          }}
+          onClick={handleListen}
           disabled={isLoading}
           aria-label="Start listening mode"
         />
@@ -660,9 +318,9 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
             disabled={isLoading}
           />
         )}
-      </ControlsRow>
+      </ReviewControlsRow>
 
-      {showSettings && !practiceMode && (
+      {showSettings && !practice.active && (
         <SettingsPanel
           newCardsPerDay={directionSettings.newCardsPerDay}
           user={user}
@@ -672,218 +330,90 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
         />
       )}
 
-      <MainContent>
+      <ReviewMainContent>
         {isLoading ? (
           <CircularProgress sx={{ color: 'text.disabled' }} />
         ) : (
           <>
-            <Typography
-              variant="body2"
-              color="text.disabled"
-              sx={{
-                mb: { xs: 3, sm: 4 },
-                textAlign: 'center',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 1,
-              }}
-            >
-              {practiceMode ? (
-                `Drill Mode · ${practiceCards.length} words`
-              ) : isFinished ? null : isPracticeAhead ? (
-                <>
-                  Drill Ahead · <ReviewCountBadge count={totalRemaining} /> remaining
-                </>
-              ) : (
-                <>
-                  {reviewCount} reviews · {newCount} new ·{' '}
-                  <ReviewCountBadge count={totalRemaining} /> remaining
-                </>
-              )}
-            </Typography>
+            <SessionStatusLine session={session} unitLabel="words" />
 
-            {practiceMode ? (
-              currentPracticeWord ? (
+            <ReviewStage
+              session={session}
+              practiceEmptyMessage="No words available"
+              renderPractice={(word) => (
                 <VocabularyFlashcard
-                  key={`practice-${currentPracticeWord.id}-${practiceIndex}`}
-                  word={currentPracticeWord}
+                  key={`practice-${word.id}-${practice.index}`}
+                  word={word}
                   direction={currentDirection}
                   practiceMode
                   isAdmin={isAdmin}
-                  onNext={handlePracticeNext}
-                  onGenerateSentences={getGenerateSentencesHandler(currentPracticeWord)}
-                  onEdit={() => {
-                    const isCustomWord = currentPracticeWord.isCustom === true;
-                    if (isCustomWord) {
-                      setEditingWord(currentPracticeWord as CustomVocabularyWord);
-                      setEditingSystemWord(false);
-                    } else if (isAdmin) {
-                      setEditingWord(currentPracticeWord);
-                      setEditingSystemWord(true);
-                    }
-                    setShowAddModal(true);
-                  }}
+                  onNext={practice.next}
+                  onGenerateSentences={getGenerateSentencesHandler(word)}
+                  onEdit={() => openEditModal(word)}
+                  onDelete={() => deleteWord(word)}
+                />
+              )}
+              renderHistory={(word) => (
+                <VocabularyFlashcard
+                  key={`history-${word.id}`}
+                  word={word}
+                  direction={currentDirection}
+                  isViewingHistory
+                  canGoBack={canGoBack}
+                  isAdmin={isAdmin}
+                  reassessIntervals={session.reassessIntervals}
+                  onGoBack={goBack}
+                  onContinue={goForward}
+                  onReassess={session.reassess}
+                  onGenerateSentences={getGenerateSentencesHandler(word)}
+                  onEdit={() => openEditModal(word)}
                   onDelete={() => {
-                    const isCustomWord = currentPracticeWord.isCustom === true;
-                    const isSystemWord = !isCustomWord && isAdmin;
-                    if (!isCustomWord && !isSystemWord) return;
-                    const confirmMessage = isCustomWord
-                      ? 'Are you sure you want to delete this custom word?'
-                      : 'Are you sure you want to delete this system vocabulary word? This will affect all users.';
-                    if (!window.confirm(confirmMessage)) return;
-                    if (isCustomWord) {
-                      const newCustomWords = customWords.filter(
-                        (w) => w.id !== currentPracticeWord.id
-                      );
-                      applyOptimisticCustomWords(newCustomWords, async () => {
-                        await saveCustomVocabulary(newCustomWords);
-                        setContextCustomWords(newCustomWords);
-                      });
-                    } else {
-                      const newSystemWords = systemWords.filter(
-                        (w) => w.id !== currentPracticeWord.id
-                      );
-                      applyOptimisticSystemWords(newSystemWords, async () => {
-                        await deleteSystemVocabularyWord(currentPracticeWord.id as number);
-                        setContextSystemWords(newSystemWords);
-                      });
-                    }
-                    removeWordFromQueues(currentPracticeWord.id);
-                    handlePracticeNext();
+                    if (deleteWord(word)) goForward();
                   }}
                 />
-              ) : (
-                <EmptyState message="No words available" />
-              )
-            ) : isViewingHistory && historyCard ? (
-              <VocabularyFlashcard
-                key={`history-${historyCard.id}`}
-                word={historyCard}
-                direction={currentDirection}
-                isViewingHistory
-                canGoBack={canGoBack}
-                isAdmin={isAdmin}
-                reassessIntervals={reassessIntervals}
-                onGoBack={goBack}
-                onContinue={goForward}
-                onReassess={handleReassess}
-                onGenerateSentences={getGenerateSentencesHandler(historyCard)}
-                onEdit={() => {
-                  const isCustomWord = historyCard.isCustom === true;
-                  if (isCustomWord) {
-                    setEditingWord(historyCard as CustomVocabularyWord);
-                    setEditingSystemWord(false);
-                  } else if (isAdmin) {
-                    setEditingWord(historyCard);
-                    setEditingSystemWord(true);
+              )}
+              renderFinished={() => (
+                <FinishedState
+                  currentFeature="vocabulary"
+                  currentDirection={currentDirection}
+                  otherDirectionDueCount={
+                    progressStats.vocabularyByDirection[otherDirection(currentDirection)].due
                   }
-                  setShowAddModal(true);
-                }}
-                onDelete={() => {
-                  const isCustomWord = historyCard.isCustom === true;
-                  const isSystemWord = !isCustomWord && isAdmin;
-                  if (!isCustomWord && !isSystemWord) return;
-                  const confirmMessage = isCustomWord
-                    ? 'Are you sure you want to delete this custom word?'
-                    : 'Are you sure you want to delete this system vocabulary word? This will affect all users.';
-                  if (!window.confirm(confirmMessage)) return;
-                  if (isCustomWord) {
-                    const newCustomWords = customWords.filter((w) => w.id !== historyCard.id);
-                    applyOptimisticCustomWords(newCustomWords, async () => {
-                      await saveCustomVocabulary(newCustomWords);
-                      setContextCustomWords(newCustomWords);
-                    });
-                  } else {
-                    const newSystemWords = systemWords.filter((w) => w.id !== historyCard.id);
-                    applyOptimisticSystemWords(newSystemWords, async () => {
-                      await deleteSystemVocabularyWord(historyCard.id as number);
-                      setContextSystemWords(newSystemWords);
-                    });
-                  }
-                  goForward();
-                }}
-              />
-            ) : isFinished ? (
-              <FinishedState
-                currentFeature="vocabulary"
-                currentDirection={currentDirection}
-                otherDirectionDueCount={
-                  currentDirection === 'pl-to-en'
-                    ? progressStats.vocabularyByDirection['en-to-pl'].due
-                    : progressStats.vocabularyByDirection['pl-to-en'].due
-                }
-                otherDirectionLabel={currentDirection === 'pl-to-en' ? 'Production' : 'Recognition'}
-                onSwitchDirection={() => {
-                  const route = currentDirection === 'pl-to-en' ? 'production' : 'recognition';
-                  navigate(`/vocabulary/${route}`);
-                }}
-                otherFeaturesDue={[
-                  {
-                    feature: 'declension',
-                    label: 'Declension',
-                    dueCount: progressStats.declension.due,
-                    path: '/declension',
-                  },
-                  {
-                    feature: 'conjugation',
-                    label: 'Conjugation',
-                    dueCount: progressStats.conjugation.due,
-                    path: '/conjugation',
-                  },
-                  {
-                    feature: 'sentences',
-                    label: 'Sentences',
-                    dueCount: progressStats.sentences.due,
-                    path: '/sentences',
-                  },
-                  {
-                    feature: 'aspectPairs',
-                    label: 'Aspect Pairs',
-                    dueCount: progressStats.aspectPairs.due,
-                    path: '/aspect-pairs',
-                  },
-                ]}
-                onNavigateToFeature={(path) => navigate(path)}
-                practiceAheadCount={practiceAheadCount}
-                setPracticeAheadCount={setPracticeAheadCount}
-                extraNewCardsCount={extraNewCardsCount}
-                setExtraNewCardsCount={setExtraNewCardsCount}
-                onPracticeAhead={startPracticeAhead}
-                onLearnExtra={startExtraNewCards}
-              />
-            ) : currentSessionCard ? (
-              <VocabularyFlashcard
-                key={`${currentSessionCard.word.id}-${ratingCounter}`}
-                word={currentSessionCard.word}
-                direction={currentDirection}
-                intervals={intervals}
-                canGoBack={canGoBack}
-                isAdmin={isAdmin}
-                onRate={handleRate}
-                onGoBack={goBack}
-                onEdit={handleOpenEditModal}
-                onDelete={handleDeleteWord}
-                onGenerateSentences={getGenerateSentencesHandler(currentSessionCard.word)}
-              />
-            ) : null}
+                  otherDirectionLabel={DIRECTION_ROUTES[otherDirection(currentDirection)].label}
+                  onSwitchDirection={() => handleSelectMode(otherDirection(currentDirection))}
+                  {...session.finishedStateProps}
+                />
+              )}
+              renderCurrent={({ word }) => (
+                <VocabularyFlashcard
+                  key={`${word.id}-${session.ratingCounter}`}
+                  word={word}
+                  direction={currentDirection}
+                  intervals={session.intervals}
+                  canGoBack={canGoBack}
+                  isAdmin={isAdmin}
+                  onRate={session.rate}
+                  onGoBack={goBack}
+                  onEdit={() => openEditModal(word)}
+                  onDelete={() => deleteWord(word)}
+                  onGenerateSentences={getGenerateSentencesHandler(word)}
+                />
+              )}
+            />
           </>
         )}
-      </MainContent>
+      </ReviewMainContent>
 
       <AddVocabularyModal
         open={showAddModal}
         onClose={() => {
           setShowAddModal(false);
           setEditingWord(null);
-          setEditingSystemWord(false);
         }}
         onSave={editingWord ? handleEditWord : handleAddWord}
         editWord={editingWord}
         onAudioUpdated={(audioUrl) => {
-          if (editingWord) {
-            updateWordInQueues(editingWord.id, { audioUrl });
-          }
+          if (editingWord) updateWordEverywhere(editingWord.id, { audioUrl });
         }}
       />
 

@@ -1,6 +1,6 @@
 import Dexie, { type Table } from 'dexie';
 
-export interface UserDataRecord {
+interface UserDataRecord {
   key: string; // e.g., 'declensionReview', 'sentenceSettings-pl-en'
   data: unknown;
   lastModified: number;

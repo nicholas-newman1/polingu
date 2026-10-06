@@ -6,16 +6,11 @@ const DEFAULT_DIRECTION_SETTINGS: ConjugationDirectionSettings = {
   newCardsPerDay: 10,
 };
 
-const DEFAULT_CONJUGATION_SETTINGS: ConjugationSettings = {
-  'pl-to-en': { ...DEFAULT_DIRECTION_SETTINGS },
-  'en-to-pl': { ...DEFAULT_DIRECTION_SETTINGS },
-};
-
 function getConjugationSettingsDocPath(direction: TranslationDirection): string {
   return direction === 'pl-to-en' ? 'conjugationSettings-pl-en' : 'conjugationSettings-en-pl';
 }
 
-export async function loadConjugationDirectionSettings(
+async function loadConjugationDirectionSettings(
   direction: TranslationDirection
 ): Promise<ConjugationDirectionSettings> {
   return loadUserData(
@@ -39,4 +34,4 @@ export default async function loadConjugationSettings(): Promise<ConjugationSett
   };
 }
 
-export { DEFAULT_CONJUGATION_SETTINGS, DEFAULT_DIRECTION_SETTINGS, getConjugationSettingsDocPath };
+export { getConjugationSettingsDocPath };

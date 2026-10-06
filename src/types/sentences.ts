@@ -7,12 +7,6 @@ export type CEFRLevel = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
 
 export type TagCategory = 'topics' | 'grammar' | 'style';
 
-export const TAG_CATEGORY_NAMES: Record<TagCategory, string> = {
-  topics: 'Topics',
-  grammar: 'Grammar',
-  style: 'Style',
-};
-
 export type SentenceSource = 'vocab-example';
 
 export interface Sentence extends CardAudioFields {
@@ -40,10 +34,6 @@ export interface CustomSentence extends CustomItemBase {
   source?: SentenceSource;
   sourceVocabularyId?: string;
   sourceExampleId?: string;
-}
-
-export interface SentenceBank {
-  sentences: Sentence[];
 }
 
 export interface SentenceCardReviewData {

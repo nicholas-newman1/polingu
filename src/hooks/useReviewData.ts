@@ -54,7 +54,7 @@ export function useAspectPairs(): AspectPairsContextType {
   return context;
 }
 
-export function useReviewCounts(): ReviewCountsContextType {
+function useReviewCounts(): ReviewCountsContextType {
   const context = useContext(ReviewCountsContext);
   if (!context) {
     throw new Error('useReviewCounts must be used within a ReviewDataProvider');

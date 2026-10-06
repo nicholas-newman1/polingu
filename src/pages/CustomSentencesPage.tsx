@@ -1,48 +1,50 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import {
-  Typography,
-  Chip,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-  TableSortLabel,
-  InputAdornment,
-  InputLabel,
-  Select,
-  MenuItem,
-} from '@mui/material';
-import SearchIcon from '@mui/icons-material/Search';
+import { useState, useMemo, useCallback } from 'react';
+import { Typography, Chip, Table, TableBody, TableCell, TableRow } from '@mui/material';
 import { styled } from '../lib/styled';
 import { alpha } from '../lib/theme';
 import { EditSentenceModal } from '../components/EditSentenceModal';
 import { InlineAudioRegenerator } from '../components/AudioRegenerator';
 import { saveCustomSentences, subscribeCustomSentences } from '../lib/storage/customSentences';
 import { findCustomSentenceWithSamePolish } from '../lib/utils/findDuplicateCustomSentence';
-import reprioritizeSentence, { canReprioritizeSentence } from '../lib/storage/reprioritizeSentence';
 import type { CustomSentence, CEFRLevel, Sentence } from '../types/sentences';
 import { ALL_LEVELS } from '../types/sentences';
+import { createCustomItem } from '../types/customItems';
 import { useAuthContext } from '../hooks/useAuthContext';
+import { useCustomCollection } from '../hooks/useCustomCollection';
 import { useOptimistic } from '../hooks/useOptimistic';
+import { useReprioritizeSentence } from '../hooks/useReprioritizeSentence';
 import { useSnackbar } from '../hooks/useSnackbar';
-import { useReviewData, useSentences } from '../hooks/useReviewData';
+import { useReviewData } from '../hooks/useReviewData';
 import {
   PageContainer,
   FiltersRow,
-  SearchField,
-  FilterSelect,
   StyledTableContainer,
   TruncatedCell,
   CustomItemPageHeader,
   CustomItemEmptyState,
   CustomItemLoadingState,
   CustomItemActions,
+  CustomItemSearchField,
+  FilterSelectField,
+  SortableHeaderCell,
   formatDate,
+  sortItems,
+  useSortState,
+  FilterResultCount,
+  CustomItemTableHead,
+  byPolish,
+  byEnglish,
+  byCreatedAt,
 } from '../components/CustomItemPage';
 
 type SortField = 'polish' | 'english' | 'level' | 'createdAt';
-type SortDirection = 'asc' | 'desc';
+
+const COMPARATORS: Record<SortField, (a: CustomSentence, b: CustomSentence) => number> = {
+  polish: byPolish,
+  english: byEnglish,
+  level: (a, b) => a.level.localeCompare(b.level),
+  createdAt: byCreatedAt,
+};
 
 const LevelChip = styled(Chip)<{ $level: CEFRLevel }>(({ theme, $level }) => {
   const levelColors: Record<CEFRLevel, string> = {
@@ -63,12 +65,14 @@ const LevelChip = styled(Chip)<{ $level: CEFRLevel }>(({ theme, $level }) => {
 });
 
 export function CustomSentencesPage() {
-  const { user, isAdmin } = useAuthContext();
+  const { isAdmin } = useAuthContext();
   const { showSnackbar } = useSnackbar();
   const { setCustomSentences: setContextCustomSentences } = useReviewData();
-  const { sentenceReviewStores, updateSentenceReviewStore } = useSentences();
-  const [isLoading, setIsLoading] = useState(true);
-  const [customSentencesBase, setCustomSentencesBase] = useState<CustomSentence[]>([]);
+  const {
+    items: customSentencesBase,
+    setItems: setCustomSentencesBase,
+    isLoading,
+  } = useCustomCollection(subscribeCustomSentences);
   const [customSentences, applyOptimisticCustomSentences] = useOptimistic(customSentencesBase, {
     onError: () => showSnackbar('Failed to save. Please try again.', 'error'),
   });
@@ -77,69 +81,20 @@ export function CustomSentencesPage() {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [levelFilter, setLevelFilter] = useState<CEFRLevel | ''>('');
-  const [sortField, setSortField] = useState<SortField>('createdAt');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
-
-  const [prevUid, setPrevUid] = useState(user?.uid);
-  if (prevUid !== user?.uid) {
-    setPrevUid(user?.uid);
-    setIsLoading(true);
-    setCustomSentencesBase([]);
-  }
-
-  useEffect(() => {
-    if (!user) return;
-    const unsub = subscribeCustomSentences((items) => {
-      setCustomSentencesBase(items);
-      setIsLoading(false);
-    });
-    return unsub;
-  }, [user]);
-
-  const handleReprioritize = useCallback(
-    (sentenceId: string) => {
-      const plToEnNext = reprioritizeSentence(sentenceReviewStores['pl-to-en'], sentenceId);
-      const enToPlNext = reprioritizeSentence(sentenceReviewStores['en-to-pl'], sentenceId);
-      const promises: Promise<void>[] = [];
-      if (plToEnNext !== sentenceReviewStores['pl-to-en']) {
-        promises.push(updateSentenceReviewStore('pl-to-en', plToEnNext));
-      }
-      if (enToPlNext !== sentenceReviewStores['en-to-pl']) {
-        promises.push(updateSentenceReviewStore('en-to-pl', enToPlNext));
-      }
-      if (promises.length === 0) return;
-      void Promise.all(promises);
-      showSnackbar('Sentence queued for review again.', 'success');
-    },
-    [sentenceReviewStores, updateSentenceReviewStore, showSnackbar]
-  );
+  const sort = useSortState<SortField>('createdAt');
+  const { canReprioritize, reprioritize, showDuplicateError } = useReprioritizeSentence();
 
   const handleAddSentence = (sentenceData: Omit<Sentence, 'id'>) => {
     const duplicate = findCustomSentenceWithSamePolish(customSentences, sentenceData.polish);
     if (duplicate) {
-      const reviewable = canReprioritizeSentence(sentenceReviewStores, duplicate.id);
-      showSnackbar(
-        'This sentence is already in your collection.',
-        'error',
-        reviewable
-          ? {
-              action: {
-                label: 'Review again',
-                onClick: () => handleReprioritize(duplicate.id),
-              },
-            }
-          : undefined
-      );
+      showDuplicateError(duplicate.id);
       return false;
     }
 
-    const newSentence: CustomSentence = {
-      ...sentenceData,
-      id: `custom_${Date.now()}`,
-      isCustom: true,
-      createdAt: Date.now(),
-    };
-    const newCustomSentences = [newSentence, ...customSentencesBase];
+    const newCustomSentences: CustomSentence[] = [
+      createCustomItem(sentenceData),
+      ...customSentencesBase,
+    ];
 
     applyOptimisticCustomSentences(newCustomSentences, async () => {
       await saveCustomSentences(newCustomSentences);
@@ -196,57 +151,26 @@ export function CustomSentencesPage() {
     setShowAddModal(true);
   };
 
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
-  };
-
-  const handleAudioSaved = useCallback((sentenceId: string, audioUrl: string) => {
-    setCustomSentencesBase((prev) =>
-      prev.map((s) => (s.id === sentenceId ? { ...s, audioUrl } : s))
-    );
-  }, []);
-
-  const filteredAndSortedSentences = useMemo(() => {
-    let result = [...customSentences];
-
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      result = result.filter(
-        (sentence) =>
-          sentence.polish.toLowerCase().includes(query) ||
-          sentence.english.toLowerCase().includes(query)
+  const handleAudioSaved = useCallback(
+    (sentenceId: string, audioUrl: string) => {
+      setCustomSentencesBase((prev) =>
+        prev.map((s) => (s.id === sentenceId ? { ...s, audioUrl } : s))
       );
-    }
+    },
+    [setCustomSentencesBase]
+  );
 
-    if (levelFilter) {
-      result = result.filter((sentence) => sentence.level === levelFilter);
-    }
-
-    result.sort((a, b) => {
-      let comparison = 0;
-      switch (sortField) {
-        case 'polish':
-          comparison = a.polish.localeCompare(b.polish, 'pl');
-          break;
-        case 'english':
-          comparison = a.english.localeCompare(b.english);
-          break;
-        case 'level':
-          comparison = a.level.localeCompare(b.level);
-          break;
-        case 'createdAt':
-          comparison = a.createdAt - b.createdAt;
-          break;
-      }
-      return sortDirection === 'asc' ? comparison : -comparison;
-    });
-
-    return result;
+  const { sortField, sortDirection } = sort;
+  const filteredAndSortedSentences = useMemo(() => {
+    const query = searchQuery.toLowerCase();
+    const filtered = customSentences.filter(
+      (sentence) =>
+        (!query ||
+          sentence.polish.toLowerCase().includes(query) ||
+          sentence.english.toLowerCase().includes(query)) &&
+        (!levelFilter || sentence.level === levelFilter)
+    );
+    return sortItems(filtered, COMPARATORS, { sortField, sortDirection });
   }, [customSentences, searchQuery, levelFilter, sortField, sortDirection]);
 
   if (isLoading) {
@@ -273,89 +197,33 @@ export function CustomSentencesPage() {
       ) : (
         <>
           <FiltersRow>
-            <SearchField
-              size="small"
-              placeholder="Search sentences..."
+            <CustomItemSearchField
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              slotProps={{
-                input: {
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon fontSize="small" color="action" />
-                    </InputAdornment>
-                  ),
-                },
-              }}
+              onChange={setSearchQuery}
+              placeholder="Search sentences..."
             />
-            <FilterSelect size="small">
-              <InputLabel>Level</InputLabel>
-              <Select
-                value={levelFilter}
-                onChange={(e) => setLevelFilter(e.target.value as CEFRLevel | '')}
-                label="Level"
-              >
-                <MenuItem value="">
-                  <em>All</em>
-                </MenuItem>
-                {ALL_LEVELS.map((level) => (
-                  <MenuItem key={level} value={level}>
-                    {level}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FilterSelect>
-            {(searchQuery || levelFilter) && (
-              <Typography variant="body2" color="text.secondary">
-                {filteredAndSortedSentences.length} of {customSentences.length} sentences
-              </Typography>
-            )}
+            <FilterSelectField
+              label="Level"
+              value={levelFilter}
+              options={ALL_LEVELS}
+              onChange={setLevelFilter}
+            />
+            <FilterResultCount
+              visible={Boolean(searchQuery || levelFilter)}
+              shown={filteredAndSortedSentences.length}
+              total={customSentences.length}
+              noun="sentences"
+            />
           </FiltersRow>
 
           <StyledTableContainer elevation={0}>
             <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Actions</TableCell>
-                  {isAdmin && <TableCell>Audio</TableCell>}
-                  <TableCell>
-                    <TableSortLabel
-                      active={sortField === 'polish'}
-                      direction={sortField === 'polish' ? sortDirection : 'asc'}
-                      onClick={() => handleSort('polish')}
-                    >
-                      Polish
-                    </TableSortLabel>
-                  </TableCell>
-                  <TableCell>
-                    <TableSortLabel
-                      active={sortField === 'english'}
-                      direction={sortField === 'english' ? sortDirection : 'asc'}
-                      onClick={() => handleSort('english')}
-                    >
-                      English
-                    </TableSortLabel>
-                  </TableCell>
-                  <TableCell>
-                    <TableSortLabel
-                      active={sortField === 'level'}
-                      direction={sortField === 'level' ? sortDirection : 'asc'}
-                      onClick={() => handleSort('level')}
-                    >
-                      Level
-                    </TableSortLabel>
-                  </TableCell>
-                  <TableCell>
-                    <TableSortLabel
-                      active={sortField === 'createdAt'}
-                      direction={sortField === 'createdAt' ? sortDirection : 'asc'}
-                      onClick={() => handleSort('createdAt')}
-                    >
-                      Added
-                    </TableSortLabel>
-                  </TableCell>
-                </TableRow>
-              </TableHead>
+              <CustomItemTableHead isAdmin={isAdmin}>
+                <SortableHeaderCell field="polish" label="Polish" sort={sort} />
+                <SortableHeaderCell field="english" label="English" sort={sort} />
+                <SortableHeaderCell field="level" label="Level" sort={sort} />
+                <SortableHeaderCell field="createdAt" label="Added" sort={sort} />
+              </CustomItemTableHead>
               <TableBody>
                 {filteredAndSortedSentences.map((sentence) => (
                   <TableRow key={sentence.id}>
@@ -365,8 +233,8 @@ export function CustomSentencesPage() {
                         onDelete={() => handleDeleteSentence(sentence.id)}
                         editLabel="edit sentence"
                         deleteLabel="delete sentence"
-                        onReprioritize={() => handleReprioritize(sentence.id)}
-                        canReprioritize={canReprioritizeSentence(sentenceReviewStores, sentence.id)}
+                        onReprioritize={() => reprioritize(sentence.id)}
+                        canReprioritize={canReprioritize(sentence.id)}
                         reprioritizeLabel="review sentence again"
                       />
                     </TableCell>

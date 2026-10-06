@@ -5,7 +5,7 @@ import { auth, googleProvider } from '../lib/firebase';
 import { getCachedUser, setCachedUser } from '../lib/cachedAuth';
 import { clearUserData } from '../lib/offlineDb/userSync';
 
-export interface AuthContextType {
+interface AuthContextType {
   user: User | null;
   loading: boolean;
   isAdmin: boolean;

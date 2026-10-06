@@ -2,7 +2,7 @@ import { db } from './firebase.js';
 
 export const MAX_FILE_SIZE_USER_AUDIO = 25 * 1024 * 1024;
 export const MAX_DURATION_SECONDS = 600;
-export const MAX_ITEMS_REGULAR = 1;
+const MAX_ITEMS_REGULAR = 1;
 export const MAX_TEXT_CHARS_USER = 2000;
 
 const ACCEPTED_CONTENT_TYPES = new Set([

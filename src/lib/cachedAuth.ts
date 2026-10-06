@@ -37,12 +37,3 @@ export function getCurrentUserId(): string | null {
   // Fall back to cached user for offline mode
   return getCachedUser()?.uid ?? null;
 }
-
-export function getCurrentUser(): User | CachedUser | null {
-  // Try Firebase auth first
-  if (auth.currentUser) {
-    return auth.currentUser;
-  }
-  // Fall back to cached user for offline mode
-  return getCachedUser();
-}

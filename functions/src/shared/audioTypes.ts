@@ -13,20 +13,20 @@ export type AudioType =
   | 'custom-vocabulary'
   | 'custom-declension';
 
-export function isCustomAudioType(type: AudioType): boolean {
+function isCustomAudioType(type: AudioType): boolean {
   return type === 'custom-sentence' || type === 'custom-vocabulary' || type === 'custom-declension';
 }
 
-export function bucketForAudioType(type: AudioType): string {
+function bucketForAudioType(type: AudioType): string {
   return isCustomAudioType(type) ? DEFAULT_BUCKET : AUDIO_BUCKET;
 }
 
-export function buildFirebaseDownloadUrl(bucket: string, filePath: string, token: string): string {
+function buildFirebaseDownloadUrl(bucket: string, filePath: string, token: string): string {
   const encoded = encodeURIComponent(filePath);
   return `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encoded}?alt=media&token=${token}`;
 }
 
-export function getAudioPath(
+function getAudioPath(
   type: AudioType,
   id: string,
   subPath?: string,

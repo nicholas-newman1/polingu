@@ -1,14 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useForm, Controller, useWatch } from 'react-hook-form';
 import {
-  Dialog,
   DialogTitle,
-  DialogContent,
-  DialogActions,
   IconButton,
-  TextField,
-  Box,
-  Button,
   FormControl,
   InputLabel,
   Select,
@@ -19,51 +13,18 @@ import {
   Typography,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
-import { styled } from '../lib/styled';
-import { useBackClose } from '../hooks/useBackClose';
+import { useEditModalClose } from '../hooks/useEditModalClose';
 import { useReviewData } from '../hooks/useReviewData';
 import { useAuthContext } from '../hooks/useAuthContext';
-import { useSinglePolishEnglishAutoTranslate } from '../hooks/usePolishEnglishAutoTranslate';
+import { usePolishEnglishFormAutoTranslate } from '../hooks/usePolishEnglishAutoTranslate';
 import { AudioRegenerator } from './AudioRegenerator';
-import { FieldEndAdornment } from './FieldEndAdornment';
+import { PolishEnglishFields } from './PolishEnglishFields';
+import { ModalDialog, ModalHeader, ModalContent } from './modalStyles';
+import { ModalFooter } from './ModalFooter';
+import { FormSelectField } from './FormFields';
 import type { Sentence, CEFRLevel } from '../types/sentences';
 import { ALL_LEVELS } from '../types/sentences';
 import { findLinkedVocabularyWord } from '../lib/sentences/findLinkedVocabularyWord';
-
-const StyledDialog = styled(Dialog)(({ theme }) => ({
-  '& .MuiDialog-paper': {
-    width: '100%',
-    maxWidth: 600,
-    margin: theme.spacing(2),
-    maxHeight: '90vh',
-  },
-}));
-
-const Header = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  padding: theme.spacing(2, 3),
-  borderBottom: `1px solid ${theme.palette.divider}`,
-}));
-
-const Content = styled(DialogContent)(({ theme }) => ({
-  padding: theme.spacing(3),
-  display: 'flex',
-  flexDirection: 'column',
-  gap: theme.spacing(2),
-}));
-
-const Actions = styled(DialogActions)(({ theme }) => ({
-  padding: theme.spacing(2, 3),
-  borderTop: `1px solid ${theme.palette.divider}`,
-  justifyContent: 'space-between',
-}));
-
-const RightActions = styled(Box)({
-  display: 'flex',
-  gap: 8,
-});
 
 interface FormData {
   polish: string;
@@ -106,7 +67,6 @@ export function EditSentenceModal({
   const { isAdmin } = useAuthContext();
   const { sentenceTags, vocabularyWords } = useReviewData();
   const allTags = [...sentenceTags.topics, ...sentenceTags.grammar, ...sentenceTags.style];
-  const [pendingAudioUrl, setPendingAudioUrl] = useState<string | null>(null);
 
   const linkedVocabularyWord = useMemo(
     () => findLinkedVocabularyWord(sentence, vocabularyWords),
@@ -130,35 +90,17 @@ export function EditSentenceModal({
 
   const polishText = useWatch({ control, name: 'polish' });
 
-  const {
-    handlePolishChange,
-    handleEnglishChange,
-    handlePolishBlur,
-    handleEnglishBlur,
-    isTranslatingPolish,
-    isTranslatingEnglish,
-    cancel: cancelTranslations,
-  } = useSinglePolishEnglishAutoTranslate({
-    getPolish: () => getValues('polish'),
-    getEnglish: () => getValues('english'),
-    onPolishTranslated: (polish) => setValue('polish', polish, { shouldValidate: true }),
-    onEnglishTranslated: (english) => setValue('english', english, { shouldValidate: true }),
+  const translation = usePolishEnglishFormAutoTranslate({ getValues, setValue });
+
+  const { pendingAudioUrl, handleClose, handleAudioSaved } = useEditModalClose({
+    open,
+    onClose,
+    resetForm: () => {
+      reset(getDefaultValues(null));
+      translation.cancel();
+    },
+    onAudioUpdated,
   });
-
-  const handleClose = () => {
-    reset(getDefaultValues(null));
-    cancelTranslations();
-    setPendingAudioUrl(null);
-    onClose();
-  };
-
-  const handleAudioSaved = (audioUrl: string) => {
-    setPendingAudioUrl(audioUrl);
-    onAudioUpdated?.(audioUrl);
-    handleClose();
-  };
-
-  useBackClose(open, handleClose);
 
   const onSubmit = async (data: FormData) => {
     const result = await onSave({
@@ -172,16 +114,16 @@ export function EditSentenceModal({
   };
 
   return (
-    <StyledDialog open={open} onClose={handleClose}>
-      <Header>
+    <ModalDialog $maxWidth={600} $maxHeight="90vh" open={open} onClose={handleClose}>
+      <ModalHeader>
         <DialogTitle sx={{ p: 0, fontWeight: 500 }}>
           {isCreating ? 'Add Sentence' : 'Edit Sentence'}
         </DialogTitle>
         <IconButton onClick={handleClose} size="small" aria-label="close">
           <CloseIcon />
         </IconButton>
-      </Header>
-      <Content>
+      </ModalHeader>
+      <ModalContent>
         {showLinkedVocabulary && (
           <Alert severity="info" data-qa="edit-sentence-linked-vocabulary">
             {linkedVocabularyWord ? (
@@ -215,104 +157,21 @@ export function EditSentenceModal({
           </>
         )}
 
-        <Controller
-          name="polish"
+        <PolishEnglishFields
           control={control}
-          rules={{ required: true, validate: (v) => v.trim().length > 0 }}
-          render={({ field }) => (
-            <TextField
-              {...field}
-              onChange={(e) => {
-                field.onChange(e);
-                handlePolishChange(e.target.value);
-              }}
-              onBlur={() => {
-                field.onBlur();
-                handlePolishBlur();
-              }}
-              label="Polish"
-              fullWidth
-              autoFocus
-              required
-              multiline
-              rows={2}
-              slotProps={{
-                input: {
-                  endAdornment: (
-                    <FieldEndAdornment
-                      value={field.value}
-                      onClear={() => {
-                        field.onChange('');
-                        handlePolishChange('');
-                      }}
-                      clearLabel="Clear Polish"
-                      dataQa="edit-sentence-clear-polish"
-                      isTranslating={isTranslatingPolish}
-                    />
-                  ),
-                },
-              }}
-            />
-          )}
-        />
-
-        <Controller
-          name="english"
-          control={control}
-          rules={{ required: true, validate: (v) => v.trim().length > 0 }}
-          render={({ field }) => (
-            <TextField
-              {...field}
-              onChange={(e) => {
-                field.onChange(e);
-                handleEnglishChange(e.target.value);
-              }}
-              onBlur={() => {
-                field.onBlur();
-                handleEnglishBlur();
-              }}
-              label="English"
-              fullWidth
-              required
-              multiline
-              rows={2}
-              slotProps={{
-                input: {
-                  endAdornment: (
-                    <FieldEndAdornment
-                      value={field.value}
-                      onClear={() => {
-                        field.onChange('');
-                        handleEnglishChange('');
-                      }}
-                      clearLabel="Clear English"
-                      dataQa="edit-sentence-clear-english"
-                      isTranslating={isTranslatingEnglish}
-                    />
-                  ),
-                },
-              }}
-            />
-          )}
+          translation={translation}
+          dataQaPrefix="edit-sentence"
+          autoFocus
+          multiline
         />
 
         <Stack direction="row" spacing={2}>
-          <Controller
+          <FormSelectField
             name="level"
             control={control}
-            rules={{ required: true }}
-            render={({ field }) => (
-              <FormControl fullWidth required>
-                <InputLabel>Level</InputLabel>
-                <Select {...field} label="Level">
-                  {ALL_LEVELS.map((level) => (
-                    <MenuItem key={level} value={level}>
-                      {level}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            )}
+            label="Level"
+            options={ALL_LEVELS}
+            required
           />
 
           <Controller
@@ -337,18 +196,13 @@ export function EditSentenceModal({
             )}
           />
         </Stack>
-      </Content>
-      <Actions>
-        <Box />
-        <RightActions>
-          <Button onClick={handleClose} color="inherit">
-            Cancel
-          </Button>
-          <Button onClick={handleSubmit(onSubmit)} variant="contained" disabled={!isValid}>
-            {isCreating ? 'Add Sentence' : 'Save Changes'}
-          </Button>
-        </RightActions>
-      </Actions>
-    </StyledDialog>
+      </ModalContent>
+      <ModalFooter
+        onCancel={handleClose}
+        onSubmit={handleSubmit(onSubmit)}
+        submitLabel={isCreating ? 'Add Sentence' : 'Save Changes'}
+        submitDisabled={!isValid}
+      />
+    </ModalDialog>
   );
 }

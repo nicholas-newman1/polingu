@@ -14,7 +14,7 @@ export type BookColor =
   | 'purple'
   | 'pink';
 
-export const BOOK_COLORS: BookColor[] = [
+const BOOK_COLORS: BookColor[] = [
   'red',
   'orange',
   'amber',

@@ -36,25 +36,6 @@ export async function createSentences(sentences: Sentence[]): Promise<void> {
   await Promise.all(sentences.map((s) => createSentence(s)));
 }
 
-export async function getNextSentenceId(level: CEFRLevel): Promise<string> {
-  const snapshot = await getDocs(collection(db, 'sentences'));
-  const prefix = level.toLowerCase();
-  let maxNum = 0;
-
-  snapshot.docs.forEach((doc) => {
-    const id = doc.id;
-    if (id.startsWith(prefix + '_')) {
-      const numPart = parseInt(id.split('_')[1], 10);
-      if (!isNaN(numPart) && numPart > maxNum) {
-        maxNum = numPart;
-      }
-    }
-  });
-
-  const nextNum = maxNum + 1;
-  return `${prefix}_${String(nextNum).padStart(3, '0')}`;
-}
-
 export async function getNextSentenceIds(levels: CEFRLevel[]): Promise<Record<CEFRLevel, number>> {
   const snapshot = await getDocs(collection(db, 'sentences'));
   const counters: Record<string, number> = {

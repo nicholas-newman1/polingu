@@ -16,7 +16,7 @@ const MASC_SG_FOOTNOTES = {
   6: 'The Vocative and Nominative forms are the same',
 };
 
-export const adjectiveMasculineSingular: DeclensionTable = {
+const adjectiveMasculineSingular: DeclensionTable = {
   title: 'Masculine',
   gender: 'masculine',
   number: 'singular',
@@ -62,7 +62,7 @@ export const adjectiveMasculineSingular: DeclensionTable = {
   ],
 };
 
-export const adjectiveFeminineSingular: DeclensionTable = {
+const adjectiveFeminineSingular: DeclensionTable = {
   title: 'Feminine',
   gender: 'feminine',
   number: 'singular',
@@ -104,7 +104,7 @@ export const adjectiveFeminineSingular: DeclensionTable = {
   ],
 };
 
-export const adjectiveNeuterSingular: DeclensionTable = {
+const adjectiveNeuterSingular: DeclensionTable = {
   title: 'Neuter',
   gender: 'neuter',
   number: 'singular',
@@ -149,7 +149,7 @@ export const adjectiveNeuterSingular: DeclensionTable = {
   ],
 };
 
-export const adjectiveMasculinePersonalPlural: DeclensionTable = {
+const adjectiveMasculinePersonalPlural: DeclensionTable = {
   title: 'Masculine',
   gender: 'masculine',
   number: 'plural',
@@ -194,7 +194,7 @@ export const adjectiveMasculinePersonalPlural: DeclensionTable = {
   ],
 };
 
-export const adjectiveFeminineNeuterPlural: DeclensionTable = {
+const adjectiveFeminineNeuterPlural: DeclensionTable = {
   title: 'Feminine & Neuter',
   gender: 'feminine',
   number: 'plural',

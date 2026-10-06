@@ -1,9 +1,7 @@
 import { useState, useMemo } from 'react';
-import type { Grade } from 'ts-fsrs';
 import { Box, Chip, Stack, Typography } from '@mui/material';
 import { styled } from '../../../lib/styled';
-import { FlashcardShell } from '../../../components/FlashcardShell';
-import type { RatingIntervals } from '../../../components/RatingButtons';
+import { FlashcardShell, type ReviewFlashcardProps } from '../../../components/FlashcardShell';
 import { AudioButton } from '../../../components/AudioButton';
 import { HidePolishButton } from '../../../components/HidePolishButton';
 import { HiddenPolishPlaceholder } from '../../../components/HiddenPolishPlaceholder';
@@ -13,22 +11,9 @@ import { useTranslationContext } from '../../../hooks/useTranslationContext';
 import { useAudioPlayer } from '../../../hooks/useAudioPlayer';
 import { useAppSettings } from '../../../contexts/AppSettingsContext';
 
-export type DeclensionRatingIntervals = RatingIntervals;
-
-interface DeclensionFlashcardProps {
+interface DeclensionFlashcardProps extends ReviewFlashcardProps {
   card: DeclensionCard;
-  practiceMode?: boolean;
-  isViewingHistory?: boolean;
-  canGoBack?: boolean;
-  intervals?: DeclensionRatingIntervals;
-  reassessIntervals?: DeclensionRatingIntervals;
   canEdit?: boolean;
-  onRate?: (rating: Grade) => void;
-  onReassess?: (rating: Grade) => void;
-  onNext?: () => void;
-  onGoBack?: () => void;
-  onContinue?: () => void;
-  onEdit?: () => void;
   onDelete?: () => void;
   onUpdateTranslation?: (word: string, translation: string) => void;
 }

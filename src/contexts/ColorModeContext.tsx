@@ -1,6 +1,6 @@
 import { createContext, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 
-export type ColorMode = 'light' | 'dark';
+type ColorMode = 'light' | 'dark';
 
 interface ColorModeContextType {
   mode: ColorMode;

@@ -16,6 +16,21 @@ export type PartOfSpeech =
 
 export type NounGender = 'masculine' | 'feminine' | 'neuter';
 
+export const PARTS_OF_SPEECH: PartOfSpeech[] = [
+  'noun',
+  'verb',
+  'adjective',
+  'adverb',
+  'pronoun',
+  'preposition',
+  'conjunction',
+  'particle',
+  'numeral',
+  'proper noun',
+];
+
+export const NOUN_GENDERS: NounGender[] = ['masculine', 'feminine', 'neuter'];
+
 export type VocabularyWordId = number | string;
 
 export interface ExampleSentence {

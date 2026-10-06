@@ -1,64 +1,17 @@
 import { useState } from 'react';
-import { useForm, Controller, useWatch } from 'react-hook-form';
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  IconButton,
-  TextField,
-  Box,
-  Button,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Typography,
-  Divider,
-} from '@mui/material';
+import { useForm, useWatch, type Control } from 'react-hook-form';
+import { DialogTitle, IconButton, Box, Typography, Divider } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import LinkOffIcon from '@mui/icons-material/LinkOff';
 import { styled } from '../lib/styled';
+import { ModalDialog, ModalHeader, ModalContent } from './modalStyles';
+import { ModalFooter } from './ModalFooter';
+import { VerbDetailsFields } from './FormFields';
 import { useBackClose } from '../hooks/useBackClose';
 import { useAuthContext } from '../hooks/useAuthContext';
 import { AudioRegenerator } from './AudioRegenerator';
 import type { AspectPairCard } from '../types/aspectPairs';
 import type { Aspect, VerbClass } from '../types/conjugation';
-import { ALL_ASPECTS, ALL_VERB_CLASSES } from '../types/conjugation';
-
-const StyledDialog = styled(Dialog)(({ theme }) => ({
-  '& .MuiDialog-paper': {
-    width: '100%',
-    maxWidth: 500,
-    margin: theme.spacing(2),
-  },
-}));
-
-const Header = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  padding: theme.spacing(2, 3),
-  borderBottom: `1px solid ${theme.palette.divider}`,
-}));
-
-const Content = styled(DialogContent)(({ theme }) => ({
-  padding: theme.spacing(3),
-  display: 'flex',
-  flexDirection: 'column',
-  gap: theme.spacing(2),
-}));
-
-const Actions = styled(DialogActions)(({ theme }) => ({
-  padding: theme.spacing(2, 3),
-  borderTop: `1px solid ${theme.palette.divider}`,
-  justifyContent: 'space-between',
-}));
-
-const RightActions = styled(Box)({
-  display: 'flex',
-  gap: 8,
-});
 
 const SectionLabel = styled(Typography)(({ theme }) => ({
   fontWeight: 500,
@@ -71,6 +24,9 @@ const VerbSection = styled(Box)(({ theme }) => ({
   padding: theme.spacing(2),
   backgroundColor: theme.palette.action.hover,
   borderRadius: theme.spacing(1),
+  display: 'flex',
+  flexDirection: 'column',
+  gap: theme.spacing(2),
 }));
 
 interface FormData {
@@ -91,6 +47,57 @@ interface VerbUpdates {
   infinitiveEn: string;
   aspect: Aspect;
   verbClass: VerbClass;
+}
+
+type VerbSlot = 'verb1' | 'verb2';
+
+interface VerbSlotSectionProps {
+  slot: VerbSlot;
+  control: Control<FormData>;
+  verb: AspectPairCard['verb'] | undefined;
+  infinitive: string;
+  pendingAudioUrl: string | null;
+  onAudioSaved: (audioUrl: string) => void;
+  showAudio: boolean;
+  withAspect?: boolean;
+  autoFocus?: boolean;
+}
+
+function VerbSlotSection({
+  slot,
+  control,
+  verb,
+  infinitive,
+  pendingAudioUrl,
+  onAudioSaved,
+  showAudio,
+  withAspect,
+  autoFocus,
+}: VerbSlotSectionProps) {
+  return (
+    <VerbSection>
+      {showAudio && verb && (
+        <AudioRegenerator
+          text={infinitive}
+          type="verb-infinitive"
+          id={verb.id}
+          currentAudioUrl={pendingAudioUrl || verb.infinitiveAudioUrl}
+          onAudioSaved={onAudioSaved}
+          label="Infinitive Audio"
+        />
+      )}
+      <VerbDetailsFields
+        control={control}
+        names={{
+          infinitive: `${slot}Infinitive` as const,
+          infinitiveEn: `${slot}InfinitiveEn` as const,
+          aspect: withAspect ? (`${slot}Aspect` as const) : undefined,
+          verbClass: `${slot}VerbClass` as const,
+        }}
+        autoFocus={autoFocus}
+      />
+    </VerbSection>
+  );
 }
 
 interface EditAspectPairsModalProps {
@@ -194,15 +201,32 @@ export function EditAspectPairsModal({
 
   const isBiaspectual = card?.verb.id === card?.pairVerb.id;
 
+  const slots = {
+    verb1: {
+      verb: card?.verb,
+      infinitive: verb1Infinitive,
+      pendingAudioUrl: pendingVerb1AudioUrl,
+      onAudioSaved: handleVerb1AudioSaved,
+      showAudio: isAdmin,
+    },
+    verb2: {
+      verb: card?.pairVerb,
+      infinitive: verb2Infinitive,
+      pendingAudioUrl: pendingVerb2AudioUrl,
+      onAudioSaved: handleVerb2AudioSaved,
+      showAudio: isAdmin,
+    },
+  };
+
   return (
-    <StyledDialog open={open} onClose={handleClose}>
-      <Header>
+    <ModalDialog open={open} onClose={handleClose}>
+      <ModalHeader>
         <DialogTitle sx={{ p: 0, fontWeight: 500 }}>Edit Aspect Pair</DialogTitle>
         <IconButton onClick={handleClose} size="small" aria-label="close">
           <CloseIcon />
         </IconButton>
-      </Header>
-      <Content>
+      </ModalHeader>
+      <ModalContent>
         {isBiaspectual ? (
           <>
             <Typography variant="body2" color="warning.main" sx={{ mb: 1 }}>
@@ -210,266 +234,35 @@ export function EditAspectPairsModal({
             </Typography>
 
             <SectionLabel>Verb Details</SectionLabel>
-            <VerbSection>
-              {isAdmin && card && (
-                <Box sx={{ mb: 2 }}>
-                  <AudioRegenerator
-                    text={verb1Infinitive}
-                    type="verb-infinitive"
-                    id={card.verb.id}
-                    currentAudioUrl={pendingVerb1AudioUrl || card.verb.infinitiveAudioUrl}
-                    onAudioSaved={handleVerb1AudioSaved}
-                    label="Infinitive Audio"
-                  />
-                </Box>
-              )}
-
-              <Controller
-                name="verb1Infinitive"
-                control={control}
-                rules={{ required: true, validate: (v) => v.trim().length > 0 }}
-                render={({ field }) => (
-                  <TextField
-                    {...field}
-                    label="Polish Infinitive"
-                    fullWidth
-                    autoFocus
-                    required
-                    sx={{ mb: 2 }}
-                  />
-                )}
-              />
-
-              <Controller
-                name="verb1InfinitiveEn"
-                control={control}
-                rules={{ required: true, validate: (v) => v.trim().length > 0 }}
-                render={({ field }) => (
-                  <TextField
-                    {...field}
-                    label="English Infinitive"
-                    fullWidth
-                    required
-                    sx={{ mb: 2 }}
-                  />
-                )}
-              />
-
-              <Controller
-                name="verb1VerbClass"
-                control={control}
-                rules={{ required: true }}
-                render={({ field }) => (
-                  <FormControl fullWidth required>
-                    <InputLabel>Verb Class</InputLabel>
-                    <Select {...field} label="Verb Class">
-                      {ALL_VERB_CLASSES.map((vc) => (
-                        <MenuItem key={vc} value={vc}>
-                          {vc}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                )}
-              />
-            </VerbSection>
+            <VerbSlotSection slot="verb1" control={control} {...slots.verb1} autoFocus />
           </>
         ) : (
           <>
             <SectionLabel>
               {card?.verb.aspect} Verb ({card?.verb.infinitive})
             </SectionLabel>
-            <VerbSection>
-              {isAdmin && card && (
-                <Box sx={{ mb: 2 }}>
-                  <AudioRegenerator
-                    text={verb1Infinitive}
-                    type="verb-infinitive"
-                    id={card.verb.id}
-                    currentAudioUrl={pendingVerb1AudioUrl || card.verb.infinitiveAudioUrl}
-                    onAudioSaved={handleVerb1AudioSaved}
-                    label="Infinitive Audio"
-                  />
-                </Box>
-              )}
-
-              <Controller
-                name="verb1Infinitive"
-                control={control}
-                rules={{ required: true, validate: (v) => v.trim().length > 0 }}
-                render={({ field }) => (
-                  <TextField
-                    {...field}
-                    label="Polish Infinitive"
-                    fullWidth
-                    autoFocus
-                    required
-                    sx={{ mb: 2 }}
-                  />
-                )}
-              />
-
-              <Controller
-                name="verb1InfinitiveEn"
-                control={control}
-                rules={{ required: true, validate: (v) => v.trim().length > 0 }}
-                render={({ field }) => (
-                  <TextField
-                    {...field}
-                    label="English Infinitive"
-                    fullWidth
-                    required
-                    sx={{ mb: 2 }}
-                  />
-                )}
-              />
-
-              <Box sx={{ display: 'flex', gap: 2 }}>
-                <Controller
-                  name="verb1Aspect"
-                  control={control}
-                  rules={{ required: true }}
-                  render={({ field }) => (
-                    <FormControl fullWidth required>
-                      <InputLabel>Aspect</InputLabel>
-                      <Select {...field} label="Aspect">
-                        {ALL_ASPECTS.map((a) => (
-                          <MenuItem key={a} value={a}>
-                            {a}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  )}
-                />
-
-                <Controller
-                  name="verb1VerbClass"
-                  control={control}
-                  rules={{ required: true }}
-                  render={({ field }) => (
-                    <FormControl fullWidth required>
-                      <InputLabel>Verb Class</InputLabel>
-                      <Select {...field} label="Verb Class">
-                        {ALL_VERB_CLASSES.map((vc) => (
-                          <MenuItem key={vc} value={vc}>
-                            {vc}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  )}
-                />
-              </Box>
-            </VerbSection>
+            <VerbSlotSection slot="verb1" control={control} {...slots.verb1} withAspect autoFocus />
 
             <Divider sx={{ my: 1 }} />
 
             <SectionLabel>
               {card?.pairVerb.aspect} Verb ({card?.pairVerb.infinitive})
             </SectionLabel>
-            <VerbSection>
-              {isAdmin && card && (
-                <Box sx={{ mb: 2 }}>
-                  <AudioRegenerator
-                    text={verb2Infinitive}
-                    type="verb-infinitive"
-                    id={card.pairVerb.id}
-                    currentAudioUrl={pendingVerb2AudioUrl || card.pairVerb.infinitiveAudioUrl}
-                    onAudioSaved={handleVerb2AudioSaved}
-                    label="Infinitive Audio"
-                  />
-                </Box>
-              )}
-
-              <Controller
-                name="verb2Infinitive"
-                control={control}
-                rules={{ required: true, validate: (v) => v.trim().length > 0 }}
-                render={({ field }) => (
-                  <TextField
-                    {...field}
-                    label="Polish Infinitive"
-                    fullWidth
-                    required
-                    sx={{ mb: 2 }}
-                  />
-                )}
-              />
-
-              <Controller
-                name="verb2InfinitiveEn"
-                control={control}
-                rules={{ required: true, validate: (v) => v.trim().length > 0 }}
-                render={({ field }) => (
-                  <TextField
-                    {...field}
-                    label="English Infinitive"
-                    fullWidth
-                    required
-                    sx={{ mb: 2 }}
-                  />
-                )}
-              />
-
-              <Box sx={{ display: 'flex', gap: 2 }}>
-                <Controller
-                  name="verb2Aspect"
-                  control={control}
-                  rules={{ required: true }}
-                  render={({ field }) => (
-                    <FormControl fullWidth required>
-                      <InputLabel>Aspect</InputLabel>
-                      <Select {...field} label="Aspect">
-                        {ALL_ASPECTS.map((a) => (
-                          <MenuItem key={a} value={a}>
-                            {a}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  )}
-                />
-
-                <Controller
-                  name="verb2VerbClass"
-                  control={control}
-                  rules={{ required: true }}
-                  render={({ field }) => (
-                    <FormControl fullWidth required>
-                      <InputLabel>Verb Class</InputLabel>
-                      <Select {...field} label="Verb Class">
-                        {ALL_VERB_CLASSES.map((vc) => (
-                          <MenuItem key={vc} value={vc}>
-                            {vc}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  )}
-                />
-              </Box>
-            </VerbSection>
+            <VerbSlotSection slot="verb2" control={control} {...slots.verb2} withAspect />
           </>
         )}
-      </Content>
-      <Actions>
-        <Box>
-          {onUnlink && !isBiaspectual && (
-            <Button onClick={handleUnlink} color="error" startIcon={<LinkOffIcon />}>
-              Unlink Pair
-            </Button>
-          )}
-        </Box>
-        <RightActions>
-          <Button onClick={handleClose} color="inherit">
-            Cancel
-          </Button>
-          <Button onClick={handleSubmit(onSubmit)} variant="contained" disabled={!isValid}>
-            Save Changes
-          </Button>
-        </RightActions>
-      </Actions>
-    </StyledDialog>
+      </ModalContent>
+      <ModalFooter
+        onCancel={handleClose}
+        onSubmit={handleSubmit(onSubmit)}
+        submitLabel="Save Changes"
+        submitDisabled={!isValid}
+        destructiveAction={
+          onUnlink && !isBiaspectual
+            ? { label: 'Unlink Pair', icon: <LinkOffIcon />, onClick: handleUnlink }
+            : undefined
+        }
+      />
+    </ModalDialog>
   );
 }

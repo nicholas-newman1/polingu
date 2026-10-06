@@ -20,9 +20,7 @@ import LibraryBooksIcon from '@mui/icons-material/LibraryBooks';
 import { useTranslationContext } from '../../hooks/useTranslationContext';
 import { useCheatSheetContext } from '../../hooks/useCheatSheetContext';
 import { alpha } from '../../lib/theme';
-import { DRAWER_WIDTH } from '../Layout';
-
-export const BOTTOM_MENU_BAR_HEIGHT = 77;
+import { DRAWER_WIDTH } from '../../constants/layout';
 
 const MenuBarContainer = styled(Box)(({ theme }) => ({
   position: 'fixed',

@@ -27,7 +27,7 @@ export interface FeatureNavItem {
  * the sidebar navigation and dashboard cards.
  * Order here determines display order in both places.
  */
-export const FEATURE_NAV_ITEMS: FeatureNavItem[] = [
+const FEATURE_NAV_ITEMS: FeatureNavItem[] = [
   {
     path: '/vocabulary',
     icon: Abc,
@@ -84,7 +84,7 @@ export interface ExtraNavItem {
   colorKey: ColorKey;
 }
 
-export const EXTRA_NAV_ITEMS: ExtraNavItem[] = [
+const EXTRA_NAV_ITEMS: ExtraNavItem[] = [
   {
     path: '/consonant-driller',
     icon: MusicNote,
@@ -123,7 +123,7 @@ export type DashboardNavItem =
   | (FeatureNavItem & { kind: 'feature' })
   | (ExtraNavItem & { kind: 'extra' });
 
-export const ALL_DASHBOARD_NAV_ITEMS: DashboardNavItem[] = [
+const ALL_DASHBOARD_NAV_ITEMS: DashboardNavItem[] = [
   ...FEATURE_NAV_ITEMS.map((item) => ({ ...item, kind: 'feature' as const })),
   ...EXTRA_NAV_ITEMS.map((item) => ({ ...item, kind: 'extra' as const })),
 ];

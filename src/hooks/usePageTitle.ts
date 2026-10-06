@@ -16,11 +16,3 @@ export function usePageTitle(title: string | null) {
     };
   }, [title, context]);
 }
-
-export function usePageTitleContext() {
-  const context = useContext(PageTitleContext);
-  if (!context) {
-    throw new Error('usePageTitleContext must be used within a PageTitleProvider');
-  }
-  return context;
-}

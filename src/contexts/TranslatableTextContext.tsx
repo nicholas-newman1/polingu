@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from 'react';
 
-export interface ActiveWordState {
+interface ActiveWordState {
   index: number;
   word: string;
   anchorEl: HTMLElement;
@@ -19,7 +19,7 @@ export interface ActiveWordState {
   sentenceId?: string;
 }
 
-export interface TranslatableTextActionsContextValue {
+interface TranslatableTextActionsContextValue {
   startDrag: (index: number, element: HTMLElement) => void;
   updateDrag: (index: number) => void;
   endDrag: () => void;
@@ -35,18 +35,10 @@ export interface TranslatableTextActionsContextValue {
   getInteractionState: () => { isDragging: boolean; hasPhrase: boolean };
 }
 
-export interface TranslatableTextUIContextValue {
+interface TranslatableTextUIContextValue {
   activeWord: ActiveWordState | null;
   phraseAnchorEl: HTMLElement | null;
   selectedPhrase: string | null;
-}
-
-/** @deprecated Use TranslatableTextActionsContextValue or TranslatableTextUIContextValue */
-export interface TranslatableTextContextValue extends TranslatableTextActionsContextValue {
-  isDragging: boolean;
-  phraseAnchorEl: HTMLElement | null;
-  selectedPhrase: string | null;
-  activeWord: ActiveWordState | null;
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -55,9 +47,6 @@ export const TranslatableTextActionsContext =
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const TranslatableTextUIContext = createContext<TranslatableTextUIContextValue | null>(null);
-
-/** @deprecated Use TranslatableTextActionsContext */
-export const TranslatableTextContext = TranslatableTextActionsContext;
 
 interface TranslatableTextProviderProps {
   children: React.ReactNode;

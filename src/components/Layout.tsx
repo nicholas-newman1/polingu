@@ -40,8 +40,7 @@ import { PageTitleContext, PageTitleProvider } from '../contexts/PageTitleContex
 import { AddToVocabularyProvider } from '../contexts/AddToVocabularyContext';
 import { AddSentenceProvider } from '../contexts/AddSentenceContext';
 import { ListeningMiniBar } from './ListeningMiniBar';
-
-export const DRAWER_WIDTH = 260;
+import { DRAWER_WIDTH } from '../constants/layout';
 
 const PageContainer = styled(Box)({
   minHeight: '100vh',

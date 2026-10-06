@@ -1,4 +1,4 @@
-import { doc, getDoc, setDoc, updateDoc, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { getUserId } from '../storage/helpers';
 import type { AudioQueue } from '../../types/audio';
@@ -28,17 +28,4 @@ export async function updateQueueSavedTime(time: number): Promise<void> {
   const ref = getQueueDocRef();
   if (!ref) return;
   await updateDoc(ref, { savedTime: time, updatedAt: Date.now() });
-}
-
-export function subscribeToAudioQueue(callback: (queue: AudioQueue | null) => void): () => void {
-  const ref = getQueueDocRef();
-  if (!ref) return () => {};
-
-  return onSnapshot(ref, (snapshot) => {
-    if (!snapshot.exists()) {
-      callback(null);
-      return;
-    }
-    callback(snapshot.data() as AudioQueue);
-  });
 }

@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Dialog,
   DialogTitle,
-  DialogContent,
   IconButton,
   TextField,
   Box,
@@ -14,6 +13,7 @@ import {
   ListItemText,
 } from '@mui/material';
 import { styled } from '../../lib/styled';
+import { ModalHeader, ModalContent } from '../modalStyles';
 import CloseIcon from '@mui/icons-material/Close';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import BookmarkAddIcon from '@mui/icons-material/BookmarkAdd';
@@ -43,21 +43,6 @@ const StyledDialog = styled(Dialog)<{ $keyboardOpen?: boolean }>(({ theme, $keyb
   },
 }));
 
-const Header = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  padding: theme.spacing(2, 3),
-  borderBottom: `1px solid ${theme.palette.divider}`,
-}));
-
-const Content = styled(DialogContent)(({ theme }) => ({
-  padding: theme.spacing(3),
-  display: 'flex',
-  flexDirection: 'column',
-  gap: theme.spacing(2),
-}));
-
 const ResultBox = styled(Box)(({ theme }) => ({
   position: 'relative',
   padding: theme.spacing(2),
@@ -76,6 +61,56 @@ const ResultActions = styled(Box)(({ theme }) => ({
   display: 'flex',
   gap: theme.spacing(0.25),
 }));
+
+const getTranslationErrorMessage = (err: unknown): string | null => {
+  if (err instanceof Error && err.name === 'AbortError') return null;
+  if (err instanceof RateLimitMinuteError) return 'Too many requests. Please wait a moment.';
+  console.error('Translation error:', err);
+  return 'Translation failed. Please try again.';
+};
+
+interface TranslationResultProps {
+  loading: boolean;
+  error: string | null;
+  result: string;
+  onCopy: () => void;
+  onSave?: (event: React.MouseEvent<HTMLElement>) => void;
+}
+
+function TranslationResult({ loading, error, result, onCopy, onSave }: TranslationResultProps) {
+  if (loading) return <CircularProgress size={24} />;
+  if (error) {
+    return (
+      <Typography color="error" variant="body2">
+        {error}
+      </Typography>
+    );
+  }
+  if (!result) {
+    return (
+      <Typography variant="body2" color="text.disabled">
+        Translation will appear here
+      </Typography>
+    );
+  }
+  return (
+    <>
+      <Typography variant="body1" sx={{ width: '100%', pr: 8 }}>
+        {result}
+      </Typography>
+      <ResultActions>
+        <IconButton size="small" onClick={onCopy} aria-label="copy translation">
+          <ContentCopyIcon fontSize="small" />
+        </IconButton>
+        {onSave && (
+          <IconButton size="small" onClick={onSave} aria-label="save translation">
+            <BookmarkAddIcon fontSize="small" />
+          </IconButton>
+        )}
+      </ResultActions>
+    </>
+  );
+}
 
 export function TranslatorModal() {
   const {
@@ -149,21 +184,12 @@ export function TranslatorModal() {
         setResult(translationResult.translatedText);
         onTranslationSuccess?.(translationResult);
       } catch (err) {
-        if (err instanceof Error && err.name === 'AbortError') return;
-
-        if (err instanceof RateLimitMinuteError) {
-          setError('Too many requests. Please wait a moment.');
-          return;
-        }
-
         if (err instanceof RateLimitDailyError) {
           handleClose();
           onDailyLimitReached(err.resetTime);
           return;
         }
-
-        console.error('Translation error:', err);
-        setError('Translation failed. Please try again.');
+        setError(getTranslationErrorMessage(err));
       } finally {
         setLoading(false);
       }
@@ -226,13 +252,13 @@ export function TranslatorModal() {
 
   return (
     <StyledDialog open={open} onClose={handleClose} $keyboardOpen={keyboardOpen}>
-      <Header>
+      <ModalHeader>
         <DialogTitle sx={{ p: 0, fontWeight: 500 }}>Translator</DialogTitle>
         <IconButton onClick={handleClose} size="small" aria-label="close">
           <CloseIcon />
         </IconButton>
-      </Header>
-      <Content>
+      </ModalHeader>
+      <ModalContent>
         <TextField
           multiline
           rows={3}
@@ -259,39 +285,15 @@ export function TranslatorModal() {
         </Box>
 
         <ResultBox>
-          {loading ? (
-            <CircularProgress size={24} />
-          ) : error ? (
-            <Typography color="error" variant="body2">
-              {error}
-            </Typography>
-          ) : result ? (
-            <>
-              <Typography variant="body1" sx={{ width: '100%', pr: 8 }}>
-                {result}
-              </Typography>
-              <ResultActions>
-                <IconButton size="small" onClick={handleCopy} aria-label="copy translation">
-                  <ContentCopyIcon fontSize="small" />
-                </IconButton>
-                {(addToVocabulary || addSentence) && (
-                  <IconButton
-                    size="small"
-                    onClick={handleOpenAddMenu}
-                    aria-label="save translation"
-                  >
-                    <BookmarkAddIcon fontSize="small" />
-                  </IconButton>
-                )}
-              </ResultActions>
-            </>
-          ) : (
-            <Typography variant="body2" color="text.disabled">
-              Translation will appear here
-            </Typography>
-          )}
+          <TranslationResult
+            loading={loading}
+            error={error}
+            result={result}
+            onCopy={handleCopy}
+            onSave={addToVocabulary || addSentence ? handleOpenAddMenu : undefined}
+          />
         </ResultBox>
-      </Content>
+      </ModalContent>
       <Menu
         anchorEl={addMenuAnchor}
         open={Boolean(addMenuAnchor)}

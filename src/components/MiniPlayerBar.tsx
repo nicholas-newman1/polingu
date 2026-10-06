@@ -7,8 +7,7 @@ import PauseIcon from '@mui/icons-material/Pause';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import { styled } from '../lib/styled';
 import { useAudioPlayerContext } from '../contexts/AudioPlayerContext';
-import { DRAWER_WIDTH } from './Layout';
-import { BOTTOM_MENU_BAR_HEIGHT } from './BottomMenu/BottomMenuBar';
+import { BOTTOM_MENU_BAR_HEIGHT, DRAWER_WIDTH } from '../constants/layout';
 import { QueueDrawer } from './QueueDrawer';
 
 export const MINI_PLAYER_HEIGHT = 64;

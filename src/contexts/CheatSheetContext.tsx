@@ -1,6 +1,6 @@
 import { createContext, useState, useCallback, type ReactNode } from 'react';
 
-export type CheatSheetType =
+type CheatSheetType =
   | 'declension'
   | 'adjective-declension'
   | 'consonants'
@@ -8,7 +8,7 @@ export type CheatSheetType =
   | 'conjugation'
   | null;
 
-export interface CheatSheetContextValue {
+interface CheatSheetContextValue {
   activeSheet: CheatSheetType;
   openSheet: (sheet: CheatSheetType) => void;
   closeSheet: () => void;

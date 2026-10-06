@@ -1,18 +1,10 @@
-import { useState } from 'react';
 import { useForm, Controller, useFieldArray, useWatch } from 'react-hook-form';
 import {
-  Dialog,
   DialogTitle,
-  DialogContent,
-  DialogActions,
   IconButton,
   TextField,
   Box,
   Button,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   Typography,
   Divider,
 } from '@mui/material';
@@ -20,45 +12,21 @@ import CloseIcon from '@mui/icons-material/Close';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import { styled } from '../lib/styled';
-import { useBackClose } from '../hooks/useBackClose';
+import { ModalDialog, ModalHeader, ModalContent } from './modalStyles';
+import { ModalFooter } from './ModalFooter';
+import { FormTextField, FormYesNoField, VerbDetailsFields } from './FormFields';
+import { useEditModalClose } from '../hooks/useEditModalClose';
 import { useAuthContext } from '../hooks/useAuthContext';
 import { AudioRegenerator } from './AudioRegenerator';
 import type { DrillableForm, ConjugationForm, Aspect, VerbClass } from '../types/conjugation';
-import { ALL_ASPECTS, ALL_VERB_CLASSES, TENSE_LABELS } from '../types/conjugation';
+import { TENSE_LABELS } from '../types/conjugation';
 
-const StyledDialog = styled(Dialog)(({ theme }) => ({
-  '& .MuiDialog-paper': {
-    width: '100%',
-    maxWidth: 500,
-    margin: theme.spacing(2),
-  },
-}));
-
-const Header = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  padding: theme.spacing(2, 3),
-  borderBottom: `1px solid ${theme.palette.divider}`,
-}));
-
-const Content = styled(DialogContent)(({ theme }) => ({
-  padding: theme.spacing(3),
-  display: 'flex',
-  flexDirection: 'column',
-  gap: theme.spacing(2),
-}));
-
-const Actions = styled(DialogActions)(({ theme }) => ({
-  padding: theme.spacing(2, 3),
-  borderTop: `1px solid ${theme.palette.divider}`,
-  justifyContent: 'space-between',
-}));
-
-const RightActions = styled(Box)({
-  display: 'flex',
-  gap: 8,
-});
+const VERB_FIELD_NAMES = {
+  infinitive: 'infinitive',
+  infinitiveEn: 'infinitiveEn',
+  aspect: 'aspect',
+  verbClass: 'verbClass',
+} as const;
 
 const SectionLabel = styled(Typography)(({ theme }) => ({
   fontWeight: 500,
@@ -124,7 +92,6 @@ export function EditConjugationModal({
   onAudioUpdated,
 }: EditConjugationModalProps) {
   const { isAdmin } = useAuthContext();
-  const [pendingAudioUrl, setPendingAudioUrl] = useState<string | null>(null);
 
   const {
     control,
@@ -143,19 +110,12 @@ export function EditConjugationModal({
 
   const plText = useWatch({ control, name: 'pl' });
 
-  const handleClose = () => {
-    reset(getDefaultValues(null));
-    setPendingAudioUrl(null);
-    onClose();
-  };
-
-  const handleAudioSaved = (audioUrl: string) => {
-    setPendingAudioUrl(audioUrl);
-    onAudioUpdated?.(audioUrl);
-    handleClose();
-  };
-
-  useBackClose(open, handleClose);
+  const { pendingAudioUrl, handleClose, handleAudioSaved } = useEditModalClose({
+    open,
+    onClose,
+    resetForm: () => reset(getDefaultValues(null)),
+    onAudioUpdated,
+  });
 
   const onSubmit = (data: FormData) => {
     const verbUpdates = {
@@ -200,14 +160,14 @@ export function EditConjugationModal({
   const genderLabel = form?.gender ? ` (${form.gender.toLowerCase()})` : '';
 
   return (
-    <StyledDialog open={open} onClose={handleClose}>
-      <Header>
+    <ModalDialog open={open} onClose={handleClose}>
+      <ModalHeader>
         <DialogTitle sx={{ p: 0, fontWeight: 500 }}>Edit Conjugation</DialogTitle>
         <IconButton onClick={handleClose} size="small" aria-label="close">
           <CloseIcon />
         </IconButton>
-      </Header>
-      <Content>
+      </ModalHeader>
+      <ModalContent>
         {form && (
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
             {tenseLabel} · {personLabel}
@@ -217,91 +177,13 @@ export function EditConjugationModal({
 
         <SectionLabel>Verb Details</SectionLabel>
 
-        <Controller
-          name="infinitive"
-          control={control}
-          rules={{ required: true, validate: (v) => v.trim().length > 0 }}
-          render={({ field }) => (
-            <TextField
-              {...field}
-              label="Polish Infinitive"
-              fullWidth
-              autoFocus
-              required
-              placeholder="e.g., robić"
-            />
-          )}
-        />
+        <VerbDetailsFields control={control} names={VERB_FIELD_NAMES} autoFocus withPlaceholders />
 
-        <Controller
-          name="infinitiveEn"
-          control={control}
-          rules={{ required: true, validate: (v) => v.trim().length > 0 }}
-          render={({ field }) => (
-            <TextField
-              {...field}
-              label="English Infinitive"
-              fullWidth
-              required
-              placeholder="e.g., to do"
-            />
-          )}
-        />
-
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          <Controller
-            name="aspect"
-            control={control}
-            rules={{ required: true }}
-            render={({ field }) => (
-              <FormControl fullWidth required>
-                <InputLabel>Aspect</InputLabel>
-                <Select {...field} label="Aspect">
-                  {ALL_ASPECTS.map((a) => (
-                    <MenuItem key={a} value={a}>
-                      {a}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            )}
-          />
-
-          <Controller
-            name="verbClass"
-            control={control}
-            rules={{ required: true }}
-            render={({ field }) => (
-              <FormControl fullWidth required>
-                <InputLabel>Verb Class</InputLabel>
-                <Select {...field} label="Verb Class">
-                  {ALL_VERB_CLASSES.map((vc) => (
-                    <MenuItem key={vc} value={vc}>
-                      {vc}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            )}
-          />
-        </Box>
-
-        <Controller
+        <FormYesNoField
           name="isReflexive"
           control={control}
-          render={({ field }) => (
-            <FormControl fullWidth>
-              <InputLabel>Reflexive</InputLabel>
-              <Select
-                value={field.value ? 'yes' : 'no'}
-                onChange={(e) => field.onChange(e.target.value === 'yes')}
-                label="Reflexive"
-              >
-                <MenuItem value="no">No</MenuItem>
-                <MenuItem value="yes">Yes (się)</MenuItem>
-              </Select>
-            </FormControl>
-          )}
+          label="Reflexive"
+          yesLabel="Yes (się)"
         />
 
         <Divider sx={{ my: 1 }} />
@@ -322,19 +204,12 @@ export function EditConjugationModal({
           </>
         )}
 
-        <Controller
+        <FormTextField
           name="pl"
           control={control}
-          rules={{ required: true, validate: (v) => v.trim().length > 0 }}
-          render={({ field }) => (
-            <TextField
-              {...field}
-              label="Polish Form"
-              fullWidth
-              required
-              placeholder="e.g., robię"
-            />
-          )}
+          label="Polish Form"
+          required
+          placeholder="e.g., robię"
         />
 
         <Box>
@@ -360,41 +235,25 @@ export function EditConjugationModal({
           </Button>
         </Box>
 
-        <Controller
+        <FormTextField
           name="en"
           control={control}
-          rules={{ required: true, validate: (v) => v.trim().length > 0 }}
-          render={({ field }) => (
-            <TextField
-              {...field}
-              label="English Translations"
-              fullWidth
-              required
-              multiline
-              rows={2}
-              placeholder="Comma-separated, e.g., I do, I am doing, I make"
-              helperText="Separate multiple translations with commas"
-            />
-          )}
+          label="English Translations"
+          required
+          multiline
+          placeholder="Comma-separated, e.g., I do, I am doing, I make"
+          helperText="Separate multiple translations with commas"
         />
-      </Content>
-      <Actions>
-        <Box>
-          {onDelete && (
-            <Button onClick={handleDelete} color="error" startIcon={<DeleteIcon />}>
-              Delete Verb
-            </Button>
-          )}
-        </Box>
-        <RightActions>
-          <Button onClick={handleClose} color="inherit">
-            Cancel
-          </Button>
-          <Button onClick={handleSubmit(onSubmit)} variant="contained" disabled={!isValid}>
-            Save Changes
-          </Button>
-        </RightActions>
-      </Actions>
-    </StyledDialog>
+      </ModalContent>
+      <ModalFooter
+        onCancel={handleClose}
+        onSubmit={handleSubmit(onSubmit)}
+        submitLabel="Save Changes"
+        submitDisabled={!isValid}
+        destructiveAction={
+          onDelete && { label: 'Delete Verb', icon: <DeleteIcon />, onClick: handleDelete }
+        }
+      />
+    </ModalDialog>
   );
 }

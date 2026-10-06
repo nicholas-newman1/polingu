@@ -1,18 +1,10 @@
-import { useState, useCallback, useEffect } from 'react';
-import { useForm, Controller, useWatch } from 'react-hook-form';
+import { useState, useCallback } from 'react';
+import { useForm, useWatch } from 'react-hook-form';
 import {
-  Dialog,
   DialogTitle,
-  DialogContent,
-  DialogActions,
   IconButton,
   TextField,
   Box,
-  Button,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   Divider,
   Accordion,
   AccordionSummary,
@@ -23,12 +15,13 @@ import CloseIcon from '@mui/icons-material/Close';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { styled } from '../lib/styled';
-import { useBackClose } from '../hooks/useBackClose';
+import { ModalDialog, ModalHeader, ModalContent } from './modalStyles';
+import { ModalFooter } from './ModalFooter';
+import { FormTextField, FormYesNoField, VerbDetailsFields } from './FormFields';
+import { useEditModalClose } from '../hooks/useEditModalClose';
 import { AudioRegenerator, InlineAudioRegenerator } from './AudioRegenerator';
 import type { Verb, Aspect, VerbClass, Tense, ConjugationForm } from '../types/conjugation';
 import {
-  ALL_ASPECTS,
-  ALL_VERB_CLASSES,
   TENSE_LABELS,
   PRESENT_FORM_KEYS,
   PAST_FORM_KEYS,
@@ -36,6 +29,13 @@ import {
   IMPERATIVE_FORM_KEYS,
   CONDITIONAL_FORM_KEYS,
 } from '../types/conjugation';
+
+const VERB_FIELD_NAMES = {
+  infinitive: 'infinitive',
+  infinitiveEn: 'infinitiveEn',
+  aspect: 'aspect',
+  verbClass: 'verbClass',
+} as const;
 
 const TENSE_FORM_KEYS: Record<Tense, readonly string[]> = {
   present: PRESENT_FORM_KEYS,
@@ -45,40 +45,20 @@ const TENSE_FORM_KEYS: Record<Tense, readonly string[]> = {
   conditional: CONDITIONAL_FORM_KEYS,
 };
 
-const StyledDialog = styled(Dialog)(({ theme }) => ({
-  '& .MuiDialog-paper': {
-    width: '100%',
-    maxWidth: 700,
-    margin: theme.spacing(2),
-    maxHeight: '90vh',
-  },
-}));
+const cloneConjugations = (verb: Verb | null): Verb['conjugations'] =>
+  verb ? JSON.parse(JSON.stringify(verb.conjugations)) : {};
 
-const Header = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  padding: theme.spacing(2, 3),
-  borderBottom: `1px solid ${theme.palette.divider}`,
-}));
-
-const Content = styled(DialogContent)(({ theme }) => ({
-  padding: theme.spacing(3),
-  display: 'flex',
-  flexDirection: 'column',
-  gap: theme.spacing(2),
-}));
-
-const Actions = styled(DialogActions)(({ theme }) => ({
-  padding: theme.spacing(2, 3),
-  borderTop: `1px solid ${theme.palette.divider}`,
-  justifyContent: 'space-between',
-}));
-
-const RightActions = styled(Box)({
-  display: 'flex',
-  gap: 8,
-});
+function updateConjugationForm(
+  conjugations: Verb['conjugations'],
+  tense: Tense,
+  formKey: string,
+  update: (form: ConjugationForm) => ConjugationForm
+): Verb['conjugations'] {
+  const tenseForms = conjugations[tense] as Record<string, ConjugationForm> | undefined;
+  const currentForm = tenseForms?.[formKey];
+  if (!tenseForms || !currentForm) return conjugations;
+  return { ...conjugations, [tense]: { ...tenseForms, [formKey]: update(currentForm) } };
+}
 
 const FormRow = styled(Box)(({ theme }) => ({
   display: 'flex',
@@ -132,8 +112,12 @@ export function EditVerbModal({
   verb,
   onAudioUpdated,
 }: EditVerbModalProps) {
-  const [pendingAudioUrl, setPendingAudioUrl] = useState<string | null>(null);
-  const [editConjugations, setEditConjugations] = useState<Verb['conjugations']>({});
+  const [editConjugations, setEditConjugations] = useState(() => cloneConjugations(verb));
+  const [prevVerb, setPrevVerb] = useState(verb);
+  if (verb !== prevVerb) {
+    setPrevVerb(verb);
+    setEditConjugations(cloneConjugations(verb));
+  }
 
   const {
     control,
@@ -147,73 +131,39 @@ export function EditVerbModal({
 
   const infinitiveText = useWatch({ control, name: 'infinitive' });
 
-  useEffect(() => {
-    if (verb) {
-      setEditConjugations(JSON.parse(JSON.stringify(verb.conjugations)));
-    } else {
+  const { pendingAudioUrl, handleClose, handleAudioSaved } = useEditModalClose({
+    open,
+    onClose,
+    resetForm: () => {
+      reset(getDefaultValues(null));
       setEditConjugations({});
-    }
-  }, [verb]);
-
-  const handleClose = () => {
-    reset(getDefaultValues(null));
-    setPendingAudioUrl(null);
-    setEditConjugations({});
-    onClose();
-  };
-
-  const handleAudioSaved = (audioUrl: string) => {
-    setPendingAudioUrl(audioUrl);
-    onAudioUpdated?.(audioUrl);
-    handleClose();
-  };
-
-  useBackClose(open, handleClose);
+    },
+    onAudioUpdated,
+  });
 
   const updateFormField = useCallback(
     (tense: Tense, formKey: string, field: 'pl' | 'en', value: string) => {
-      setEditConjugations((prev) => {
-        const updated = { ...prev };
-        const tenseForms = updated[tense];
-        if (!tenseForms) return prev;
-        const currentForm = (tenseForms as Record<string, ConjugationForm>)[formKey];
-        if (!currentForm) return prev;
-
-        const updatedForm: ConjugationForm =
+      setEditConjugations((prev) =>
+        updateConjugationForm(prev, tense, formKey, (form) =>
           field === 'pl'
-            ? { ...currentForm, pl: value }
+            ? { ...form, pl: value }
             : {
-                ...currentForm,
+                ...form,
                 en: value
                   .split(',')
                   .map((s) => s.trim())
                   .filter((s) => s.length > 0),
-              };
-
-        (updated[tense] as Record<string, ConjugationForm>) = {
-          ...(tenseForms as Record<string, ConjugationForm>),
-          [formKey]: updatedForm,
-        };
-        return updated;
-      });
+              }
+        )
+      );
     },
     []
   );
 
   const handleFormAudioSaved = useCallback((tense: Tense, formKey: string, audioUrl: string) => {
-    setEditConjugations((prev) => {
-      const updated = { ...prev };
-      const tenseForms = updated[tense];
-      if (!tenseForms) return prev;
-      const currentForm = (tenseForms as Record<string, ConjugationForm>)[formKey];
-      if (!currentForm) return prev;
-
-      (updated[tense] as Record<string, ConjugationForm>) = {
-        ...(tenseForms as Record<string, ConjugationForm>),
-        [formKey]: { ...currentForm, audioUrl },
-      };
-      return updated;
-    });
+    setEditConjugations((prev) =>
+      updateConjugationForm(prev, tense, formKey, (form) => ({ ...form, audioUrl }))
+    );
   }, []);
 
   const onSubmit = (data: MetadataFormData) => {
@@ -245,14 +195,14 @@ export function EditVerbModal({
   );
 
   return (
-    <StyledDialog open={open} onClose={handleClose}>
-      <Header>
+    <ModalDialog $maxWidth={700} $maxHeight="90vh" open={open} onClose={handleClose}>
+      <ModalHeader>
         <DialogTitle sx={{ p: 0, fontWeight: 500 }}>Edit Verb</DialogTitle>
         <IconButton onClick={handleClose} size="small" aria-label="close">
           <CloseIcon />
         </IconButton>
-      </Header>
-      <Content>
+      </ModalHeader>
+      <ModalContent>
         {verb && (
           <>
             <AudioRegenerator
@@ -267,123 +217,22 @@ export function EditVerbModal({
           </>
         )}
 
-        <Controller
-          name="infinitive"
-          control={control}
-          rules={{ required: true, validate: (v) => v.trim().length > 0 }}
-          render={({ field }) => (
-            <TextField
-              {...field}
-              label="Polish Infinitive"
-              fullWidth
-              autoFocus
-              required
-              placeholder="e.g., robić"
-            />
-          )}
-        />
+        <VerbDetailsFields control={control} names={VERB_FIELD_NAMES} autoFocus withPlaceholders />
 
-        <Controller
-          name="infinitiveEn"
-          control={control}
-          rules={{ required: true, validate: (v) => v.trim().length > 0 }}
-          render={({ field }) => (
-            <TextField
-              {...field}
-              label="English Infinitive"
-              fullWidth
-              required
-              placeholder="e.g., to do"
-            />
-          )}
-        />
-
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          <Controller
-            name="aspect"
-            control={control}
-            rules={{ required: true }}
-            render={({ field }) => (
-              <FormControl fullWidth required>
-                <InputLabel>Aspect</InputLabel>
-                <Select {...field} label="Aspect">
-                  {ALL_ASPECTS.map((a) => (
-                    <MenuItem key={a} value={a}>
-                      {a}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            )}
-          />
-
-          <Controller
-            name="verbClass"
-            control={control}
-            rules={{ required: true }}
-            render={({ field }) => (
-              <FormControl fullWidth required>
-                <InputLabel>Verb Class</InputLabel>
-                <Select {...field} label="Verb Class">
-                  {ALL_VERB_CLASSES.map((vc) => (
-                    <MenuItem key={vc} value={vc}>
-                      {vc}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            )}
-          />
-        </Box>
-
-        <Controller
+        <FormTextField
           name="aspectPair"
           control={control}
-          render={({ field }) => (
-            <TextField
-              {...field}
-              label="Aspect Pair (optional)"
-              fullWidth
-              placeholder="e.g., zrobić"
-            />
-          )}
+          label="Aspect Pair (optional)"
+          placeholder="e.g., zrobić"
         />
 
         <Box sx={{ display: 'flex', gap: 2 }}>
-          <Controller
-            name="isIrregular"
-            control={control}
-            render={({ field }) => (
-              <FormControl fullWidth>
-                <InputLabel>Irregular</InputLabel>
-                <Select
-                  value={field.value ? 'yes' : 'no'}
-                  onChange={(e) => field.onChange(e.target.value === 'yes')}
-                  label="Irregular"
-                >
-                  <MenuItem value="no">No</MenuItem>
-                  <MenuItem value="yes">Yes</MenuItem>
-                </Select>
-              </FormControl>
-            )}
-          />
-
-          <Controller
+          <FormYesNoField name="isIrregular" control={control} label="Irregular" />
+          <FormYesNoField
             name="isReflexive"
             control={control}
-            render={({ field }) => (
-              <FormControl fullWidth>
-                <InputLabel>Reflexive</InputLabel>
-                <Select
-                  value={field.value ? 'yes' : 'no'}
-                  onChange={(e) => field.onChange(e.target.value === 'yes')}
-                  label="Reflexive"
-                >
-                  <MenuItem value="no">No</MenuItem>
-                  <MenuItem value="yes">Yes (się)</MenuItem>
-                </Select>
-              </FormControl>
-            )}
+            label="Reflexive"
+            yesLabel="Yes (się)"
           />
         </Box>
 
@@ -466,24 +315,16 @@ export function EditVerbModal({
             })}
           </>
         )}
-      </Content>
-      <Actions>
-        <Box>
-          {onDelete && (
-            <Button onClick={handleDelete} color="error" startIcon={<DeleteIcon />}>
-              Delete Verb
-            </Button>
-          )}
-        </Box>
-        <RightActions>
-          <Button onClick={handleClose} color="inherit">
-            Cancel
-          </Button>
-          <Button onClick={handleSubmit(onSubmit)} variant="contained" disabled={!isValid}>
-            Save Changes
-          </Button>
-        </RightActions>
-      </Actions>
-    </StyledDialog>
+      </ModalContent>
+      <ModalFooter
+        onCancel={handleClose}
+        onSubmit={handleSubmit(onSubmit)}
+        submitLabel="Save Changes"
+        submitDisabled={!isValid}
+        destructiveAction={
+          onDelete && { label: 'Delete Verb', icon: <DeleteIcon />, onClick: handleDelete }
+        }
+      />
+    </ModalDialog>
   );
 }

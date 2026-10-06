@@ -1,31 +1,23 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import {
-  Typography,
-  Chip,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-  TableSortLabel,
-  InputAdornment,
-  InputLabel,
-  Select,
-  MenuItem,
-} from '@mui/material';
-import SearchIcon from '@mui/icons-material/Search';
+import { useState, useMemo, useCallback } from 'react';
+import { Typography, Chip, Table, TableBody, TableCell, TableRow } from '@mui/material';
 import { styled } from '../lib/styled';
 import { alpha } from '../lib/theme';
 import { AddVocabularyModal } from '../components/AddVocabularyModal';
 import { InlineAudioRegenerator } from '../components/AudioRegenerator';
 import { saveCustomVocabulary, subscribeCustomVocabulary } from '../lib/storage/customVocabulary';
 import { findCustomWordWithSamePolish } from '../lib/utils/findDuplicateCustomVocabularyPolish';
-import reprioritizeVocabularyWord, {
-  canReprioritizeVocabularyWord,
-} from '../lib/storage/reprioritizeVocabularyWord';
-import type { CustomVocabularyWord, PartOfSpeech, NounGender } from '../types/vocabulary';
+import capitalize from '../lib/utils/capitalize';
+import {
+  PARTS_OF_SPEECH,
+  NOUN_GENDERS,
+  type CustomVocabularyWord,
+  type PartOfSpeech,
+  type NounGender,
+} from '../types/vocabulary';
+import { createCustomItem } from '../types/customItems';
 import { useAuthContext } from '../hooks/useAuthContext';
-import { useVocabulary } from '../hooks/useReviewData';
+import { useReprioritizeVocabularyWord } from '../hooks/useReprioritizeVocabularyWord';
+import { useCustomCollection } from '../hooks/useCustomCollection';
 import { useOptimistic } from '../hooks/useOptimistic';
 import { useSnackbar } from '../hooks/useSnackbar';
 import { useAddToVocabulary } from '../hooks/useAddToVocabulary';
@@ -33,8 +25,6 @@ import { useAppSettings } from '../contexts/AppSettingsContext';
 import {
   PageContainer,
   FiltersRow,
-  SearchField,
-  FilterSelect,
   StyledTableContainer,
   PrimaryCell,
   SecondaryCell,
@@ -43,11 +33,29 @@ import {
   CustomItemEmptyState,
   CustomItemLoadingState,
   CustomItemActions,
+  CustomItemSearchField,
+  FilterSelectField,
+  SortableHeaderCell,
   formatDate,
+  sortItems,
+  useSortState,
+  FilterResultCount,
+  CustomItemTableHead,
+  byPolish,
+  byEnglish,
+  byCreatedAt,
 } from '../components/CustomItemPage';
 
 type SortField = 'polish' | 'english' | 'partOfSpeech' | 'gender' | 'createdAt';
-type SortDirection = 'asc' | 'desc';
+
+const COMPARATORS: Record<SortField, (a: CustomVocabularyWord, b: CustomVocabularyWord) => number> =
+  {
+    polish: byPolish,
+    english: byEnglish,
+    partOfSpeech: (a, b) => (a.partOfSpeech || '').localeCompare(b.partOfSpeech || ''),
+    gender: (a, b) => (a.gender || '').localeCompare(b.gender || ''),
+    createdAt: byCreatedAt,
+  };
 
 const GenderChip = styled(Chip)<{
   $gender: 'masculine' | 'feminine' | 'neuter';
@@ -59,29 +67,17 @@ const GenderChip = styled(Chip)<{
   color: theme.palette.gender[$gender].main,
 }));
 
-const PARTS_OF_SPEECH: PartOfSpeech[] = [
-  'noun',
-  'verb',
-  'adjective',
-  'adverb',
-  'pronoun',
-  'preposition',
-  'conjunction',
-  'particle',
-  'numeral',
-  'proper noun',
-];
-
-const GENDERS: NounGender[] = ['masculine', 'feminine', 'neuter'];
-
 export function CustomVocabularyPage() {
-  const { user, isAdmin } = useAuthContext();
+  const { isAdmin } = useAuthContext();
   const { showSnackbar } = useSnackbar();
-  const { vocabularyReviewStores, updateVocabularyReviewStore } = useVocabulary();
+  const { canReprioritize, reprioritize, showDuplicateError } = useReprioritizeVocabularyWord();
   const { settings: appSettings } = useAppSettings();
   const addToVocabulary = useAddToVocabulary();
-  const [isLoading, setIsLoading] = useState(true);
-  const [customWordsBase, setCustomWordsBase] = useState<CustomVocabularyWord[]>([]);
+  const {
+    items: customWordsBase,
+    setItems: setCustomWordsBase,
+    isLoading,
+  } = useCustomCollection(subscribeCustomVocabulary);
   const [customWords, applyOptimisticCustomWords] = useOptimistic(customWordsBase, {
     onError: () => showSnackbar('Failed to save. Please try again.', 'error'),
   });
@@ -91,67 +87,15 @@ export function CustomVocabularyPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [posFilter, setPosFilter] = useState<PartOfSpeech | ''>('');
   const [genderFilter, setGenderFilter] = useState<NounGender | ''>('');
-  const [sortField, setSortField] = useState<SortField>('createdAt');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
-
-  const [prevUid, setPrevUid] = useState(user?.uid);
-  if (prevUid !== user?.uid) {
-    setPrevUid(user?.uid);
-    setIsLoading(true);
-    setCustomWordsBase([]);
-  }
-
-  useEffect(() => {
-    if (!user) return;
-    const unsub = subscribeCustomVocabulary((items) => {
-      setCustomWordsBase(items);
-      setIsLoading(false);
-    });
-    return unsub;
-  }, [user]);
-
-  const handleReprioritize = useCallback(
-    (wordId: string) => {
-      const plToEnNext = reprioritizeVocabularyWord(vocabularyReviewStores['pl-to-en'], wordId);
-      const enToPlNext = reprioritizeVocabularyWord(vocabularyReviewStores['en-to-pl'], wordId);
-      const promises: Promise<void>[] = [];
-      if (plToEnNext !== vocabularyReviewStores['pl-to-en']) {
-        promises.push(updateVocabularyReviewStore('pl-to-en', plToEnNext));
-      }
-      if (enToPlNext !== vocabularyReviewStores['en-to-pl']) {
-        promises.push(updateVocabularyReviewStore('en-to-pl', enToPlNext));
-      }
-      if (promises.length === 0) return;
-      void Promise.all(promises);
-      showSnackbar('Word queued for review again.', 'success');
-    },
-    [vocabularyReviewStores, updateVocabularyReviewStore, showSnackbar]
-  );
+  const sort = useSortState<SortField>('createdAt');
 
   const handleAddWord = (wordData: Omit<CustomVocabularyWord, 'id' | 'isCustom' | 'createdAt'>) => {
     const duplicate = findCustomWordWithSamePolish(customWords, wordData.polish);
     if (duplicate) {
-      const reviewable = canReprioritizeVocabularyWord(vocabularyReviewStores, duplicate.id);
-      showSnackbar(
-        'This Polish word is already in your custom vocabulary.',
-        'error',
-        reviewable
-          ? {
-              action: {
-                label: 'Review again',
-                onClick: () => handleReprioritize(String(duplicate.id)),
-              },
-            }
-          : undefined
-      );
+      showDuplicateError(duplicate.id);
       return false;
     }
-    const newWord: CustomVocabularyWord = {
-      ...wordData,
-      id: `custom_${Date.now()}`,
-      isCustom: true,
-      createdAt: Date.now(),
-    };
+    const newWord = createCustomItem(wordData);
     const newCustomWords = [newWord, ...customWordsBase];
 
     applyOptimisticCustomWords(newCustomWords, async () => {
@@ -201,63 +145,26 @@ export function CustomVocabularyPage() {
     setShowAddModal(true);
   };
 
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
-  };
+  const handleAudioSaved = useCallback(
+    (wordId: string, audioUrl: string) => {
+      setCustomWordsBase((prev) => prev.map((w) => (w.id === wordId ? { ...w, audioUrl } : w)));
+    },
+    [setCustomWordsBase]
+  );
 
-  const handleAudioSaved = useCallback((wordId: string, audioUrl: string) => {
-    setCustomWordsBase((prev) => prev.map((w) => (w.id === wordId ? { ...w, audioUrl } : w)));
-  }, []);
-
+  const { sortField, sortDirection } = sort;
   const filteredAndSortedWords = useMemo(() => {
-    let result = [...customWords];
-
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      result = result.filter(
-        (word) =>
+    const query = searchQuery.toLowerCase();
+    const filtered = customWords.filter(
+      (word) =>
+        (!query ||
           word.polish.toLowerCase().includes(query) ||
           word.english.toLowerCase().includes(query) ||
-          word.notes?.toLowerCase().includes(query)
-      );
-    }
-
-    if (posFilter) {
-      result = result.filter((word) => word.partOfSpeech === posFilter);
-    }
-
-    if (genderFilter) {
-      result = result.filter((word) => word.gender === genderFilter);
-    }
-
-    result.sort((a, b) => {
-      let comparison = 0;
-      switch (sortField) {
-        case 'polish':
-          comparison = a.polish.localeCompare(b.polish, 'pl');
-          break;
-        case 'english':
-          comparison = a.english.localeCompare(b.english);
-          break;
-        case 'partOfSpeech':
-          comparison = (a.partOfSpeech || '').localeCompare(b.partOfSpeech || '');
-          break;
-        case 'gender':
-          comparison = (a.gender || '').localeCompare(b.gender || '');
-          break;
-        case 'createdAt':
-          comparison = a.createdAt - b.createdAt;
-          break;
-      }
-      return sortDirection === 'asc' ? comparison : -comparison;
-    });
-
-    return result;
+          word.notes?.toLowerCase().includes(query)) &&
+        (!posFilter || word.partOfSpeech === posFilter) &&
+        (!genderFilter || word.gender === genderFilter)
+    );
+    return sortItems(filtered, COMPARATORS, { sortField, sortDirection });
   }, [customWords, searchQuery, posFilter, genderFilter, sortField, sortDirection]);
 
   if (isLoading) {
@@ -284,116 +191,43 @@ export function CustomVocabularyPage() {
       ) : (
         <>
           <FiltersRow>
-            <SearchField
-              size="small"
-              placeholder="Search words..."
+            <CustomItemSearchField
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              slotProps={{
-                input: {
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon fontSize="small" color="action" />
-                    </InputAdornment>
-                  ),
-                },
-              }}
+              onChange={setSearchQuery}
+              placeholder="Search words..."
             />
-            <FilterSelect size="small">
-              <InputLabel>Part of Speech</InputLabel>
-              <Select
-                value={posFilter}
-                onChange={(e) => setPosFilter(e.target.value as PartOfSpeech | '')}
-                label="Part of Speech"
-              >
-                <MenuItem value="">
-                  <em>All</em>
-                </MenuItem>
-                {PARTS_OF_SPEECH.map((pos) => (
-                  <MenuItem key={pos} value={pos}>
-                    {pos.charAt(0).toUpperCase() + pos.slice(1)}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FilterSelect>
-            <FilterSelect size="small">
-              <InputLabel>Gender</InputLabel>
-              <Select
-                value={genderFilter}
-                onChange={(e) => setGenderFilter(e.target.value as NounGender | '')}
-                label="Gender"
-              >
-                <MenuItem value="">
-                  <em>All</em>
-                </MenuItem>
-                {GENDERS.map((g) => (
-                  <MenuItem key={g} value={g}>
-                    {g.charAt(0).toUpperCase() + g.slice(1)}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FilterSelect>
-            {(searchQuery || posFilter || genderFilter) && (
-              <Typography variant="body2" color="text.secondary">
-                {filteredAndSortedWords.length} of {customWords.length} words
-              </Typography>
-            )}
+            <FilterSelectField
+              label="Part of Speech"
+              value={posFilter}
+              options={PARTS_OF_SPEECH}
+              onChange={setPosFilter}
+              format={capitalize}
+            />
+            <FilterSelectField
+              label="Gender"
+              value={genderFilter}
+              options={NOUN_GENDERS}
+              onChange={setGenderFilter}
+              format={capitalize}
+            />
+            <FilterResultCount
+              visible={Boolean(searchQuery || posFilter || genderFilter)}
+              shown={filteredAndSortedWords.length}
+              total={customWords.length}
+              noun="words"
+            />
           </FiltersRow>
 
           <StyledTableContainer elevation={0}>
             <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Actions</TableCell>
-                  {isAdmin && <TableCell>Audio</TableCell>}
-                  <TableCell>
-                    <TableSortLabel
-                      active={sortField === 'polish'}
-                      direction={sortField === 'polish' ? sortDirection : 'asc'}
-                      onClick={() => handleSort('polish')}
-                    >
-                      Polish
-                    </TableSortLabel>
-                  </TableCell>
-                  <TableCell>
-                    <TableSortLabel
-                      active={sortField === 'english'}
-                      direction={sortField === 'english' ? sortDirection : 'asc'}
-                      onClick={() => handleSort('english')}
-                    >
-                      English
-                    </TableSortLabel>
-                  </TableCell>
-                  <TableCell>
-                    <TableSortLabel
-                      active={sortField === 'partOfSpeech'}
-                      direction={sortField === 'partOfSpeech' ? sortDirection : 'asc'}
-                      onClick={() => handleSort('partOfSpeech')}
-                    >
-                      Type
-                    </TableSortLabel>
-                  </TableCell>
-                  <TableCell>
-                    <TableSortLabel
-                      active={sortField === 'gender'}
-                      direction={sortField === 'gender' ? sortDirection : 'asc'}
-                      onClick={() => handleSort('gender')}
-                    >
-                      Gender
-                    </TableSortLabel>
-                  </TableCell>
-                  <TableCell>Notes</TableCell>
-                  <TableCell>
-                    <TableSortLabel
-                      active={sortField === 'createdAt'}
-                      direction={sortField === 'createdAt' ? sortDirection : 'asc'}
-                      onClick={() => handleSort('createdAt')}
-                    >
-                      Added
-                    </TableSortLabel>
-                  </TableCell>
-                </TableRow>
-              </TableHead>
+              <CustomItemTableHead isAdmin={isAdmin}>
+                <SortableHeaderCell field="polish" label="Polish" sort={sort} />
+                <SortableHeaderCell field="english" label="English" sort={sort} />
+                <SortableHeaderCell field="partOfSpeech" label="Type" sort={sort} />
+                <SortableHeaderCell field="gender" label="Gender" sort={sort} />
+                <TableCell>Notes</TableCell>
+                <SortableHeaderCell field="createdAt" label="Added" sort={sort} />
+              </CustomItemTableHead>
               <TableBody>
                 {filteredAndSortedWords.map((word) => (
                   <TableRow key={word.id}>
@@ -403,11 +237,8 @@ export function CustomVocabularyPage() {
                         onDelete={() => handleDeleteWord(word.id)}
                         editLabel="edit word"
                         deleteLabel="delete word"
-                        onReprioritize={() => handleReprioritize(String(word.id))}
-                        canReprioritize={canReprioritizeVocabularyWord(
-                          vocabularyReviewStores,
-                          word.id
-                        )}
+                        onReprioritize={() => reprioritize(word.id)}
+                        canReprioritize={canReprioritize(word.id)}
                         reprioritizeLabel="review word again"
                       />
                     </TableCell>

@@ -2,7 +2,7 @@ import OpenAI from 'openai';
 
 export type CEFRLevel = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
 
-export const CEFR_LEVELS: CEFRLevel[] = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+const CEFR_LEVELS: CEFRLevel[] = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
 export function isCEFRLevel(value: unknown): value is CEFRLevel {
   return typeof value === 'string' && (CEFR_LEVELS as string[]).includes(value);

@@ -4,7 +4,7 @@ import { useAuthContext } from '../hooks/useAuthContext';
 
 const MAX_CHARS_PER_DAY = 1500;
 
-export interface TranslationContextValue {
+interface TranslationContextValue {
   showTranslator: boolean;
   showLimitReached: boolean;
   limitResetTime: string;

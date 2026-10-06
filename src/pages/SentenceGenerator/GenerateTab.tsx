@@ -15,8 +15,11 @@ import type { CEFRLevel, Sentence, TagCategory } from '../../types/sentences';
 import { ALL_LEVELS } from '../../types/sentences';
 import { generateSentences, type GeneratedSentence } from '../../lib/generateSentences';
 import { createSentences, getNextSentenceIds } from '../../lib/storage/systemSentences';
+import toggleInArray from '../../lib/utils/toggleInArray';
 import { Section, ChipGroup, SentenceCard } from './shared';
+import { TagCategoryPicker } from './TagCategoryPicker';
 import { computeCoverageStats } from './utils';
+import { useSelectableList } from '../../hooks/useSelectableList';
 import type { GenerateTabProps } from './types';
 
 export const GenerateTab = memo(function GenerateTab({
@@ -31,8 +34,13 @@ export const GenerateTab = memo(function GenerateTab({
   const [countInput, setCountInput] = useState('5');
   const [guidance, setGuidance] = useState('');
   const [generating, setGenerating] = useState(false);
-  const [generatedSentences, setGeneratedSentences] = useState<GeneratedSentence[]>([]);
-  const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
+  const generated = useSelectableList<GeneratedSentence>();
+  const {
+    show: showGenerated,
+    clear: clearGenerated,
+    selectedItems: selectedGenerated,
+    removeSelected: removeSelectedGenerated,
+  } = generated;
   const [saving, setSaving] = useState(false);
   const [newTagInputs, setNewTagInputs] = useState<Record<TagCategory, string>>({
     topics: '',
@@ -64,15 +72,12 @@ export const GenerateTab = memo(function GenerateTab({
   );
 
   const toggleTag = useCallback((tag: string) => {
-    setSelectedTags((prev) =>
-      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
-    );
+    setSelectedTags((prev) => toggleInArray(prev, tag));
   }, []);
 
   const handleGenerate = useCallback(async () => {
     setGenerating(true);
-    setGeneratedSentences([]);
-    setSelectedIndices(new Set());
+    clearGenerated();
     try {
       const result = await generateSentences({
         level: selectedLevel,
@@ -80,30 +85,25 @@ export const GenerateTab = memo(function GenerateTab({
         count: parseInt(countInput, 10) || 5,
         guidance: guidance.trim() || undefined,
       });
-      setGeneratedSentences(result.sentences);
-      setSelectedIndices(new Set(result.sentences.map((_, i) => i)));
+      showGenerated(result.sentences);
     } catch (e) {
       console.error('Generation failed:', e);
       showSnackbar('Generation failed. Please try again.', 'error');
     } finally {
       setGenerating(false);
     }
-  }, [selectedLevel, selectedTags, countInput, guidance, showSnackbar]);
-
-  const toggleSentenceSelection = useCallback((index: number) => {
-    setSelectedIndices((prev) => {
-      const next = new Set(prev);
-      if (next.has(index)) {
-        next.delete(index);
-      } else {
-        next.add(index);
-      }
-      return next;
-    });
-  }, []);
+  }, [
+    selectedLevel,
+    selectedTags,
+    countInput,
+    guidance,
+    showSnackbar,
+    clearGenerated,
+    showGenerated,
+  ]);
 
   const handleSave = useCallback(async () => {
-    const toSave = generatedSentences.filter((_, i) => selectedIndices.has(i));
+    const toSave = selectedGenerated;
     if (toSave.length === 0) return;
 
     setSaving(true);
@@ -122,15 +122,14 @@ export const GenerateTab = memo(function GenerateTab({
       setSentences([...sentences, ...sentencesToCreate]);
       showSnackbar(`Saved ${sentencesToCreate.length} sentences`, 'success');
 
-      setGeneratedSentences((prev) => prev.filter((_, i) => !selectedIndices.has(i)));
-      setSelectedIndices(new Set());
+      removeSelectedGenerated();
     } catch (e) {
       console.error('Save failed:', e);
       showSnackbar('Failed to save sentences.', 'error');
     } finally {
       setSaving(false);
     }
-  }, [generatedSentences, selectedIndices, sentences, setSentences, showSnackbar]);
+  }, [selectedGenerated, removeSelectedGenerated, sentences, setSentences, showSnackbar]);
 
   const handleNewTagInputChange = useCallback((category: TagCategory, value: string) => {
     setNewTagInputs((prev) => ({ ...prev, [category]: value }));
@@ -156,54 +155,38 @@ export const GenerateTab = memo(function GenerateTab({
         </ChipGroup>
       </Section>
 
-      <Section>
-        <Typography variant="subtitle2" color="text.secondary">
-          Tags (optional)
-        </Typography>
-        {(['topics', 'grammar', 'style'] as const).map((category) => (
-          <Box key={category}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-              <Typography variant="caption" color="text.disabled">
-                {category.charAt(0).toUpperCase() + category.slice(1)}
-              </Typography>
-              <TextField
-                size="small"
-                placeholder="Add tag..."
-                value={newTagInputs[category]}
-                onChange={(e) => handleNewTagInputChange(category, e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleAddTag(category);
-                  }
-                }}
-                sx={{ width: 120, '& .MuiInputBase-input': { py: 0.5, fontSize: '0.75rem' } }}
-              />
-              <Button
-                size="small"
-                variant="outlined"
-                onClick={() => handleAddTag(category)}
-                disabled={!newTagInputs[category].trim()}
-                sx={{ minWidth: 'auto', px: 1, py: 0.25 }}
-              >
-                <AddIcon fontSize="small" />
-              </Button>
-            </Box>
-            <ChipGroup>
-              {sentenceTags[category].map((tag) => (
-                <Chip
-                  key={tag}
-                  label={`${tag} (${generateCoverage.byTag[tag] || 0})`}
-                  size="small"
-                  variant={selectedTags.includes(tag) ? 'filled' : 'outlined'}
-                  color={selectedTags.includes(tag) ? 'secondary' : 'default'}
-                  onClick={() => toggleTag(tag)}
-                />
-              ))}
-            </ChipGroup>
-          </Box>
-        ))}
-      </Section>
+      <TagCategoryPicker
+        sentenceTags={sentenceTags}
+        selected={selectedTags}
+        onToggle={toggleTag}
+        getLabel={(tag) => `${tag} (${generateCoverage.byTag[tag] || 0})`}
+        renderCategoryActions={(category) => (
+          <>
+            <TextField
+              size="small"
+              placeholder="Add tag..."
+              value={newTagInputs[category]}
+              onChange={(e) => handleNewTagInputChange(category, e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleAddTag(category);
+                }
+              }}
+              sx={{ width: 120, '& .MuiInputBase-input': { py: 0.5, fontSize: '0.75rem' } }}
+            />
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={() => handleAddTag(category)}
+              disabled={!newTagInputs[category].trim()}
+              sx={{ minWidth: 'auto', px: 1, py: 0.25 }}
+            >
+              <AddIcon fontSize="small" />
+            </Button>
+          </>
+        )}
+      />
 
       <TextField
         label="Number of sentences"
@@ -235,23 +218,23 @@ export const GenerateTab = memo(function GenerateTab({
         {generating ? 'Generating...' : `Generate ${countInput || 5} Sentences`}
       </Button>
 
-      {generatedSentences.length > 0 && (
+      {generated.items.length > 0 && (
         <Stack spacing={2}>
           <Typography variant="subtitle2">
-            Generated Sentences ({selectedIndices.size} selected)
+            Generated Sentences ({generated.selected.size} selected)
           </Typography>
 
-          {generatedSentences.map((sentence, idx) => (
+          {generated.items.map((sentence, idx) => (
             <SentenceCard
               key={idx}
-              $selected={selectedIndices.has(idx)}
-              onClick={() => toggleSentenceSelection(idx)}
+              $selected={generated.selected.has(idx)}
+              onClick={() => generated.toggle(idx)}
             >
               <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
                 <Checkbox
-                  checked={selectedIndices.has(idx)}
+                  checked={generated.selected.has(idx)}
                   onClick={(e) => e.stopPropagation()}
-                  onChange={() => toggleSentenceSelection(idx)}
+                  onChange={() => generated.toggle(idx)}
                   size="small"
                 />
                 <Box sx={{ flex: 1 }}>
@@ -276,11 +259,11 @@ export const GenerateTab = memo(function GenerateTab({
             variant="contained"
             color="success"
             onClick={handleSave}
-            disabled={saving || selectedIndices.size === 0}
+            disabled={saving || generated.selected.size === 0}
             startIcon={saving ? <CircularProgress size={16} /> : undefined}
             sx={{ alignSelf: 'flex-start' }}
           >
-            {saving ? 'Saving...' : `Save ${selectedIndices.size} Sentences`}
+            {saving ? 'Saving...' : `Save ${generated.selected.size} Sentences`}
           </Button>
         </Stack>
       )}

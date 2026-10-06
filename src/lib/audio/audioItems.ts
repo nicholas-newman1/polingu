@@ -1,4 +1,4 @@
-import { collection, doc, getDoc, onSnapshot, query, orderBy, updateDoc } from 'firebase/firestore';
+import { collection, doc, onSnapshot, query, orderBy, updateDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { getDownloadURL, ref } from 'firebase/storage';
 import { db, functions, storage } from '../firebase';
@@ -40,17 +40,6 @@ export function subscribeToAudioItemsUpdates(callback: (items: AudioItem[]) => v
       console.error('Audio items subscription error:', error);
     }
   );
-}
-
-export async function getAudioItem(audioId: string): Promise<AudioItem | null> {
-  const userId = getUserId();
-  if (!userId) return null;
-
-  const audioRef = doc(db, 'users', userId, 'audioItems', audioId);
-  const audioDoc = await getDoc(audioRef);
-
-  if (!audioDoc.exists()) return null;
-  return audioDoc.data() as AudioItem;
 }
 
 export function subscribeToAudioItem(

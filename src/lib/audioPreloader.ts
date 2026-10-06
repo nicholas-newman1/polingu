@@ -98,19 +98,6 @@ export async function clearAudioCache(): Promise<void> {
 }
 
 /**
- * Check if a specific audio URL is cached
- */
-export async function isAudioCached(url: string): Promise<boolean> {
-  try {
-    const cache = await caches.open(AUDIO_CACHE_NAME);
-    const response = await cache.match(url);
-    return response !== undefined;
-  } catch {
-    return false;
-  }
-}
-
-/**
  * Format bytes to human readable string
  */
 export function formatCacheSize(bytes: number): string {

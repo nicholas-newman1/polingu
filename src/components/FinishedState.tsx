@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Avatar,
   Box,
@@ -16,6 +17,7 @@ import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
 import PlayArrowRoundedIcon from '@mui/icons-material/PlayArrowRounded';
 import { alpha } from '../lib/theme';
+import { useProgressStats } from '../hooks/useProgressStats';
 
 const CardWrapper = styled(Box)({
   width: '100%',
@@ -173,15 +175,16 @@ function useEditableCount(value: number, setValue: (n: number) => void) {
   return { draft, onChange, onBlur };
 }
 
-export type FeatureType = 'vocabulary' | 'sentences' | 'conjugation' | 'declension' | 'aspectPairs';
-export type Direction = 'pl-to-en' | 'en-to-pl';
+type FeatureType = 'vocabulary' | 'sentences' | 'conjugation' | 'declension' | 'aspectPairs';
+type Direction = 'pl-to-en' | 'en-to-pl';
 
-interface OtherFeatureDue {
-  feature: FeatureType;
-  label: string;
-  dueCount: number;
-  path: string;
-}
+const FEATURES: Array<{ feature: FeatureType; label: string; path: string }> = [
+  { feature: 'vocabulary', label: 'Vocabulary', path: '/vocabulary' },
+  { feature: 'declension', label: 'Declension', path: '/declension' },
+  { feature: 'conjugation', label: 'Conjugation', path: '/conjugation' },
+  { feature: 'sentences', label: 'Sentences', path: '/sentences' },
+  { feature: 'aspectPairs', label: 'Aspect Pairs', path: '/aspect-pairs' },
+];
 
 interface FinishedStateProps {
   // Current feature context
@@ -193,10 +196,6 @@ interface FinishedStateProps {
   otherDirectionLabel?: string;
   onSwitchDirection?: () => void;
 
-  // Other features with due cards
-  otherFeaturesDue: OtherFeatureDue[];
-  onNavigateToFeature: (path: string) => void;
-
   // Existing practice ahead / learn extra functionality
   practiceAheadCount: number;
   setPracticeAheadCount: (count: number) => void;
@@ -207,11 +206,10 @@ interface FinishedStateProps {
 }
 
 export function FinishedState({
+  currentFeature,
   otherDirectionDueCount,
   otherDirectionLabel,
   onSwitchDirection,
-  otherFeaturesDue,
-  onNavigateToFeature,
   practiceAheadCount,
   setPracticeAheadCount,
   extraNewCardsCount,
@@ -222,8 +220,14 @@ export function FinishedState({
   const extraNew = useEditableCount(extraNewCardsCount, setExtraNewCardsCount);
   const practiceAhead = useEditableCount(practiceAheadCount, setPracticeAheadCount);
 
+  const navigate = useNavigate();
+  const progressStats = useProgressStats();
+
   const hasOtherDirection = otherDirectionDueCount !== undefined && otherDirectionDueCount > 0;
-  const featuresWithDue = otherFeaturesDue.filter((f) => f.dueCount > 0).slice(0, 2);
+  const featuresWithDue = FEATURES.filter((f) => f.feature !== currentFeature)
+    .map((f) => ({ ...f, dueCount: progressStats[f.feature].due }))
+    .filter((f) => f.dueCount > 0)
+    .slice(0, 2);
   const hasOtherFeatures = featuresWithDue.length > 0;
   const hasNextActions = hasOtherDirection || hasOtherFeatures;
 
@@ -270,7 +274,7 @@ export function FinishedState({
                   key={feature.feature}
                   variant="contained"
                   size="medium"
-                  onClick={() => onNavigateToFeature(feature.path)}
+                  onClick={() => navigate(feature.path)}
                   disableElevation
                 >
                   {feature.label}

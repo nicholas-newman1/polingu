@@ -1,12 +1,14 @@
 import { useState, useCallback, memo } from 'react';
-import { TextField, Box, Button, Typography, Chip, CircularProgress, Stack } from '@mui/material';
+import { TextField, Button, Typography, Chip, CircularProgress, Stack } from '@mui/material';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import AddIcon from '@mui/icons-material/Add';
 import type { CEFRLevel, Sentence } from '../../types/sentences';
 import { ALL_LEVELS } from '../../types/sentences';
 import { processSentence } from '../../lib/processSentence';
 import { createSentence, getNextSentenceIds } from '../../lib/storage/systemSentences';
+import toggleInArray from '../../lib/utils/toggleInArray';
 import { Section, ChipGroup } from './shared';
+import { TagCategoryPicker } from './TagCategoryPicker';
 import type { AddCustomTabProps } from './types';
 
 export const AddCustomTab = memo(function AddCustomTab({
@@ -26,7 +28,7 @@ export const AddCustomTab = memo(function AddCustomTab({
   const [savingCustom, setSavingCustom] = useState(false);
 
   const toggleCustomTag = useCallback((tag: string) => {
-    setCustomTags((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]));
+    setCustomTags((prev) => toggleInArray(prev, tag));
   }, []);
 
   const handleProcess = useCallback(async () => {
@@ -166,34 +168,11 @@ export const AddCustomTab = memo(function AddCustomTab({
             </ChipGroup>
           </Section>
 
-          <Section>
-            <Typography variant="subtitle2" color="text.secondary">
-              Tags (optional)
-            </Typography>
-            {(['topics', 'grammar', 'style'] as const).map((category) => (
-              <Box key={category}>
-                <Typography
-                  variant="caption"
-                  color="text.disabled"
-                  sx={{ mb: 0.5, display: 'block' }}
-                >
-                  {category.charAt(0).toUpperCase() + category.slice(1)}
-                </Typography>
-                <ChipGroup>
-                  {sentenceTags[category].map((tag) => (
-                    <Chip
-                      key={tag}
-                      label={tag}
-                      size="small"
-                      variant={customTags.includes(tag) ? 'filled' : 'outlined'}
-                      color={customTags.includes(tag) ? 'secondary' : 'default'}
-                      onClick={() => toggleCustomTag(tag)}
-                    />
-                  ))}
-                </ChipGroup>
-              </Box>
-            ))}
-          </Section>
+          <TagCategoryPicker
+            sentenceTags={sentenceTags}
+            selected={customTags}
+            onToggle={toggleCustomTag}
+          />
 
           <Button
             variant="contained"
