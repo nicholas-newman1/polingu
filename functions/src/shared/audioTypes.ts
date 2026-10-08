@@ -151,7 +151,9 @@ export async function synthesizeAndUploadAudio(
   subPath?: string,
   userId?: string
 ): Promise<string | null> {
-  const [response] = await getTtsClient().synthesizeSpeech({
+  const [response] = await (
+    await getTtsClient()
+  ).synthesizeSpeech({
     input: { text },
     voice: TTS_VOICE,
     audioConfig: AUDIO_CONFIG,

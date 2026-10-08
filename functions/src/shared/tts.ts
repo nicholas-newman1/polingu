@@ -1,11 +1,12 @@
-import { TextToSpeechClient } from '@google-cloud/text-to-speech';
+import type { TextToSpeechClient } from '@google-cloud/text-to-speech';
 import { AUDIO_CONFIG, TTS_BYTE_LIMIT, TTS_VOICE } from './config.js';
 
 let ttsClientInstance: TextToSpeechClient | null = null;
 
-export function getTtsClient(): TextToSpeechClient {
+export async function getTtsClient(): Promise<TextToSpeechClient> {
   if (!ttsClientInstance) {
-    ttsClientInstance = new TextToSpeechClient();
+    const { TextToSpeechClient: Client } = await import('@google-cloud/text-to-speech');
+    ttsClientInstance = new Client();
   }
   return ttsClientInstance;
 }
@@ -31,7 +32,7 @@ function chunkTextForTTS(text: string): string[] {
 }
 
 export async function synthesizeChunkedTTS(text: string): Promise<Buffer> {
-  const client = getTtsClient();
+  const client = await getTtsClient();
   const chunks = chunkTextForTTS(text);
   const audioChunks: Buffer[] = [];
 

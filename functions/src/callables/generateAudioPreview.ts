@@ -33,7 +33,7 @@ export const generateAudioPreview = onCall<
       audioConfig: AUDIO_CONFIG,
     };
 
-    const [response] = await getTtsClient().synthesizeSpeech(ttsRequest);
+    const [response] = await (await getTtsClient()).synthesizeSpeech(ttsRequest);
 
     if (!response.audioContent) {
       throw new Error('No audio content in response');

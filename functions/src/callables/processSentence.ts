@@ -1,5 +1,5 @@
 import { onCall, HttpsError } from 'firebase-functions/https';
-import OpenAI from 'openai';
+import { createOpenAI } from '../shared/openai.js';
 import { deeplApiKey, openaiApiKey } from '../shared/secrets.js';
 import { CEFRLevel, requestCEFRLevel } from '../shared/cefr.js';
 
@@ -66,7 +66,7 @@ export const processSentence = onCall<ProcessSentenceRequest, Promise<ProcessSen
     const polish = sourceLang === 'PL' ? text : translatedText;
     const english = sourceLang === 'EN' ? text : translatedText;
 
-    const openai = new OpenAI({ apiKey: openaiKey });
+    const openai = await createOpenAI(openaiKey);
 
     const level: CEFRLevel = (await requestCEFRLevel(openai, polish)) ?? 'B1';
 

@@ -1,4 +1,4 @@
-import { protos } from '@google-cloud/text-to-speech';
+import type { protos } from '@google-cloud/text-to-speech';
 
 export const AUDIO_BUCKET = 'polingu-audio';
 export const DEFAULT_BUCKET = 'polish-declension.firebasestorage.app';

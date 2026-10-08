@@ -1,5 +1,5 @@
 import { onCall, HttpsError } from 'firebase-functions/https';
-import OpenAI from 'openai';
+import { createOpenAI } from '../shared/openai.js';
 import { openaiApiKey } from '../shared/secrets.js';
 import { requestJsonCompletion } from '../shared/openaiJson.js';
 import { CEFRLevel } from '../shared/cefr.js';
@@ -76,7 +76,7 @@ export const discoverCurriculum = onCall<
     throw new HttpsError('failed-precondition', 'AI service is not configured.');
   }
 
-  const openai = new OpenAI({ apiKey });
+  const openai = await createOpenAI(apiKey);
 
   let userPrompt: string;
 

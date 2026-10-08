@@ -1,4 +1,5 @@
-import OpenAI from 'openai';
+import type OpenAI from 'openai' with { 'resolution-mode': 'import' };
+import { createOpenAI } from './openai.js';
 
 export type CEFRLevel = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
 
@@ -32,7 +33,7 @@ export async function assessSentenceCEFR(
   apiKey: string
 ): Promise<CEFRLevel | null> {
   try {
-    return await requestCEFRLevel(new OpenAI({ apiKey }), polish);
+    return await requestCEFRLevel(await createOpenAI(apiKey), polish);
   } catch (error) {
     console.error('CEFR assessment failed:', error);
     return null;

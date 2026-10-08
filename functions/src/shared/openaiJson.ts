@@ -1,6 +1,8 @@
 import { HttpsError } from 'firebase-functions/https';
-import type OpenAI from 'openai';
-import type { ChatCompletionCreateParamsNonStreaming } from 'openai/resources/chat/completions';
+import type OpenAI from 'openai' with { 'resolution-mode': 'import' };
+import type { ChatCompletionCreateParamsNonStreaming } from 'openai/resources/chat/completions' with {
+  'resolution-mode': 'import',
+};
 import { stripMarkdownCodeFences } from './json.js';
 
 /**

@@ -1,5 +1,3 @@
-import OpenAI, { toFile } from 'openai';
-
 export interface TranscriptWord {
   word: string;
   startTime: number;
@@ -25,6 +23,7 @@ export async function transcribePolishAudio(
   fileName: string,
   apiKey: string
 ): Promise<TranscriptionResult> {
+  const { default: OpenAI, toFile } = await import('openai');
   const openai = new OpenAI({ apiKey });
   const audioFile = await toFile(buffer, fileName);
 
