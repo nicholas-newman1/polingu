@@ -144,7 +144,7 @@ function WordDetails({ word }: { word: VocabularyWord }) {
       </Stack>
 
       {word.notes && (
-        <FlashcardHint variant="body2" color="text.disabled">
+        <FlashcardHint variant="body2" color="text.disabled" sx={{ mb: 2 }}>
           💡 {word.notes}
         </FlashcardHint>
       )}
