@@ -135,10 +135,10 @@ export function useReviewSession<
   const reassess = async (rating: Grade) => {
     if (!historyCard || !historyMeta) return;
     const reviewData = rateCard(historyMeta, rating);
+    goForward();
     await saveReviewStore(
       recordReview(reviewStore, getId(historyCard), reviewData, { isNew: false, completed: false })
     );
-    goForward();
   };
 
   /** Applies an edit to the card wherever it appears: session, practice deck and history. */
