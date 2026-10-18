@@ -73,7 +73,6 @@ const ExampleTranslation = styled(Typography)(({ theme }) => ({
 const GenerateSentencesButton = styled(Button)(({ theme }) => ({
   alignSelf: 'flex-start',
   marginTop: theme.spacing(1.5),
-  marginBottom: theme.spacing(2),
   textTransform: 'none',
   fontSize: '0.8125rem',
 }));

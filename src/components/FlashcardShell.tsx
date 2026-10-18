@@ -213,7 +213,7 @@ export function FlashcardShell({
   return (
     <FlashcardWrapper $maxWidth={maxWidth} className="animate-fade-up">
       <FlashcardSurface>
-        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', mb: 2 }}>
           <CardHeader>
             {(headerActions || canEdit) && (
               <ActionButtons>
