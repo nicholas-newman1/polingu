@@ -1,5 +1,5 @@
 import { onCall, HttpsError } from 'firebase-functions/https';
-import { createOpenAI } from '../shared/openai.js';
+import { CHAT_MODEL_PARAMS, createOpenAI } from '../shared/openai.js';
 import { openaiApiKey } from '../shared/secrets.js';
 import { requestJsonCompletion } from '../shared/openaiJson.js';
 import { CEFRLevel, isCEFRLevel } from '../shared/cefr.js';
@@ -72,13 +72,13 @@ export const generateSentences = onCall<
   return requestJsonCompletion<GenerateSentencesResponse>(
     openai,
     {
-      model: 'gpt-4o',
+      ...CHAT_MODEL_PARAMS,
       messages: [
         { role: 'system', content: SENTENCE_SYSTEM_PROMPT },
         { role: 'user', content: userPrompt },
       ],
       temperature: 0.8,
-      max_tokens: 2000,
+      max_completion_tokens: 2000,
     },
     (parsed) => {
       if (!parsed.sentences || !Array.isArray(parsed.sentences)) {

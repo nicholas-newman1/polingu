@@ -1,5 +1,5 @@
 import { onCall, HttpsError } from 'firebase-functions/https';
-import { createOpenAI } from '../shared/openai.js';
+import { CHAT_MODEL_PARAMS, createOpenAI } from '../shared/openai.js';
 import { openaiApiKey } from '../shared/secrets.js';
 import { requestJsonCompletion } from '../shared/openaiJson.js';
 import { CEFRLevel } from '../shared/cefr.js';
@@ -112,13 +112,13 @@ Suggest 3-5 high-value additions that are currently MISSING.`;
   return requestJsonCompletion<CurriculumDiscoveryResponse>(
     openai,
     {
-      model: 'gpt-4o',
+      ...CHAT_MODEL_PARAMS,
       messages: [
         { role: 'system', content: CURRICULUM_SYSTEM_PROMPT },
         { role: 'user', content: userPrompt },
       ],
       temperature: 0.7,
-      max_tokens: 2000,
+      max_completion_tokens: 2000,
     },
     (parsed) => {
       if (!parsed.suggestions || !Array.isArray(parsed.suggestions)) {

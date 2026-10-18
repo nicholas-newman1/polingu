@@ -1,5 +1,5 @@
 import { onCall, HttpsError } from 'firebase-functions/https';
-import { createOpenAI } from '../shared/openai.js';
+import { CHAT_MODEL_PARAMS, createOpenAI } from '../shared/openai.js';
 import { openaiApiKey } from '../shared/secrets.js';
 import { requestJsonCompletion } from '../shared/openaiJson.js';
 
@@ -77,7 +77,7 @@ The "meaning" field is optional - only include it when distinguishing between di
     return requestJsonCompletion<GenerateExampleResponse>(
       openai,
       {
-        model: 'gpt-4o-mini',
+        ...CHAT_MODEL_PARAMS,
         messages: [
           {
             role: 'system',
@@ -90,7 +90,7 @@ The "meaning" field is optional - only include it when distinguishing between di
           },
         ],
         temperature: 0.8,
-        max_tokens: 500,
+        max_completion_tokens: 500,
       },
       (parsed) => {
         if (!parsed.examples || !Array.isArray(parsed.examples) || parsed.examples.length === 0) {

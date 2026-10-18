@@ -1,5 +1,5 @@
 import type OpenAI from 'openai' with { 'resolution-mode': 'import' };
-import { createOpenAI } from './openai.js';
+import { CHAT_MODEL_PARAMS, createOpenAI } from './openai.js';
 
 export type CEFRLevel = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
 
@@ -12,7 +12,7 @@ export function isCEFRLevel(value: unknown): value is CEFRLevel {
 /** Asks the model for a CEFR level; throws if the request fails. */
 export async function requestCEFRLevel(openai: OpenAI, polish: string): Promise<CEFRLevel | null> {
   const completion = await openai.chat.completions.create({
-    model: 'gpt-4o-mini',
+    ...CHAT_MODEL_PARAMS,
     messages: [
       {
         role: 'system',
@@ -22,7 +22,7 @@ export async function requestCEFRLevel(openai: OpenAI, polish: string): Promise<
       { role: 'user', content: polish },
     ],
     temperature: 0.2,
-    max_tokens: 10,
+    max_completion_tokens: 10,
   });
   const levelResponse = completion.choices[0]?.message?.content?.trim().toUpperCase();
   return isCEFRLevel(levelResponse) ? levelResponse : null;
