@@ -20,8 +20,6 @@ import { useReprioritizeVocabularyWord } from '../hooks/useReprioritizeVocabular
 import { useCustomCollection } from '../hooks/useCustomCollection';
 import { useOptimistic } from '../hooks/useOptimistic';
 import { useSnackbar } from '../hooks/useSnackbar';
-import { useAddToVocabulary } from '../hooks/useAddToVocabulary';
-import { useAppSettings } from '../contexts/AppSettingsContext';
 import {
   PageContainer,
   FiltersRow,
@@ -71,8 +69,6 @@ export function CustomVocabularyPage() {
   const { isAdmin } = useAuthContext();
   const { showSnackbar } = useSnackbar();
   const { canReprioritize, reprioritize, showDuplicateError } = useReprioritizeVocabularyWord();
-  const { settings: appSettings } = useAppSettings();
-  const addToVocabulary = useAddToVocabulary();
   const {
     items: customWordsBase,
     setItems: setCustomWordsBase,
@@ -102,10 +98,6 @@ export function CustomVocabularyPage() {
       await saveCustomVocabulary(newCustomWords);
       setCustomWordsBase(newCustomWords);
     });
-
-    if (isAdmin && appSettings.suggestExamplesAfterAddingWord) {
-      addToVocabulary?.openSuggestExamples(newWord);
-    }
   };
 
   const handleEditWord = (

@@ -292,10 +292,11 @@ export function AddVocabularyModal({
     gender,
   });
 
-  const onSubmit = async (data: FormData) => {
+  const onSubmit = (data: FormData) => {
     const validExamples = data.examples.filter((ex) => ex.polish.trim() && ex.english.trim());
 
-    const result = await onSave(
+    handleClose();
+    void onSave(
       normalizeCustomVocabularyFields({
         polish: data.polish.trim(),
         english: data.english.trim(),
@@ -305,8 +306,6 @@ export function AddVocabularyModal({
         examples: validExamples.length > 0 ? validExamples : undefined,
       })
     );
-    if (result === false) return;
-    handleClose();
   };
 
   const handleAddExample = () => {

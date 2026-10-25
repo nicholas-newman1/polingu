@@ -1,18 +1,14 @@
 import { createContext, useState, useCallback, type ReactNode } from 'react';
 import { AddVocabularyModal } from '../components/AddVocabularyModal';
-import { SuggestVocabularyExamplesModal } from '../components/SuggestVocabularyExamplesModal';
 import { loadCustomVocabulary, saveCustomVocabulary } from '../lib/storage/customVocabulary';
-import type { CustomVocabularyWord, ExampleSentence } from '../types/vocabulary';
+import type { CustomVocabularyWord } from '../types/vocabulary';
 import { useVocabulary } from '../hooks/useReviewData';
 import { normalizeVocabularyPrefill } from '../lib/utils/normalizeVocabularyPrefill';
 import { findCustomWordWithSamePolish } from '../lib/utils/findDuplicateCustomVocabularyPolish';
 import { useReprioritizeVocabularyWord } from '../hooks/useReprioritizeVocabularyWord';
-import { useAuthContext } from '../hooks/useAuthContext';
-import { useAppSettings } from './AppSettingsContext';
 
 interface AddToVocabularyContextType {
   openAddToVocabulary: (polish: string, english: string) => void;
-  openSuggestExamples: (word: CustomVocabularyWord) => void;
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -27,14 +23,9 @@ export function AddToVocabularyProvider({ children }: AddToVocabularyProviderPro
   const [initialValues, setInitialValues] = useState<
     { polish: string; english: string } | undefined
   >();
-  const [suggestExamplesForWord, setSuggestExamplesForWord] = useState<CustomVocabularyWord | null>(
-    null
-  );
 
   const { refreshVocabularyWords } = useVocabulary();
   const { showDuplicateError } = useReprioritizeVocabularyWord();
-  const { isAdmin } = useAuthContext();
-  const { settings: appSettings } = useAppSettings();
 
   const openAddToVocabulary = useCallback((polish: string, english: string) => {
     setInitialValues({
@@ -44,17 +35,9 @@ export function AddToVocabularyProvider({ children }: AddToVocabularyProviderPro
     setModalOpen(true);
   }, []);
 
-  const openSuggestExamples = useCallback((word: CustomVocabularyWord) => {
-    setSuggestExamplesForWord(word);
-  }, []);
-
   const handleClose = useCallback(() => {
     setModalOpen(false);
     setInitialValues(undefined);
-  }, []);
-
-  const handleCloseSuggest = useCallback(() => {
-    setSuggestExamplesForWord(null);
   }, []);
 
   const handleSave = useCallback(
@@ -63,7 +46,7 @@ export function AddToVocabularyProvider({ children }: AddToVocabularyProviderPro
       const duplicate = findCustomWordWithSamePolish(loaded, wordData.polish);
       if (duplicate) {
         showDuplicateError(duplicate.id);
-        return false;
+        return;
       }
       const newWord: CustomVocabularyWord = {
         ...wordData,
@@ -74,47 +57,18 @@ export function AddToVocabularyProvider({ children }: AddToVocabularyProviderPro
       const newCustomVocabulary = [newWord, ...loaded];
       await saveCustomVocabulary(newCustomVocabulary);
       await refreshVocabularyWords();
-
-      if (isAdmin && appSettings.suggestExamplesAfterAddingWord) {
-        setSuggestExamplesForWord(newWord);
-      }
     },
-    [
-      refreshVocabularyWords,
-      showDuplicateError,
-      isAdmin,
-      appSettings.suggestExamplesAfterAddingWord,
-    ]
-  );
-
-  const handleSaveSuggestedExamples = useCallback(
-    async (newExamples: ExampleSentence[]) => {
-      if (!suggestExamplesForWord || newExamples.length === 0) return;
-      const wordId = suggestExamplesForWord.id;
-      const loaded = await loadCustomVocabulary();
-      const updated = loaded.map((w) =>
-        w.id === wordId ? { ...w, examples: [...(w.examples ?? []), ...newExamples] } : w
-      );
-      await saveCustomVocabulary(updated);
-      await refreshVocabularyWords();
-    },
-    [suggestExamplesForWord, refreshVocabularyWords]
+    [refreshVocabularyWords, showDuplicateError]
   );
 
   return (
-    <AddToVocabularyContext.Provider value={{ openAddToVocabulary, openSuggestExamples }}>
+    <AddToVocabularyContext.Provider value={{ openAddToVocabulary }}>
       {children}
       <AddVocabularyModal
         open={modalOpen}
         onClose={handleClose}
         onSave={handleSave}
         initialValues={initialValues}
-      />
-      <SuggestVocabularyExamplesModal
-        open={!!suggestExamplesForWord}
-        word={suggestExamplesForWord}
-        onClose={handleCloseSuggest}
-        onSave={handleSaveSuggestedExamples}
       />
     </AddToVocabularyContext.Provider>
   );

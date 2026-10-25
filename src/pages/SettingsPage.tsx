@@ -17,11 +17,9 @@ import {
   CloudOff,
   VisibilityOff,
   DashboardCustomize,
-  AutoAwesome,
 } from '@mui/icons-material';
 import { styled } from '../lib/styled';
 import { useAppSettings } from '../contexts/AppSettingsContext';
-import { useAuthContext } from '../hooks/useAuthContext';
 import { useReviewData } from '../hooks/useReviewData';
 import {
   preloadAudioFiles,
@@ -111,7 +109,6 @@ function getVerbAudioUrls(verbs: Verb[]): Array<{ audioUrl?: string }> {
 
 export function SettingsPage() {
   const { settings, updateSettings } = useAppSettings();
-  const { isAdmin } = useAuthContext();
   const { systemSentences, systemWords, systemDeclensionCards, verbs } = useReviewData();
 
   const [isDownloading, setIsDownloading] = useState(false);
@@ -149,10 +146,6 @@ export function SettingsPage() {
 
   const handleHidePolishChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     updateSettings({ hidePolishText: event.target.checked });
-  };
-
-  const handleSuggestExamplesChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    updateSettings({ suggestExamplesAfterAddingWord: event.target.checked });
   };
 
   const handleDownloadAudio = async () => {
@@ -237,45 +230,6 @@ export function SettingsPage() {
           </SettingRow>
         </CardContent>
       </SettingCard>
-
-      {isAdmin && (
-        <SettingCard>
-          <CardContent>
-            <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
-              AI Assistance
-            </Typography>
-
-            <SettingRow>
-              <SettingInfo>
-                <SettingIcon>
-                  <AutoAwesome />
-                </SettingIcon>
-                <Box>
-                  <Typography variant="body1">Suggest example sentences</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    After adding a new custom word, open a modal with AI-generated example sentences
-                    you can review and save
-                  </Typography>
-                </Box>
-              </SettingInfo>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={settings.suggestExamplesAfterAddingWord}
-                    onChange={handleSuggestExamplesChange}
-                    inputProps={
-                      {
-                        'data-qa': 'toggle-suggest-examples-after-add',
-                      } as React.InputHTMLAttributes<HTMLInputElement>
-                    }
-                  />
-                }
-                label=""
-              />
-            </SettingRow>
-          </CardContent>
-        </SettingCard>
-      )}
 
       <SettingCard>
         <CardContent>

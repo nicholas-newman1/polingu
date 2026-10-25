@@ -36,8 +36,6 @@ import getVocabularyExtraNewCards from '../../lib/vocabularyScheduler/getVocabul
 import { recordCardReview } from '../../lib/reviewSession/recordReview';
 import { DIRECTION_ROUTES, otherDirection, toModeStats } from '../../lib/reviewSession/directions';
 import { useAuthContext } from '../../hooks/useAuthContext';
-import { useAppSettings } from '../../contexts/AppSettingsContext';
-import { useAddToVocabulary } from '../../hooks/useAddToVocabulary';
 import { useOptimistic } from '../../hooks/useOptimistic';
 import { useSnackbar } from '../../hooks/useSnackbar';
 import { useReviewData } from '../../hooks/useReviewData';
@@ -54,8 +52,6 @@ interface VocabularyPageProps {
 export function VocabularyPage({ mode }: VocabularyPageProps) {
   const navigate = useNavigate();
   const { user, isAdmin } = useAuthContext();
-  const { settings: appSettings } = useAppSettings();
-  const addToVocabulary = useAddToVocabulary();
   const { showSnackbar } = useSnackbar();
   const { showDuplicateError } = useReprioritizeVocabularyWord();
   const {
@@ -190,10 +186,6 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
     session.startSession(
       getVocabularySessionCards([...newCustomWords, ...systemWords], reviewStore, directionSettings)
     );
-
-    if (isAdmin && appSettings.suggestExamplesAfterAddingWord) {
-      addToVocabulary?.openSuggestExamples(newWord);
-    }
   };
 
   const handleEditWord = (wordData: WordFormData) => {
