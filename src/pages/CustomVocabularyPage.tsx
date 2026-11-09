@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { memo, useState, useMemo, useCallback } from 'react';
 import { Typography, Chip, Table, TableBody, TableCell, TableRow } from '@mui/material';
 import { styled } from '../lib/styled';
 import { alpha } from '../lib/theme';
@@ -74,16 +74,16 @@ export function CustomVocabularyPage() {
     setItems: setCustomWordsBase,
     isLoading,
   } = useCustomCollection(subscribeCustomVocabulary);
-  const [customWords, applyOptimisticCustomWords] = useOptimistic(customWordsBase, {
-    onError: () => showSnackbar('Failed to save. Please try again.', 'error'),
-  });
+  const optimisticOptions = useMemo(
+    () => ({ onError: () => showSnackbar('Failed to save. Please try again.', 'error') }),
+    [showSnackbar]
+  );
+  const [customWords, applyOptimisticCustomWords] = useOptimistic(
+    customWordsBase,
+    optimisticOptions
+  );
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingWord, setEditingWord] = useState<CustomVocabularyWord | null>(null);
-
-  const [searchQuery, setSearchQuery] = useState('');
-  const [posFilter, setPosFilter] = useState<PartOfSpeech | ''>('');
-  const [genderFilter, setGenderFilter] = useState<NounGender | ''>('');
-  const sort = useSortState<SortField>('createdAt');
 
   const handleAddWord = (wordData: Omit<CustomVocabularyWord, 'id' | 'isCustom' | 'createdAt'>) => {
     const duplicate = findCustomWordWithSamePolish(customWords, wordData.polish);
@@ -119,23 +119,28 @@ export function CustomVocabularyPage() {
     });
   };
 
-  const handleDeleteWord = (wordId: string) => {
-    if (!window.confirm('Are you sure you want to delete this word?')) {
-      return;
-    }
+  const handleDeleteWord = useCallback(
+    (wordId: string) => {
+      if (!window.confirm('Are you sure you want to delete this word?')) {
+        return;
+      }
 
-    const newCustomWords = customWords.filter((w) => w.id !== wordId);
+      const newCustomWords = customWords.filter((w) => w.id !== wordId);
 
-    applyOptimisticCustomWords(newCustomWords, async () => {
-      await saveCustomVocabulary(newCustomWords);
-      setCustomWordsBase(newCustomWords);
-    });
-  };
+      applyOptimisticCustomWords(newCustomWords, async () => {
+        await saveCustomVocabulary(newCustomWords);
+        setCustomWordsBase(newCustomWords);
+      });
+    },
+    [customWords, applyOptimisticCustomWords, setCustomWordsBase]
+  );
 
-  const handleOpenEditModal = (word: CustomVocabularyWord) => {
+  const handleOpenAddModal = useCallback(() => setShowAddModal(true), []);
+
+  const handleOpenEditModal = useCallback((word: CustomVocabularyWord) => {
     setEditingWord(word);
     setShowAddModal(true);
-  };
+  }, []);
 
   const handleAudioSaved = useCallback(
     (wordId: string, audioUrl: string) => {
@@ -143,6 +148,71 @@ export function CustomVocabularyPage() {
     },
     [setCustomWordsBase]
   );
+
+  if (isLoading) {
+    return <CustomItemLoadingState />;
+  }
+
+  return (
+    <PageContainer>
+      <CustomItemPageHeader
+        title="My Vocabulary"
+        subtitle="Your personal vocabulary collection"
+        count={customWords.length}
+        addLabel="Add Word"
+        onAdd={handleOpenAddModal}
+      />
+
+      <VocabularyTable
+        customWords={customWords}
+        isAdmin={isAdmin}
+        onAdd={handleOpenAddModal}
+        onEdit={handleOpenEditModal}
+        onDelete={handleDeleteWord}
+        onAudioSaved={handleAudioSaved}
+        canReprioritize={canReprioritize}
+        reprioritize={reprioritize}
+      />
+
+      <AddVocabularyModal
+        open={showAddModal}
+        onClose={() => {
+          setShowAddModal(false);
+          setEditingWord(null);
+        }}
+        onSave={editingWord ? handleEditWord : handleAddWord}
+        editWord={editingWord}
+      />
+    </PageContainer>
+  );
+}
+
+interface VocabularyTableProps {
+  customWords: CustomVocabularyWord[];
+  isAdmin: boolean;
+  onAdd: () => void;
+  onEdit: (item: CustomVocabularyWord) => void;
+  onDelete: (id: CustomVocabularyWord['id']) => void;
+  onAudioSaved: (id: CustomVocabularyWord['id'], audioUrl: string) => void;
+  canReprioritize: (id: CustomVocabularyWord['id']) => boolean;
+  reprioritize: (id: CustomVocabularyWord['id']) => void;
+}
+
+// Dialog state stays in the page; stable props let the table skip those updates.
+const VocabularyTable = memo(function VocabularyTable({
+  customWords,
+  isAdmin,
+  onAdd,
+  onEdit,
+  onDelete,
+  onAudioSaved,
+  canReprioritize,
+  reprioritize,
+}: VocabularyTableProps) {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [posFilter, setPosFilter] = useState<PartOfSpeech | ''>('');
+  const [genderFilter, setGenderFilter] = useState<NounGender | ''>('');
+  const sort = useSortState<SortField>('createdAt');
 
   const { sortField, sortDirection } = sort;
   const filteredAndSortedWords = useMemo(() => {
@@ -159,136 +229,114 @@ export function CustomVocabularyPage() {
     return sortItems(filtered, COMPARATORS, { sortField, sortDirection });
   }, [customWords, searchQuery, posFilter, genderFilter, sortField, sortDirection]);
 
-  if (isLoading) {
-    return <CustomItemLoadingState />;
+  if (customWords.length === 0) {
+    return (
+      <CustomItemEmptyState
+        title="No custom words yet"
+        description="Add your own vocabulary words to drill alongside the standard word list."
+        addLabel="Add Your First Word"
+        onAdd={onAdd}
+      />
+    );
   }
 
   return (
-    <PageContainer>
-      <CustomItemPageHeader
-        title="My Vocabulary"
-        subtitle="Your personal vocabulary collection"
-        count={customWords.length}
-        addLabel="Add Word"
-        onAdd={() => setShowAddModal(true)}
-      />
-
-      {customWords.length === 0 ? (
-        <CustomItemEmptyState
-          title="No custom words yet"
-          description="Add your own vocabulary words to drill alongside the standard word list."
-          addLabel="Add Your First Word"
-          onAdd={() => setShowAddModal(true)}
+    <>
+      <FiltersRow>
+        <CustomItemSearchField
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder="Search words..."
         />
-      ) : (
-        <>
-          <FiltersRow>
-            <CustomItemSearchField
-              value={searchQuery}
-              onChange={setSearchQuery}
-              placeholder="Search words..."
-            />
-            <FilterSelectField
-              label="Part of Speech"
-              value={posFilter}
-              options={PARTS_OF_SPEECH}
-              onChange={setPosFilter}
-              format={capitalize}
-            />
-            <FilterSelectField
-              label="Gender"
-              value={genderFilter}
-              options={NOUN_GENDERS}
-              onChange={setGenderFilter}
-              format={capitalize}
-            />
-            <FilterResultCount
-              visible={Boolean(searchQuery || posFilter || genderFilter)}
-              shown={filteredAndSortedWords.length}
-              total={customWords.length}
-              noun="words"
-            />
-          </FiltersRow>
+        <FilterSelectField
+          label="Part of Speech"
+          value={posFilter}
+          options={PARTS_OF_SPEECH}
+          onChange={setPosFilter}
+          format={capitalize}
+        />
+        <FilterSelectField
+          label="Gender"
+          value={genderFilter}
+          options={NOUN_GENDERS}
+          onChange={setGenderFilter}
+          format={capitalize}
+        />
+        <FilterResultCount
+          visible={Boolean(searchQuery || posFilter || genderFilter)}
+          shown={filteredAndSortedWords.length}
+          total={customWords.length}
+          noun="words"
+        />
+      </FiltersRow>
 
-          <StyledTableContainer elevation={0}>
-            <Table>
-              <CustomItemTableHead isAdmin={isAdmin}>
-                <SortableHeaderCell field="polish" label="Polish" sort={sort} />
-                <SortableHeaderCell field="english" label="English" sort={sort} />
-                <SortableHeaderCell field="partOfSpeech" label="Type" sort={sort} />
-                <SortableHeaderCell field="gender" label="Gender" sort={sort} />
-                <TableCell>Notes</TableCell>
-                <SortableHeaderCell field="createdAt" label="Added" sort={sort} />
-              </CustomItemTableHead>
-              <TableBody>
-                {filteredAndSortedWords.map((word) => (
-                  <TableRow key={word.id}>
-                    <TableCell>
-                      <CustomItemActions
-                        onEdit={() => handleOpenEditModal(word)}
-                        onDelete={() => handleDeleteWord(word.id)}
-                        editLabel="edit word"
-                        deleteLabel="delete word"
-                        onReprioritize={() => reprioritize(word.id)}
-                        canReprioritize={canReprioritize(word.id)}
-                        reprioritizeLabel="review word again"
-                      />
-                    </TableCell>
-                    {isAdmin && (
-                      <TableCell>
-                        <InlineAudioRegenerator
-                          text={word.polish}
-                          type="custom-vocabulary"
-                          id={word.id}
-                          currentAudioUrl={word.audioUrl}
-                          onAudioSaved={(audioUrl) => handleAudioSaved(word.id, audioUrl)}
-                        />
-                      </TableCell>
-                    )}
-                    <TableCell>
-                      <PrimaryCell>{word.polish}</PrimaryCell>
-                    </TableCell>
-                    <TableCell>{word.english}</TableCell>
-                    <TableCell>
-                      {word.partOfSpeech && <MetaChip label={word.partOfSpeech} size="small" />}
-                    </TableCell>
-                    <TableCell>
-                      {word.gender && (
-                        <GenderChip $gender={word.gender} label={word.gender} size="small" />
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {word.notes && <SecondaryCell title={word.notes}>{word.notes}</SecondaryCell>}
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" color="text.secondary">
-                        {formatDate(word.createdAt)}
-                      </Typography>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {filteredAndSortedWords.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={isAdmin ? 8 : 7} align="center" sx={{ py: 4 }}>
-                      <Typography color="text.secondary">No words match your filters</Typography>
-                    </TableCell>
-                  </TableRow>
+      <StyledTableContainer elevation={0}>
+        <Table>
+          <CustomItemTableHead isAdmin={isAdmin}>
+            <SortableHeaderCell field="polish" label="Polish" sort={sort} />
+            <SortableHeaderCell field="english" label="English" sort={sort} />
+            <SortableHeaderCell field="partOfSpeech" label="Type" sort={sort} />
+            <SortableHeaderCell field="gender" label="Gender" sort={sort} />
+            <TableCell>Notes</TableCell>
+            <SortableHeaderCell field="createdAt" label="Added" sort={sort} />
+          </CustomItemTableHead>
+          <TableBody>
+            {filteredAndSortedWords.map((word) => (
+              <TableRow key={word.id}>
+                <TableCell>
+                  <CustomItemActions
+                    onEdit={() => onEdit(word)}
+                    onDelete={() => onDelete(word.id)}
+                    editLabel="edit word"
+                    deleteLabel="delete word"
+                    onReprioritize={() => reprioritize(word.id)}
+                    canReprioritize={canReprioritize(word.id)}
+                    reprioritizeLabel="review word again"
+                  />
+                </TableCell>
+                {isAdmin && (
+                  <TableCell>
+                    <InlineAudioRegenerator
+                      text={word.polish}
+                      type="custom-vocabulary"
+                      id={word.id}
+                      currentAudioUrl={word.audioUrl}
+                      onAudioSaved={(audioUrl) => onAudioSaved(word.id, audioUrl)}
+                    />
+                  </TableCell>
                 )}
-              </TableBody>
-            </Table>
-          </StyledTableContainer>
-        </>
-      )}
-
-      <AddVocabularyModal
-        open={showAddModal}
-        onClose={() => {
-          setShowAddModal(false);
-          setEditingWord(null);
-        }}
-        onSave={editingWord ? handleEditWord : handleAddWord}
-        editWord={editingWord}
-      />
-    </PageContainer>
+                <TableCell>
+                  <PrimaryCell>{word.polish}</PrimaryCell>
+                </TableCell>
+                <TableCell>{word.english}</TableCell>
+                <TableCell>
+                  {word.partOfSpeech && <MetaChip label={word.partOfSpeech} size="small" />}
+                </TableCell>
+                <TableCell>
+                  {word.gender && (
+                    <GenderChip $gender={word.gender} label={word.gender} size="small" />
+                  )}
+                </TableCell>
+                <TableCell>
+                  {word.notes && <SecondaryCell title={word.notes}>{word.notes}</SecondaryCell>}
+                </TableCell>
+                <TableCell>
+                  <Typography variant="body2" color="text.secondary">
+                    {formatDate(word.createdAt)}
+                  </Typography>
+                </TableCell>
+              </TableRow>
+            ))}
+            {filteredAndSortedWords.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={isAdmin ? 8 : 7} align="center" sx={{ py: 4 }}>
+                  <Typography color="text.secondary">No words match your filters</Typography>
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </StyledTableContainer>
+    </>
   );
-}
+});

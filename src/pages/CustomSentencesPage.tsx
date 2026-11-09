@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { memo, useState, useMemo, useCallback } from 'react';
 import { Typography, Chip, Table, TableBody, TableCell, TableRow } from '@mui/material';
 import { styled } from '../lib/styled';
 import { alpha } from '../lib/theme';
@@ -73,15 +73,17 @@ export function CustomSentencesPage() {
     setItems: setCustomSentencesBase,
     isLoading,
   } = useCustomCollection(subscribeCustomSentences);
-  const [customSentences, applyOptimisticCustomSentences] = useOptimistic(customSentencesBase, {
-    onError: () => showSnackbar('Failed to save. Please try again.', 'error'),
-  });
+  const optimisticOptions = useMemo(
+    () => ({ onError: () => showSnackbar('Failed to save. Please try again.', 'error') }),
+    [showSnackbar]
+  );
+  const [customSentences, applyOptimisticCustomSentences] = useOptimistic(
+    customSentencesBase,
+    optimisticOptions
+  );
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingSentence, setEditingSentence] = useState<CustomSentence | null>(null);
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [levelFilter, setLevelFilter] = useState<CEFRLevel | ''>('');
-  const sort = useSortState<SortField>('createdAt');
   const { canReprioritize, reprioritize, showDuplicateError } = useReprioritizeSentence();
 
   const handleAddSentence = (sentenceData: Omit<Sentence, 'id'>) => {
@@ -132,24 +134,34 @@ export function CustomSentencesPage() {
     });
   };
 
-  const handleDeleteSentence = (sentenceId: string) => {
-    if (!window.confirm('Are you sure you want to delete this sentence?')) {
-      return;
-    }
+  const handleDeleteSentence = useCallback(
+    (sentenceId: string) => {
+      if (!window.confirm('Are you sure you want to delete this sentence?')) {
+        return;
+      }
 
-    const newCustomSentences = customSentences.filter((s) => s.id !== sentenceId);
+      const newCustomSentences = customSentences.filter((s) => s.id !== sentenceId);
 
-    applyOptimisticCustomSentences(newCustomSentences, async () => {
-      await saveCustomSentences(newCustomSentences);
-      setCustomSentencesBase(newCustomSentences);
-      setContextCustomSentences(newCustomSentences);
-    });
-  };
+      applyOptimisticCustomSentences(newCustomSentences, async () => {
+        await saveCustomSentences(newCustomSentences);
+        setCustomSentencesBase(newCustomSentences);
+        setContextCustomSentences(newCustomSentences);
+      });
+    },
+    [
+      customSentences,
+      applyOptimisticCustomSentences,
+      setCustomSentencesBase,
+      setContextCustomSentences,
+    ]
+  );
 
-  const handleOpenEditModal = (sentence: CustomSentence) => {
+  const handleOpenAddModal = useCallback(() => setShowAddModal(true), []);
+
+  const handleOpenEditModal = useCallback((sentence: CustomSentence) => {
     setEditingSentence(sentence);
     setShowAddModal(true);
-  };
+  }, []);
 
   const handleAudioSaved = useCallback(
     (sentenceId: string, audioUrl: string) => {
@@ -159,19 +171,6 @@ export function CustomSentencesPage() {
     },
     [setCustomSentencesBase]
   );
-
-  const { sortField, sortDirection } = sort;
-  const filteredAndSortedSentences = useMemo(() => {
-    const query = searchQuery.toLowerCase();
-    const filtered = customSentences.filter(
-      (sentence) =>
-        (!query ||
-          sentence.polish.toLowerCase().includes(query) ||
-          sentence.english.toLowerCase().includes(query)) &&
-        (!levelFilter || sentence.level === levelFilter)
-    );
-    return sortItems(filtered, COMPARATORS, { sortField, sortDirection });
-  }, [customSentences, searchQuery, levelFilter, sortField, sortDirection]);
 
   if (isLoading) {
     return <CustomItemLoadingState />;
@@ -184,101 +183,19 @@ export function CustomSentencesPage() {
         subtitle="Your personal sentence collection"
         count={customSentences.length}
         addLabel="Add Sentence"
-        onAdd={() => setShowAddModal(true)}
+        onAdd={handleOpenAddModal}
       />
 
-      {customSentences.length === 0 ? (
-        <CustomItemEmptyState
-          title="No custom sentences yet"
-          description="Add your own sentences to drill alongside the standard sentence set. Custom sentences are prioritized first!"
-          addLabel="Add Your First Sentence"
-          onAdd={() => setShowAddModal(true)}
-        />
-      ) : (
-        <>
-          <FiltersRow>
-            <CustomItemSearchField
-              value={searchQuery}
-              onChange={setSearchQuery}
-              placeholder="Search sentences..."
-            />
-            <FilterSelectField
-              label="Level"
-              value={levelFilter}
-              options={ALL_LEVELS}
-              onChange={setLevelFilter}
-            />
-            <FilterResultCount
-              visible={Boolean(searchQuery || levelFilter)}
-              shown={filteredAndSortedSentences.length}
-              total={customSentences.length}
-              noun="sentences"
-            />
-          </FiltersRow>
-
-          <StyledTableContainer elevation={0}>
-            <Table>
-              <CustomItemTableHead isAdmin={isAdmin}>
-                <SortableHeaderCell field="polish" label="Polish" sort={sort} />
-                <SortableHeaderCell field="english" label="English" sort={sort} />
-                <SortableHeaderCell field="level" label="Level" sort={sort} />
-                <SortableHeaderCell field="createdAt" label="Added" sort={sort} />
-              </CustomItemTableHead>
-              <TableBody>
-                {filteredAndSortedSentences.map((sentence) => (
-                  <TableRow key={sentence.id}>
-                    <TableCell>
-                      <CustomItemActions
-                        onEdit={() => handleOpenEditModal(sentence)}
-                        onDelete={() => handleDeleteSentence(sentence.id)}
-                        editLabel="edit sentence"
-                        deleteLabel="delete sentence"
-                        onReprioritize={() => reprioritize(sentence.id)}
-                        canReprioritize={canReprioritize(sentence.id)}
-                        reprioritizeLabel="review sentence again"
-                      />
-                    </TableCell>
-                    {isAdmin && (
-                      <TableCell>
-                        <InlineAudioRegenerator
-                          text={sentence.polish}
-                          type="custom-sentence"
-                          id={sentence.id}
-                          currentAudioUrl={sentence.audioUrl}
-                          onAudioSaved={(audioUrl) => handleAudioSaved(sentence.id, audioUrl)}
-                        />
-                      </TableCell>
-                    )}
-                    <TableCell>
-                      <TruncatedCell title={sentence.polish}>{sentence.polish}</TruncatedCell>
-                    </TableCell>
-                    <TableCell>
-                      <TruncatedCell title={sentence.english}>{sentence.english}</TruncatedCell>
-                    </TableCell>
-                    <TableCell>
-                      <LevelChip $level={sentence.level} label={sentence.level} size="small" />
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" color="text.secondary">
-                        {formatDate(sentence.createdAt)}
-                      </Typography>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {filteredAndSortedSentences.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={isAdmin ? 6 : 5} align="center" sx={{ py: 4 }}>
-                      <Typography color="text.secondary">
-                        No sentences match your filters
-                      </Typography>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </StyledTableContainer>
-        </>
-      )}
+      <SentencesTable
+        customSentences={customSentences}
+        isAdmin={isAdmin}
+        onAdd={handleOpenAddModal}
+        onEdit={handleOpenEditModal}
+        onDelete={handleDeleteSentence}
+        onAudioSaved={handleAudioSaved}
+        canReprioritize={canReprioritize}
+        reprioritize={reprioritize}
+      />
 
       <EditSentenceModal
         open={showAddModal}
@@ -293,3 +210,138 @@ export function CustomSentencesPage() {
     </PageContainer>
   );
 }
+
+interface SentencesTableProps {
+  customSentences: CustomSentence[];
+  isAdmin: boolean;
+  onAdd: () => void;
+  onEdit: (item: CustomSentence) => void;
+  onDelete: (id: CustomSentence['id']) => void;
+  onAudioSaved: (id: CustomSentence['id'], audioUrl: string) => void;
+  canReprioritize: (id: CustomSentence['id']) => boolean;
+  reprioritize: (id: CustomSentence['id']) => void;
+}
+
+// Dialog state stays in the page; stable props let the table skip those updates.
+const SentencesTable = memo(function SentencesTable({
+  customSentences,
+  isAdmin,
+  onAdd,
+  onEdit,
+  onDelete,
+  onAudioSaved,
+  canReprioritize,
+  reprioritize,
+}: SentencesTableProps) {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [levelFilter, setLevelFilter] = useState<CEFRLevel | ''>('');
+  const sort = useSortState<SortField>('createdAt');
+
+  const { sortField, sortDirection } = sort;
+  const filteredAndSortedSentences = useMemo(() => {
+    const query = searchQuery.toLowerCase();
+    const filtered = customSentences.filter(
+      (sentence) =>
+        (!query ||
+          sentence.polish.toLowerCase().includes(query) ||
+          sentence.english.toLowerCase().includes(query)) &&
+        (!levelFilter || sentence.level === levelFilter)
+    );
+    return sortItems(filtered, COMPARATORS, { sortField, sortDirection });
+  }, [customSentences, searchQuery, levelFilter, sortField, sortDirection]);
+
+  if (customSentences.length === 0) {
+    return (
+      <CustomItemEmptyState
+        title="No custom sentences yet"
+        description="Add your own sentences to drill alongside the standard sentence set. Custom sentences are prioritized first!"
+        addLabel="Add Your First Sentence"
+        onAdd={onAdd}
+      />
+    );
+  }
+
+  return (
+    <>
+      <FiltersRow>
+        <CustomItemSearchField
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder="Search sentences..."
+        />
+        <FilterSelectField
+          label="Level"
+          value={levelFilter}
+          options={ALL_LEVELS}
+          onChange={setLevelFilter}
+        />
+        <FilterResultCount
+          visible={Boolean(searchQuery || levelFilter)}
+          shown={filteredAndSortedSentences.length}
+          total={customSentences.length}
+          noun="sentences"
+        />
+      </FiltersRow>
+
+      <StyledTableContainer elevation={0}>
+        <Table>
+          <CustomItemTableHead isAdmin={isAdmin}>
+            <SortableHeaderCell field="polish" label="Polish" sort={sort} />
+            <SortableHeaderCell field="english" label="English" sort={sort} />
+            <SortableHeaderCell field="level" label="Level" sort={sort} />
+            <SortableHeaderCell field="createdAt" label="Added" sort={sort} />
+          </CustomItemTableHead>
+          <TableBody>
+            {filteredAndSortedSentences.map((sentence) => (
+              <TableRow key={sentence.id}>
+                <TableCell>
+                  <CustomItemActions
+                    onEdit={() => onEdit(sentence)}
+                    onDelete={() => onDelete(sentence.id)}
+                    editLabel="edit sentence"
+                    deleteLabel="delete sentence"
+                    onReprioritize={() => reprioritize(sentence.id)}
+                    canReprioritize={canReprioritize(sentence.id)}
+                    reprioritizeLabel="review sentence again"
+                  />
+                </TableCell>
+                {isAdmin && (
+                  <TableCell>
+                    <InlineAudioRegenerator
+                      text={sentence.polish}
+                      type="custom-sentence"
+                      id={sentence.id}
+                      currentAudioUrl={sentence.audioUrl}
+                      onAudioSaved={(audioUrl) => onAudioSaved(sentence.id, audioUrl)}
+                    />
+                  </TableCell>
+                )}
+                <TableCell>
+                  <TruncatedCell title={sentence.polish}>{sentence.polish}</TruncatedCell>
+                </TableCell>
+                <TableCell>
+                  <TruncatedCell title={sentence.english}>{sentence.english}</TruncatedCell>
+                </TableCell>
+                <TableCell>
+                  <LevelChip $level={sentence.level} label={sentence.level} size="small" />
+                </TableCell>
+                <TableCell>
+                  <Typography variant="body2" color="text.secondary">
+                    {formatDate(sentence.createdAt)}
+                  </Typography>
+                </TableCell>
+              </TableRow>
+            ))}
+            {filteredAndSortedSentences.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={isAdmin ? 6 : 5} align="center" sx={{ py: 4 }}>
+                  <Typography color="text.secondary">No sentences match your filters</Typography>
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </StyledTableContainer>
+    </>
+  );
+});

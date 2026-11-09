@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { memo, useState, useMemo, useCallback } from 'react';
 import { Typography, Chip, Table, TableBody, TableCell, TableRow } from '@mui/material';
 import { styled } from '../lib/styled';
 import { alpha } from '../lib/theme';
@@ -88,17 +88,16 @@ export function CustomDeclensionPage() {
     setItems: setCustomCardsBase,
     isLoading,
   } = useCustomCollection(subscribeCustomDeclension);
-  const [customCards, applyOptimisticCustomCards] = useOptimistic(customCardsBase, {
-    onError: () => showSnackbar('Failed to save. Please try again.', 'error'),
-  });
+  const optimisticOptions = useMemo(
+    () => ({ onError: () => showSnackbar('Failed to save. Please try again.', 'error') }),
+    [showSnackbar]
+  );
+  const [customCards, applyOptimisticCustomCards] = useOptimistic(
+    customCardsBase,
+    optimisticOptions
+  );
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingCard, setEditingCard] = useState<CustomDeclensionCard | null>(null);
-
-  const [searchQuery, setSearchQuery] = useState('');
-  const [caseFilter, setCaseFilter] = useState<Case | ''>('');
-  const [genderFilter, setGenderFilter] = useState<Gender | ''>('');
-  const [numberFilter, setNumberFilter] = useState<Number | ''>('');
-  const sort = useSortState<SortField>('createdAt');
 
   const handleReprioritize = useCallback(
     (cardId: string) => {
@@ -154,23 +153,28 @@ export function CustomDeclensionPage() {
     });
   };
 
-  const handleDeleteCard = (cardId: string) => {
-    if (!window.confirm('Are you sure you want to delete this card?')) {
-      return;
-    }
+  const handleDeleteCard = useCallback(
+    (cardId: string) => {
+      if (!window.confirm('Are you sure you want to delete this card?')) {
+        return;
+      }
 
-    const newCustomCards = customCards.filter((c) => c.id !== cardId);
+      const newCustomCards = customCards.filter((c) => c.id !== cardId);
 
-    applyOptimisticCustomCards(newCustomCards, async () => {
-      await saveCustomDeclension(newCustomCards);
-      setCustomCardsBase(newCustomCards);
-    });
-  };
+      applyOptimisticCustomCards(newCustomCards, async () => {
+        await saveCustomDeclension(newCustomCards);
+        setCustomCardsBase(newCustomCards);
+      });
+    },
+    [customCards, applyOptimisticCustomCards, setCustomCardsBase]
+  );
 
-  const handleOpenEditModal = (card: CustomDeclensionCard) => {
+  const handleOpenAddModal = useCallback(() => setShowAddModal(true), []);
+
+  const handleOpenEditModal = useCallback((card: CustomDeclensionCard) => {
     setEditingCard(card);
     setShowAddModal(true);
-  };
+  }, []);
 
   const handleAudioSaved = useCallback(
     (cardId: string, audioUrl: string) => {
@@ -178,23 +182,6 @@ export function CustomDeclensionPage() {
     },
     [setCustomCardsBase]
   );
-
-  const { sortField, sortDirection } = sort;
-  const filteredAndSortedCards = useMemo(() => {
-    const query = searchQuery.toLowerCase();
-    const filtered = customCards.filter(
-      (card) =>
-        (!query ||
-          card.front.toLowerCase().includes(query) ||
-          card.back.toLowerCase().includes(query) ||
-          card.declined.toLowerCase().includes(query) ||
-          card.hint?.toLowerCase().includes(query)) &&
-        (!caseFilter || card.case === caseFilter) &&
-        (!genderFilter || card.gender === genderFilter) &&
-        (!numberFilter || card.number === numberFilter)
-    );
-    return sortItems(filtered, COMPARATORS, { sortField, sortDirection });
-  }, [customCards, searchQuery, caseFilter, genderFilter, numberFilter, sortField, sortDirection]);
 
   if (isLoading) {
     return <CustomItemLoadingState />;
@@ -207,122 +194,19 @@ export function CustomDeclensionPage() {
         subtitle="Your personal declension card collection"
         count={customCards.length}
         addLabel="Add Card"
-        onAdd={() => setShowAddModal(true)}
+        onAdd={handleOpenAddModal}
       />
 
-      {customCards.length === 0 ? (
-        <CustomItemEmptyState
-          title="No custom declension cards yet"
-          description="Add your own declension cards to drill alongside the standard card set."
-          addLabel="Add Your First Card"
-          onAdd={() => setShowAddModal(true)}
-        />
-      ) : (
-        <>
-          <FiltersRow>
-            <CustomItemSearchField
-              value={searchQuery}
-              onChange={setSearchQuery}
-              placeholder="Search cards..."
-            />
-            <FilterSelectField
-              label="Case"
-              value={caseFilter}
-              options={CASES}
-              onChange={setCaseFilter}
-            />
-            <FilterSelectField
-              label="Gender"
-              value={genderFilter}
-              options={GENDERS}
-              onChange={setGenderFilter}
-            />
-            <FilterSelectField
-              label="Number"
-              value={numberFilter}
-              options={NUMBERS}
-              onChange={setNumberFilter}
-            />
-            <FilterResultCount
-              visible={Boolean(searchQuery || caseFilter || genderFilter || numberFilter)}
-              shown={filteredAndSortedCards.length}
-              total={customCards.length}
-              noun="cards"
-            />
-          </FiltersRow>
-
-          <StyledTableContainer elevation={0}>
-            <Table>
-              <CustomItemTableHead isAdmin={isAdmin}>
-                <SortableHeaderCell field="front" label="Question" sort={sort} />
-                <SortableHeaderCell field="declined" label="Answer" sort={sort} />
-                <SortableHeaderCell field="case" label="Case" sort={sort} />
-                <SortableHeaderCell field="gender" label="Gender" sort={sort} />
-                <SortableHeaderCell field="number" label="Number" sort={sort} />
-                <SortableHeaderCell field="createdAt" label="Added" sort={sort} />
-              </CustomItemTableHead>
-              <TableBody>
-                {filteredAndSortedCards.map((card) => (
-                  <TableRow key={card.id}>
-                    <TableCell>
-                      <CustomItemActions
-                        onEdit={() => handleOpenEditModal(card)}
-                        onDelete={() => handleDeleteCard(card.id)}
-                        editLabel="edit card"
-                        deleteLabel="delete card"
-                        onReprioritize={() => handleReprioritize(card.id)}
-                        canReprioritize={canReprioritizeDeclensionCard(
-                          declensionReviewStore,
-                          card.id
-                        )}
-                        reprioritizeLabel="review card again"
-                      />
-                    </TableCell>
-                    {isAdmin && (
-                      <TableCell>
-                        <InlineAudioRegenerator
-                          text={card.back}
-                          type="custom-declension"
-                          id={card.id}
-                          currentAudioUrl={card.audioUrl}
-                          onAudioSaved={(audioUrl) => handleAudioSaved(card.id, audioUrl)}
-                        />
-                      </TableCell>
-                    )}
-                    <TableCell>
-                      <TruncatedCell title={card.front}>{card.front}</TruncatedCell>
-                    </TableCell>
-                    <TableCell>
-                      <Typography fontWeight={500}>{card.declined}</Typography>
-                    </TableCell>
-                    <TableCell>
-                      <MetaChip label={card.case} size="small" />
-                    </TableCell>
-                    <TableCell>
-                      <GenderChip $gender={card.gender} label={card.gender} size="small" />
-                    </TableCell>
-                    <TableCell>
-                      <MetaChip label={card.number} size="small" />
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" color="text.secondary">
-                        {formatDate(card.createdAt)}
-                      </Typography>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {filteredAndSortedCards.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={isAdmin ? 8 : 7} align="center" sx={{ py: 4 }}>
-                      <Typography color="text.secondary">No cards match your filters</Typography>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </StyledTableContainer>
-        </>
-      )}
+      <DeclensionTable
+        customCards={customCards}
+        isAdmin={isAdmin}
+        onAdd={handleOpenAddModal}
+        onEdit={handleOpenEditModal}
+        onDelete={handleDeleteCard}
+        onAudioSaved={handleAudioSaved}
+        declensionReviewStore={declensionReviewStore}
+        handleReprioritize={handleReprioritize}
+      />
 
       <EditDeclensionModal
         open={showAddModal}
@@ -346,3 +230,164 @@ export function CustomDeclensionPage() {
     </PageContainer>
   );
 }
+
+interface DeclensionTableProps {
+  customCards: CustomDeclensionCard[];
+  isAdmin: boolean;
+  onAdd: () => void;
+  onEdit: (item: CustomDeclensionCard) => void;
+  onDelete: (id: CustomDeclensionCard['id']) => void;
+  onAudioSaved: (id: CustomDeclensionCard['id'], audioUrl: string) => void;
+  declensionReviewStore: Parameters<typeof canReprioritizeDeclensionCard>[0];
+  handleReprioritize: (id: CustomDeclensionCard['id']) => void;
+}
+
+// Dialog state stays in the page; stable props let the table skip those updates.
+const DeclensionTable = memo(function DeclensionTable({
+  customCards,
+  isAdmin,
+  onAdd,
+  onEdit,
+  onDelete,
+  onAudioSaved,
+  declensionReviewStore,
+  handleReprioritize,
+}: DeclensionTableProps) {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [caseFilter, setCaseFilter] = useState<Case | ''>('');
+  const [genderFilter, setGenderFilter] = useState<Gender | ''>('');
+  const [numberFilter, setNumberFilter] = useState<Number | ''>('');
+  const sort = useSortState<SortField>('createdAt');
+
+  const { sortField, sortDirection } = sort;
+  const filteredAndSortedCards = useMemo(() => {
+    const query = searchQuery.toLowerCase();
+    const filtered = customCards.filter(
+      (card) =>
+        (!query ||
+          card.front.toLowerCase().includes(query) ||
+          card.back.toLowerCase().includes(query) ||
+          card.declined.toLowerCase().includes(query) ||
+          card.hint?.toLowerCase().includes(query)) &&
+        (!caseFilter || card.case === caseFilter) &&
+        (!genderFilter || card.gender === genderFilter) &&
+        (!numberFilter || card.number === numberFilter)
+    );
+    return sortItems(filtered, COMPARATORS, { sortField, sortDirection });
+  }, [customCards, searchQuery, caseFilter, genderFilter, numberFilter, sortField, sortDirection]);
+
+  if (customCards.length === 0) {
+    return (
+      <CustomItemEmptyState
+        title="No custom declension cards yet"
+        description="Add your own declension cards to drill alongside the standard card set."
+        addLabel="Add Your First Card"
+        onAdd={onAdd}
+      />
+    );
+  }
+
+  return (
+    <>
+      <FiltersRow>
+        <CustomItemSearchField
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder="Search cards..."
+        />
+        <FilterSelectField
+          label="Case"
+          value={caseFilter}
+          options={CASES}
+          onChange={setCaseFilter}
+        />
+        <FilterSelectField
+          label="Gender"
+          value={genderFilter}
+          options={GENDERS}
+          onChange={setGenderFilter}
+        />
+        <FilterSelectField
+          label="Number"
+          value={numberFilter}
+          options={NUMBERS}
+          onChange={setNumberFilter}
+        />
+        <FilterResultCount
+          visible={Boolean(searchQuery || caseFilter || genderFilter || numberFilter)}
+          shown={filteredAndSortedCards.length}
+          total={customCards.length}
+          noun="cards"
+        />
+      </FiltersRow>
+
+      <StyledTableContainer elevation={0}>
+        <Table>
+          <CustomItemTableHead isAdmin={isAdmin}>
+            <SortableHeaderCell field="front" label="Question" sort={sort} />
+            <SortableHeaderCell field="declined" label="Answer" sort={sort} />
+            <SortableHeaderCell field="case" label="Case" sort={sort} />
+            <SortableHeaderCell field="gender" label="Gender" sort={sort} />
+            <SortableHeaderCell field="number" label="Number" sort={sort} />
+            <SortableHeaderCell field="createdAt" label="Added" sort={sort} />
+          </CustomItemTableHead>
+          <TableBody>
+            {filteredAndSortedCards.map((card) => (
+              <TableRow key={card.id}>
+                <TableCell>
+                  <CustomItemActions
+                    onEdit={() => onEdit(card)}
+                    onDelete={() => onDelete(card.id)}
+                    editLabel="edit card"
+                    deleteLabel="delete card"
+                    onReprioritize={() => handleReprioritize(card.id)}
+                    canReprioritize={canReprioritizeDeclensionCard(declensionReviewStore, card.id)}
+                    reprioritizeLabel="review card again"
+                  />
+                </TableCell>
+                {isAdmin && (
+                  <TableCell>
+                    <InlineAudioRegenerator
+                      text={card.back}
+                      type="custom-declension"
+                      id={card.id}
+                      currentAudioUrl={card.audioUrl}
+                      onAudioSaved={(audioUrl) => onAudioSaved(card.id, audioUrl)}
+                    />
+                  </TableCell>
+                )}
+                <TableCell>
+                  <TruncatedCell title={card.front}>{card.front}</TruncatedCell>
+                </TableCell>
+                <TableCell>
+                  <Typography fontWeight={500}>{card.declined}</Typography>
+                </TableCell>
+                <TableCell>
+                  <MetaChip label={card.case} size="small" />
+                </TableCell>
+                <TableCell>
+                  <GenderChip $gender={card.gender} label={card.gender} size="small" />
+                </TableCell>
+                <TableCell>
+                  <MetaChip label={card.number} size="small" />
+                </TableCell>
+                <TableCell>
+                  <Typography variant="body2" color="text.secondary">
+                    {formatDate(card.createdAt)}
+                  </Typography>
+                </TableCell>
+              </TableRow>
+            ))}
+            {filteredAndSortedCards.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={isAdmin ? 8 : 7} align="center" sx={{ py: 4 }}>
+                  <Typography color="text.secondary">No cards match your filters</Typography>
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </StyledTableContainer>
+    </>
+  );
+});
