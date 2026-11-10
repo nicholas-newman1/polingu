@@ -266,7 +266,10 @@ export function AddVocabularyModal({
 
   const newExamplePolishRef = useRef<HTMLInputElement>(null);
 
-  const wordTranslation = usePolishEnglishFormAutoTranslate({ getValues, setValue });
+  const wordTranslation = usePolishEnglishFormAutoTranslate(
+    { getValues, setValue },
+    { vocabulary: true }
+  );
   const exampleTranslation = usePolishEnglishAutoTranslate<number>({
     getPolish: (index) => getValues(`examples.${index}.polish`),
     getEnglish: (index) => getValues(`examples.${index}.english`),

@@ -155,13 +155,11 @@ function TranslatableWordComponent({
     setError(null);
 
     try {
-      const result = await translate(
-        cleanWord,
-        'EN',
-        sentenceContext,
+      const result = await translate(cleanWord, 'EN', {
+        context: sentenceContext,
         declensionCardId,
-        sentenceId
-      );
+        sentenceId,
+      });
       setTranslation(result.translatedText);
     } catch (err) {
       handleTooltipTranslationError(err, {

@@ -155,13 +155,11 @@ function PhraseTooltip({
       try {
         const dynamicContext = getSentenceContextRef.current?.(getSelectedIndices?.() ?? []);
         const effectiveContext = dynamicContext ?? sentenceContext;
-        const result = await translate(
-          selectedPhrase,
-          'EN',
-          effectiveContext,
+        const result = await translate(selectedPhrase, 'EN', {
+          context: effectiveContext,
           declensionCardId,
-          sentenceId
-        );
+          sentenceId,
+        });
         setTranslation(result.translatedText);
         onUpdateTranslation?.(cacheKey, result.translatedText);
       } catch (err) {
@@ -354,13 +352,11 @@ function WordTooltip({
       setLoading(true);
       setError(null);
       try {
-        const result = await translate(
-          cacheKey,
-          'EN',
-          activeWord.sentenceContext,
+        const result = await translate(cacheKey, 'EN', {
+          context: activeWord.sentenceContext,
           declensionCardId,
-          sentenceId
-        );
+          sentenceId,
+        });
         setTranslation(result.translatedText);
       } catch (err) {
         handleTooltipTranslationError(err, {

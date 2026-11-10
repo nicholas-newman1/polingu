@@ -8,9 +8,13 @@ type TranslationKey = string | number;
 
 const SINGLE_FIELD_KEY = 'single';
 
-async function translateText(text: string, targetLang: 'EN' | 'PL'): Promise<string | null> {
+async function translateText(
+  text: string,
+  targetLang: 'EN' | 'PL',
+  vocabulary?: boolean
+): Promise<string | null> {
   try {
-    const result = await translate(text, targetLang);
+    const result = await translate(text, targetLang, { vocabulary });
     return result.translatedText;
   } catch {
     return null;
@@ -33,6 +37,7 @@ interface AutoFilledValue {
 
 interface DirectionOptions<K extends TranslationKey> {
   targetLang: 'EN' | 'PL';
+  vocabulary?: boolean;
   getTargetValue: (key: K) => string | undefined;
   onTranslated: (key: K, translated: string) => void;
   debounceMs: number;
@@ -47,6 +52,7 @@ interface DirectionOptions<K extends TranslationKey> {
  */
 function useTranslateIntoEmptyField<K extends TranslationKey>({
   targetLang,
+  vocabulary,
   getTargetValue,
   onTranslated,
   debounceMs,
@@ -105,7 +111,7 @@ function useTranslateIntoEmptyField<K extends TranslationKey>({
 
         setTranslatingKeys((prev) => new Set(prev).add(key));
         try {
-          const translated = await translateText(trimmed, targetLang);
+          const translated = await translateText(trimmed, targetLang, vocabulary);
           if (!translated) return;
 
           const isStale =
@@ -131,7 +137,7 @@ function useTranslateIntoEmptyField<K extends TranslationKey>({
 
       timeouts.current.set(key, timeout);
     },
-    [canWrite, debounceMs, targetLang]
+    [canWrite, debounceMs, targetLang, vocabulary]
   );
 
   const closeReplacementWindow = useCallback((key: K) => {
@@ -154,6 +160,7 @@ function useTranslateIntoEmptyField<K extends TranslationKey>({
 }
 
 interface AutoTranslateOptions<K extends TranslationKey> {
+  vocabulary?: boolean;
   getPolish: (key: K) => string | undefined;
   getEnglish: (key: K) => string | undefined;
   onPolishTranslated: (key: K, polish: string) => void;
@@ -168,6 +175,7 @@ interface AutoTranslateOptions<K extends TranslationKey> {
  * its counterpart, and scheduling with empty text cancels a pending request.
  */
 export function usePolishEnglishAutoTranslate<K extends TranslationKey>({
+  vocabulary,
   getPolish,
   getEnglish,
   onPolishTranslated,
@@ -176,6 +184,7 @@ export function usePolishEnglishAutoTranslate<K extends TranslationKey>({
 }: AutoTranslateOptions<K>) {
   const toEnglish = useTranslateIntoEmptyField<K>({
     targetLang: 'EN',
+    vocabulary,
     getTargetValue: getEnglish,
     onTranslated: onEnglishTranslated,
     debounceMs,
@@ -206,12 +215,14 @@ export function usePolishEnglishAutoTranslate<K extends TranslationKey>({
 
 /** Single Polish/English field pair variant of `usePolishEnglishAutoTranslate`. */
 function useSinglePolishEnglishAutoTranslate({
+  vocabulary,
   getPolish,
   getEnglish,
   onPolishTranslated,
   onEnglishTranslated,
   debounceMs,
 }: {
+  vocabulary?: boolean;
   getPolish: () => string | undefined;
   getEnglish: () => string | undefined;
   onPolishTranslated: (polish: string) => void;
@@ -227,6 +238,7 @@ function useSinglePolishEnglishAutoTranslate({
     isTranslatingPolish,
     cancelAll,
   } = usePolishEnglishAutoTranslate<string>({
+    vocabulary,
     getPolish,
     getEnglish,
     onPolishTranslated: (_key, polish) => onPolishTranslated(polish),
@@ -262,7 +274,8 @@ export interface PolishEnglishFormValues {
 
 /** `useSinglePolishEnglishAutoTranslate` wired to a form with top-level `polish` and `english` fields. */
 export function usePolishEnglishFormAutoTranslate<T extends PolishEnglishFormValues>(
-  form: Pick<UseFormReturn<T>, 'getValues' | 'setValue'>
+  form: Pick<UseFormReturn<T>, 'getValues' | 'setValue'>,
+  options: { vocabulary?: boolean } = {}
 ) {
   // react-hook-form can't resolve literal paths against an unresolved generic form type.
   const { getValues, setValue } = form as unknown as Pick<
@@ -270,6 +283,7 @@ export function usePolishEnglishFormAutoTranslate<T extends PolishEnglishFormVal
     'getValues' | 'setValue'
   >;
   return useSinglePolishEnglishAutoTranslate({
+    vocabulary: options.vocabulary,
     getPolish: () => getValues('polish'),
     getEnglish: () => getValues('english'),
     onPolishTranslated: (polish) => setValue('polish', polish, { shouldValidate: true }),

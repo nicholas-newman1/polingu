@@ -3,12 +3,16 @@ import { app } from './firebase';
 
 const functions = getFunctions(app);
 
-interface TranslateRequest {
-  text: string;
-  targetLang: 'EN' | 'PL';
+export interface TranslationOptions {
   context?: string;
   declensionCardId?: number;
   sentenceId?: string;
+  vocabulary?: boolean;
+}
+
+interface TranslateRequest extends TranslationOptions {
+  text: string;
+  targetLang: 'EN' | 'PL';
 }
 
 interface TranslateResponse {
@@ -71,12 +75,10 @@ const translateFn = httpsCallable<TranslateRequest, TranslateResponse>(functions
 export async function translate(
   text: string,
   targetLang: 'EN' | 'PL',
-  context?: string,
-  declensionCardId?: number,
-  sentenceId?: string
+  options: TranslationOptions = {}
 ): Promise<TranslationResult> {
   try {
-    const result = await translateFn({ text, targetLang, context, declensionCardId, sentenceId });
+    const result = await translateFn({ ...options, text, targetLang });
     return {
       translatedText: result.data.translatedText,
       charsUsedToday: result.data.charsUsedToday,

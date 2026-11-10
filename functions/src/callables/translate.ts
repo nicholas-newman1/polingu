@@ -10,6 +10,8 @@ import {
 } from '../shared/rateLimits.js';
 
 const MAX_TEXT_LENGTH = 500;
+const VOCABULARY_INFINITIVE_INSTRUCTION =
+  'When the Polish vocabulary entry is an infinitive verb or infinitive phrase, including reflexive verbs, translate it as an English infinitive phrase beginning with "to" (e.g. jeść: to eat; móc: to be able to; musieć: to have to).';
 
 interface TranslateRequest {
   text: string;
@@ -17,6 +19,7 @@ interface TranslateRequest {
   context?: string;
   declensionCardId?: number;
   sentenceId?: string;
+  vocabulary?: boolean;
 }
 
 interface TranslateResponse {
@@ -26,7 +29,7 @@ interface TranslateResponse {
 }
 
 function validateRequest(data: TranslateRequest) {
-  const { text, targetLang, context } = data;
+  const { text, targetLang, context, vocabulary } = data;
   if (!text || typeof text !== 'string') {
     throw new HttpsError('invalid-argument', 'Text is required.');
   }
@@ -39,13 +42,17 @@ function validateRequest(data: TranslateRequest) {
   if (context && context.length > 1000) {
     throw new HttpsError('invalid-argument', 'Context too long.');
   }
+  if (vocabulary !== undefined && typeof vocabulary !== 'boolean') {
+    throw new HttpsError('invalid-argument', 'Vocabulary must be a boolean.');
+  }
 }
 
 async function requestDeepL(
   apiKey: string,
   text: string,
   targetLang: 'EN' | 'PL',
-  context: string | undefined
+  context: string | undefined,
+  vocabulary: boolean | undefined
 ): Promise<string> {
   const response = await fetch('https://api-free.deepl.com/v2/translate', {
     method: 'POST',
@@ -58,6 +65,10 @@ async function requestDeepL(
       source_lang: targetLang === 'EN' ? 'PL' : 'EN',
       target_lang: targetLang,
       ...(context && { context }),
+      ...(vocabulary &&
+        targetLang === 'EN' && {
+          custom_instructions: [VOCABULARY_INFINITIVE_INSTRUCTION],
+        }),
     }),
   });
 
@@ -101,7 +112,7 @@ export const translate = onCall<TranslateRequest, Promise<TranslateResponse>>(
 
     validateRequest(request.data);
     const userId = request.auth.uid;
-    const { text, targetLang, context, declensionCardId, sentenceId } = request.data;
+    const { text, targetLang, context, declensionCardId, sentenceId, vocabulary } = request.data;
 
     const isAdmin = !!request.auth.token?.admin;
     const resetTime = getNextMidnightUTC();
@@ -122,7 +133,7 @@ export const translate = onCall<TranslateRequest, Promise<TranslateResponse>>(
       throw new HttpsError('failed-precondition', 'Translation service is not configured.');
     }
 
-    const translatedText = await requestDeepL(apiKey, text, targetLang, context);
+    const translatedText = await requestDeepL(apiKey, text, targetLang, context, vocabulary);
 
     if (targetLang === 'EN') {
       if (declensionCardId && typeof declensionCardId === 'number') {
