@@ -129,13 +129,16 @@ export function TranslatorModal() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [keyboardOpen, setKeyboardOpen] = useState(false);
-  const abortControllerRef = useRef<AbortController | null>(null);
+  // Firebase calls keep running; only the current input may update the UI.
+  const translationVersion = useRef(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleClose = useCallback(() => {
+    translationVersion.current += 1;
     setText('');
     setResult('');
     setError(null);
+    setLoading(false);
     onClose();
   }, [onClose]);
 
@@ -165,15 +168,16 @@ export function TranslatorModal() {
   }, [open]);
 
   useEffect(() => {
-    if (!text.trim()) {
-      setResult('');
-      setError(null);
-      return;
-    }
+    const version = ++translationVersion.current;
+    const isCurrent = () => translationVersion.current === version;
+
+    setResult('');
+    setError(null);
+    setLoading(false);
+    if (!open || !text.trim()) return;
 
     const timeoutId = setTimeout(async () => {
-      abortControllerRef.current?.abort();
-      abortControllerRef.current = new AbortController();
+      if (!isCurrent()) return;
 
       setLoading(true);
       setError(null);
@@ -181,9 +185,11 @@ export function TranslatorModal() {
       try {
         const targetLang = direction === 'en-to-pl' ? 'PL' : 'EN';
         const translationResult = await translate(text, targetLang);
+        if (!isCurrent()) return;
         setResult(translationResult.translatedText);
         onTranslationSuccess?.(translationResult);
       } catch (err) {
+        if (!isCurrent()) return;
         if (err instanceof RateLimitDailyError) {
           handleClose();
           onDailyLimitReached(err.resetTime);
@@ -191,14 +197,15 @@ export function TranslatorModal() {
         }
         setError(getTranslationErrorMessage(err));
       } finally {
-        setLoading(false);
+        if (isCurrent()) setLoading(false);
       }
     }, 300);
 
     return () => {
       clearTimeout(timeoutId);
+      if (isCurrent()) translationVersion.current += 1;
     };
-  }, [text, direction, handleClose, onDailyLimitReached, onTranslationSuccess]);
+  }, [open, text, direction, handleClose, onDailyLimitReached, onTranslationSuccess]);
 
   const handleCopy = async () => {
     if (!result) return;
@@ -243,6 +250,7 @@ export function TranslatorModal() {
   };
 
   const toggleDirection = () => {
+    translationVersion.current += 1;
     setDirection((prev) => (prev === 'en-to-pl' ? 'pl-to-en' : 'en-to-pl'));
     if (result) setText(result);
     setResult('');
@@ -266,7 +274,10 @@ export function TranslatorModal() {
             direction === 'en-to-pl' ? 'Enter English text...' : 'Wpisz tekst po polsku...'
           }
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => {
+            translationVersion.current += 1;
+            setText(e.target.value);
+          }}
           fullWidth
           autoFocus
           inputRef={inputRef}

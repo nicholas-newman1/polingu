@@ -64,7 +64,7 @@ function useTranslateIntoEmptyField<K extends TranslationKey>({
   latest.current = { getTargetValue, onTranslated };
 
   const autoFilled = useRef<Map<K, AutoFilledValue>>(new Map());
-  // Only the newest request per key may write; bumped by cancelAll and per fire.
+  // Invalidate in-flight work on every source edit, before the next debounce fires.
   const generation = useRef(0);
   const sequences = useRef<Map<K, number>>(new Map());
   // Bumped when the user moves on, closing the replacement window for a key.
@@ -73,7 +73,9 @@ function useTranslateIntoEmptyField<K extends TranslationKey>({
   useEffect(() => {
     const pending = timeouts.current;
     return () => {
+      generation.current += 1;
       pending.forEach((timeout) => clearTimeout(timeout));
+      pending.clear();
     };
   }, []);
 
@@ -88,6 +90,20 @@ function useTranslateIntoEmptyField<K extends TranslationKey>({
     (key: K, sourceText: string) => {
       const existingTimeout = timeouts.current.get(key);
       if (existingTimeout) clearTimeout(existingTimeout);
+      timeouts.current.delete(key);
+
+      const startGeneration = generation.current;
+      const sequence = (sequences.current.get(key) ?? 0) + 1;
+      sequences.current.set(key, sequence);
+      const isCurrent = () =>
+        generation.current === startGeneration && sequences.current.get(key) === sequence;
+
+      setTranslatingKeys((prev) => {
+        if (!prev.has(key)) return prev;
+        const next = new Set(prev);
+        next.delete(key);
+        return next;
+      });
 
       const trimmed = sourceText.trim();
       if (!trimmed) {
@@ -98,16 +114,16 @@ function useTranslateIntoEmptyField<K extends TranslationKey>({
         return;
       }
 
+      const targetBefore = (latest.current.getTargetValue(key) ?? '').trim();
+      if (!canWrite(key, trimmed, targetBefore)) return;
+      // A pending translation may finish after blur, but must not reopen replacement.
+      const windowToken = windowTokens.current.get(key) ?? 0;
+
       const timeout = setTimeout(async () => {
+        if (!isCurrent()) return;
         timeouts.current.delete(key);
 
-        const targetBefore = (latest.current.getTargetValue(key) ?? '').trim();
-        if (!canWrite(key, trimmed, targetBefore)) return;
-
-        const startGeneration = generation.current;
-        const sequence = (sequences.current.get(key) ?? 0) + 1;
-        sequences.current.set(key, sequence);
-        const windowToken = windowTokens.current.get(key) ?? 0;
+        if ((latest.current.getTargetValue(key) ?? '').trim() !== targetBefore) return;
 
         setTranslatingKeys((prev) => new Set(prev).add(key));
         try {
@@ -115,9 +131,7 @@ function useTranslateIntoEmptyField<K extends TranslationKey>({
           if (!translated) return;
 
           const isStale =
-            generation.current !== startGeneration ||
-            sequences.current.get(key) !== sequence ||
-            (latest.current.getTargetValue(key) ?? '').trim() !== targetBefore;
+            !isCurrent() || (latest.current.getTargetValue(key) ?? '').trim() !== targetBefore;
           if (isStale) return;
 
           // If the window closed mid-flight the value still lands, but it is
@@ -127,11 +141,13 @@ function useTranslateIntoEmptyField<K extends TranslationKey>({
           }
           latest.current.onTranslated(key, translated);
         } finally {
-          setTranslatingKeys((prev) => {
-            const next = new Set(prev);
-            next.delete(key);
-            return next;
-          });
+          if (isCurrent()) {
+            setTranslatingKeys((prev) => {
+              const next = new Set(prev);
+              next.delete(key);
+              return next;
+            });
+          }
         }
       }, debounceMs);
 
@@ -172,7 +188,7 @@ interface AutoTranslateOptions<K extends TranslationKey> {
  * Keeps a Polish/English field pair in sync in whichever direction is needed:
  * editing one side fills the other while that other side is empty or still
  * holds an auto-translation of what is being typed. Blurring a field settles
- * its counterpart, and scheduling with empty text cancels a pending request.
+ * its counterpart, and every source edit invalidates pending translation results.
  */
 export function usePolishEnglishAutoTranslate<K extends TranslationKey>({
   vocabulary,

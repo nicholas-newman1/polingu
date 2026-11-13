@@ -281,13 +281,30 @@ export function SuggestVocabularyExamplesModal({
 
   const newRowPolishRef = useRef<HTMLInputElement>(null);
   const translationTimeouts = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
-  const userEditedEnglishIds = useRef<Set<string>>(new Set());
+  // Replaced on each Polish edit and invalidated by manual English edits or removal.
+  const translationTokens = useRef<Map<string, symbol>>(new Map());
 
   useEffect(() => {
     const timeouts = translationTimeouts.current;
+    const tokens = translationTokens.current;
     return () => {
       timeouts.forEach((timeout) => clearTimeout(timeout));
+      timeouts.clear();
+      tokens.clear();
     };
+  }, []);
+
+  const cancelRowTranslation = useCallback((id: string) => {
+    const timeout = translationTimeouts.current.get(id);
+    if (timeout) clearTimeout(timeout);
+    translationTimeouts.current.delete(id);
+    translationTokens.current.delete(id);
+    setTranslatingIds((prev) => {
+      if (!prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
   }, []);
 
   const fetchSuggestions = useCallback(() => {
@@ -301,12 +318,12 @@ export function SuggestVocabularyExamplesModal({
   }, [word, generate]);
 
   useEffect(() => {
+    translationTimeouts.current.forEach((timeout) => clearTimeout(timeout));
+    translationTimeouts.current.clear();
+    translationTokens.current.clear();
+    setTranslatingIds(new Set());
     if (open && word) {
       setAcceptedExamples([]);
-      translationTimeouts.current.forEach((timeout) => clearTimeout(timeout));
-      translationTimeouts.current.clear();
-      userEditedEnglishIds.current.clear();
-      setTranslatingIds(new Set());
       void fetchSuggestions();
     }
   }, [open, word, fetchSuggestions]);
@@ -318,55 +335,69 @@ export function SuggestVocabularyExamplesModal({
     clearSuggestions();
   };
 
-  const translatePolishForRow = useCallback(async (id: string, polishText: string) => {
-    const trimmed = polishText.trim();
-    if (!trimmed) return;
+  const translatePolishForRow = useCallback(
+    async (id: string, polishText: string, token: symbol) => {
+      const trimmed = polishText.trim();
+      const isCurrent = () => translationTokens.current.get(id) === token;
+      if (!trimmed || !isCurrent()) return;
 
-    setTranslatingIds((prev) => new Set(prev).add(id));
-    try {
-      const result = await translate(trimmed, 'EN');
-      if (!userEditedEnglishIds.current.has(id)) {
-        setAcceptedExamples((prev) =>
-          prev.map((ex) => (ex.id === id ? { ...ex, english: result.translatedText } : ex))
-        );
+      setTranslatingIds((prev) => new Set(prev).add(id));
+      try {
+        const result = await translate(trimmed, 'EN');
+        if (isCurrent()) {
+          setAcceptedExamples((prev) =>
+            prev.map((ex) =>
+              ex.id === id && ex.polish.trim() === trimmed
+                ? { ...ex, english: result.translatedText }
+                : ex
+            )
+          );
+        }
+      } catch {
+        // Silently fail - user can manually enter translation
+      } finally {
+        if (isCurrent()) {
+          setTranslatingIds((prev) => {
+            const next = new Set(prev);
+            next.delete(id);
+            return next;
+          });
+        }
       }
-    } catch {
-      // Silently fail - user can manually enter translation
-    } finally {
-      setTranslatingIds((prev) => {
-        const next = new Set(prev);
-        next.delete(id);
-        return next;
-      });
-    }
-  }, []);
+    },
+    []
+  );
 
   const handleAcceptedPolishChange = useCallback(
     (id: string, value: string) => {
-      userEditedEnglishIds.current.delete(id);
+      cancelRowTranslation(id);
       setAcceptedExamples((prev) =>
         prev.map((ex) => (ex.id === id ? { ...ex, polish: value } : ex))
       );
 
-      const existing = translationTimeouts.current.get(id);
-      if (existing) clearTimeout(existing);
+      if (!value.trim()) return;
+      const token = Symbol();
+      translationTokens.current.set(id, token);
 
       const timeout = setTimeout(() => {
-        translatePolishForRow(id, value);
+        void translatePolishForRow(id, value, token);
         translationTimeouts.current.delete(id);
       }, 500);
 
       translationTimeouts.current.set(id, timeout);
     },
-    [translatePolishForRow]
+    [cancelRowTranslation, translatePolishForRow]
   );
 
-  const handleAcceptedEnglishChange = useCallback((id: string, value: string) => {
-    userEditedEnglishIds.current.add(id);
-    setAcceptedExamples((prev) =>
-      prev.map((ex) => (ex.id === id ? { ...ex, english: value } : ex))
-    );
-  }, []);
+  const handleAcceptedEnglishChange = useCallback(
+    (id: string, value: string) => {
+      cancelRowTranslation(id);
+      setAcceptedExamples((prev) =>
+        prev.map((ex) => (ex.id === id ? { ...ex, english: value } : ex))
+      );
+    },
+    [cancelRowTranslation]
+  );
 
   const handleAddManually = useCallback(() => {
     const newId = crypto.randomUUID();
@@ -376,15 +407,13 @@ export function SuggestVocabularyExamplesModal({
     }, 0);
   }, []);
 
-  const handleRemoveAccepted = useCallback((id: string) => {
-    const timeout = translationTimeouts.current.get(id);
-    if (timeout) {
-      clearTimeout(timeout);
-      translationTimeouts.current.delete(id);
-    }
-    userEditedEnglishIds.current.delete(id);
-    setAcceptedExamples((prev) => prev.filter((ex) => ex.id !== id));
-  }, []);
+  const handleRemoveAccepted = useCallback(
+    (id: string) => {
+      cancelRowTranslation(id);
+      setAcceptedExamples((prev) => prev.filter((ex) => ex.id !== id));
+    },
+    [cancelRowTranslation]
+  );
 
   const handleClose = useCallback(() => {
     resetSuggestions();
@@ -393,7 +422,7 @@ export function SuggestVocabularyExamplesModal({
     setTranslatingIds(new Set());
     translationTimeouts.current.forEach((timeout) => clearTimeout(timeout));
     translationTimeouts.current.clear();
-    userEditedEnglishIds.current.clear();
+    translationTokens.current.clear();
     onClose();
   }, [onClose, resetSuggestions]);
 
