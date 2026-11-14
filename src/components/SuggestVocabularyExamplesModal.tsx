@@ -27,6 +27,7 @@ import {
 } from './modalStyles';
 import { toExampleSentences } from '../lib/generateExample';
 import { translate } from '../lib/translate';
+import { TRANSLATION_DEBOUNCE_MS } from '../constants/translation';
 import { useGeneratedExamples } from '../hooks/useGeneratedExamples';
 import { GeneratedExampleOptions } from './GeneratedExampleOptions';
 import type { ExampleSentence, VocabularyWord } from '../types/vocabulary';
@@ -382,7 +383,7 @@ export function SuggestVocabularyExamplesModal({
       const timeout = setTimeout(() => {
         void translatePolishForRow(id, value, token);
         translationTimeouts.current.delete(id);
-      }, 500);
+      }, TRANSLATION_DEBOUNCE_MS);
 
       translationTimeouts.current.set(id, timeout);
     },

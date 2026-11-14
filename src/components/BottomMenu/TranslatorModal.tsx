@@ -20,6 +20,7 @@ import BookmarkAddIcon from '@mui/icons-material/BookmarkAdd';
 import AbcIcon from '@mui/icons-material/Abc';
 import TextSnippetIcon from '@mui/icons-material/TextSnippet';
 import { translate, RateLimitMinuteError, RateLimitDailyError } from '../../lib/translate';
+import { TRANSLATION_DEBOUNCE_MS } from '../../constants/translation';
 import { useTranslationContext } from '../../hooks/useTranslationContext';
 import { useBackClose } from '../../hooks/useBackClose';
 import { useSnackbar } from '../../hooks/useSnackbar';
@@ -199,7 +200,7 @@ export function TranslatorModal() {
       } finally {
         if (isCurrent()) setLoading(false);
       }
-    }, 300);
+    }, TRANSLATION_DEBOUNCE_MS);
 
     return () => {
       clearTimeout(timeoutId);

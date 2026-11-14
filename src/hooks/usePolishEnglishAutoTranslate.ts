@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { UseFormReturn } from 'react-hook-form';
+import { TRANSLATION_DEBOUNCE_MS } from '../constants/translation';
 import { translate } from '../lib/translate';
-
-const AUTO_TRANSLATE_DEBOUNCE_MS = 500;
 
 type TranslationKey = string | number;
 
@@ -196,7 +195,7 @@ export function usePolishEnglishAutoTranslate<K extends TranslationKey>({
   getEnglish,
   onPolishTranslated,
   onEnglishTranslated,
-  debounceMs = AUTO_TRANSLATE_DEBOUNCE_MS,
+  debounceMs = TRANSLATION_DEBOUNCE_MS,
 }: AutoTranslateOptions<K>) {
   const toEnglish = useTranslateIntoEmptyField<K>({
     targetLang: 'EN',
