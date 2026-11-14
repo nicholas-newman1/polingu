@@ -10,7 +10,7 @@ import { styled } from '../lib/styled';
 import { useListening } from '../contexts/ListeningContext';
 import { BOTTOM_MENU_BAR_HEIGHT, DRAWER_WIDTH } from '../constants/layout';
 
-const LISTENING_MINI_BAR_HEIGHT = 64;
+export const LISTENING_MINI_BAR_HEIGHT = 64;
 
 const Bar = styled(Box)(({ theme }) => ({
   position: 'fixed',

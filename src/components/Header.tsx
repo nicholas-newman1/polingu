@@ -14,23 +14,11 @@ import {
 } from '@mui/material';
 import { BoxIconButton } from './BoxIconButton';
 import { ColorModeToggle } from './ColorModeToggle';
-import {
-  Person,
-  Abc,
-  School,
-  Translate,
-  BarChart,
-  ArrowBack,
-  Settings,
-  Add,
-  TextSnippet,
-} from '@mui/icons-material';
+import { Person, Abc, School, Translate, BarChart, ArrowBack, Settings } from '@mui/icons-material';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import type { User } from 'firebase/auth';
 import getFirstName from '../lib/utils/getFirstName';
 import { alpha } from '../lib/theme';
-import { useAddToVocabulary } from '../hooks/useAddToVocabulary';
-import { useAddSentence } from '../hooks/useAddSentence';
 
 const PageTitle = styled(Typography)({
   fontWeight: 600,
@@ -60,8 +48,6 @@ interface HeaderProps {
 export function Header({ user, onSignOut, pageTitle, backPath }: HeaderProps) {
   const navigate = useNavigate();
   const location = useLocation();
-  const addToVocabulary = useAddToVocabulary();
-  const addSentence = useAddSentence();
 
   const handleBack = () => {
     if (!backPath) return;
@@ -72,9 +58,7 @@ export function Header({ user, onSignOut, pageTitle, backPath }: HeaderProps) {
     }
   };
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const [quickAddAnchorEl, setQuickAddAnchorEl] = useState<null | HTMLElement>(null);
   const menuOpen = Boolean(anchorEl);
-  const quickAddOpen = Boolean(quickAddAnchorEl);
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -82,24 +66,6 @@ export function Header({ user, onSignOut, pageTitle, backPath }: HeaderProps) {
 
   const handleMenuClose = () => {
     setAnchorEl(null);
-  };
-
-  const handleQuickAddOpen = (event: React.MouseEvent<HTMLElement>) => {
-    setQuickAddAnchorEl(event.currentTarget);
-  };
-
-  const handleQuickAddClose = () => {
-    setQuickAddAnchorEl(null);
-  };
-
-  const handleQuickAddVocab = () => {
-    handleQuickAddClose();
-    addToVocabulary?.openAddToVocabulary('', '');
-  };
-
-  const handleQuickAddSentence = () => {
-    handleQuickAddClose();
-    addSentence?.openAddSentence();
   };
 
   const handleSignOut = () => {
@@ -156,34 +122,6 @@ export function Header({ user, onSignOut, pageTitle, backPath }: HeaderProps) {
         <ColorModeToggle />
         {user ? (
           <>
-            <BoxIconButton size="small" onClick={handleQuickAddOpen} aria-label="Quick add">
-              <Add />
-            </BoxIconButton>
-            <Menu
-              anchorEl={quickAddAnchorEl}
-              open={quickAddOpen}
-              onClose={handleQuickAddClose}
-              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-              transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-              slotProps={{
-                paper: {
-                  sx: { minWidth: 180, mt: 1 },
-                },
-              }}
-            >
-              <MenuItem onClick={handleQuickAddVocab}>
-                <ListItemIcon>
-                  <Abc fontSize="small" />
-                </ListItemIcon>
-                <ListItemText>Vocabulary</ListItemText>
-              </MenuItem>
-              <MenuItem onClick={handleQuickAddSentence}>
-                <ListItemIcon>
-                  <TextSnippet fontSize="small" />
-                </ListItemIcon>
-                <ListItemText>Sentence</ListItemText>
-              </MenuItem>
-            </Menu>
             <BoxIconButton size="small" onClick={handleMenuOpen} aria-label="Account menu">
               <Person />
             </BoxIconButton>

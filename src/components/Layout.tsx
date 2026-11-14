@@ -23,6 +23,7 @@ import { useBackClose } from '../hooks/useBackClose';
 import type { ReviewCounts } from '../contexts/review';
 import { alpha } from '../lib/theme';
 import { Header } from './Header';
+import { QuickAddFab } from './QuickAddFab';
 import { DeclensionCheatSheetDrawer } from './BottomMenu/DeclensionCheatSheetDrawer';
 import { AdjectiveDeclensionCheatSheetDrawer } from './BottomMenu/AdjectiveDeclensionCheatSheetDrawer';
 import { ConsonantsCheatSheetDrawer } from './BottomMenu/ConsonantsCheatSheetDrawer';
@@ -427,6 +428,7 @@ function LayoutContent() {
           <TranslatorModal />
           <LimitReachedDialog />
 
+          {user && <QuickAddFab />}
           <ListeningMiniBar />
           <BottomMenuBar showTranslator={!!user} />
         </PageContainer>
