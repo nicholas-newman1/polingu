@@ -86,6 +86,7 @@ const ContentArea = styled(Box)(({ theme }) => ({
   flex: 1,
   display: 'flex',
   flexDirection: 'column',
+  overflowX: 'clip',
   padding: theme.spacing(2),
   paddingBottom: theme.spacing(16),
   [theme.breakpoints.up('md')]: {

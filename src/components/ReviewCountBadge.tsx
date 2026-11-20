@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { Skeleton } from '@mui/material';
 import Check from '@mui/icons-material/Check';
 import { styled } from '../lib/styled';
@@ -25,6 +26,25 @@ interface ReviewCountBadgeProps {
 }
 
 export function ReviewCountBadge({ count, loading }: ReviewCountBadgeProps) {
+  const prevCountRef = useRef<number | undefined>(undefined);
+  const badgeRef = useRef<HTMLSpanElement | null>(null);
+
+  useEffect(() => {
+    const prev = prevCountRef.current;
+    prevCountRef.current = count;
+    if (prev === undefined || count === undefined || count >= prev) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    badgeRef.current?.animate(
+      [
+        { transform: 'scale(1)' },
+        { transform: 'scale(1.24)', offset: 0.35 },
+        { transform: 'scale(0.95)', offset: 0.7 },
+        { transform: 'scale(1)' },
+      ],
+      { duration: 340, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }
+    );
+  }, [count]);
+
   if (loading) {
     return <Skeleton variant="rounded" width={24} height={24} sx={{ borderRadius: 12 }} />;
   }
@@ -36,6 +56,8 @@ export function ReviewCountBadge({ count, loading }: ReviewCountBadgeProps) {
   const isComplete = count === 0;
 
   return (
-    <Badge $complete={isComplete}>{isComplete ? <Check sx={{ fontSize: 16 }} /> : count}</Badge>
+    <Badge ref={badgeRef} $complete={isComplete}>
+      {isComplete ? <Check sx={{ fontSize: 16 }} /> : count}
+    </Badge>
   );
 }

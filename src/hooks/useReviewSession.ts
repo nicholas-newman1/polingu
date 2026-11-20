@@ -135,9 +135,11 @@ export function useReviewSession<
   const reassess = async (rating: Grade) => {
     if (!historyCard || !historyMeta) return;
     const reviewData = rateCard(historyMeta, rating);
+    const id = getId(historyCard);
+    queue.reassess((item) => getId(item[cardKey]) === id, reviewData, rating === Rating.Again);
     goForward();
     await saveReviewStore(
-      recordReview(reviewStore, getId(historyCard), reviewData, { isNew: false, completed: false })
+      recordReview(reviewStore, id, reviewData, { isNew: false, completed: false })
     );
   };
 

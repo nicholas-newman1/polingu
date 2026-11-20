@@ -16,6 +16,7 @@ export interface SessionQueue<S extends { reviewData: unknown }> extends Session
   totalRemaining: number;
   start: (cards: SessionCards<S>, options?: { isPracticeAhead?: boolean }) => void;
   rate: (reviewData: S['reviewData'], again: boolean) => void;
+  reassess: (predicate: (item: S) => boolean, reviewData: S['reviewData'], again: boolean) => void;
   update: (updater: (item: S) => S) => void;
   remove: (predicate: (item: S) => boolean) => void;
   upcoming: (count: number) => S[];
@@ -41,6 +42,11 @@ export function useSessionQueue<S extends { reviewData: unknown }>(): SessionQue
     (updater: (item: S) => S) => dispatch({ type: 'update', updater }),
     []
   );
+  const reassess = useCallback(
+    (predicate: (item: S) => boolean, reviewData: S['reviewData'], again: boolean) =>
+      dispatch({ type: 'reassess', predicate, reviewData, again }),
+    []
+  );
   const remove = useCallback(
     (predicate: (item: S) => boolean) => dispatch({ type: 'remove', predicate }),
     []
@@ -53,6 +59,7 @@ export function useSessionQueue<S extends { reviewData: unknown }>(): SessionQue
     totalRemaining: getRemainingCount(state),
     start,
     rate,
+    reassess,
     update,
     remove,
     upcoming: (count) => getUpcomingSessionCards(state, count),

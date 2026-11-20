@@ -17,6 +17,12 @@ export interface SessionQueueState<S> {
 export type SessionQueueAction<S extends { reviewData: unknown }> =
   | { type: 'start'; cards: SessionCards<S>; isPracticeAhead: boolean }
   | { type: 'rate'; reviewData: S['reviewData']; again: boolean }
+  | {
+      type: 'reassess';
+      predicate: (item: S) => boolean;
+      reviewData: S['reviewData'];
+      again: boolean;
+    }
   | { type: 'update'; updater: (item: S) => S }
   | { type: 'remove'; predicate: (item: S) => boolean };
 
@@ -31,6 +37,20 @@ export function createSessionQueueState<S>(): SessionQueueState<S> {
     ratingCounter: 0,
     isBuilt: false,
   };
+}
+
+function reassessLearningQueue<S extends { reviewData: unknown }>(
+  state: SessionQueueState<S>,
+  { predicate, reviewData, again }: Extract<SessionQueueAction<S>, { type: 'reassess' }>
+): S[] {
+  if (!again) return state.learningQueue.filter((item) => !predicate(item));
+
+  // Keep an existing retry in place, or restore a previously completed card.
+  if (state.learningQueue.some(predicate)) {
+    return state.learningQueue.map((item) => (predicate(item) ? { ...item, reviewData } : item));
+  }
+  const card = state.sessionQueue.slice(0, state.currentIndex).find(predicate);
+  return card ? [...state.learningQueue, { ...card, reviewData }] : state.learningQueue;
 }
 
 export function sessionQueueReducer<S extends { reviewData: unknown }>(
@@ -76,6 +96,9 @@ export function sessionQueueReducer<S extends { reviewData: unknown }>(
         ratingCounter,
       };
     }
+
+    case 'reassess':
+      return { ...state, learningQueue: reassessLearningQueue(state, action) };
 
     case 'update':
       return {

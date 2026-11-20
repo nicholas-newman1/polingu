@@ -33,6 +33,148 @@ body {
   animation: fadeUp 0.4s ease-out forwards;
 }
 
+@keyframes cardEnter {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0) scale(0.965);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes cardExitGood {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+  }
+  22% {
+    opacity: 1;
+    transform: translate3d(4%, -4px, 0) rotate(1deg) scale(1.015);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(42%, -22px, 0) rotate(6deg) scale(0.94);
+  }
+}
+
+@keyframes cardExitEasy {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+  }
+  22% {
+    opacity: 1;
+    transform: translate3d(5%, -6px, 0) rotate(1.5deg) scale(1.02);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(48%, -32px, 0) rotate(8deg) scale(0.93);
+  }
+}
+
+@keyframes cardExitHard {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+  }
+  20% {
+    opacity: 1;
+    transform: translate3d(2%, -2px, 0) rotate(0.5deg) scale(1.005);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(28%, -8px, 0) rotate(3deg) scale(0.96);
+  }
+}
+
+@keyframes cardExitAgain {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(-26%, 10px, 0) rotate(-3.5deg) scale(0.94);
+  }
+}
+
+@keyframes cardExitNext {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(34%, -12px, 0) rotate(4deg) scale(0.95);
+  }
+}
+
+@keyframes completionBadgePop {
+  0% {
+    opacity: 0;
+    transform: scale(0.45);
+  }
+  32% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+  58% {
+    opacity: 0.95;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.88) translateY(-6px);
+  }
+}
+
+@keyframes completionRingPulse {
+  0% {
+    opacity: 0.65;
+    transform: scale(0.45);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.85);
+  }
+}
+
+@keyframes completionSpark {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0) rotate(var(--spark-rot, 0deg)) scale(0.4);
+  }
+  20% {
+    opacity: 1;
+    transform: translate3d(calc(var(--spark-x) * 0.35), calc(var(--spark-y) * 0.35), 0)
+      rotate(calc(var(--spark-rot, 0deg) + 15deg)) scale(1.1);
+  }
+  65% {
+    opacity: 0.95;
+    transform: translate3d(calc(var(--spark-x) * 0.85), calc(var(--spark-y) * 0.85), 0)
+      rotate(calc(var(--spark-rot, 0deg) + 35deg)) scale(0.85);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--spark-x), var(--spark-y), 0)
+      rotate(calc(var(--spark-rot, 0deg) + 55deg)) scale(0.35);
+  }
+}
+
+.animate-card-enter {
+  animation: cardEnter 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 .card-glow {
   animation: cardGlow 3s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up,
+  .animate-card-enter,
+  .card-glow {
+    animation: none;
+  }
 }

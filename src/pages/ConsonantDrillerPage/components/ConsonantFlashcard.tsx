@@ -7,6 +7,8 @@ import { alpha } from '../../../lib/theme';
 import type { ConsonantCard, ConsonantType, ConsonantWord } from '../../../types/consonants';
 import { getExampleWordsForConsonant } from '../../../data/consonants';
 import { FlashcardSurface, FlashcardWrapper } from '../../../components/flashcardStyles';
+import { CardCompletionOverlay } from '../../../components/CardCompletionOverlay';
+import { useCardCompletion } from '../../../hooks/useCardCompletion';
 
 interface ConsonantFlashcardProps {
   card: ConsonantCard;
@@ -141,6 +143,7 @@ function getConsonantLabel(type: ConsonantType): string {
 export function ConsonantFlashcard({ card, onNext }: ConsonantFlashcardProps) {
   const [answered, setAnswered] = useState(false);
   const [selectedAnswer, setSelectedAnswer] = useState<ConsonantType | null>(null);
+  const { outcome: exitOutcome, trigger: triggerExit } = useCardCompletion();
 
   const isCorrect = selectedAnswer === card.correctAnswer;
   const isWordMode = card.type === 'word';
@@ -151,9 +154,11 @@ export function ConsonantFlashcard({ card, onNext }: ConsonantFlashcardProps) {
   };
 
   const handleNext = () => {
-    setAnswered(false);
-    setSelectedAnswer(null);
-    onNext();
+    triggerExit(isCorrect ? 'good' : 'again', () => {
+      setAnswered(false);
+      setSelectedAnswer(null);
+      onNext();
+    });
   };
 
   const exampleWords = isWordMode
@@ -164,8 +169,9 @@ export function ConsonantFlashcard({ card, onNext }: ConsonantFlashcardProps) {
       );
 
   return (
-    <FlashcardWrapper $maxWidth={420} className="animate-fade-up">
-      <FlashcardSurface $accent="consonants">
+    <FlashcardWrapper $maxWidth={420} className="animate-card-enter">
+      <CardCompletionOverlay outcome={exitOutcome} />
+      <FlashcardSurface $accent="consonants" $exitOutcome={exitOutcome}>
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
           <HeaderLabel>
             {isWordMode ? 'Word Mode' : 'Consonant Mode'} · Is this hard or soft?

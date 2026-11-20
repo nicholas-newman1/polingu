@@ -10,6 +10,8 @@ import type { Grade } from 'ts-fsrs';
 import { RatingButtons, type RatingIntervals } from './RatingButtons';
 import { BoxIconButton } from './BoxIconButton';
 import { FlashcardSurface, FlashcardWrapper } from './flashcardStyles';
+import { CardCompletionOverlay } from './CardCompletionOverlay';
+import { ratingToCompletionOutcome, useCardCompletion } from '../hooks/useCardCompletion';
 
 /** Session-control props every review flashcard forwards to `FlashcardShell`. */
 export interface ReviewFlashcardProps {
@@ -120,7 +122,31 @@ export function FlashcardShell({
   answer,
 }: FlashcardShellProps) {
   const [isReassessing, setIsReassessing] = useState(false);
+  const { outcome: exitOutcome, trigger: triggerExit } = useCardCompletion();
   const showBackButton = canGoBack && !practiceMode;
+
+  const handleRate = (rating: Grade) => {
+    if (!onRate) return;
+    triggerExit(ratingToCompletionOutcome(rating), () => onRate(rating));
+  };
+
+  const handleReassess = (rating: Grade) => {
+    if (!onReassess) return;
+    triggerExit(ratingToCompletionOutcome(rating), () => {
+      setIsReassessing(false);
+      onReassess(rating);
+    });
+  };
+
+  const handleNext = () => {
+    if (!onNext) return;
+    triggerExit('next', onNext);
+  };
+
+  const handleContinue = () => {
+    if (!onContinue) return;
+    triggerExit('next', onContinue);
+  };
 
   useEffect(() => {
     if (!revealed) return;
@@ -152,7 +178,7 @@ export function FlashcardShell({
 
     if (practiceMode) {
       return (
-        <NextButton fullWidth size="large" variant="contained" onClick={onNext}>
+        <NextButton fullWidth size="large" variant="contained" onClick={handleNext}>
           Next Card →
         </NextButton>
       );
@@ -162,13 +188,7 @@ export function FlashcardShell({
       if (isReassessing && onReassess) {
         return (
           <Stack spacing={1}>
-            <RatingButtons
-              intervals={reassessIntervals}
-              onRate={(rating) => {
-                setIsReassessing(false);
-                onReassess(rating);
-              }}
-            />
+            <RatingButtons intervals={reassessIntervals} onRate={handleReassess} />
             <BackButton fullWidth variant="contained" onClick={() => setIsReassessing(false)}>
               Cancel
             </BackButton>
@@ -178,7 +198,7 @@ export function FlashcardShell({
 
       return (
         <Stack spacing={1}>
-          <ContinueButton fullWidth size="large" variant="contained" onClick={onContinue}>
+          <ContinueButton fullWidth size="large" variant="contained" onClick={handleContinue}>
             Continue →
           </ContinueButton>
           {onReassess && (
@@ -199,7 +219,7 @@ export function FlashcardShell({
 
     return (
       <Stack spacing={1}>
-        <RatingButtons intervals={intervals} onRate={onRate!} />
+        <RatingButtons intervals={intervals} onRate={handleRate} />
         {showBackButton && (
           <BackButton fullWidth variant="contained" onClick={onGoBack}>
             <ArrowBackIcon fontSize="small" sx={{ mr: 0.5 }} />
@@ -211,8 +231,9 @@ export function FlashcardShell({
   };
 
   return (
-    <FlashcardWrapper $maxWidth={maxWidth} className="animate-fade-up">
-      <FlashcardSurface>
+    <FlashcardWrapper $maxWidth={maxWidth} className="animate-card-enter">
+      <CardCompletionOverlay outcome={exitOutcome} />
+      <FlashcardSurface $exitOutcome={exitOutcome}>
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', mb: 2 }}>
           <CardHeader>
             {(headerActions || canEdit) && (
