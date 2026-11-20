@@ -1,5 +1,6 @@
 import { Box, Typography, Skeleton, useTheme } from '@mui/material';
-import { School, Abc } from '@mui/icons-material';
+import School from '@mui/icons-material/School';
+import Abc from '@mui/icons-material/Abc';
 import { styled } from '../lib/styled';
 import { alpha } from '../lib/theme';
 import { useReviewData } from '../hooks/useReviewData';

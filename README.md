@@ -125,6 +125,31 @@ npm start
 npm run build
 ```
 
+## Phone preview with Google sign-in and live reload
+
+1. Create a free [ngrok account](https://dashboard.ngrok.com/signup) and install the
+   [ngrok CLI](https://ngrok.com/download) (`brew install ngrok` on macOS).
+2. Copy `.env.phone.example` to `.env.phone.local`. Fill in `NGROK_AUTHTOKEN` from
+   [Your Authtoken](https://dashboard.ngrok.com/get-started/your-authtoken) and
+   `NGROK_DOMAIN` with your assigned hostname from [Domains](https://dashboard.ngrok.com/domains).
+   Use only the hostname, without `https://` or a path. The local file is ignored by Git;
+   keep the token out of chat and never prefix it with `VITE_`.
+3. In Firebase Console → Authentication → Settings → Authorized domains, add that
+   exact hostname to the `polish-declension` project. Keep the existing `authDomain`.
+4. Stop any development server using port 5173, then run `npm run start:phone`.
+5. Open the printed HTTPS URL on your phone. Changes update through Vite's live reload.
+   Keep the Mac awake and the command running; press Ctrl+C to stop both services.
+
+This serves your local development app through a public ngrok URL while the command
+is running. Firebase sign-in still uses the project's real backend and saved data.
+The local Vite server listens only on loopback, and only the configured tunnel
+hostname is added to its allowed hosts. The phone command uses an isolated Vite 8
+runtime with experimental bundled development mode and React Fast Refresh, reducing
+the number of separate files fetched through the tunnel. It has a separate cache and
+uses the SWC React plugin. Normal `npm start`, `npm run build`, and `npm run preview`
+explicitly use the project's Vite 7 runtime; the explicit paths prevent the aliased
+phone runtime's CLI from taking over those commands.
+
 ## Data & Audio Scripts
 
 Content and audio pipelines are managed through `tsx` scripts (require Firebase Admin credentials):

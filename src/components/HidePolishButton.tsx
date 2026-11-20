@@ -1,5 +1,6 @@
 import { Tooltip } from '@mui/material';
-import { VisibilityOff, Visibility } from '@mui/icons-material';
+import VisibilityOff from '@mui/icons-material/VisibilityOff';
+import Visibility from '@mui/icons-material/Visibility';
 import { useAppSettings } from '../contexts/AppSettingsContext';
 import { BoxIconButton } from './BoxIconButton';
 

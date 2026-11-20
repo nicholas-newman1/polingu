@@ -10,14 +10,12 @@ import {
   LinearProgress,
   Chip,
 } from '@mui/material';
-import {
-  VolumeUp,
-  CloudDownload,
-  DeleteOutline,
-  CloudOff,
-  VisibilityOff,
-  DashboardCustomize,
-} from '@mui/icons-material';
+import VolumeUp from '@mui/icons-material/VolumeUp';
+import CloudDownload from '@mui/icons-material/CloudDownload';
+import DeleteOutline from '@mui/icons-material/DeleteOutline';
+import CloudOff from '@mui/icons-material/CloudOff';
+import VisibilityOff from '@mui/icons-material/VisibilityOff';
+import DashboardCustomize from '@mui/icons-material/DashboardCustomize';
 import { styled } from '../lib/styled';
 import { useAppSettings } from '../contexts/AppSettingsContext';
 import { useReviewData } from '../hooks/useReviewData';

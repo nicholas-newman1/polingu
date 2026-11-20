@@ -14,7 +14,13 @@ import {
 } from '@mui/material';
 import { BoxIconButton } from './BoxIconButton';
 import { ColorModeToggle } from './ColorModeToggle';
-import { Person, Abc, School, Translate, BarChart, ArrowBack, Settings } from '@mui/icons-material';
+import Person from '@mui/icons-material/Person';
+import Abc from '@mui/icons-material/Abc';
+import School from '@mui/icons-material/School';
+import Translate from '@mui/icons-material/Translate';
+import BarChart from '@mui/icons-material/BarChart';
+import ArrowBack from '@mui/icons-material/ArrowBack';
+import Settings from '@mui/icons-material/Settings';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import type { User } from 'firebase/auth';
 import getFirstName from '../lib/utils/getFirstName';

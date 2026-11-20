@@ -13,7 +13,7 @@ import {
   ListItemText,
   Typography,
 } from '@mui/material';
-import { DragIndicator } from '@mui/icons-material';
+import DragIndicator from '@mui/icons-material/DragIndicator';
 import {
   DndContext,
   KeyboardSensor,

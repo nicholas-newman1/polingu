@@ -1,5 +1,5 @@
 import { Skeleton } from '@mui/material';
-import { Check } from '@mui/icons-material';
+import Check from '@mui/icons-material/Check';
 import { styled } from '../lib/styled';
 import { alpha } from '../lib/theme';
 

@@ -4,12 +4,13 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "start": "vite",
-    "build": "tsc -b && vite build",
+    "start": "node node_modules/vite/bin/vite.js",
+    "start:phone": "node --import tsx scripts/phone-preview.ts",
+    "build": "tsc -b && node node_modules/vite/bin/vite.js build",
     "lint": "eslint .",
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json,css}\"",
-    "preview": "vite preview",
+    "preview": "node node_modules/vite/bin/vite.js preview",
     "declension:import": "tsx scripts/declension-import.ts",
     "declension:sync": "tsx scripts/declension-sync.ts",
     "declension:export": "tsx scripts/declension-export.ts",
@@ -48,10 +49,12 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@types/compression": "^1.8.1",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",
+    "compression": "^1.8.2",
     "eslint": "^9.39.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.5",
@@ -64,6 +67,8 @@
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.46.4",
     "vite": "^7.2.4",
+    "vite-phone": "npm:vite@~8.1.7",
+    "vite-phone-react": "npm:@vitejs/plugin-react-swc@~4.3.3",
     "vite-plugin-checker": "^0.12.0",
     "vite-plugin-pwa": "^1.2.0"
   }

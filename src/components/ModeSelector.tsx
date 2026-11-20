@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Box, Typography, CircularProgress } from '@mui/material';
-import { Visibility, Edit } from '@mui/icons-material';
+import Visibility from '@mui/icons-material/Visibility';
+import Edit from '@mui/icons-material/Edit';
 import { styled } from '../lib/styled';
 import { FeatureCard } from './FeatureCard';
 import { ProgressStats } from './ProgressStats';

@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Fab, Menu, MenuItem, ListItemIcon, ListItemText } from '@mui/material';
-import { Add, Abc, TextSnippet } from '@mui/icons-material';
+import Add from '@mui/icons-material/Add';
+import Abc from '@mui/icons-material/Abc';
+import TextSnippet from '@mui/icons-material/TextSnippet';
 import { useLocation } from 'react-router-dom';
 import { useAddToVocabulary } from '../hooks/useAddToVocabulary';
 import { useAddSentence } from '../hooks/useAddSentence';

@@ -1,0 +1,14 @@
+---
+description: Use the stable HTTPS ngrok address for phone previews with sign-in and live reload
+alwaysApply: true
+---
+
+# Phone previews
+
+- Prefer `npm run start:phone`, which starts local Vite and a stable HTTPS ngrok tunnel with live reload.
+- Phone previews use isolated Vite 8 bundled development mode with React Fast Refresh. Keep the normal start/build/preview commands on Vite 7 and preserve their explicit CLI paths, since npm aliases share the `vite` binary name.
+- The configured preview URL is `https://finless-demystify-unopened.ngrok-free.dev/`.
+- The assigned hostname and secret authtoken are in Git-ignored `.env.phone.local`; never print the token or expose it through a `VITE_` environment variable.
+- Use the exact configured ngrok hostname as the phone preview URL and Firebase authorized domain. Do not authorize a shared ngrok parent domain.
+- Reuse the running phone preview when available. If port 5173 is occupied, check which server owns it before stopping or replacing it.
+- The prior plain HTTP LAN address is `http://192.168.49.193:5173/`. Use LAN mode only when specifically requested, and verify the Mac's current LAN IP first.

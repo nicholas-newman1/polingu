@@ -1,5 +1,8 @@
 import { Box, Tooltip } from '@mui/material';
-import { PlayArrow, Stop, VolumeUp, VolumeOff } from '@mui/icons-material';
+import PlayArrow from '@mui/icons-material/PlayArrow';
+import Stop from '@mui/icons-material/Stop';
+import VolumeUp from '@mui/icons-material/VolumeUp';
+import VolumeOff from '@mui/icons-material/VolumeOff';
 import { useAppSettings } from '../contexts/AppSettingsContext';
 import { BoxIconButton } from './BoxIconButton';
 

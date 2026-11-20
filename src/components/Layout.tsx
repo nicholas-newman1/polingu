@@ -17,7 +17,12 @@ import {
 } from '@mui/material';
 import { styled } from '../lib/styled';
 import { BoxIconButton } from './BoxIconButton';
-import { Menu, Close, Home, Check, AutoAwesome, Storage } from '@mui/icons-material';
+import Menu from '@mui/icons-material/Menu';
+import Close from '@mui/icons-material/Close';
+import Home from '@mui/icons-material/Home';
+import Check from '@mui/icons-material/Check';
+import AutoAwesome from '@mui/icons-material/AutoAwesome';
+import Storage from '@mui/icons-material/Storage';
 import { useReviewData } from '../hooks/useReviewData';
 import { useBackClose } from '../hooks/useBackClose';
 import type { ReviewCounts } from '../contexts/review';

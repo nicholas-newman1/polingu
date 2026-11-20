@@ -1,13 +1,11 @@
-import {
-  Abc,
-  School,
-  Translate,
-  AutoStories,
-  CompareArrows,
-  MusicNote,
-  MenuBook,
-  Headphones,
-} from '@mui/icons-material';
+import Abc from '@mui/icons-material/Abc';
+import School from '@mui/icons-material/School';
+import Translate from '@mui/icons-material/Translate';
+import AutoStories from '@mui/icons-material/AutoStories';
+import CompareArrows from '@mui/icons-material/CompareArrows';
+import MusicNote from '@mui/icons-material/MusicNote';
+import MenuBook from '@mui/icons-material/MenuBook';
+import Headphones from '@mui/icons-material/Headphones';
 import type { ReviewCounts } from '../contexts/review';
 
 type ColorKey = 'primary' | 'info' | 'success' | 'warning' | 'secondary' | 'error';
