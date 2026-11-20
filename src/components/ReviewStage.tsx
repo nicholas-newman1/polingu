@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { CardDeckStage } from './CardDeckStage';
 import { EmptyState } from './EmptyState';
 
 interface ReviewStageSession<S, C> {
@@ -29,15 +30,20 @@ export function ReviewStage<S, C>({
   renderCurrent,
   fallback = null,
 }: ReviewStageProps<S, C>) {
+  let content: ReactNode = fallback;
   if (practice.active) {
-    return practice.current ? (
+    content = practice.current ? (
       renderPractice(practice.current)
     ) : (
       <EmptyState message={practiceEmptyMessage} />
     );
+  } else if (history.isViewingHistory && history.historyCard) {
+    content = renderHistory(history.historyCard);
+  } else if (isFinished) {
+    content = renderFinished();
+  } else if (currentCard) {
+    content = renderCurrent(currentCard);
   }
-  if (history.isViewingHistory && history.historyCard) return renderHistory(history.historyCard);
-  if (isFinished) return renderFinished();
-  if (currentCard) return renderCurrent(currentCard);
-  return fallback;
+
+  return <CardDeckStage>{content}</CardDeckStage>;
 }

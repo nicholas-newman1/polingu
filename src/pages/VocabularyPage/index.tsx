@@ -382,6 +382,7 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
                   word={word}
                   direction={currentDirection}
                   intervals={session.intervals}
+                  remainingCount={session.totalRemaining}
                   canGoBack={canGoBack}
                   isAdmin={isAdmin}
                   onRate={session.rate}

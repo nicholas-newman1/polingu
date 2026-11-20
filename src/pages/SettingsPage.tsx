@@ -195,9 +195,9 @@ export function SettingsPage() {
                 <VolumeUp />
               </SettingIcon>
               <Box>
-                <Typography variant="body1">Auto-play audio</Typography>
+                <Typography variant="body1">Auto-play audio &amp; chimes</Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Automatically play audio when a flashcard opens
+                  Automatically play card audio and soft completion chimes
                 </Typography>
               </Box>
             </SettingInfo>

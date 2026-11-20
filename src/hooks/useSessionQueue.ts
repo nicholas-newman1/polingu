@@ -1,4 +1,5 @@
 import { useCallback, useReducer } from 'react';
+import type { Grade } from 'ts-fsrs';
 import {
   createSessionQueueState,
   getCurrentSessionCard,
@@ -14,8 +15,9 @@ export interface SessionQueue<S extends { reviewData: unknown }> extends Session
   currentCard: S | undefined;
   isFinished: boolean;
   totalRemaining: number;
+  sessionTotal: number;
   start: (cards: SessionCards<S>, options?: { isPracticeAhead?: boolean }) => void;
-  rate: (reviewData: S['reviewData'], again: boolean) => void;
+  rate: (reviewData: S['reviewData'], rating: Grade) => void;
   reassess: (predicate: (item: S) => boolean, reviewData: S['reviewData'], again: boolean) => void;
   update: (updater: (item: S) => S) => void;
   remove: (predicate: (item: S) => boolean) => void;
@@ -35,7 +37,7 @@ export function useSessionQueue<S extends { reviewData: unknown }>(): SessionQue
     []
   );
   const rate = useCallback(
-    (reviewData: S['reviewData'], again: boolean) => dispatch({ type: 'rate', reviewData, again }),
+    (reviewData: S['reviewData'], rating: Grade) => dispatch({ type: 'rate', reviewData, rating }),
     []
   );
   const update = useCallback(
@@ -57,6 +59,7 @@ export function useSessionQueue<S extends { reviewData: unknown }>(): SessionQue
     currentCard: getCurrentSessionCard(state),
     isFinished: isSessionFinished(state),
     totalRemaining: getRemainingCount(state),
+    sessionTotal: state.sessionQueue.length,
     start,
     rate,
     reassess,

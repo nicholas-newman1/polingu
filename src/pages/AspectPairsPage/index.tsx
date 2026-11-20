@@ -271,6 +271,7 @@ export function AspectPairsPage() {
                   key={`${card.verb.id}-${session.ratingCounter}`}
                   card={card}
                   intervals={session.intervals}
+                  remainingCount={session.totalRemaining}
                   canGoBack={canGoBack}
                   canEdit={isAdmin}
                   onRate={session.rate}

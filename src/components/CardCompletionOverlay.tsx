@@ -88,7 +88,7 @@ const OverlayRoot = styled(Box)({
   alignItems: 'center',
   justifyContent: 'center',
   pointerEvents: 'none',
-  zIndex: 2,
+  zIndex: 3,
 });
 
 const RingPulse = styled(Box)<{ $color: string }>(({ $color }) => ({

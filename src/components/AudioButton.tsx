@@ -31,12 +31,14 @@ export function AudioButton({ isPlaying, onToggle, size = 'small' }: AudioButton
       >
         {isPlaying ? <Stop fontSize={size} /> : <PlayArrow fontSize={size} />}
       </BoxIconButton>
-      <Tooltip title={isMuted ? 'Enable auto-play' : 'Disable auto-play'}>
+      <Tooltip title={isMuted ? 'Enable auto-play & chimes' : 'Mute auto-play & chimes'}>
         <BoxIconButton
           onClick={handleToggleMute}
           size={size}
           active={isMuted}
-          aria-label={isMuted ? 'Enable auto-play audio' : 'Disable auto-play audio'}
+          aria-label={
+            isMuted ? 'Enable auto-play audio and chimes' : 'Mute auto-play audio and chimes'
+          }
           aria-pressed={isMuted}
         >
           {isMuted ? <VolumeOff fontSize={size} /> : <VolumeUp fontSize={size} />}

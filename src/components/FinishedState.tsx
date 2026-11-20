@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Avatar,
   Box,
   Button,
   Card,
@@ -18,6 +17,8 @@ import RemoveIcon from '@mui/icons-material/Remove';
 import PlayArrowRoundedIcon from '@mui/icons-material/PlayArrowRounded';
 import { alpha } from '../lib/theme';
 import { useProgressStats } from '../hooks/useProgressStats';
+import type { SessionReviewStats } from '../lib/reviewSession/sessionQueue';
+import { CelebrationHero, SessionRecap } from './SessionRecap';
 
 const CardWrapper = styled(Box)({
   width: '100%',
@@ -44,16 +45,6 @@ const StyledCard = styled(Card)(({ theme }) => ({
   [theme.breakpoints.up('sm')]: {
     padding: theme.spacing(4),
   },
-}));
-
-const CelebrationAvatar = styled(Avatar)(({ theme }) => ({
-  width: 56,
-  height: 56,
-  margin: '0 auto',
-  marginBottom: theme.spacing(1.5),
-  background: `linear-gradient(135deg, ${theme.palette.success.main}, ${theme.palette.success.dark})`,
-  fontSize: '1.75rem',
-  boxShadow: theme.shadows[3],
 }));
 
 const DirectionButton = styled(Button)(({ theme }) => ({
@@ -196,6 +187,9 @@ interface FinishedStateProps {
   otherDirectionLabel?: string;
   onSwitchDirection?: () => void;
 
+  // Session summary from cards just reviewed
+  sessionStats?: SessionReviewStats;
+
   // Existing practice ahead / learn extra functionality
   practiceAheadCount: number;
   setPracticeAheadCount: (count: number) => void;
@@ -210,6 +204,7 @@ export function FinishedState({
   otherDirectionDueCount,
   otherDirectionLabel,
   onSwitchDirection,
+  sessionStats,
   practiceAheadCount,
   setPracticeAheadCount,
   extraNewCardsCount,
@@ -230,6 +225,7 @@ export function FinishedState({
     .slice(0, 2);
   const hasOtherFeatures = featuresWithDue.length > 0;
   const hasNextActions = hasOtherDirection || hasOtherFeatures;
+  const justCompletedSession = Boolean(sessionStats && sessionStats.reviewed > 0);
 
   return (
     <CardWrapper className="animate-fade-up">
@@ -237,8 +233,8 @@ export function FinishedState({
         <SuccessCardGlow className="card-glow" />
         <StyledCard>
           {/* Header */}
-          <Box sx={{ textAlign: 'center', mb: 3 }}>
-            <CelebrationAvatar>🎉</CelebrationAvatar>
+          <Box sx={{ textAlign: 'center', mb: justCompletedSession ? 2.5 : 3 }}>
+            <CelebrationHero celebrate={justCompletedSession} />
             <Typography variant="h5" sx={{ fontWeight: 400, mb: 0.5 }}>
               {hasNextActions ? "What's next?" : 'All done!'}
             </Typography>
@@ -246,6 +242,8 @@ export function FinishedState({
               {hasNextActions ? 'You finished this section' : 'Come back tomorrow for more drills'}
             </Typography>
           </Box>
+
+          <SessionRecap stats={sessionStats} />
 
           {/* Primary CTA: Switch direction */}
           {hasOtherDirection && onSwitchDirection && (

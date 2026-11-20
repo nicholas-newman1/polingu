@@ -3,6 +3,8 @@ import { Box, Typography, ToggleButton, ToggleButtonGroup, Button } from '@mui/m
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import { styled } from '../../lib/styled';
 import { ConsonantFlashcard } from './components/ConsonantFlashcard';
+import { CardDeckStage } from '../../components/CardDeckStage';
+import { SessionProgressBar } from '../../components/SessionStatusLine';
 import { CONSONANT_PAIRS, CONSONANT_WORDS } from '../../data/consonants';
 import type { ConsonantCard, ConsonantDrillerMode, ConsonantPair } from '../../types/consonants';
 import { balancedShuffle } from '../../lib/utils/shuffleArray';
@@ -156,43 +158,57 @@ export function ConsonantDrillerPage() {
       </ControlsRow>
 
       <MainContent>
-        <Typography
-          variant="body2"
-          color="text.disabled"
-          sx={{ mb: { xs: 3, sm: 4 }, textAlign: 'center' }}
+        <Box
+          sx={{
+            width: '100%',
+            maxWidth: 420,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 1.25,
+            mb: { xs: 3, sm: 4 },
+          }}
         >
-          {isFinished
-            ? `Completed all ${cards.length} cards`
-            : `${currentIndex + 1} / ${cards.length}`}
-        </Typography>
+          <Typography variant="body2" color="text.disabled" sx={{ textAlign: 'center' }}>
+            {isFinished
+              ? `Completed all ${cards.length} cards`
+              : `${currentIndex + 1} / ${cards.length}`}
+          </Typography>
+          {!isFinished && (
+            <SessionProgressBar completed={currentIndex} total={cards.length} accent="consonants" />
+          )}
+        </Box>
 
-        {isFinished ? (
-          <FinishedBox className="animate-fade-up">
-            <Typography variant="h5" sx={{ mb: 2 }}>
-              🎉 Session Complete!
-            </Typography>
-            <Typography color="text.secondary" sx={{ mb: 3 }}>
-              You've gone through all {cards.length} {mode === 'consonant' ? 'consonants' : 'words'}
-              .
-            </Typography>
-            <Button
-              variant="contained"
-              onClick={handleRestart}
-              sx={{
-                backgroundColor: 'consonants.main',
-                '&:hover': { backgroundColor: 'consonants.dark' },
-              }}
-            >
-              Drill Again
-            </Button>
-          </FinishedBox>
-        ) : currentCard ? (
-          <ConsonantFlashcard
-            key={`${sessionKey}-${currentIndex}`}
-            card={currentCard}
-            onNext={handleNext}
-          />
-        ) : null}
+        <CardDeckStage>
+          {isFinished ? (
+            <FinishedBox className="animate-fade-up">
+              <Typography variant="h5" sx={{ mb: 2 }}>
+                🎉 Session Complete!
+              </Typography>
+              <Typography color="text.secondary" sx={{ mb: 3 }}>
+                You've gone through all {cards.length}{' '}
+                {mode === 'consonant' ? 'consonants' : 'words'}.
+              </Typography>
+              <Button
+                variant="contained"
+                onClick={handleRestart}
+                sx={{
+                  backgroundColor: 'consonants.main',
+                  '&:hover': { backgroundColor: 'consonants.dark' },
+                }}
+              >
+                Drill Again
+              </Button>
+            </FinishedBox>
+          ) : currentCard ? (
+            <ConsonantFlashcard
+              key={`${sessionKey}-${currentIndex}`}
+              card={currentCard}
+              remainingCount={cards.length - currentIndex}
+              onNext={handleNext}
+            />
+          ) : null}
+        </CardDeckStage>
       </MainContent>
     </>
   );

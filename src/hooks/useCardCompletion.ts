@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef } from 'react';
 import { Rating, type Grade } from 'ts-fsrs';
+import { useAppSettings } from '../contexts/AppSettingsContext';
+import { playCardChime, triggerCardHaptic } from '../lib/cardFeedback';
+import { useCardDeck } from './useCardDeck';
 
 export type CardCompletionOutcome = 'again' | 'hard' | 'good' | 'easy' | 'next';
-
-const CARD_COMPLETION_DURATION_MS = 320;
 
 const RATING_TO_OUTCOME: Record<Grade, CardCompletionOutcome> = {
   [Rating.Again]: 'again',
@@ -23,36 +24,38 @@ function prefersReducedMotion(): boolean {
 }
 
 /**
- * Coordinates a brief tactile exit animation before committing a flashcard completion action.
- * Blocks duplicate triggers while exiting and falls back to immediate completion when
- * `prefers-reduced-motion` is enabled.
+ * Triggers haptic feedback, an optional soft chime (governed by `settings.autoPlayAudio`),
+ * and launches a deck exit clone of the active card surface so the next card rises smoothly
+ * from the stack underneath without blinking or resetting.
  */
 export function useCardCompletion() {
-  const [outcome, setOutcome] = useState<CardCompletionOutcome | null>(null);
-  const timerRef = useRef<number | null>(null);
+  const { settings } = useAppSettings();
+  const deck = useCardDeck();
+  const surfaceRef = useRef<HTMLDivElement | null>(null);
+  const triggeredRef = useRef(false);
 
-  useEffect(() => {
-    return () => {
-      if (timerRef.current !== null) {
-        window.clearTimeout(timerRef.current);
+  const trigger = useCallback(
+    (nextOutcome: CardCompletionOutcome, onComplete: () => void) => {
+      if (triggeredRef.current) return;
+      triggeredRef.current = true;
+
+      triggerCardHaptic(nextOutcome);
+      if (settings.autoPlayAudio) {
+        playCardChime(nextOutcome);
       }
-    };
-  }, []);
 
-  const trigger = useCallback((nextOutcome: CardCompletionOutcome, onComplete: () => void) => {
-    if (timerRef.current !== null) return;
-    if (prefersReducedMotion()) {
+      if (!prefersReducedMotion()) {
+        deck?.launchExit(surfaceRef.current, nextOutcome);
+      }
+
       onComplete();
-      return;
-    }
+    },
+    [deck, settings.autoPlayAudio]
+  );
 
-    setOutcome(nextOutcome);
-    timerRef.current = window.setTimeout(() => {
-      timerRef.current = null;
-      setOutcome(null);
-      onComplete();
-    }, CARD_COMPLETION_DURATION_MS);
-  }, []);
-
-  return { outcome, trigger };
+  return {
+    surfaceRef,
+    promoted: (deck?.transitionId ?? 0) > 0,
+    trigger,
+  };
 }

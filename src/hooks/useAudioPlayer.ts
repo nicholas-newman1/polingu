@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useAppSettings } from '../contexts/AppSettingsContext';
 import { resolvePlayableAudioUrl } from '../lib/audio/audioPrefetchCache';
+import { getChimeRemainingMs } from '../lib/cardFeedback';
 
 interface UseAudioPlayerOptions {
   /** The URL of the audio file to play */
@@ -86,14 +87,24 @@ export function useAudioPlayer({
     return () => stopAudio();
   }, [cardId, stopAudio]);
 
-  // Auto-play on mount (when card opens)
+  // Auto-play on mount (when card opens), waiting briefly if a completion chime is finishing
   useEffect(() => {
     if (!settings.autoPlayAudio || !audioUrl || hasAutoPlayedRef.current || !autoPlayOnMount) {
       return;
     }
 
-    hasAutoPlayedRef.current = true;
-    queueMicrotask(playAudio);
+    const delay = getChimeRemainingMs();
+    if (delay === 0) {
+      hasAutoPlayedRef.current = true;
+      queueMicrotask(playAudio);
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      hasAutoPlayedRef.current = true;
+      playAudio();
+    }, delay);
+    return () => window.clearTimeout(timer);
   }, [cardId, audioUrl, playAudio, autoPlayOnMount, settings.autoPlayAudio]);
 
   // Auto-play on reveal

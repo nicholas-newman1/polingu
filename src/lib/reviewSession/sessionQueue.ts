@@ -1,6 +1,16 @@
+import { Rating, type Grade } from 'ts-fsrs';
+
 export interface SessionCards<S> {
   reviewCards: S[];
   newCards: S[];
+}
+
+export interface SessionReviewStats {
+  reviewed: number;
+  again: number;
+  hard: number;
+  good: number;
+  easy: number;
 }
 
 export interface SessionQueueState<S> {
@@ -12,11 +22,12 @@ export interface SessionQueueState<S> {
   isPracticeAhead: boolean;
   ratingCounter: number;
   isBuilt: boolean;
+  stats: SessionReviewStats;
 }
 
 export type SessionQueueAction<S extends { reviewData: unknown }> =
   | { type: 'start'; cards: SessionCards<S>; isPracticeAhead: boolean }
-  | { type: 'rate'; reviewData: S['reviewData']; again: boolean }
+  | { type: 'rate'; reviewData: S['reviewData']; rating: Grade }
   | {
       type: 'reassess';
       predicate: (item: S) => boolean;
@@ -25,6 +36,20 @@ export type SessionQueueAction<S extends { reviewData: unknown }> =
     }
   | { type: 'update'; updater: (item: S) => S }
   | { type: 'remove'; predicate: (item: S) => boolean };
+
+function createEmptyStats(): SessionReviewStats {
+  return { reviewed: 0, again: 0, hard: 0, good: 0, easy: 0 };
+}
+
+function recordRatingStat(stats: SessionReviewStats, rating: Grade): SessionReviewStats {
+  return {
+    reviewed: stats.reviewed + 1,
+    again: stats.again + (rating === Rating.Again ? 1 : 0),
+    hard: stats.hard + (rating === Rating.Hard ? 1 : 0),
+    good: stats.good + (rating === Rating.Good ? 1 : 0),
+    easy: stats.easy + (rating === Rating.Easy ? 1 : 0),
+  };
+}
 
 export function createSessionQueueState<S>(): SessionQueueState<S> {
   return {
@@ -36,6 +61,7 @@ export function createSessionQueueState<S>(): SessionQueueState<S> {
     isPracticeAhead: false,
     ratingCounter: 0,
     isBuilt: false,
+    stats: createEmptyStats(),
   };
 }
 
@@ -69,12 +95,15 @@ export function sessionQueueReducer<S extends { reviewData: unknown }>(
         newCount: newCards.length,
         isPracticeAhead: action.isPracticeAhead,
         isBuilt: true,
+        stats: createEmptyStats(),
       };
     }
 
     case 'rate': {
-      const { reviewData, again } = action;
+      const { reviewData, rating } = action;
+      const again = rating === Rating.Again;
       const ratingCounter = state.ratingCounter + 1;
+      const stats = recordRatingStat(state.stats, rating);
 
       if (state.currentIndex < state.sessionQueue.length) {
         const current = state.sessionQueue[state.currentIndex];
@@ -85,6 +114,7 @@ export function sessionQueueReducer<S extends { reviewData: unknown }>(
             ? [...state.learningQueue, { ...current, reviewData }]
             : state.learningQueue,
           ratingCounter,
+          stats,
         };
       }
 
@@ -94,6 +124,7 @@ export function sessionQueueReducer<S extends { reviewData: unknown }>(
         ...state,
         learningQueue: again ? [...rest, { ...current, reviewData }] : rest,
         ratingCounter,
+        stats,
       };
     }
 

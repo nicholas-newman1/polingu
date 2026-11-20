@@ -11,6 +11,7 @@ import { alpha } from '../../../lib/theme';
 import { VerbConjugationTooltip } from '../../../components/VerbConjugationTooltip';
 import { useAppSettings } from '../../../contexts/AppSettingsContext';
 import { resolvePlayableAudioUrl } from '../../../lib/audio/audioPrefetchCache';
+import { getChimeRemainingMs } from '../../../lib/cardFeedback';
 import { AccentNoteBox } from '../../../components/flashcardStyles';
 
 interface AspectPairsFlashcardProps extends ReviewFlashcardProps {
@@ -135,12 +136,22 @@ export function AspectPairsFlashcard({
     return () => stopAudio();
   }, [card.verb.id, card.pairVerb.id, stopAudio]);
 
-  // Auto-play front verb audio when card opens
+  // Auto-play front verb audio when card opens, waiting briefly if a completion chime is finishing
   useEffect(() => {
     if (!appSettings.autoPlayAudio || !frontAudioUrl || hasAutoPlayedFrontRef.current) return;
 
-    hasAutoPlayedFrontRef.current = true;
-    queueMicrotask(() => playAudio(frontAudioUrl, 'front'));
+    const delay = getChimeRemainingMs();
+    if (delay === 0) {
+      hasAutoPlayedFrontRef.current = true;
+      queueMicrotask(() => playAudio(frontAudioUrl, 'front'));
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      hasAutoPlayedFrontRef.current = true;
+      playAudio(frontAudioUrl, 'front');
+    }, delay);
+    return () => window.clearTimeout(timer);
   }, [card.verb.id, card.pairVerb.id, frontAudioUrl, playAudio, appSettings.autoPlayAudio]);
 
   // Auto-play back verb audio when revealed (if not biaspectual)

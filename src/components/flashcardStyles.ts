@@ -1,59 +1,38 @@
-import { Box, Card, Chip, Typography, type Theme } from '@mui/material';
+import { Box, Card, Chip, Typography } from '@mui/material';
 import { styled } from '../lib/styled';
 import { alpha } from '../lib/theme';
-import type { CardCompletionOutcome } from '../hooks/useCardCompletion';
 
-const EXIT_ANIMATIONS: Record<CardCompletionOutcome, string> = {
-  good: 'cardExitGood 310ms cubic-bezier(0.32, 0, 0.2, 1) forwards',
-  easy: 'cardExitEasy 310ms cubic-bezier(0.32, 0, 0.2, 1) forwards',
-  hard: 'cardExitHard 310ms cubic-bezier(0.32, 0, 0.2, 1) forwards',
-  again: 'cardExitAgain 310ms cubic-bezier(0.32, 0, 0.2, 1) forwards',
-  next: 'cardExitNext 310ms cubic-bezier(0.32, 0, 0.2, 1) forwards',
-};
-
-function getExitShadowColor(theme: Theme, outcome: CardCompletionOutcome): string {
-  switch (outcome) {
-    case 'good':
-      return theme.palette.success.main;
-    case 'easy':
-      return theme.palette.info.main;
-    case 'hard':
-      return theme.palette.warning.main;
-    case 'again':
-      return theme.palette.primary.main;
-    case 'next':
-      return theme.palette.text.primary;
-  }
-}
-
-export const FlashcardWrapper = styled(Box)<{ $maxWidth: number }>(({ $maxWidth }) => ({
-  position: 'relative',
-  width: '100%',
-  maxWidth: $maxWidth,
-  margin: '0 auto',
-}));
+export const FlashcardWrapper = styled(Box)<{ $maxWidth: number; $hasStack?: boolean }>(
+  ({ theme, $maxWidth, $hasStack }) => ({
+    position: 'relative',
+    isolation: 'isolate',
+    width: '100%',
+    maxWidth: $maxWidth,
+    margin: '0 auto',
+    marginBottom: $hasStack ? theme.spacing(3) : 0,
+  })
+);
 
 export const FlashcardSurface = styled(Card)<{
   $accent?: 'primary' | 'consonants';
-  $exitOutcome?: CardCompletionOutcome | null;
-}>(({ theme, $accent = 'primary', $exitOutcome }) => {
-  const exitColor = $exitOutcome ? getExitShadowColor(theme, $exitOutcome) : null;
+  $promoted?: boolean;
+}>(({ theme, $accent = 'primary', $promoted }) => {
+  const isDark = theme.palette.mode === 'dark';
   return {
+    position: 'relative',
+    zIndex: 2,
     padding: theme.spacing(3),
     minHeight: 420,
     display: 'flex',
     flexDirection: 'column',
-    backgroundColor: alpha(theme.palette.background.paper, 0.95),
-    backdropFilter: 'blur(8px)',
-    boxShadow: exitColor
-      ? `0 0 0 2px ${alpha(exitColor, 0.7)}, 0 12px 36px ${alpha(exitColor, 0.45)}`
-      : `0 8px 32px ${alpha(theme.palette[$accent].main, 0.4)}`,
-    transition: 'box-shadow 120ms ease-out',
-    ...($exitOutcome
+    backgroundColor: theme.palette.background.paper,
+    border: `1px solid ${alpha(theme.palette.text.primary, isDark ? 0.13 : 0.08)}`,
+    boxShadow: `${isDark ? '0 4px 14px rgba(0, 0, 0, 0.45)' : '0 3px 10px rgba(26, 22, 18, 0.07)'}, 0 8px 32px ${alpha(theme.palette[$accent].main, 0.34)}`,
+    transformOrigin: 'center bottom',
+    ...($promoted
       ? {
-          pointerEvents: 'none' as const,
-          willChange: 'transform, opacity',
-          animation: EXIT_ANIMATIONS[$exitOutcome],
+          animation: 'cardPromoteTop 300ms cubic-bezier(0.22, 1, 0.36, 1)',
+          '@media (prefers-reduced-motion: reduce)': { animation: 'none' },
         }
       : {}),
     [theme.breakpoints.up('sm')]: {

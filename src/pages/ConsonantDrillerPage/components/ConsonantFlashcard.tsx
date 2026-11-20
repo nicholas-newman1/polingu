@@ -7,11 +7,12 @@ import { alpha } from '../../../lib/theme';
 import type { ConsonantCard, ConsonantType, ConsonantWord } from '../../../types/consonants';
 import { getExampleWordsForConsonant } from '../../../data/consonants';
 import { FlashcardSurface, FlashcardWrapper } from '../../../components/flashcardStyles';
-import { CardCompletionOverlay } from '../../../components/CardCompletionOverlay';
+import { CardStackLayers } from '../../../components/CardStackLayers';
 import { useCardCompletion } from '../../../hooks/useCardCompletion';
 
 interface ConsonantFlashcardProps {
   card: ConsonantCard;
+  remainingCount?: number;
   onNext: () => void;
 }
 
@@ -140,13 +141,85 @@ function getConsonantLabel(type: ConsonantType): string {
   return type === 'hard' ? 'Hard' : 'Soft';
 }
 
-export function ConsonantFlashcard({ card, onNext }: ConsonantFlashcardProps) {
+function WordPairDetails({ card }: { card: ConsonantCard }) {
+  const { word } = card;
+  if (!word) return null;
+
+  return (
+    <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: 'divider' }}>
+      <Typography variant="body2" color="text.secondary">
+        {word.word} — {word.translation}
+      </Typography>
+      {word.softenedForm && (
+        <Typography
+          variant="body2"
+          sx={{ mt: 1, fontFamily: '"JetBrains Mono", monospace', color: 'info.main' }}
+        >
+          → {word.softenedForm}{' '}
+          <Typography component="span" variant="body2" color="text.secondary">
+            ({word.softenedTranslation})
+          </Typography>
+        </Typography>
+      )}
+      {word.hardenedForm && (
+        <Typography
+          variant="body2"
+          sx={{ mt: 1, fontFamily: '"JetBrains Mono", monospace', color: 'warning.main' }}
+        >
+          ← {word.hardenedForm}{' '}
+          <Typography component="span" variant="body2" color="text.secondary">
+            ({word.hardenedTranslation})
+          </Typography>
+        </Typography>
+      )}
+      <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mt: 1 }}>
+        The consonant "{card.correctAnswer === 'hard' ? card.pair.hard : card.pair.soft}" is{' '}
+        {card.correctAnswer}
+      </Typography>
+    </Box>
+  );
+}
+
+function ExampleWordsList({ words }: { words: ConsonantWord[] }) {
+  if (words.length === 0) return null;
+
+  return (
+    <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: 'divider' }}>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+        Example words:
+      </Typography>
+      {words.map((w, i) => (
+        <ExampleWord key={i}>
+          <Box>
+            {w.hardenedForm && (
+              <Box component="span" className="word" sx={{ color: 'warning.main' }}>
+                {w.hardenedForm}
+                {' → '}
+              </Box>
+            )}
+            <span className="word">{w.word}</span>
+            {w.softenedForm && (
+              <Box component="span" className="word" sx={{ color: 'info.main' }}>
+                {' → '}
+                {w.softenedForm}
+              </Box>
+            )}
+          </Box>
+          <span className="translation">{w.translation}</span>
+        </ExampleWord>
+      ))}
+    </Box>
+  );
+}
+
+export function ConsonantFlashcard({ card, remainingCount = 1, onNext }: ConsonantFlashcardProps) {
   const [answered, setAnswered] = useState(false);
   const [selectedAnswer, setSelectedAnswer] = useState<ConsonantType | null>(null);
-  const { outcome: exitOutcome, trigger: triggerExit } = useCardCompletion();
+  const { surfaceRef, promoted, trigger: triggerExit } = useCardCompletion();
 
   const isCorrect = selectedAnswer === card.correctAnswer;
   const isWordMode = card.type === 'word';
+  const stackDepth = Math.max(0, Math.min(2, remainingCount - 1));
 
   const handleAnswer = (answer: ConsonantType) => {
     setSelectedAnswer(answer);
@@ -169,9 +242,13 @@ export function ConsonantFlashcard({ card, onNext }: ConsonantFlashcardProps) {
       );
 
   return (
-    <FlashcardWrapper $maxWidth={420} className="animate-card-enter">
-      <CardCompletionOverlay outcome={exitOutcome} />
-      <FlashcardSurface $accent="consonants" $exitOutcome={exitOutcome}>
+    <FlashcardWrapper
+      $maxWidth={420}
+      $hasStack={stackDepth > 0}
+      className={promoted ? undefined : 'animate-card-enter'}
+    >
+      <CardStackLayers depth={stackDepth} promoted={promoted} />
+      <FlashcardSurface ref={surfaceRef} $accent="consonants" $promoted={promoted}>
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
           <HeaderLabel>
             {isWordMode ? 'Word Mode' : 'Consonant Mode'} · Is this hard or soft?
@@ -258,79 +335,10 @@ export function ConsonantFlashcard({ card, onNext }: ConsonantFlashcardProps) {
                   </Box>
                 </Stack>
 
-                {isWordMode && card.word && (
-                  <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: 'divider' }}>
-                    <Typography variant="body2" color="text.secondary">
-                      {card.word.word} — {card.word.translation}
-                    </Typography>
-                    {card.word.softenedForm && (
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          mt: 1,
-                          fontFamily: '"JetBrains Mono", monospace',
-                          color: 'info.main',
-                        }}
-                      >
-                        → {card.word.softenedForm}{' '}
-                        <Typography component="span" variant="body2" color="text.secondary">
-                          ({card.word.softenedTranslation})
-                        </Typography>
-                      </Typography>
-                    )}
-                    {card.word.hardenedForm && (
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          mt: 1,
-                          fontFamily: '"JetBrains Mono", monospace',
-                          color: 'warning.main',
-                        }}
-                      >
-                        ← {card.word.hardenedForm}{' '}
-                        <Typography component="span" variant="body2" color="text.secondary">
-                          ({card.word.hardenedTranslation})
-                        </Typography>
-                      </Typography>
-                    )}
-                    <Typography
-                      variant="caption"
-                      color="text.disabled"
-                      sx={{ display: 'block', mt: 1 }}
-                    >
-                      The consonant "
-                      {card.correctAnswer === 'hard' ? card.pair.hard : card.pair.soft}" is{' '}
-                      {card.correctAnswer}
-                    </Typography>
-                  </Box>
-                )}
-
-                {!isWordMode && exampleWords.length > 0 && (
-                  <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: 'divider' }}>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                      Example words:
-                    </Typography>
-                    {exampleWords.map((w: ConsonantWord, i: number) => (
-                      <ExampleWord key={i}>
-                        <Box>
-                          {w.hardenedForm && (
-                            <Box component="span" className="word" sx={{ color: 'warning.main' }}>
-                              {w.hardenedForm}
-                              {' → '}
-                            </Box>
-                          )}
-                          <span className="word">{w.word}</span>
-                          {w.softenedForm && (
-                            <Box component="span" className="word" sx={{ color: 'info.main' }}>
-                              {' → '}
-                              {w.softenedForm}
-                            </Box>
-                          )}
-                        </Box>
-                        <span className="translation">{w.translation}</span>
-                      </ExampleWord>
-                    ))}
-                  </Box>
+                {isWordMode ? (
+                  <WordPairDetails card={card} />
+                ) : (
+                  <ExampleWordsList words={exampleWords} />
                 )}
               </PairBox>
             </Box>

@@ -122,7 +122,7 @@ export function useReviewSession<
 
     const reviewData = rateCard(currentCard.reviewData, rating);
     const again = rating === Rating.Again;
-    queue.rate(reviewData, again);
+    queue.rate(reviewData, rating);
 
     await saveReviewStore(
       recordReview(reviewStore, getId(card), reviewData, {
@@ -170,6 +170,7 @@ export function useReviewSession<
     isFinished: queue.isFinished,
     isBuilt: queue.isBuilt,
     totalRemaining: queue.totalRemaining,
+    sessionTotal: queue.sessionTotal,
     reviewCount: queue.reviewCount,
     newCount: queue.newCount,
     isPracticeAhead: queue.isPracticeAhead,
@@ -185,6 +186,7 @@ export function useReviewSession<
     practice,
     history,
     finishedStateProps: {
+      sessionStats: queue.stats,
       practiceAheadCount,
       setPracticeAheadCount,
       extraNewCardsCount,

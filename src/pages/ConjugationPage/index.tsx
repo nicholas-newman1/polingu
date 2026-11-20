@@ -327,6 +327,7 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
                   direction={currentDirection}
                   aspectPairVerb={getAspectPairVerb(form)}
                   intervals={session.intervals}
+                  remainingCount={session.totalRemaining}
                   canGoBack={canGoBack}
                   canEdit={isAdmin}
                   onRate={session.rate}

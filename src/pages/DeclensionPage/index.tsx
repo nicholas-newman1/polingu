@@ -357,6 +357,7 @@ export function DeclensionPage() {
               key={`${card.id}-${session.ratingCounter}`}
               card={card}
               intervals={session.intervals}
+              remainingCount={session.totalRemaining}
               canGoBack={canGoBack}
               canEdit={card.isCustom || isAdmin}
               onRate={session.rate}

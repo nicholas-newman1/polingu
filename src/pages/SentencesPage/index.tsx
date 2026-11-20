@@ -419,6 +419,7 @@ export function SentencesPage({ mode }: SentencesPageProps) {
                   sentence={sentence}
                   direction={currentDirection}
                   intervals={session.intervals}
+                  remainingCount={session.totalRemaining}
                   canGoBack={canGoBack}
                   canEdit={isAdmin}
                   onRate={session.rate}
