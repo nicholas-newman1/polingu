@@ -1,4 +1,4 @@
-import { useRef, type Ref } from 'react';
+import { useId, useRef, useState, type ReactNode, type Ref } from 'react';
 import { useForm, Controller, useFieldArray, useWatch, type Control } from 'react-hook-form';
 import {
   DialogTitle,
@@ -12,19 +12,22 @@ import {
   Typography,
   CircularProgress,
   Divider,
+  Collapse,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import { styled } from '../lib/styled';
 import {
-  ModalDialog,
   ModalHeader,
   ModalContent,
   ModalActions,
   ExamplePairBox,
   ExampleRowHeader,
 } from './modalStyles';
+import { KeyboardAwareModalDialog } from './KeyboardAwareModalDialog';
 import { useAuthContext } from '../hooks/useAuthContext';
 import { useEditModalClose } from '../hooks/useEditModalClose';
 import {
@@ -60,6 +63,31 @@ const AddExampleButton = styled(Button)(({ theme }) => ({
   textTransform: 'none',
   color: theme.palette.text.secondary,
 }));
+
+function VocabularyDetails({ editMode, children }: { editMode: boolean; children: ReactNode }) {
+  const [expanded, setExpanded] = useState(false);
+  const detailsId = useId();
+
+  return (
+    <>
+      {!editMode && (
+        <Button
+          type="button"
+          onClick={() => setExpanded((value) => !value)}
+          aria-expanded={expanded}
+          aria-controls={detailsId}
+          endIcon={expanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+          sx={{ alignSelf: 'flex-start', textTransform: 'none' }}
+        >
+          More details (optional)
+        </Button>
+      )}
+      <Collapse in={editMode || expanded} id={detailsId}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>{children}</Box>
+      </Collapse>
+    </>
+  );
+}
 
 interface FormData {
   polish: string;
@@ -246,6 +274,7 @@ export function AddVocabularyModal({
     handleSubmit,
     reset,
     setValue,
+    setFocus,
     getValues,
     formState: { isValid, isSubmitting },
   } = useForm<FormData>({
@@ -321,8 +350,18 @@ export function AddVocabularyModal({
   const submitLabel = editWord ? 'Save Changes' : 'Add Word';
 
   return (
-    <ModalDialog open={open} onClose={handleClose}>
-      <ModalHeader>
+    <KeyboardAwareModalDialog
+      open={open}
+      onClose={handleClose}
+      slotProps={{
+        transition: {
+          onEntered: () => {
+            if (!hasPrefilledValues) setFocus('polish');
+          },
+        },
+      }}
+    >
+      <ModalHeader sx={{ flexShrink: 0 }}>
         <DialogTitle sx={{ p: 0, fontWeight: 500 }}>
           {editWord ? 'Edit Word' : 'Add New Word'}
         </DialogTitle>
@@ -330,7 +369,11 @@ export function AddVocabularyModal({
           <CloseIcon />
         </IconButton>
       </ModalHeader>
-      <form onSubmit={handleSubmit(onSubmit)}>
+      <Box
+        component="form"
+        onSubmit={handleSubmit(onSubmit)}
+        sx={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}
+      >
         <ModalContent>
           {isAdmin && editWord && 'id' in editWord && (
             <WordAudioSection
@@ -349,110 +392,112 @@ export function AddVocabularyModal({
             placeholders={{ polish: 'e.g., kot', english: 'e.g., cat' }}
           />
 
-          <Controller
-            name="partOfSpeech"
-            control={control}
-            render={({ field }) => (
-              <FormControl fullWidth>
-                <InputLabel>Part of Speech (optional)</InputLabel>
-                <Select
-                  {...field}
-                  onChange={(e) => {
-                    field.onChange(e);
-                    if (e.target.value !== 'noun' && e.target.value !== 'proper noun') {
-                      setValue('gender', '');
-                    }
-                  }}
-                  label="Part of Speech (optional)"
-                >
-                  {renderSelectOptions(PARTS_OF_SPEECH, 'None', capitalize)}
-                </Select>
-              </FormControl>
-            )}
-          />
-
-          {showGenderField && (
+          <VocabularyDetails key={String(open)} editMode={Boolean(editWord)}>
             <Controller
-              name="gender"
+              name="partOfSpeech"
               control={control}
               render={({ field }) => (
                 <FormControl fullWidth>
-                  <InputLabel>Gender (optional)</InputLabel>
-                  <Select {...field} label="Gender (optional)">
-                    {renderSelectOptions(NOUN_GENDERS, 'None', capitalize)}
+                  <InputLabel>Part of Speech (optional)</InputLabel>
+                  <Select
+                    {...field}
+                    onChange={(e) => {
+                      field.onChange(e);
+                      if (e.target.value !== 'noun' && e.target.value !== 'proper noun') {
+                        setValue('gender', '');
+                      }
+                    }}
+                    label="Part of Speech (optional)"
+                  >
+                    {renderSelectOptions(PARTS_OF_SPEECH, 'None', capitalize)}
                   </Select>
                 </FormControl>
               )}
             />
-          )}
 
-          <FormTextField
-            name="notes"
-            control={control}
-            label="Notes (optional)"
-            multiline
-            placeholder="Any additional notes..."
-          />
-
-          <ExamplesSection>
-            <Typography variant="body2" color="text.secondary">
-              Example Sentences (optional)
-            </Typography>
-
-            {fields.map((field, index) => (
-              <ExamplePairBox key={field.id}>
-                <ExampleRowHeader>
-                  <Typography variant="caption" color="text.disabled">
-                    Example {index + 1}
-                  </Typography>
-                  <IconButton
-                    size="small"
-                    onClick={() => {
-                      exampleTranslation.cancelAll();
-                      remove(index);
-                    }}
-                    aria-label="remove example"
-                    sx={{ color: 'text.disabled' }}
-                  >
-                    <DeleteOutlineIcon fontSize="small" />
-                  </IconButton>
-                </ExampleRowHeader>
-                <ExampleField
-                  control={control}
-                  index={index}
-                  lang="polish"
-                  translation={exampleTranslation}
-                  inputRef={index === fields.length - 1 ? newExamplePolishRef : undefined}
-                />
-                <ExampleField
-                  control={control}
-                  index={index}
-                  lang="english"
-                  translation={exampleTranslation}
-                />
-              </ExamplePairBox>
-            ))}
-
-            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-              <AddExampleButton
-                size="small"
-                startIcon={<AddIcon />}
-                onClick={handleAddExample}
-                type="button"
-              >
-                Add manually
-              </AddExampleButton>
-            </Box>
-
-            {isAdmin && (
-              <AiExampleGenerator
-                request={generateRequest}
-                onAccept={(examples) => examples.forEach((ex) => append(ex))}
+            {showGenderField && (
+              <Controller
+                name="gender"
+                control={control}
+                render={({ field }) => (
+                  <FormControl fullWidth>
+                    <InputLabel>Gender (optional)</InputLabel>
+                    <Select {...field} label="Gender (optional)">
+                      {renderSelectOptions(NOUN_GENDERS, 'None', capitalize)}
+                    </Select>
+                  </FormControl>
+                )}
               />
             )}
-          </ExamplesSection>
+
+            <FormTextField
+              name="notes"
+              control={control}
+              label="Notes (optional)"
+              multiline
+              placeholder="Any additional notes..."
+            />
+
+            <ExamplesSection>
+              <Typography variant="body2" color="text.secondary">
+                Example Sentences (optional)
+              </Typography>
+
+              {fields.map((field, index) => (
+                <ExamplePairBox key={field.id}>
+                  <ExampleRowHeader>
+                    <Typography variant="caption" color="text.disabled">
+                      Example {index + 1}
+                    </Typography>
+                    <IconButton
+                      size="small"
+                      onClick={() => {
+                        exampleTranslation.cancelAll();
+                        remove(index);
+                      }}
+                      aria-label="remove example"
+                      sx={{ color: 'text.disabled' }}
+                    >
+                      <DeleteOutlineIcon fontSize="small" />
+                    </IconButton>
+                  </ExampleRowHeader>
+                  <ExampleField
+                    control={control}
+                    index={index}
+                    lang="polish"
+                    translation={exampleTranslation}
+                    inputRef={index === fields.length - 1 ? newExamplePolishRef : undefined}
+                  />
+                  <ExampleField
+                    control={control}
+                    index={index}
+                    lang="english"
+                    translation={exampleTranslation}
+                  />
+                </ExamplePairBox>
+              ))}
+
+              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                <AddExampleButton
+                  size="small"
+                  startIcon={<AddIcon />}
+                  onClick={handleAddExample}
+                  type="button"
+                >
+                  Add manually
+                </AddExampleButton>
+              </Box>
+
+              {isAdmin && (
+                <AiExampleGenerator
+                  request={generateRequest}
+                  onAccept={(examples) => examples.forEach((ex) => append(ex))}
+                />
+              )}
+            </ExamplesSection>
+          </VocabularyDetails>
         </ModalContent>
-        <ModalActions>
+        <ModalActions sx={{ flexShrink: 0 }}>
           <Button onClick={handleClose} color="inherit" type="button">
             Cancel
           </Button>
@@ -465,7 +510,7 @@ export function AddVocabularyModal({
             {isSubmitting ? 'Saving...' : submitLabel}
           </Button>
         </ModalActions>
-      </form>
-    </ModalDialog>
+      </Box>
+    </KeyboardAwareModalDialog>
   );
 }

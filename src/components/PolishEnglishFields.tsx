@@ -61,9 +61,10 @@ export function PolishEnglishFields<T extends PolishEnglishFormValues>({
       // react-hook-form can't resolve literal paths against an unresolved generic form type.
       control={control as unknown as Control<PolishEnglishFormValues>}
       rules={REQUIRED_TEXT_RULES}
-      render={({ field }) => (
+      render={({ field: { ref, ...field } }) => (
         <TextField
           {...field}
+          inputRef={ref}
           onChange={(e) => {
             field.onChange(e);
             onTextChange(e.target.value);
