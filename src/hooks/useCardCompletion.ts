@@ -3,8 +3,9 @@ import { Rating, type Grade } from 'ts-fsrs';
 import { useAppSettings } from '../contexts/AppSettingsContext';
 import { playCardChime, triggerCardHaptic } from '../lib/cardFeedback';
 import { useCardDeck } from './useCardDeck';
+import type { RatingOutcome } from '../lib/ratingColors';
 
-export type CardCompletionOutcome = 'again' | 'hard' | 'good' | 'easy' | 'next';
+export type CardCompletionOutcome = RatingOutcome | 'next';
 
 const RATING_TO_OUTCOME: Record<Grade, CardCompletionOutcome> = {
   [Rating.Again]: 'again',

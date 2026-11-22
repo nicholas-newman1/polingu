@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { Box, useTheme, type Theme } from '@mui/material';
 import { styled } from '../lib/styled';
 import { alpha } from '../lib/theme';
+import { getRatingPalette } from '../lib/ratingColors';
 import { CardDeckContext } from '../hooks/useCardDeck';
 import type { CardCompletionOutcome } from '../hooks/useCardCompletion';
 import { CardCompletionOverlay } from './CardCompletionOverlay';
@@ -17,18 +18,7 @@ const EXIT_ANIMATIONS: Record<CardCompletionOutcome, string> = {
 };
 
 function getExitGlowColor(theme: Theme, outcome: CardCompletionOutcome): string {
-  switch (outcome) {
-    case 'good':
-      return theme.palette.success.main;
-    case 'easy':
-      return theme.palette.info.main;
-    case 'hard':
-      return theme.palette.warning.main;
-    case 'again':
-      return theme.palette.primary.main;
-    case 'next':
-      return theme.palette.text.primary;
-  }
+  return outcome === 'next' ? theme.palette.text.primary : getRatingPalette(theme, outcome).main;
 }
 
 interface ExitingCard {

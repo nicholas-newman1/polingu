@@ -2,6 +2,7 @@ import { useEffect, useRef, type CSSProperties } from 'react';
 import { Avatar, Box, Stack, Typography, useTheme } from '@mui/material';
 import { styled } from '../lib/styled';
 import { alpha } from '../lib/theme';
+import { getRatingPalette } from '../lib/ratingColors';
 import type { SessionReviewStats } from '../lib/reviewSession/sessionQueue';
 import { useAppSettings } from '../contexts/AppSettingsContext';
 import { playSessionCompleteChime, triggerSessionCompleteHaptic } from '../lib/cardFeedback';
@@ -158,10 +159,10 @@ export function SessionRecap({ stats }: { stats?: SessionReviewStats }) {
         : theme.palette.primary.main;
 
   const breakdown = [
-    { label: 'Easy', count: stats.easy, color: theme.palette.success.main },
-    { label: 'Good', count: stats.good, color: theme.palette.info.main },
-    { label: 'Hard', count: stats.hard, color: theme.palette.warning.main },
-    { label: 'Again', count: stats.again, color: theme.palette.primary.main },
+    { label: 'Easy', count: stats.easy, color: getRatingPalette(theme, 'easy').main },
+    { label: 'Good', count: stats.good, color: getRatingPalette(theme, 'good').main },
+    { label: 'Hard', count: stats.hard, color: getRatingPalette(theme, 'hard').main },
+    { label: 'Again', count: stats.again, color: getRatingPalette(theme, 'again').main },
   ].filter((item) => item.count > 0);
 
   return (

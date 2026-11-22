@@ -1,6 +1,7 @@
 import { Rating, type Grade } from 'ts-fsrs';
 import { Button, Stack, Typography } from '@mui/material';
 import { styled } from '../lib/styled';
+import { getRatingPalette, type RatingOutcome } from '../lib/ratingColors';
 
 export interface RatingIntervals {
   [Rating.Again]: string;
@@ -15,16 +16,16 @@ interface RatingButtonsProps {
 }
 
 interface RatingButtonProps {
-  $ratingColor: 'primary' | 'warning' | 'success' | 'info';
+  $outcome: RatingOutcome;
 }
 
-const RatingButton = styled(Button)<RatingButtonProps>(({ theme, $ratingColor }) => ({
+const RatingButton = styled(Button)<RatingButtonProps>(({ theme, $outcome }) => ({
   flexDirection: 'column',
   padding: theme.spacing(1.5, 1),
   borderRadius: theme.spacing(1),
-  backgroundColor: theme.palette[$ratingColor].main,
+  backgroundColor: getRatingPalette(theme, $outcome).main,
   '&:hover': {
-    backgroundColor: theme.palette[$ratingColor].dark,
+    backgroundColor: getRatingPalette(theme, $outcome).dark,
   },
   [theme.breakpoints.up('sm')]: {
     padding: theme.spacing(2, 1),
@@ -39,23 +40,23 @@ const IntervalText = styled(Typography)({
 const RATINGS: Array<{
   rating: Grade;
   label: string;
-  color: 'primary' | 'warning' | 'success' | 'info';
+  outcome: RatingOutcome;
 }> = [
-  { rating: Rating.Again, label: 'Again', color: 'primary' },
-  { rating: Rating.Hard, label: 'Hard', color: 'warning' },
-  { rating: Rating.Good, label: 'Good', color: 'info' },
-  { rating: Rating.Easy, label: 'Easy', color: 'success' },
+  { rating: Rating.Again, label: 'Again', outcome: 'again' },
+  { rating: Rating.Hard, label: 'Hard', outcome: 'hard' },
+  { rating: Rating.Good, label: 'Good', outcome: 'good' },
+  { rating: Rating.Easy, label: 'Easy', outcome: 'easy' },
 ];
 
 export function RatingButtons({ intervals, onRate }: RatingButtonsProps) {
   return (
     <Stack direction="row" spacing={0.5} sx={{ mt: 'auto' }}>
-      {RATINGS.map(({ rating, label, color }) => (
+      {RATINGS.map(({ rating, label, outcome }) => (
         <RatingButton
           key={rating}
           fullWidth
           variant="contained"
-          $ratingColor={color}
+          $outcome={outcome}
           onClick={() => onRate(rating)}
         >
           <Typography variant="body2" fontWeight={600}>

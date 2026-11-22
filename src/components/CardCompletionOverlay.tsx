@@ -6,6 +6,7 @@ import ReplayRoundedIcon from '@mui/icons-material/ReplayRounded';
 import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
 import { styled } from '../lib/styled';
 import { alpha } from '../lib/theme';
+import { getRatingPalette } from '../lib/ratingColors';
 import type { CardCompletionOutcome } from '../hooks/useCardCompletion';
 
 interface SparkSpec {
@@ -55,30 +56,16 @@ const SPARKS_BY_OUTCOME: Record<CardCompletionOutcome, SparkSpec[]> = {
 };
 
 function getOutcomeColors(theme: Theme, outcome: CardCompletionOutcome): [string, string, string] {
-  switch (outcome) {
-    case 'good':
-      return [
-        theme.palette.success.main,
-        theme.palette.success.light,
-        theme.palette.secondary.main,
-      ];
-    case 'easy':
-      return [theme.palette.info.main, theme.palette.info.light, theme.palette.secondary.main];
-    case 'hard':
-      return [
-        theme.palette.warning.main,
-        theme.palette.warning.light,
-        theme.palette.secondary.main,
-      ];
-    case 'again':
-      return [theme.palette.primary.main, theme.palette.primary.light, theme.palette.primary.dark];
-    case 'next':
-      return [
-        theme.palette.text.primary,
-        theme.palette.text.secondary,
-        theme.palette.secondary.main,
-      ];
+  if (outcome === 'next') {
+    return [theme.palette.text.primary, theme.palette.text.secondary, theme.palette.secondary.main];
   }
+
+  const palette = getRatingPalette(theme, outcome);
+  return [
+    palette.main,
+    palette.light,
+    outcome === 'again' ? palette.dark : theme.palette.secondary.main,
+  ];
 }
 
 const OverlayRoot = styled(Box)({
