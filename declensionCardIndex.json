@@ -379,21 +379,21 @@
   },
   {
     "id": 55,
-    "front": "___ (Nauczyciel) są zmęczeni.",
+    "front": "___ (Nauczyciel) (pl) są zmęczeni.",
     "case": "Nominative",
     "gender": "Masculine",
     "number": "Plural"
   },
   {
     "id": 56,
-    "front": "___ (Kobieta) są gotowe.",
+    "front": "___ (Kobieta) (pl) są gotowe.",
     "case": "Nominative",
     "gender": "Feminine",
     "number": "Plural"
   },
   {
     "id": 57,
-    "front": "___ (Dziecko) są małe.",
+    "front": "___ (Dziecko) (pl) są małe.",
     "case": "Nominative",
     "gender": "Neuter",
     "number": "Plural"
@@ -722,7 +722,7 @@
   },
   {
     "id": 104,
-    "front": "Daję ___ (rodzic) prezent.",
+    "front": "Daję ___ (rodzic) (pl) prezent.",
     "case": "Dative",
     "gender": "Masculine",
     "number": "Plural"
@@ -764,7 +764,7 @@
   },
   {
     "id": 110,
-    "front": "Przekazuję ___ (szef) raport.",
+    "front": "Przekazuję ___ (szef) (pl) raport.",
     "case": "Dative",
     "gender": "Masculine",
     "number": "Plural"
@@ -806,7 +806,7 @@
   },
   {
     "id": 116,
-    "front": "Przynoszę ___ (gość) jedzenie.",
+    "front": "Przynoszę ___ (gość) (pl) jedzenie.",
     "case": "Dative",
     "gender": "Masculine",
     "number": "Plural"
@@ -848,7 +848,7 @@
   },
   {
     "id": 122,
-    "front": "Sprzedaję ___ (klient) bilety.",
+    "front": "Sprzedaję ___ (klient) (pl) bilety.",
     "case": "Dative",
     "gender": "Masculine",
     "number": "Plural"
@@ -911,7 +911,7 @@
   },
   {
     "id": 131,
-    "front": "Pokazuję ___ (uczeń) przykład.",
+    "front": "Pokazuję ___ (uczeń) (pl)  przykład.",
     "case": "Dative",
     "gender": "Masculine",
     "number": "Plural"
@@ -953,7 +953,7 @@
   },
   {
     "id": 137,
-    "front": "Mówię ___ (przyjaciel) prawdę.",
+    "front": "Mówię ___ (przyjaciel) (pl) prawdę.",
     "case": "Dative",
     "gender": "Masculine",
     "number": "Plural"
@@ -995,7 +995,7 @@
   },
   {
     "id": 143,
-    "front": "Opowiadam ___ (dziecko) historię.",
+    "front": "Opowiadam ___ (dziecko) (pl) historię.",
     "case": "Dative",
     "gender": "Neuter",
     "number": "Plural"
@@ -1037,7 +1037,7 @@
   },
   {
     "id": 149,
-    "front": "Odpowiadam ___ (klient) na maila.",
+    "front": "Odpowiadam ___ (klient) (pl) na maila.",
     "case": "Dative",
     "gender": "Masculine",
     "number": "Plural"
@@ -1079,7 +1079,7 @@
   },
   {
     "id": 155,
-    "front": "Radzę ___ (kolega) zmianę.",
+    "front": "Radzę ___ (kolega) (pl) zmianę.",
     "case": "Dative",
     "gender": "Masculine",
     "number": "Plural"
@@ -1121,7 +1121,7 @@
   },
   {
     "id": 161,
-    "front": "Pomagam ___ (sąsiad) pracę.",
+    "front": "Pomagam ___ (sąsiad) (pl) pracę.",
     "case": "Dative",
     "gender": "Masculine",
     "number": "Plural"
@@ -1163,7 +1163,7 @@
   },
   {
     "id": 167,
-    "front": "Gratuluję ___ (zawodnik) zwycięstwa.",
+    "front": "Gratuluję ___ (zawodnik) (pl) zwycięstwa.",
     "case": "Dative",
     "gender": "Masculine",
     "number": "Plural"
@@ -1219,7 +1219,7 @@
   },
   {
     "id": 175,
-    "front": "Ufam ___ (przyjaciel).",
+    "front": "Ufam ___ (przyjaciel) (pl).",
     "case": "Dative",
     "gender": "Masculine",
     "number": "Plural"
@@ -1233,7 +1233,7 @@
   },
   {
     "id": 177,
-    "front": "Wobec ___ (te fakty) nie mamy wyboru.",
+    "front": "Wobec tych ___ (fakt) (pl) nie mamy wyboru.",
     "case": "Genitive",
     "gender": "Masculine",
     "number": "Plural"
@@ -1261,7 +1261,7 @@
   },
   {
     "id": 181,
-    "front": "Grożę ___ (wróg).",
+    "front": "Grożę ___ (wróg) (pl).",
     "case": "Dative",
     "gender": "Masculine",
     "number": "Plural"
@@ -1303,7 +1303,7 @@
   },
   {
     "id": 187,
-    "front": "Kiedyś zajmowałem się ___ (ochrona środowiska).",
+    "front": "Kiedyś zajmowałem się ___ (ochrona) środowiska.",
     "case": "Instrumental",
     "gender": "Feminine",
     "number": "Singular"
@@ -1338,7 +1338,7 @@
   },
   {
     "id": 192,
-    "front": "Zabrania ___ (uczeń) telefonów.",
+    "front": "Nauczyciel zabrania ___ (uczeń) (pl) używać telefonów.",
     "case": "Dative",
     "gender": "Masculine",
     "number": "Plural"
@@ -1513,7 +1513,7 @@
   },
   {
     "id": 217,
-    "front": "Jest ___ (gość) miło.",
+    "front": "Jest ___ (gość) (pl) miło.",
     "case": "Dative",
     "gender": "Masculine",
     "number": "Plural"
@@ -1653,7 +1653,7 @@
   },
   {
     "id": 237,
-    "front": "Jest ___ (dziecko) smutno.",
+    "front": "Jest ___ (dziecko) (pl) smutno.",
     "case": "Dative",
     "gender": "Neuter",
     "number": "Plural"
@@ -1688,7 +1688,7 @@
   },
   {
     "id": 242,
-    "front": "Szukam ___ (klucze).",
+    "front": "Szukam ___ (klucz) (pl).",
     "case": "Genitive",
     "gender": "Masculine",
     "number": "Plural"
@@ -1835,7 +1835,7 @@
   },
   {
     "id": 263,
-    "front": "Wziął garść ___ (orzeszki).",
+    "front": "Wziął garść ___ (orzeszk) (pl).",
     "case": "Genitive",
     "gender": "Masculine",
     "number": "Plural"
@@ -3075,13 +3075,6 @@
   {
     "id": 450,
     "front": "Dziwię się tym ___ (pytanie) (pl).",
-    "case": "Dative",
-    "gender": "Neuter",
-    "number": "Plural"
-  },
-  {
-    "id": 451,
-    "front": "Oddaję cześć ___ (morze) (pl).",
     "case": "Dative",
     "gender": "Neuter",
     "number": "Plural"
