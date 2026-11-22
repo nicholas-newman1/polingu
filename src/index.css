@@ -47,11 +47,9 @@ body {
 @keyframes cardPromoteTop {
   from {
     transform: translate3d(0, 11px, 0) scale(0.955);
-    filter: brightness(0.96);
   }
   to {
     transform: translate3d(0, 0, 0) scale(1);
-    filter: brightness(1);
   }
 }
 

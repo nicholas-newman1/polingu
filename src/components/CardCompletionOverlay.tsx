@@ -85,7 +85,7 @@ const RingPulse = styled(Box)<{ $color: string }>(({ $color }) => ({
   borderRadius: '50%',
   border: `2px solid ${$color}`,
   boxShadow: `0 0 24px ${alpha($color, 0.35)}`,
-  animation: 'completionRingPulse 310ms cubic-bezier(0.16, 1, 0.3, 1) forwards',
+  animation: 'completionRingPulse 420ms cubic-bezier(0.16, 1, 0.3, 1) forwards',
 }));
 
 const BadgeSeal = styled(Box)<{ $color: string; $accent: string; $ringColor?: string }>(
@@ -102,7 +102,7 @@ const BadgeSeal = styled(Box)<{ $color: string; $accent: string; $ringColor?: st
     boxShadow: $ringColor
       ? `0 0 0 2.5px ${alpha($ringColor, 0.85)}, 0 8px 24px ${alpha($color, 0.45)}`
       : `0 8px 24px ${alpha($color, 0.45)}`,
-    animation: 'completionBadgePop 310ms cubic-bezier(0.22, 1, 0.36, 1) forwards',
+    animation: 'completionBadgePop 420ms cubic-bezier(0.22, 1, 0.36, 1) forwards',
     '& .MuiSvgIcon-root': {
       fontSize: 30,
     },
@@ -118,7 +118,7 @@ const Spark = styled('span')<{ $color: string; $size: number; $pill?: boolean }>
     backgroundColor: $color,
     boxShadow: `0 0 8px ${alpha($color, 0.55)}`,
     animation:
-      'completionSpark 300ms cubic-bezier(0.16, 1, 0.3, 1) var(--spark-delay, 0ms) forwards',
+      'completionSpark 410ms cubic-bezier(0.16, 1, 0.3, 1) var(--spark-delay, 0ms) forwards',
   })
 );
 

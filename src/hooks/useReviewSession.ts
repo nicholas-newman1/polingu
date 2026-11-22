@@ -11,6 +11,7 @@ import { useRatingIntervals } from './useRatingIntervals';
 import { useSessionQueue } from './useSessionQueue';
 
 const UPCOMING_PREFETCH_COUNT = 3;
+const SAVE_DEFER_MS = 460;
 
 const EMPTY_INTERVALS: RatingIntervals = {
   [Rating.Again]: '',
@@ -18,6 +19,66 @@ const EMPTY_INTERVALS: RatingIntervals = {
   [Rating.Good]: '',
   [Rating.Easy]: '',
 };
+
+/**
+ * Buffers review-store writes briefly so context-wide stats recalculations
+ * and persistence run after the card exit animation settles, while coalescing
+ * rapid consecutive ratings and flushing on unmount, direction switch, or pagehide.
+ */
+function useDeferredReviewSave<Store>(
+  reviewStore: Store,
+  saveReviewStore: (store: Store) => Promise<void>,
+  sessionKey: string
+) {
+  const latestStoreRef = useRef(reviewStore);
+  const lastFlushedRef = useRef<Store | null>(null);
+  const hasPendingRef = useRef(false);
+  const timerRef = useRef<number | null>(null);
+  const saveFnRef = useRef(saveReviewStore);
+
+  const flush = useCallback(() => {
+    if (timerRef.current !== null) {
+      window.clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    if (!hasPendingRef.current) return;
+    hasPendingRef.current = false;
+    const storeToSave = latestStoreRef.current;
+    lastFlushedRef.current = storeToSave;
+    void saveFnRef.current(storeToSave);
+  }, []);
+
+  // Declared before syncing refs so sessionKey changes flush with the previous direction's saver.
+  useEffect(() => {
+    window.addEventListener('pagehide', flush);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      flush();
+      lastFlushedRef.current = null;
+    };
+  }, [sessionKey, flush]);
+
+  useEffect(() => {
+    saveFnRef.current = saveReviewStore;
+    if (!hasPendingRef.current && reviewStore !== lastFlushedRef.current) {
+      latestStoreRef.current = reviewStore;
+    }
+  }, [reviewStore, saveReviewStore]);
+
+  const scheduleSave = useCallback(
+    (apply: (base: Store) => Store) => {
+      latestStoreRef.current = apply(latestStoreRef.current);
+      hasPendingRef.current = true;
+      if (timerRef.current !== null) {
+        window.clearTimeout(timerRef.current);
+      }
+      timerRef.current = window.setTimeout(flush, SAVE_DEFER_MS);
+    },
+    [flush]
+  );
+
+  return { scheduleSave, flush };
+}
 
 interface ReviewableSessionCard {
   reviewData: { fsrsCard: FSRSCard };
@@ -77,6 +138,11 @@ export function useReviewSession<
   const queue = useSessionQueue<S>();
   const practice = usePracticeDeck<S[K]>();
   const history = useCardHistory<S[K], S['reviewData']>();
+  const { scheduleSave, flush: flushPendingSave } = useDeferredReviewSave(
+    reviewStore,
+    saveReviewStore,
+    sessionKey
+  );
   const { start } = queue;
   const { clearHistory, addToHistory, updateInHistory, goForward, historyCard, historyMeta } =
     history;
@@ -102,44 +168,53 @@ export function useReviewSession<
   }, [ready, sessionKey, rebuildRequest, startSession]);
 
   /** Rebuilds from `getSessionCards` after the next render, so it sees freshly saved data. */
-  const rebuildSession = useCallback(() => setRebuildRequest((n) => n + 1), []);
+  const rebuildSession = useCallback(() => {
+    flushPendingSave();
+    setRebuildRequest((n) => n + 1);
+  }, [flushPendingSave]);
 
-  const startPracticeAhead = () =>
+  const startPracticeAhead = () => {
+    flushPendingSave();
     start(
       { reviewCards: options.getPracticeAheadCards(practiceAheadCount), newCards: [] },
       { isPracticeAhead: true }
     );
+  };
 
-  const startExtraNewCards = () =>
+  const startExtraNewCards = () => {
+    flushPendingSave();
     start({ reviewCards: [], newCards: options.getExtraNewCards(extraNewCardsCount) });
+  };
 
   const { currentCard } = queue;
 
-  const rate = async (rating: Grade) => {
+  const rate = (rating: Grade) => {
     if (!currentCard) return;
     const card = currentCard[cardKey];
+    const cardId = getId(card);
+    const isNew = currentCard.isNew;
     addToHistory(card, currentCard.reviewData);
 
     const reviewData = rateCard(currentCard.reviewData, rating);
     const again = rating === Rating.Again;
     queue.rate(reviewData, rating);
 
-    await saveReviewStore(
-      recordReview(reviewStore, getId(card), reviewData, {
-        isNew: currentCard.isNew,
+    scheduleSave((baseStore) =>
+      recordReview(baseStore, cardId, reviewData, {
+        isNew,
         completed: !again,
       })
     );
   };
 
-  const reassess = async (rating: Grade) => {
+  const reassess = (rating: Grade) => {
     if (!historyCard || !historyMeta) return;
     const reviewData = rateCard(historyMeta, rating);
     const id = getId(historyCard);
     queue.reassess((item) => getId(item[cardKey]) === id, reviewData, rating === Rating.Again);
     goForward();
-    await saveReviewStore(
-      recordReview(reviewStore, id, reviewData, { isNew: false, completed: false })
+    scheduleSave((baseStore) =>
+      recordReview(baseStore, id, reviewData, { isNew: false, completed: false })
     );
   };
 

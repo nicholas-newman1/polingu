@@ -20,7 +20,7 @@ const LAYER_CONFIG: Record<1 | 2, LayerStyleConfig> = {
     },
     borderAlpha: { light: 0.11, dark: 0.11 },
     transform: 'translate3d(0, 11px, 0) scale(0.955)',
-    promoteAnimation: 'cardPromoteLayer1 300ms cubic-bezier(0.22, 1, 0.36, 1)',
+    promoteAnimation: 'cardPromoteLayer1 390ms cubic-bezier(0.22, 1, 0.36, 1) 25ms both',
     zIndex: 1,
   },
   2: {
@@ -31,7 +31,7 @@ const LAYER_CONFIG: Record<1 | 2, LayerStyleConfig> = {
     },
     borderAlpha: { light: 0.09, dark: 0.08 },
     transform: 'translate3d(0, 21px, 0) scale(0.91)',
-    promoteAnimation: 'cardPromoteLayer2 300ms cubic-bezier(0.22, 1, 0.36, 1)',
+    promoteAnimation: 'cardPromoteLayer2 390ms cubic-bezier(0.22, 1, 0.36, 1) 25ms both',
     zIndex: 0,
   },
 };

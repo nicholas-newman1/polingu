@@ -243,6 +243,7 @@ export function ConsonantFlashcard({ card, remainingCount = 1, onNext }: Consona
 
   return (
     <FlashcardWrapper
+      data-card-wrapper=""
       $maxWidth={420}
       $hasStack={stackDepth > 0}
       className={promoted ? undefined : 'animate-card-enter'}

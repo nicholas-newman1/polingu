@@ -1,6 +1,7 @@
 import { Box, Card, Chip, Typography } from '@mui/material';
 import { styled } from '../lib/styled';
 import { alpha } from '../lib/theme';
+import { HEADER_HEIGHT } from '../constants/layout';
 
 export const FlashcardWrapper = styled(Box)<{ $maxWidth: number; $hasStack?: boolean }>(
   ({ theme, $maxWidth, $hasStack }) => ({
@@ -22,6 +23,7 @@ export const FlashcardSurface = styled(Card)<{
     position: 'relative',
     zIndex: 2,
     padding: theme.spacing(3),
+    scrollMarginTop: `calc(${HEADER_HEIGHT}px + ${theme.spacing(2)})`,
     minHeight: 420,
     display: 'flex',
     flexDirection: 'column',
@@ -31,7 +33,7 @@ export const FlashcardSurface = styled(Card)<{
     transformOrigin: 'center bottom',
     ...($promoted
       ? {
-          animation: 'cardPromoteTop 300ms cubic-bezier(0.22, 1, 0.36, 1)',
+          animation: 'cardPromoteTop 390ms cubic-bezier(0.22, 1, 0.36, 1) 25ms both',
           '@media (prefers-reduced-motion: reduce)': { animation: 'none' },
         }
       : {}),

@@ -46,7 +46,7 @@ import { PageTitleContext, PageTitleProvider } from '../contexts/PageTitleContex
 import { AddToVocabularyProvider } from '../contexts/AddToVocabularyContext';
 import { AddSentenceProvider } from '../contexts/AddSentenceContext';
 import { ListeningMiniBar } from './ListeningMiniBar';
-import { DRAWER_WIDTH } from '../constants/layout';
+import { DRAWER_WIDTH, HEADER_HEIGHT } from '../constants/layout';
 
 const PageContainer = styled(Box)({
   minHeight: '100vh',
@@ -62,8 +62,6 @@ const MainArea = styled(Box)(({ theme }) => ({
     marginLeft: DRAWER_WIDTH,
   },
 }));
-
-const HEADER_HEIGHT = 64;
 
 const HeaderRow = styled(Box)(({ theme }) => ({
   display: 'flex',

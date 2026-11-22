@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useRef } from 'react';
 import { Rating, type Grade } from 'ts-fsrs';
 import { useAppSettings } from '../contexts/AppSettingsContext';
 import { playCardChime } from '../lib/cardFeedback';
@@ -25,57 +25,29 @@ function prefersReducedMotion(): boolean {
 }
 
 /**
- * Launches the exit clone and gives it a paint before playing the optional chime
- * and advancing the review session, so review work cannot hold up its first frame.
+ * Launches the exit clone and advances to the next card in the same React commit
+ * so the outgoing clone and incoming promoted card start animating on the exact same frame.
  */
 export function useCardCompletion() {
   const { settings } = useAppSettings();
   const deck = useCardDeck();
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const triggeredRef = useRef(false);
-  const pendingCompletionRef = useRef<(() => void) | null>(null);
-
-  // Navigating away must still record a rating made before the deferred update.
-  useEffect(() => () => pendingCompletionRef.current?.(), []);
 
   const trigger = useCallback(
     (nextOutcome: CardCompletionOutcome, onComplete: () => void) => {
       if (triggeredRef.current) return;
       triggeredRef.current = true;
 
-      const complete = () => {
-        if (settings.autoPlayAudio) {
-          playCardChime(nextOutcome);
-        }
-        onComplete();
-      };
-
-      if (prefersReducedMotion() || !deck || !surfaceRef.current) {
-        complete();
-        return;
+      if (settings.autoPlayAudio) {
+        playCardChime(nextOutcome);
       }
 
-      deck.launchExit(surfaceRef.current, nextOutcome);
+      if (!prefersReducedMotion() && deck && surfaceRef.current) {
+        deck.launchExit(surfaceRef.current, nextOutcome);
+      }
 
-      let frame = 0;
-      let timeout = 0;
-      let completed = false;
-      const finish = () => {
-        if (completed) return;
-        completed = true;
-        window.cancelAnimationFrame(frame);
-        window.clearTimeout(timeout);
-        pendingCompletionRef.current = null;
-        complete();
-      };
-      pendingCompletionRef.current = finish;
-
-      // A single rAF runs before paint. The second lets the exit paint first.
-      frame = window.requestAnimationFrame(() => {
-        frame = window.requestAnimationFrame(finish);
-      });
-      // rAF can pause in background tabs; never leave the rating waiting on it.
-      timeout = window.setTimeout(finish, 100);
+      onComplete();
     },
     [deck, settings.autoPlayAudio]
   );

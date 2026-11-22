@@ -280,6 +280,7 @@ export function FlashcardShell({
 
   return (
     <FlashcardWrapper
+      data-card-wrapper=""
       $maxWidth={maxWidth}
       $hasStack={stackDepth > 0}
       className={isPromotedFromStack ? undefined : 'animate-card-enter'}
