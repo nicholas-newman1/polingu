@@ -103,6 +103,19 @@ function prepareExitingClone(
   clone.style.willChange = 'transform, opacity';
   clone.style.borderColor = alpha(glowColor, 0.75);
   clone.style.boxShadow = `0 0 0 2px ${alpha(glowColor, 0.7)}, 0 14px 38px ${alpha(glowColor, 0.42)}`;
+  if (outcome !== 'next') {
+    const tintOverlay = document.createElement('div');
+    tintOverlay.setAttribute('aria-hidden', 'true');
+    Object.assign(tintOverlay.style, {
+      position: 'absolute',
+      inset: '0',
+      borderRadius: 'inherit',
+      backgroundColor: alpha(glowColor, 0.18),
+      pointerEvents: 'none',
+      zIndex: '1',
+    });
+    clone.appendChild(tintOverlay);
+  }
   clone.style.animation = EXIT_ANIMATIONS[outcome];
   return clone;
 }
