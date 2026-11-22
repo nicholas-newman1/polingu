@@ -19,6 +19,7 @@ import { ModalDialog, ModalHeader, ModalContent } from './modalStyles';
 import { ModalFooter } from './ModalFooter';
 import { FormTextField, FormYesNoField, VerbDetailsFields } from './FormFields';
 import { useEditModalClose } from '../hooks/useEditModalClose';
+import { useOptimisticModalSave, type ModalSaveResult } from '../hooks/useOptimisticModalSave';
 import { AudioRegenerator, InlineAudioRegenerator } from './AudioRegenerator';
 import type { Verb, Aspect, VerbClass, Tense, ConjugationForm } from '../types/conjugation';
 import {
@@ -88,7 +89,7 @@ interface MetadataFormData {
 interface EditVerbModalProps {
   open: boolean;
   onClose: () => void;
-  onSave: (updates: Partial<Omit<Verb, 'id'>>) => void;
+  onSave: (updates: Partial<Omit<Verb, 'id'>>) => ModalSaveResult;
   onDelete?: () => void;
   verb: Verb | null;
   onAudioUpdated?: (audioUrl: string) => void;
@@ -166,8 +167,10 @@ export function EditVerbModal({
     );
   }, []);
 
+  const save = useOptimisticModalSave({ onSave, onClose: handleClose });
+
   const onSubmit = (data: MetadataFormData) => {
-    onSave({
+    save({
       infinitive: data.infinitive.trim(),
       infinitiveEn: data.infinitiveEn.trim(),
       aspect: data.aspect,
@@ -177,7 +180,6 @@ export function EditVerbModal({
       isReflexive: data.isReflexive,
       conjugations: editConjugations,
     });
-    handleClose();
   };
 
   const handleDelete = () => {

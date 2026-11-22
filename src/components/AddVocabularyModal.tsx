@@ -30,6 +30,7 @@ import {
 import { KeyboardAwareModalDialog } from './KeyboardAwareModalDialog';
 import { useAuthContext } from '../hooks/useAuthContext';
 import { useEditModalClose } from '../hooks/useEditModalClose';
+import { useOptimisticModalSave, type ModalSaveResult } from '../hooks/useOptimisticModalSave';
 import {
   usePolishEnglishFormAutoTranslate,
   usePolishEnglishAutoTranslate,
@@ -98,12 +99,10 @@ interface FormData {
   examples: ExampleSentence[];
 }
 
-type SaveResult = void | boolean | Promise<void | boolean>;
-
 interface AddVocabularyModalProps {
   open: boolean;
   onClose: () => void;
-  onSave: (word: Omit<CustomVocabularyWord, 'id' | 'isCustom' | 'createdAt'>) => SaveResult;
+  onSave: (word: Omit<CustomVocabularyWord, 'id' | 'isCustom' | 'createdAt'>) => ModalSaveResult;
   editWord?: CustomVocabularyWord | VocabularyWord | null;
   initialValues?: { polish: string; english: string };
   onAudioUpdated?: (audioUrl: string) => void;
@@ -324,11 +323,12 @@ export function AddVocabularyModal({
     gender,
   });
 
+  const save = useOptimisticModalSave({ onSave, onClose: handleClose });
+
   const onSubmit = (data: FormData) => {
     const validExamples = data.examples.filter((ex) => ex.polish.trim() && ex.english.trim());
 
-    handleClose();
-    void onSave(
+    save(
       normalizeCustomVocabularyFields({
         polish: data.polish.trim(),
         english: data.english.trim(),

@@ -8,6 +8,7 @@ import { ModalDialog, ModalHeader, ModalContent } from './modalStyles';
 import { ModalFooter } from './ModalFooter';
 import { VerbDetailsFields } from './FormFields';
 import { useBackClose } from '../hooks/useBackClose';
+import { useOptimisticModalSave, type ModalSaveResult } from '../hooks/useOptimisticModalSave';
 import { useAuthContext } from '../hooks/useAuthContext';
 import { AudioRegenerator } from './AudioRegenerator';
 import type { AspectPairCard } from '../types/aspectPairs';
@@ -103,7 +104,7 @@ function VerbSlotSection({
 interface EditAspectPairsModalProps {
   open: boolean;
   onClose: () => void;
-  onSave: (verb1Updates: VerbUpdates, verb2Updates: VerbUpdates) => void;
+  onSave: (verb1Updates: VerbUpdates, verb2Updates: VerbUpdates) => ModalSaveResult;
   onUnlink?: () => void;
   card: AspectPairCard | null;
   onVerb1AudioUpdated?: (audioUrl: string) => void;
@@ -168,6 +169,8 @@ export function EditAspectPairsModal({
 
   useBackClose(open, handleClose);
 
+  const save = useOptimisticModalSave({ onSave, onClose: handleClose });
+
   const onSubmit = (data: FormData) => {
     const verb1Updates: VerbUpdates = {
       infinitive: data.verb1Infinitive.trim(),
@@ -183,8 +186,7 @@ export function EditAspectPairsModal({
       verbClass: data.verb2VerbClass,
     };
 
-    onSave(verb1Updates, verb2Updates);
-    handleClose();
+    save(verb1Updates, verb2Updates);
   };
 
   const handleUnlink = () => {

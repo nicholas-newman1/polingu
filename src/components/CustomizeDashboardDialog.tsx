@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   Box,
   Button,
@@ -35,6 +35,8 @@ import { CSS } from '@dnd-kit/utilities';
 import { styled } from '../lib/styled';
 import { getOrderedDashboardItems, type DashboardNavItem } from '../constants/navigation';
 import { useAppSettings } from '../contexts/AppSettingsContext';
+import { useOptimisticModalSave } from '../hooks/useOptimisticModalSave';
+import { useSyncProps } from '../hooks/useSyncProps';
 
 interface CustomizeDashboardDialogProps {
   open: boolean;
@@ -105,13 +107,12 @@ export function CustomizeDashboardDialog({ open, onClose }: CustomizeDashboardDi
   const [items, setItems] = useState<DashboardNavItem[]>(() =>
     getOrderedDashboardItems(settings.dashboardOrder)
   );
-  const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
+  useSyncProps({ open, dashboardOrder: settings.dashboardOrder }, () => {
     if (open) {
       setItems(getOrderedDashboardItems(settings.dashboardOrder));
     }
-  }, [open, settings.dashboardOrder]);
+  });
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -131,33 +132,18 @@ export function CustomizeDashboardDialog({ open, onClose }: CustomizeDashboardDi
     });
   };
 
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      await updateSettings({ dashboardOrder: items.map((item) => item.path) });
-      onClose();
-    } finally {
-      setSaving(false);
-    }
+  const save = useOptimisticModalSave({ onSave: updateSettings, onClose });
+
+  const handleSave = () => {
+    save({ dashboardOrder: items.map((item) => item.path) });
   };
 
-  const handleReset = async () => {
-    setSaving(true);
-    try {
-      await updateSettings({ dashboardOrder: undefined });
-      onClose();
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleCancel = () => {
-    if (saving) return;
-    onClose();
+  const handleReset = () => {
+    save({ dashboardOrder: undefined });
   };
 
   return (
-    <Dialog open={open} onClose={handleCancel} fullWidth maxWidth="sm">
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
       <DialogTitle>Customize Dashboard</DialogTitle>
       <DialogContent dividers>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
@@ -177,24 +163,14 @@ export function CustomizeDashboardDialog({ open, onClose }: CustomizeDashboardDi
         </DndContext>
       </DialogContent>
       <DialogActions>
-        <Button
-          onClick={handleReset}
-          disabled={saving}
-          color="inherit"
-          data-qa="customize-dashboard-reset"
-        >
+        <Button onClick={handleReset} color="inherit" data-qa="customize-dashboard-reset">
           Reset to default
         </Button>
         <Box sx={{ flex: 1 }} />
-        <Button onClick={handleCancel} disabled={saving} data-qa="customize-dashboard-cancel">
+        <Button onClick={onClose} data-qa="customize-dashboard-cancel">
           Cancel
         </Button>
-        <Button
-          onClick={handleSave}
-          disabled={saving}
-          variant="contained"
-          data-qa="customize-dashboard-save"
-        >
+        <Button onClick={handleSave} variant="contained" data-qa="customize-dashboard-save">
           Save
         </Button>
       </DialogActions>

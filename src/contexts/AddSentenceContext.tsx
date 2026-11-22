@@ -52,9 +52,8 @@ export function AddSentenceProvider({ children }: AddSentenceProviderProps) {
       const newCustomSentences = [newSentence, ...loaded];
       await saveCustomSentences(newCustomSentences);
       setCustomSentences(newCustomSentences);
-      handleClose();
     },
-    [setCustomSentences, handleClose, showDuplicateError]
+    [setCustomSentences, showDuplicateError]
   );
 
   return (

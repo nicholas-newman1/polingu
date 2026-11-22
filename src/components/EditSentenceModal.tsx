@@ -16,6 +16,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import { useEditModalClose } from '../hooks/useEditModalClose';
 import { useReviewData } from '../hooks/useReviewData';
 import { useAuthContext } from '../hooks/useAuthContext';
+import { useOptimisticModalSave, type ModalSaveResult } from '../hooks/useOptimisticModalSave';
 import { usePolishEnglishFormAutoTranslate } from '../hooks/usePolishEnglishAutoTranslate';
 import { AudioRegenerator } from './AudioRegenerator';
 import { PolishEnglishFields } from './PolishEnglishFields';
@@ -33,12 +34,10 @@ interface FormData {
   tags: string[];
 }
 
-type SaveResult = void | boolean | Promise<void | boolean>;
-
 interface EditSentenceModalProps {
   open: boolean;
   onClose: () => void;
-  onSave: (data: Omit<Sentence, 'id'>) => SaveResult;
+  onSave: (data: Omit<Sentence, 'id'>) => ModalSaveResult;
   sentence: Sentence | null;
   isCreating?: boolean;
   onAudioUpdated?: (audioUrl: string) => void;
@@ -102,15 +101,15 @@ export function EditSentenceModal({
     onAudioUpdated,
   });
 
-  const onSubmit = async (data: FormData) => {
-    const result = await onSave({
+  const save = useOptimisticModalSave({ onSave, onClose: handleClose });
+
+  const onSubmit = (data: FormData) => {
+    save({
       polish: data.polish.trim(),
       english: data.english.trim(),
       level: data.level,
       tags: data.tags,
     });
-    if (result === false) return;
-    handleClose();
   };
 
   return (

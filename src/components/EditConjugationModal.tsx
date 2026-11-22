@@ -16,6 +16,7 @@ import { ModalDialog, ModalHeader, ModalContent } from './modalStyles';
 import { ModalFooter } from './ModalFooter';
 import { FormTextField, FormYesNoField, VerbDetailsFields } from './FormFields';
 import { useEditModalClose } from '../hooks/useEditModalClose';
+import { useOptimisticModalSave, type ModalSaveResult } from '../hooks/useOptimisticModalSave';
 import { useAuthContext } from '../hooks/useAuthContext';
 import { AudioRegenerator } from './AudioRegenerator';
 import type { DrillableForm, ConjugationForm, Aspect, VerbClass } from '../types/conjugation';
@@ -66,7 +67,7 @@ interface EditConjugationModalProps {
       isReflexive: boolean;
     },
     formUpdates: ConjugationForm
-  ) => void;
+  ) => ModalSaveResult;
   onDelete?: () => void;
   form: DrillableForm | null;
   onAudioUpdated?: (audioUrl: string) => void;
@@ -117,6 +118,8 @@ export function EditConjugationModal({
     onAudioUpdated,
   });
 
+  const save = useOptimisticModalSave({ onSave, onClose: handleClose });
+
   const onSubmit = (data: FormData) => {
     const verbUpdates = {
       infinitive: data.infinitive.trim(),
@@ -139,8 +142,7 @@ export function EditConjugationModal({
       ...(plAlts.length > 0 && { plAlternatives: plAlts }),
     };
 
-    onSave(verbUpdates, formUpdates);
-    handleClose();
+    save(verbUpdates, formUpdates);
   };
 
   const handleDelete = () => {

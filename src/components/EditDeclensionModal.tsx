@@ -6,6 +6,7 @@ import { ModalDialog, ModalHeader, ModalContent } from './modalStyles';
 import { ModalFooter } from './ModalFooter';
 import { FormSelectField, FormTextField } from './FormFields';
 import { useEditModalClose } from '../hooks/useEditModalClose';
+import { useOptimisticModalSave, type ModalSaveResult } from '../hooks/useOptimisticModalSave';
 import { useAuthContext } from '../hooks/useAuthContext';
 import { AudioRegenerator } from './AudioRegenerator';
 import type { DeclensionCard, Case, Gender, Number } from '../types';
@@ -34,12 +35,10 @@ interface FormData {
   hint: string;
 }
 
-type SaveResult = void | boolean | Promise<void | boolean>;
-
 interface EditDeclensionModalProps {
   open: boolean;
   onClose: () => void;
-  onSave: (data: Omit<DeclensionCard, 'id' | 'isCustom'>) => SaveResult;
+  onSave: (data: Omit<DeclensionCard, 'id' | 'isCustom'>) => ModalSaveResult;
   onDelete?: () => void;
   card: DeclensionCard | null;
   isCreating?: boolean;
@@ -86,9 +85,11 @@ export function EditDeclensionModal({
     onAudioUpdated,
   });
 
-  const onSubmit = async (data: FormData) => {
+  const save = useOptimisticModalSave({ onSave, onClose: handleClose });
+
+  const onSubmit = (data: FormData) => {
     const trimmedHint = data.hint.trim();
-    const result = await onSave({
+    save({
       front: data.front.trim(),
       back: data.back.trim(),
       declined: data.declined.trim(),
@@ -97,8 +98,6 @@ export function EditDeclensionModal({
       number: data.number,
       ...(trimmedHint && { hint: trimmedHint }),
     });
-    if (result === false) return;
-    handleClose();
   };
 
   const handleDelete = () => {

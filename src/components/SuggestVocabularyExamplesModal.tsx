@@ -29,6 +29,7 @@ import { toExampleSentences } from '../lib/generateExample';
 import { translate } from '../lib/translate';
 import { TRANSLATION_DEBOUNCE_MS } from '../constants/translation';
 import { useGeneratedExamples } from '../hooks/useGeneratedExamples';
+import { useOptimisticModalSave, type ModalSaveResult } from '../hooks/useOptimisticModalSave';
 import { GeneratedExampleOptions } from './GeneratedExampleOptions';
 import type { ExampleSentence, VocabularyWord } from '../types/vocabulary';
 
@@ -262,7 +263,7 @@ interface SuggestVocabularyExamplesModalProps {
   open: boolean;
   word: VocabularyWord | null;
   onClose: () => void;
-  onSave: (examples: ExampleSentence[]) => Promise<void> | void;
+  onSave: (examples: ExampleSentence[]) => ModalSaveResult;
 }
 
 export function SuggestVocabularyExamplesModal({
@@ -277,7 +278,6 @@ export function SuggestVocabularyExamplesModal({
   });
   const { generate, clear: clearSuggestions, reset: resetSuggestions } = suggestions;
   const [acceptedExamples, setAcceptedExamples] = useState<ExampleSentence[]>([]);
-  const [isSaving, setIsSaving] = useState(false);
   const [translatingIds, setTranslatingIds] = useState<Set<string>>(new Set());
 
   const newRowPolishRef = useRef<HTMLInputElement>(null);
@@ -419,7 +419,6 @@ export function SuggestVocabularyExamplesModal({
   const handleClose = useCallback(() => {
     resetSuggestions();
     setAcceptedExamples([]);
-    setIsSaving(false);
     setTranslatingIds(new Set());
     translationTimeouts.current.forEach((timeout) => clearTimeout(timeout));
     translationTimeouts.current.clear();
@@ -427,26 +426,22 @@ export function SuggestVocabularyExamplesModal({
     onClose();
   }, [onClose, resetSuggestions]);
 
-  const handleSave = useCallback(async () => {
+  const save = useOptimisticModalSave({ onSave, onClose: handleClose });
+
+  const handleSave = useCallback(() => {
     const valid = acceptedExamples.filter((ex) => ex.polish.trim() && ex.english.trim());
     if (valid.length === 0) {
       handleClose();
       return;
     }
-    setIsSaving(true);
-    try {
-      await onSave(
-        valid.map((ex) => ({
-          id: ex.id,
-          polish: ex.polish.trim(),
-          english: ex.english.trim(),
-        }))
-      );
-      handleClose();
-    } finally {
-      setIsSaving(false);
-    }
-  }, [acceptedExamples, onSave, handleClose]);
+    save(
+      valid.map((ex) => ({
+        id: ex.id,
+        polish: ex.polish.trim(),
+        english: ex.english.trim(),
+      }))
+    );
+  }, [acceptedExamples, save, handleClose]);
 
   if (!word) return null;
 
@@ -525,7 +520,6 @@ export function SuggestVocabularyExamplesModal({
           onClick={handleClose}
           color="inherit"
           type="button"
-          disabled={isSaving}
           data-qa="suggest-vocabulary-examples-skip"
         >
           Skip
@@ -533,11 +527,10 @@ export function SuggestVocabularyExamplesModal({
         <Button
           onClick={handleSave}
           variant="contained"
-          disabled={!hasAcceptedToSave || isSaving}
-          startIcon={isSaving ? <CircularProgress size={16} color="inherit" /> : null}
+          disabled={!hasAcceptedToSave}
           data-qa="suggest-vocabulary-examples-save"
         >
-          {isSaving ? 'Saving...' : 'Save'}
+          Save
         </Button>
       </ModalActions>
     </ModalDialog>
