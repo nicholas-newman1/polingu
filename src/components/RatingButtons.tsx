@@ -43,8 +43,8 @@ const RATINGS: Array<{
 }> = [
   { rating: Rating.Again, label: 'Again', color: 'primary' },
   { rating: Rating.Hard, label: 'Hard', color: 'warning' },
-  { rating: Rating.Good, label: 'Good', color: 'success' },
-  { rating: Rating.Easy, label: 'Easy', color: 'info' },
+  { rating: Rating.Good, label: 'Good', color: 'info' },
+  { rating: Rating.Easy, label: 'Easy', color: 'success' },
 ];
 
 export function RatingButtons({ intervals, onRate }: RatingButtonsProps) {

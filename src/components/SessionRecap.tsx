@@ -158,8 +158,8 @@ export function SessionRecap({ stats }: { stats?: SessionReviewStats }) {
         : theme.palette.primary.main;
 
   const breakdown = [
-    { label: 'Easy', count: stats.easy, color: theme.palette.info.main },
-    { label: 'Good', count: stats.good, color: theme.palette.success.main },
+    { label: 'Easy', count: stats.easy, color: theme.palette.success.main },
+    { label: 'Good', count: stats.good, color: theme.palette.info.main },
     { label: 'Hard', count: stats.hard, color: theme.palette.warning.main },
     { label: 'Again', count: stats.again, color: theme.palette.primary.main },
   ].filter((item) => item.count > 0);
