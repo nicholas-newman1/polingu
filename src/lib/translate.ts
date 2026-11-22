@@ -78,7 +78,11 @@ export async function translate(
   options: TranslationOptions = {}
 ): Promise<TranslationResult> {
   try {
-    const result = await translateFn({ ...options, text, targetLang });
+    // Firebase encodes undefined values as null; optional fields must be omitted.
+    const definedOptions = Object.fromEntries(
+      Object.entries(options).filter(([, value]) => value !== undefined)
+    );
+    const result = await translateFn({ ...definedOptions, text, targetLang });
     return {
       translatedText: result.data.translatedText,
       charsUsedToday: result.data.charsUsedToday,
