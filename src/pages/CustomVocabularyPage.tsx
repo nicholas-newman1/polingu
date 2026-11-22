@@ -37,6 +37,8 @@ import {
   formatDate,
   sortItems,
   useSortState,
+  usePagination,
+  CustomItemPagination,
   FilterResultCount,
   CustomItemTableHead,
   byPolish,
@@ -229,6 +231,11 @@ const VocabularyTable = memo(function VocabularyTable({
     return sortItems(filtered, COMPARATORS, { sortField, sortDirection });
   }, [customWords, searchQuery, posFilter, genderFilter, sortField, sortDirection]);
 
+  const { paginatedItems, ...pagination } = usePagination(
+    filteredAndSortedWords,
+    JSON.stringify([searchQuery, posFilter, genderFilter, sortField, sortDirection])
+  );
+
   if (customWords.length === 0) {
     return (
       <CustomItemEmptyState
@@ -281,7 +288,7 @@ const VocabularyTable = memo(function VocabularyTable({
             <SortableHeaderCell field="createdAt" label="Added" sort={sort} />
           </CustomItemTableHead>
           <TableBody>
-            {filteredAndSortedWords.map((word) => (
+            {paginatedItems.map((word) => (
               <TableRow key={word.id}>
                 <TableCell>
                   <CustomItemActions
@@ -337,6 +344,7 @@ const VocabularyTable = memo(function VocabularyTable({
           </TableBody>
         </Table>
       </StyledTableContainer>
+      <CustomItemPagination {...pagination} />
     </>
   );
 });

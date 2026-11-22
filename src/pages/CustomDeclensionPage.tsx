@@ -32,6 +32,8 @@ import {
   formatDate,
   sortItems,
   useSortState,
+  usePagination,
+  CustomItemPagination,
   FilterResultCount,
   CustomItemTableHead,
   byCreatedAt,
@@ -276,6 +278,11 @@ const DeclensionTable = memo(function DeclensionTable({
     return sortItems(filtered, COMPARATORS, { sortField, sortDirection });
   }, [customCards, searchQuery, caseFilter, genderFilter, numberFilter, sortField, sortDirection]);
 
+  const { paginatedItems, ...pagination } = usePagination(
+    filteredAndSortedCards,
+    JSON.stringify([searchQuery, caseFilter, genderFilter, numberFilter, sortField, sortDirection])
+  );
+
   if (customCards.length === 0) {
     return (
       <CustomItemEmptyState
@@ -332,7 +339,7 @@ const DeclensionTable = memo(function DeclensionTable({
             <SortableHeaderCell field="createdAt" label="Added" sort={sort} />
           </CustomItemTableHead>
           <TableBody>
-            {filteredAndSortedCards.map((card) => (
+            {paginatedItems.map((card) => (
               <TableRow key={card.id}>
                 <TableCell>
                   <CustomItemActions
@@ -388,6 +395,7 @@ const DeclensionTable = memo(function DeclensionTable({
           </TableBody>
         </Table>
       </StyledTableContainer>
+      <CustomItemPagination {...pagination} />
     </>
   );
 });

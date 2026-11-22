@@ -30,6 +30,8 @@ import {
   formatDate,
   sortItems,
   useSortState,
+  usePagination,
+  CustomItemPagination,
   FilterResultCount,
   CustomItemTableHead,
   byPolish,
@@ -250,6 +252,11 @@ const SentencesTable = memo(function SentencesTable({
     return sortItems(filtered, COMPARATORS, { sortField, sortDirection });
   }, [customSentences, searchQuery, levelFilter, sortField, sortDirection]);
 
+  const { paginatedItems, ...pagination } = usePagination(
+    filteredAndSortedSentences,
+    JSON.stringify([searchQuery, levelFilter, sortField, sortDirection])
+  );
+
   if (customSentences.length === 0) {
     return (
       <CustomItemEmptyState
@@ -292,7 +299,7 @@ const SentencesTable = memo(function SentencesTable({
             <SortableHeaderCell field="createdAt" label="Added" sort={sort} />
           </CustomItemTableHead>
           <TableBody>
-            {filteredAndSortedSentences.map((sentence) => (
+            {paginatedItems.map((sentence) => (
               <TableRow key={sentence.id}>
                 <TableCell>
                   <CustomItemActions
@@ -342,6 +349,7 @@ const SentencesTable = memo(function SentencesTable({
           </TableBody>
         </Table>
       </StyledTableContainer>
+      <CustomItemPagination {...pagination} />
     </>
   );
 });
