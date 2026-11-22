@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { Box, useTheme, type Theme } from '@mui/material';
 import { styled } from '../lib/styled';
 import { alpha } from '../lib/theme';
@@ -79,7 +87,7 @@ const ClonedCardSurface = styled(Box)({
 function ClonedCardHost({ clone }: { clone: HTMLElement }) {
   const hostRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const host = hostRef.current;
     if (!host) return;
     host.replaceChildren(clone);

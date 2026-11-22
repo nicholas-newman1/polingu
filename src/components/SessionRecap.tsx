@@ -5,7 +5,7 @@ import { alpha } from '../lib/theme';
 import { getRatingPalette } from '../lib/ratingColors';
 import type { SessionReviewStats } from '../lib/reviewSession/sessionQueue';
 import { useAppSettings } from '../contexts/AppSettingsContext';
-import { playSessionCompleteChime, triggerSessionCompleteHaptic } from '../lib/cardFeedback';
+import { playSessionCompleteChime } from '../lib/cardFeedback';
 
 interface ConfettiPiece {
   x: number;
@@ -106,7 +106,6 @@ export function CelebrationHero({ celebrate }: { celebrate: boolean }) {
   useEffect(() => {
     if (!celebrate || playedRef.current) return;
     playedRef.current = true;
-    triggerSessionCompleteHaptic();
     if (settings.autoPlayAudio) {
       playSessionCompleteChime();
     }

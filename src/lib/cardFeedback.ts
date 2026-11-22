@@ -109,29 +109,3 @@ export function playCardChime(outcome: CardCompletionOutcome): void {
 export function playSessionCompleteChime(): void {
   playNotes(SESSION_COMPLETE_NOTES);
 }
-
-const HAPTIC_PATTERNS: Record<CardCompletionOutcome, number | number[]> = {
-  good: 12,
-  easy: [10, 26, 14],
-  hard: 10,
-  again: 18,
-  next: 8,
-};
-
-function vibrate(pattern: number | number[]): void {
-  try {
-    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
-      navigator.vibrate(pattern);
-    }
-  } catch {
-    // Ignore unsupported or blocked haptics
-  }
-}
-
-export function triggerCardHaptic(outcome: CardCompletionOutcome): void {
-  vibrate(HAPTIC_PATTERNS[outcome]);
-}
-
-export function triggerSessionCompleteHaptic(): void {
-  vibrate([14, 38, 14, 38, 24]);
-}

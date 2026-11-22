@@ -24,8 +24,14 @@ const RatingButton = styled(Button)<RatingButtonProps>(({ theme, $outcome }) => 
   padding: theme.spacing(1.5, 1),
   borderRadius: theme.spacing(1),
   backgroundColor: getRatingPalette(theme, $outcome).main,
+  touchAction: 'manipulation',
   '&:hover': {
     backgroundColor: getRatingPalette(theme, $outcome).dark,
+  },
+  '&:active': {
+    backgroundColor: getRatingPalette(theme, $outcome).dark,
+    transform: 'scale(0.96)',
+    transition: 'none',
   },
   [theme.breakpoints.up('sm')]: {
     padding: theme.spacing(2, 1),
