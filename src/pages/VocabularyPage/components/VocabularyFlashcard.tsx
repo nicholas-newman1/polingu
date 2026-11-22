@@ -1,7 +1,10 @@
-import { useState } from 'react';
-import { Box, Button, Stack, Typography } from '@mui/material';
+import { useId, useState } from 'react';
+import { Box, Button, Collapse, Stack, Typography, useMediaQuery } from '@mui/material';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded';
+import FormatQuoteRoundedIcon from '@mui/icons-material/FormatQuoteRounded';
 import { styled } from '../../../lib/styled';
+import { alpha } from '../../../lib/theme';
 import { FlashcardShell, type ReviewFlashcardProps } from '../../../components/FlashcardShell';
 import { AudioButton } from '../../../components/AudioButton';
 import { HidePolishButton } from '../../../components/HidePolishButton';
@@ -37,10 +40,45 @@ const AnswerText = styled(Typography)({
   fontWeight: 500,
 });
 
+const ExamplesToggle = styled(Button)(({ theme }) => ({
+  justifyContent: 'flex-start',
+  gap: theme.spacing(1),
+  minHeight: 44,
+  padding: theme.spacing(1, 1.5),
+  borderRadius: 12,
+  border: `1px solid ${theme.palette.divider}`,
+  backgroundColor: alpha(theme.palette.text.primary, 0.02),
+  color: theme.palette.text.secondary,
+  transition: theme.transitions.create(['background-color', 'border-color', 'color']),
+  '&:hover, &[aria-expanded="true"]': {
+    backgroundColor: alpha(theme.palette.text.primary, 0.05),
+    borderColor: alpha(theme.palette.text.primary, 0.18),
+    color: theme.palette.text.secondary,
+  },
+  '&.Mui-focusVisible': {
+    outline: `2px solid ${theme.palette.text.secondary}`,
+    outlineOffset: 3,
+  },
+  '& .examples-chevron': {
+    marginLeft: 'auto',
+    transition: theme.transitions.create('transform', { duration: 220 }),
+  },
+  '&[aria-expanded="true"] .examples-chevron': {
+    transform: 'rotate(180deg)',
+  },
+  '@media (prefers-reduced-motion: reduce)': {
+    transition: 'none',
+    '& .examples-chevron': { transition: 'none' },
+  },
+}));
+
 const ExamplesList = styled(Box)(({ theme }) => ({
   display: 'flex',
   flexDirection: 'column',
   gap: theme.spacing(1.5),
+  margin: theme.spacing(1.5, 0, 0, 1.5),
+  paddingLeft: theme.spacing(1.5),
+  borderLeft: `2px solid ${theme.palette.divider}`,
 }));
 
 const ExampleItem = styled(Box)({
@@ -104,31 +142,57 @@ interface ExampleSentencesProps {
   examples: ExampleSentence[];
   isPolishToEnglish: boolean;
   revealed: boolean;
-  animate: boolean;
 }
 
-function ExampleSentences({
-  examples,
-  isPolishToEnglish,
-  revealed,
-  animate,
-}: ExampleSentencesProps) {
+function ExampleSentences({ examples, isPolishToEnglish, revealed }: ExampleSentencesProps) {
+  const [expanded, setExpanded] = useState(false);
+  const sectionId = useId();
+  const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
+
   return (
-    <ExamplesList className={animate ? 'animate-fade-up' : undefined}>
-      {examples.map((example, index) => (
-        <ExampleItem key={index}>
-          <Box>
-            <ExampleNumber>{index + 1}.</ExampleNumber>
-            <ExamplePrimary>{isPolishToEnglish ? example.polish : example.english}</ExamplePrimary>
-          </Box>
-          {revealed && (
-            <ExampleTranslation variant="body2" color="text.disabled" className="animate-fade-up">
-              {isPolishToEnglish ? example.english : example.polish}
-            </ExampleTranslation>
-          )}
-        </ExampleItem>
-      ))}
-    </ExamplesList>
+    <Box>
+      <ExamplesToggle
+        id={`${sectionId}-toggle`}
+        type="button"
+        fullWidth
+        aria-expanded={expanded}
+        aria-controls={sectionId}
+        onClick={() => setExpanded((value) => !value)}
+      >
+        <FormatQuoteRoundedIcon fontSize="small" />
+        Example sentences
+        <ExpandMoreRoundedIcon className="examples-chevron" fontSize="small" />
+      </ExamplesToggle>
+      <Collapse
+        in={expanded}
+        timeout={reducedMotion ? 0 : 220}
+        id={sectionId}
+        role="region"
+        aria-labelledby={`${sectionId}-toggle`}
+      >
+        <ExamplesList>
+          {examples.map((example, index) => (
+            <ExampleItem key={example.id ?? index}>
+              <Box>
+                <ExampleNumber>{index + 1}.</ExampleNumber>
+                <ExamplePrimary>
+                  {isPolishToEnglish ? example.polish : example.english}
+                </ExamplePrimary>
+              </Box>
+              {revealed && (
+                <ExampleTranslation
+                  variant="body2"
+                  color="text.disabled"
+                  className="animate-fade-up"
+                >
+                  {isPolishToEnglish ? example.english : example.polish}
+                </ExampleTranslation>
+              )}
+            </ExampleItem>
+          ))}
+        </ExamplesList>
+      </Collapse>
+    </Box>
   );
 }
 
@@ -210,7 +274,6 @@ export function VocabularyFlashcard({
           examples={examples}
           isPolishToEnglish={isPolishToEnglish}
           revealed={revealed}
-          animate={hidePolish}
         />
       )}
       {!revealed && generateSentencesButton}
