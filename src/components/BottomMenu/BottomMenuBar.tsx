@@ -8,6 +8,7 @@ import {
   ListItemText,
   Tooltip,
   Typography,
+  useMediaQuery,
 } from '@mui/material';
 import { styled } from '../../lib/styled';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
@@ -53,6 +54,16 @@ const MenuButton = styled(ButtonBase)<{ $disabled?: boolean }>(({ theme, $disabl
         color: theme.palette.text.primary,
         backgroundColor: theme.palette.action.hover,
       },
+  '&:active .menu-icon-wrapper': $disabled
+    ? {}
+    : {
+        transform: 'scale(0.92)',
+      },
+  '@media (prefers-reduced-motion: reduce)': {
+    '&:active .menu-icon-wrapper': {
+      transform: 'none',
+    },
+  },
 }));
 
 const IconWrapper = styled(Box)<{ $isActive?: boolean; $disabled?: boolean }>(
@@ -71,6 +82,13 @@ const IconWrapper = styled(Box)<{ $isActive?: boolean; $disabled?: boolean }>(
         ? theme.palette.primary.main
         : 'inherit',
     opacity: $disabled ? 0.6 : 1,
+    transform: $isActive ? 'scale(1.06)' : 'scale(1)',
+    transition:
+      'transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1), background-color 180ms ease, color 180ms ease',
+    '@media (prefers-reduced-motion: reduce)': {
+      transform: 'none',
+      transition: 'none',
+    },
   })
 );
 
@@ -95,6 +113,7 @@ export function BottomMenuBar({ showTranslator = true }: BottomMenuBarProps) {
   const { openTranslator, showTranslator: isTranslatorOpen } = useTranslationContext();
   const { openSheet, activeSheet } = useCheatSheetContext();
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
+  const prefersReducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
 
   const isCheatSheetOpen = CHEAT_SHEETS.some((sheet) => sheet.key === activeSheet);
   const menuOpen = Boolean(menuAnchor);
@@ -119,7 +138,11 @@ export function BottomMenuBar({ showTranslator = true }: BottomMenuBarProps) {
       $disabled={!showTranslator}
       disabled={!showTranslator}
     >
-      <IconWrapper $isActive={isTranslatorOpen} $disabled={!showTranslator}>
+      <IconWrapper
+        className="menu-icon-wrapper"
+        $isActive={isTranslatorOpen}
+        $disabled={!showTranslator}
+      >
         <TranslateIcon fontSize="small" />
       </IconWrapper>
       <Label>Translate</Label>
@@ -146,7 +169,7 @@ export function BottomMenuBar({ showTranslator = true }: BottomMenuBarProps) {
         aria-haspopup="true"
         aria-expanded={menuOpen ? 'true' : undefined}
       >
-        <IconWrapper $isActive={isCheatSheetOpen || menuOpen}>
+        <IconWrapper className="menu-icon-wrapper" $isActive={isCheatSheetOpen || menuOpen}>
           <LibraryBooksIcon fontSize="small" />
         </IconWrapper>
         <Label>Cheat Sheets</Label>
@@ -182,6 +205,13 @@ export function BottomMenuBar({ showTranslator = true }: BottomMenuBarProps) {
           horizontal: 'center',
         }}
         slotProps={{
+          transition: {
+            timeout: prefersReducedMotion ? 0 : { enter: 240, exit: 160 },
+            easing: {
+              enter: 'cubic-bezier(0.34, 1.4, 0.64, 1)',
+              exit: 'cubic-bezier(0.4, 0, 1, 1)',
+            },
+          },
           paper: {
             sx: {
               mb: 1,
