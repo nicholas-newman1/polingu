@@ -7,6 +7,6 @@ export interface AppSettings {
 }
 
 export const DEFAULT_APP_SETTINGS: AppSettings = {
-  autoPlayAudio: true,
+  autoPlayAudio: false,
   hidePolishText: false,
 };
