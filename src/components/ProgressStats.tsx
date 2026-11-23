@@ -2,7 +2,7 @@ import { Box, Skeleton, Typography } from '@mui/material';
 import { styled } from '../lib/styled';
 import { alpha } from '../lib/theme';
 
-type Layout = 'inline' | 'stacked';
+type Layout = 'inline' | 'stacked' | 'compact';
 
 interface ProgressStatsProps {
   learned: number;
@@ -17,9 +17,23 @@ const StatsContainer = styled(Box)<{ $layout: Layout }>(({ theme, $layout }) => 
   flexDirection: $layout === 'stacked' ? 'column' : 'row',
   alignItems: 'center',
   justifyContent: $layout === 'stacked' ? 'center' : 'flex-start',
-  gap: $layout === 'stacked' ? theme.spacing(2) : theme.spacing(1.5),
-  marginTop: theme.spacing(2),
+  gap:
+    $layout === 'stacked'
+      ? theme.spacing(2)
+      : $layout === 'compact'
+        ? theme.spacing(1)
+        : theme.spacing(1.5),
+  marginTop: $layout === 'compact' ? theme.spacing(0.5) : theme.spacing(2),
   width: '100%',
+}));
+
+const CompactCount = styled(Typography)(({ theme }) => ({
+  fontSize: '0.75rem',
+  lineHeight: 1.2,
+  color: theme.palette.text.disabled,
+  fontVariantNumeric: 'tabular-nums',
+  whiteSpace: 'nowrap',
+  flexShrink: 0,
 }));
 
 const StatsRow = styled(Box)<{ $layout: Layout }>(({ theme, $layout }) => ({
@@ -50,8 +64,9 @@ const StatLabel = styled(Typography)<{ $layout: Layout }>(({ theme, $layout }) =
 }));
 
 const ProgressBar = styled(Box)<{ $layout: Layout }>(({ theme, $layout }) => ({
-  flex: $layout === 'inline' ? 1 : undefined,
+  flex: $layout === 'stacked' ? undefined : 1,
   width: $layout === 'stacked' ? '100%' : undefined,
+  maxWidth: $layout === 'compact' ? 120 : undefined,
   height: 4,
   backgroundColor: alpha(theme.palette.text.disabled, 0.15),
   borderRadius: 2,
@@ -77,6 +92,30 @@ export function ProgressStats({
   loading,
 }: ProgressStatsProps) {
   const progress = total > 0 ? (learned / total) * 100 : 0;
+
+  if (layout === 'compact') {
+    return (
+      <StatsContainer $layout={layout}>
+        <ProgressBar $layout={layout}>
+          {loading ? (
+            <Skeleton variant="rectangular" width="100%" height="100%" />
+          ) : (
+            <ProgressFill $progress={progress} $color={color} />
+          )}
+        </ProgressBar>
+        {loading ? (
+          <Skeleton variant="text" width={48} height={16} />
+        ) : (
+          <CompactCount>
+            <Box component="span" sx={{ fontWeight: 600, color: 'text.secondary' }}>
+              {learned}
+            </Box>
+            /{total}
+          </CompactCount>
+        )}
+      </StatsContainer>
+    );
+  }
 
   return (
     <StatsContainer $layout={layout}>
