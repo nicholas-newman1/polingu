@@ -19,7 +19,10 @@ export default function getConjugationSessionCards(
 ): { reviewCards: ConjugationSessionCard[]; newCards: ConjugationSessionCard[] } {
   const reviewCards: ConjugationSessionCard[] = [];
   const allNewCards: ConjugationSessionCard[] = [];
-  const remainingNewFormsToday = settings.newCardsPerDay - reviewStore.newFormsToday.length;
+  const remainingNewFormsToday = Math.max(
+    0,
+    settings.newCardsPerDay - reviewStore.newFormsToday.length
+  );
 
   for (const { form, reviewData } of getFormsWithReviewData(verbs, reviewStore)) {
     const bucket = getReviewBucket(
