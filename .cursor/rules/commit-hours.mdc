@@ -1,0 +1,8 @@
+---
+description: Keep author and committer timestamps outside 09:00–17:00 EST before pushing
+alwaysApply: true
+---
+
+# Commit timestamps
+
+Read and follow the commit timestamp policy in the repository-root `AGENTS.md` whenever creating, amending, rebasing, or pushing commits. It applies to both author and committer dates and uses fixed EST (UTC−05:00) year-round.
