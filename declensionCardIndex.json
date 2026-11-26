@@ -736,7 +736,7 @@
   },
   {
     "id": 106,
-    "front": "Przez ___ (ty) spóźnię się po pracy.",
+    "front": "Przez ___ (ty) spóźnię się do pracy.",
     "case": "Accusative",
     "gender": "Pronoun",
     "number": "Singular"
@@ -1079,7 +1079,7 @@
   },
   {
     "id": 155,
-    "front": "Radzę ___ (kolega) (pl) zmianę.",
+    "front": "Radzę ___ (kolega) (pl) zmianę pracy.",
     "case": "Dative",
     "gender": "Masculine",
     "number": "Plural"
@@ -1121,7 +1121,7 @@
   },
   {
     "id": 161,
-    "front": "Pomagam ___ (sąsiad) (pl) pracę.",
+    "front": "Pomagam ___ (sąsiad) (pl) w pracy.",
     "case": "Dative",
     "gender": "Masculine",
     "number": "Plural"
@@ -1359,7 +1359,7 @@
   },
   {
     "id": 195,
-    "front": "Nakazuję ___ (pracownik) pracę.",
+    "front": "Nakazuję ___ (pracownik) powrót do pracy.",
     "case": "Dative",
     "gender": "Masculine",
     "number": "Singular"
@@ -1695,7 +1695,7 @@
   },
   {
     "id": 243,
-    "front": "Jest ___ (siebie) miło.",
+    "front": "Kupiłem ___ (siebie) książkę.",
     "case": "Dative",
     "gender": "Pronoun",
     "number": "Singular"
