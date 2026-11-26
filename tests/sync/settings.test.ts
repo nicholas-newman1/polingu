@@ -1,0 +1,203 @@
+import { describe, expect, test, vi } from 'vitest';
+import loadAppSettings from '../../src/lib/storage/loadAppSettings';
+import saveAppSettings from '../../src/lib/storage/saveAppSettings';
+import loadUserFilters from '../../src/lib/storage/loadUserFilters';
+import saveUserFilters from '../../src/lib/storage/saveUserFilters';
+import { loadListeningSettings } from '../../src/lib/storage/loadListeningSettings';
+import saveListeningSettings from '../../src/lib/storage/saveListeningSettings';
+import { loadListeningHubSelections } from '../../src/lib/storage/loadListeningHubSelections';
+import saveListeningHubSelections from '../../src/lib/storage/saveListeningHubSelections';
+import loadSentenceSettings from '../../src/lib/storage/loadSentenceSettings';
+import saveSentenceSettings from '../../src/lib/storage/saveSentenceSettings';
+import loadVocabularySettings from '../../src/lib/storage/loadVocabularySettings';
+import saveVocabularySettings from '../../src/lib/storage/saveVocabularySettings';
+import loadConjugationSettings from '../../src/lib/storage/loadConjugationSettings';
+import saveConjugationSettings from '../../src/lib/storage/saveConjugationSettings';
+import loadDeclensionSettings from '../../src/lib/storage/loadDeclensionSettings';
+import saveDeclensionSettings from '../../src/lib/storage/saveDeclensionSettings';
+import loadAspectPairsSettings from '../../src/lib/storage/loadAspectPairsSettings';
+import saveAspectPairsSettings from '../../src/lib/storage/saveAspectPairsSettings';
+import { DEFAULT_APP_SETTINGS } from '../../src/types/appSettings';
+import { DEFAULT_USER_FILTERS, type UserFilters } from '../../src/types/userFilters';
+import {
+  DEFAULT_LISTENING_HUB_SELECTIONS,
+  DEFAULT_LISTENING_SETTINGS,
+  type ListeningHubSelections,
+  type ListeningSettings,
+} from '../../src/types/listening';
+import { ALL_LEVELS } from '../../src/types/sentences';
+import { userDb } from '../../src/lib/offlineDb/userDb';
+import { remote } from './support/fakeFirestore';
+import { network, setupSyncTests, signIn, userPath } from './support/harness';
+import { stub } from '../helpers/stub';
+
+vi.mock('firebase/firestore', () => import('./support/fakeFirestore'));
+
+setupSyncTests();
+
+const UID = 'learner-a';
+const seedDoc = (name: string, data: Record<string, unknown>) =>
+  remote.seed(userPath(UID, 'data', name), data);
+
+describe('settings saved by an older version of the app', () => {
+  test('app settings gain defaults for fields added since', async () => {
+    signIn(UID);
+    seedDoc('appSettings', { autoPlayAudio: true });
+
+    expect(await loadAppSettings()).toEqual({ ...DEFAULT_APP_SETTINGS, autoPlayAudio: true });
+  });
+
+  test('filters are filled in per feature, keeping what was saved', async () => {
+    signIn(UID);
+    seedDoc('userFilters', { declension: { cases: ['Genitive'] } });
+
+    expect(await loadUserFilters()).toEqual({
+      conjugation: DEFAULT_USER_FILTERS.conjugation,
+      declension: { ...DEFAULT_USER_FILTERS.declension, cases: ['Genitive'] },
+    });
+  });
+
+  test('sentence settings keep the saved daily limit and default to every level', async () => {
+    signIn(UID);
+    seedDoc('sentenceSettings-pl-en', { newCardsPerDay: 3 });
+
+    const settings = await loadSentenceSettings();
+
+    expect(settings['pl-to-en']).toEqual({ newCardsPerDay: 3, selectedLevels: ALL_LEVELS });
+    expect(settings['en-to-pl']).toEqual({ newCardsPerDay: 5, selectedLevels: ALL_LEVELS });
+  });
+});
+
+describe('listening settings are sanitised on load', () => {
+  test('out-of-range or unknown values fall back to the defaults, valid ones are kept', async () => {
+    signIn(UID);
+    seedDoc('listeningSettings', {
+      playbackRate: 5,
+      ordering: 'alphabetical',
+      learned: { gapBetweenCards: 3, repetitions: 2 },
+      unknown: { gapBetweenCards: 8, repetitions: 9, gapBetweenRepetitions: 'long' },
+    });
+
+    expect(await loadListeningSettings()).toEqual({
+      playbackRate: DEFAULT_LISTENING_SETTINGS.playbackRate,
+      ordering: DEFAULT_LISTENING_SETTINGS.ordering,
+      learned: { ...DEFAULT_LISTENING_SETTINGS.learned, repetitions: 2 },
+      unknown: { ...DEFAULT_LISTENING_SETTINGS.unknown, gapBetweenCards: 8 },
+    });
+  });
+
+  test('a valid saved configuration round-trips unchanged', async () => {
+    signIn(UID);
+    const custom: ListeningSettings = {
+      playbackRate: 0.5,
+      ordering: 'due',
+      learned: { gapBetweenCards: 0.5, repetitions: 3, gapBetweenRepetitions: 4 },
+      unknown: { gapBetweenCards: 8, repetitions: 1, gapBetweenRepetitions: 2 },
+    };
+
+    await saveListeningSettings(custom);
+
+    expect(await loadListeningSettings()).toEqual(custom);
+    expect(remote.get(userPath(UID, 'data', 'listeningSettings'))).toEqual(custom);
+  });
+
+  test('hub selections drop unknown levels and fall back to all levels when none remain', async () => {
+    signIn(UID);
+    seedDoc('listeningHubSelections', {
+      feature: 'conjugation',
+      direction: 'en-to-pl',
+      selectedLevels: ['B1', 'Z9'],
+    });
+    expect(await loadListeningHubSelections()).toEqual({
+      feature: DEFAULT_LISTENING_HUB_SELECTIONS.feature,
+      direction: 'en-to-pl',
+      selectedLevels: ['B1'],
+    });
+
+    await saveListeningHubSelections(
+      stub<ListeningHubSelections>({ feature: 'vocabulary', selectedLevels: [] })
+    );
+    expect(await loadListeningHubSelections()).toEqual({
+      ...DEFAULT_LISTENING_HUB_SELECTIONS,
+      feature: 'vocabulary',
+    });
+  });
+});
+
+describe('per-direction settings', () => {
+  test('each direction is saved to its own doc and loads independently', async () => {
+    signIn(UID);
+
+    await saveSentenceSettings({ newCardsPerDay: 2, selectedLevels: ['A1'] }, 'en-to-pl');
+    await saveVocabularySettings({ newCardsPerDay: 25 }, 'pl-to-en');
+    await saveConjugationSettings({ newCardsPerDay: 1 }, 'en-to-pl');
+
+    expect(await loadSentenceSettings()).toEqual({
+      'pl-to-en': { newCardsPerDay: 5, selectedLevels: ALL_LEVELS },
+      'en-to-pl': { newCardsPerDay: 2, selectedLevels: ['A1'] },
+    });
+    expect(await loadVocabularySettings()).toEqual({
+      'pl-to-en': { newCardsPerDay: 25 },
+      'en-to-pl': { newCardsPerDay: 10 },
+    });
+    expect(await loadConjugationSettings()).toEqual({
+      'pl-to-en': { newCardsPerDay: 10 },
+      'en-to-pl': { newCardsPerDay: 1 },
+    });
+    expect(remote.get(userPath(UID, 'data', 'vocabularySettings-pl-en'))).toEqual({
+      newCardsPerDay: 25,
+    });
+  });
+});
+
+describe('every settings doc round-trips through the server', () => {
+  test('a second device sees what the first one saved', async () => {
+    signIn(UID);
+    const filters: UserFilters = {
+      ...DEFAULT_USER_FILTERS,
+      declension: { cases: ['Dative'], genders: ['Feminine'], number: 'Plural' },
+    };
+    await saveAppSettings({ autoPlayAudio: true, hidePolishText: true, dashboardOrder: ['x'] });
+    await saveUserFilters(filters);
+    await saveDeclensionSettings({ newCardsPerDay: 4 });
+    await saveAspectPairsSettings({ newCardsPerDay: 6 });
+
+    // A fresh device: nothing cached locally, everything comes from the server.
+    const server = remote.list(userPath(UID, 'data'));
+    remote.reset();
+    for (const [name, data] of Object.entries(server)) seedDoc(name, data);
+    await userDb.userData.clear();
+
+    expect(await loadAppSettings()).toEqual({
+      autoPlayAudio: true,
+      hidePolishText: true,
+      dashboardOrder: ['x'],
+    });
+    expect(await loadUserFilters()).toEqual(filters);
+    expect(await loadDeclensionSettings()).toEqual({ newCardsPerDay: 4 });
+    expect(await loadAspectPairsSettings()).toEqual({ newCardsPerDay: 6 });
+  });
+});
+
+describe('guest', () => {
+  test('gets the defaults and saving is a no-op', async () => {
+    await saveAppSettings({ autoPlayAudio: true, hidePolishText: true });
+    await saveDeclensionSettings({ newCardsPerDay: 99 });
+
+    expect(await loadAppSettings()).toEqual(DEFAULT_APP_SETTINGS);
+    expect(await loadDeclensionSettings()).toEqual({ newCardsPerDay: 10 });
+    expect(remote.calls).toEqual([]);
+  });
+});
+
+describe('offline', () => {
+  test('a settings change made offline is used at once and synced later', async () => {
+    signIn(UID);
+    network.goOffline();
+
+    await saveDeclensionSettings({ newCardsPerDay: 20 });
+
+    expect(await loadDeclensionSettings()).toEqual({ newCardsPerDay: 20 });
+    expect(remote.get(userPath(UID, 'data', 'settings'))).toBeUndefined();
+  });
+});
