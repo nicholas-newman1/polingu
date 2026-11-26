@@ -89,25 +89,39 @@ describe('useGeneratedExamples', () => {
     expect(h.state()).toMatchObject({ isGenerating: false, error: null, items: [] });
   });
 
-  // BUG: generate() has no guard against out-of-order responses. The suggest-examples
-  // modal starts a request whenever it opens for a word, so closing it and opening it for
-  // another word while the first request is still running lets the first word's examples
-  // land last, in the modal for the second word, where accepting them saves them on the
-  // wrong word. Expected: only the latest request's examples are shown. Actual: the
-  // earlier request's examples replace them.
-  test.fails(
-    'examples from an earlier request that finishes last do not replace newer ones',
-    async () => {
-      const requests = pendingRequests();
-      const h = renderExamples();
-      h.generate('kot');
-      act(() => h.state().reset());
-      h.generate('pies');
+  test('examples from an earlier request that finishes last do not replace newer ones', async () => {
+    const requests = pendingRequests();
+    const h = renderExamples();
+    h.generate('kot');
+    act(() => h.state().reset());
+    h.generate('pies');
 
-      await requests.answer(1, 'Mam psa.');
-      await requests.answer(0, 'Mam kota.');
+    await requests.answer(1, 'Mam psa.');
+    await requests.answer(0, 'Mam kota.');
 
-      expect(h.state().items).toEqual([example('Mam psa.')]);
-    }
-  );
+    expect(h.state().items).toEqual([example('Mam psa.')]);
+  });
+
+  test('an earlier request that finishes first leaves the newer one in progress', async () => {
+    const requests = pendingRequests();
+    const h = renderExamples();
+    h.generate('kot');
+    h.generate('pies');
+
+    await requests.fail(0);
+    expect(h.state()).toMatchObject({ isGenerating: true, error: null, items: [] });
+
+    await requests.answer(1, 'Mam psa.');
+    expect(h.state()).toMatchObject({ isGenerating: false, items: [example('Mam psa.')] });
+  });
+
+  test('reset discards a request that is still running', async () => {
+    const requests = pendingRequests();
+    const h = renderExamples();
+    h.generate('kot');
+    act(() => h.state().reset());
+
+    await requests.answer(0, 'Mam kota.');
+    expect(h.state()).toMatchObject({ isGenerating: false, error: null, items: [] });
+  });
 });

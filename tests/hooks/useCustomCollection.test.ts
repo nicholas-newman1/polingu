@@ -88,15 +88,7 @@ describe('useCustomCollection', () => {
     expect(h.state().items).toEqual(items('a', 'saved'));
   });
 
-  // BUG: the real subscribe (createCustomCollectionStorage) runs an async snapshot handler
-  // that awaits IndexedDB before calling onChange, so a snapshot already in flight still
-  // calls onChange after the hook unsubscribed. useCustomCollection applies it anyway, so
-  // after a user switch the previous user's custom items appear (and isLoading turns
-  // false) until the new user's first snapshot lands. Rare: it needs the account to
-  // change directly from one user to another (no signed-out step in between) while a
-  // snapshot is being processed. Expected: the late snapshot is ignored. Actual: the new
-  // user sees the old user's items.
-  test.fails('a late snapshot from the previous user is ignored after switching user', () => {
+  test('a late snapshot from the previous user is ignored after switching user', () => {
     const h = renderCollection('ania');
     h.auth.signInAs('bartek');
     h.rerender();

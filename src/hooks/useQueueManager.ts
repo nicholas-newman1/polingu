@@ -103,8 +103,11 @@ export function useQueueManager(): QueueManager {
   const lastFlushedTimeRef = useRef(0);
   const lastLocalWriteRef = useRef(0);
   const [initialSavedTime, setInitialSavedTime] = useState(0);
+  /** Set once the listener changes the queue, so a slow restore can't overwrite it. */
+  const changedSinceMountRef = useRef(false);
 
   const set = useCallback((next: QueueState, resetTime = true) => {
+    changedSinceMountRef.current = true;
     ref.current = next;
     setState(next);
     if (resetTime) {
@@ -135,7 +138,7 @@ export function useQueueManager(): QueueManager {
     let cancelled = false;
     getAudioQueue()
       .then((saved: AudioQueue | null) => {
-        if (cancelled || !saved || !saved.userQueue) return;
+        if (cancelled || changedSinceMountRef.current || !saved || !saved.userQueue) return;
         const loaded: QueueState = {
           currentTrackId: saved.currentTrackId,
           userQueue: saved.userQueue,

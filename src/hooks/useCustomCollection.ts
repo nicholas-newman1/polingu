@@ -16,10 +16,18 @@ export function useCustomCollection<T>(subscribe: (onChange: (items: T[]) => voi
 
   useEffect(() => {
     if (!user) return;
-    return subscribe((next) => {
+    // The storage subscribe can still deliver a snapshot it was already processing after
+    // it is closed (its handler awaits IndexedDB), so ignore anything that arrives late.
+    let active = true;
+    const unsubscribe = subscribe((next) => {
+      if (!active) return;
       setItems(next);
       setIsLoading(false);
     });
+    return () => {
+      active = false;
+      unsubscribe();
+    };
   }, [user, subscribe]);
 
   return { items, setItems, isLoading };

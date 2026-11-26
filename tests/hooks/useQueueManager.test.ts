@@ -108,12 +108,7 @@ describe('restoring the queue', () => {
     expect(malformed.queue().currentTrackId).toBeNull();
   });
 
-  // BUG: the restore effect applies the loaded queue unconditionally. If the listener
-  // starts a track before the saved queue arrives (slow network on app start), the stale
-  // saved queue then replaces the queue they just started: the current track, the
-  // upcoming tracks and the history all jump back to the old session. Expected: the
-  // queue the user started is kept. Actual: currentTrackId becomes the saved 't2'.
-  test.fails('a queue started before the saved one finishes loading is kept', async () => {
+  test('a queue started before the saved one finishes loading is kept', async () => {
     const load = deferred<AudioQueue | null>();
     vi.mocked(getAudioQueue).mockReturnValue(load.promise);
     const h = renderHook(() => useQueueManager());
