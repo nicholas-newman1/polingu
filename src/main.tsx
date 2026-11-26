@@ -39,6 +39,9 @@ import { AudioPlayerProvider } from './contexts/AudioPlayerContext';
 import { ListeningProvider } from './contexts/ListeningContext';
 import { ListeningHubPage } from './pages/ListeningHubPage';
 import { ListeningPlayerPage } from './pages/ListeningPlayerPage';
+import { setUpDevMute } from './lib/devMute';
+
+if (import.meta.env.DEV) setUpDevMute();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

@@ -16,6 +16,7 @@
 
 ## Testing signed in
 
+- Whenever you open the app in a browser (the built-in browser pane or Chrome), add `?devMute` to the first URL (e.g. `http://localhost:5173/dashboard?devSignIn&devMute`). App audio is disturbing for the user to hear while you test. It mutes every sound in that browser until `?devMute=off`, while playback still runs, so audio features stay testable (`src/lib/devMute.ts`, dev server only).
 - To check a signed-in flow in the app, run `npm start` and open the local URL with `?devSignIn` (e.g. `http://localhost:5173/dashboard?devSignIn`). The app signs in as the shared test user `dev-test-user` ("Dev Tester"), with no password or Google account involved.
 - The token comes from a dev-server-only endpoint (`scripts/lib/devSignInPlugin.ts`) that answers only local requests and needs `service-account.json` in the project root. It is not part of production builds or the phone preview.
 - The test user reads and writes the production Firebase project, but only its own data under `users/dev-test-user`. Create, edit and delete custom items freely there, and clean up anything that would confuse later tests.
