@@ -7,6 +7,7 @@ interface DeclensionCard {
   back: string;
   declined: string;
   case: string;
+  english: string;
   hint?: string;
 }
 
@@ -24,6 +25,7 @@ const reviewList = cards.map((c) => ({
   id: c.id,
   front: c.front,
   back: c.back,
+  english: c.english,
   declined: c.declined,
   case: c.case,
   hint: c.hint,

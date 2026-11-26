@@ -15,6 +15,7 @@ interface DeclensionCard {
   case: Case;              // The grammatical case being tested
   gender: Gender;          // Gender of the noun/pronoun
   number: NumberType;      // Singular or Plural
+  english: string;         // English translation of the whole `back` sentence
   hint?: string;           // Optional hint explaining the grammar rule
 }
 
@@ -34,6 +35,7 @@ type NumberType = 'Singular' | 'Plural';
   "case": "Genitive",
   "gender": "Masculine",
   "number": "Singular",
+  "english": "I'm going to the store",
   "hint": "\"do\" takes genitive. Inanimate"
 }
 ```
@@ -49,6 +51,13 @@ type NumberType = 'Singular' | 'Plural';
 ### Back (Answer)
 - Complete sentence with the correctly declined word
 - Matches the front sentence structure
+
+### English
+- Required for built-in cards; shown in small text under the answer
+- Translate the whole `back` sentence, mostly naturally, but prefer phrasing that keeps the drilled word's role visible ("to my brother", "with a pen", "a lot of time")
+- Canadian spelling and vocabulary (colour, neighbour, centre; Mom, store, apartment)
+- Keep plurals plural and mirror the Polish terminal punctuation
+- Custom cards may leave it empty
 
 ### Declined
 - Just the word that fills the blank, in its declined form

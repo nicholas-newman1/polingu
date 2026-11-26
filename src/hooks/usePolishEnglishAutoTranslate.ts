@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { UseFormReturn } from 'react-hook-form';
+import type { FieldValues, UseFormReturn } from 'react-hook-form';
 import { TRANSLATION_DEBOUNCE_MS } from '../constants/translation';
 import { translate } from '../lib/translate';
 
@@ -282,26 +282,33 @@ export type SinglePolishEnglishAutoTranslate = ReturnType<
   typeof useSinglePolishEnglishAutoTranslate
 >;
 
-export interface PolishEnglishFormValues {
+/** Form field names holding the Polish and English halves of the pair. */
+export interface PolishEnglishFieldNames {
   polish: string;
   english: string;
 }
 
-/** `useSinglePolishEnglishAutoTranslate` wired to a form with top-level `polish` and `english` fields. */
-export function usePolishEnglishFormAutoTranslate<T extends PolishEnglishFormValues>(
+const DEFAULT_FIELD_NAMES: PolishEnglishFieldNames = { polish: 'polish', english: 'english' };
+
+/**
+ * `useSinglePolishEnglishAutoTranslate` wired to a form's Polish/English field pair,
+ * named `polish` and `english` unless `fieldNames` says otherwise.
+ */
+export function usePolishEnglishFormAutoTranslate<T extends FieldValues>(
   form: Pick<UseFormReturn<T>, 'getValues' | 'setValue'>,
-  options: { vocabulary?: boolean } = {}
+  options: { vocabulary?: boolean; fieldNames?: PolishEnglishFieldNames } = {}
 ) {
   // react-hook-form can't resolve literal paths against an unresolved generic form type.
   const { getValues, setValue } = form as unknown as Pick<
-    UseFormReturn<PolishEnglishFormValues>,
+    UseFormReturn<Record<string, string>>,
     'getValues' | 'setValue'
   >;
+  const { polish, english } = options.fieldNames ?? DEFAULT_FIELD_NAMES;
   return useSinglePolishEnglishAutoTranslate({
     vocabulary: options.vocabulary,
-    getPolish: () => getValues('polish'),
-    getEnglish: () => getValues('english'),
-    onPolishTranslated: (polish) => setValue('polish', polish, { shouldValidate: true }),
-    onEnglishTranslated: (english) => setValue('english', english, { shouldValidate: true }),
+    getPolish: () => getValues(polish),
+    getEnglish: () => getValues(english),
+    onPolishTranslated: (value) => setValue(polish, value, { shouldValidate: true }),
+    onEnglishTranslated: (value) => setValue(english, value, { shouldValidate: true }),
   });
 }

@@ -33,6 +33,11 @@ const AnswerText = styled(Box)(({ theme }) => ({
   color: theme.palette.text.primary,
 }));
 
+const EnglishTranslation = styled(Typography)(({ theme }) => ({
+  color: theme.palette.text.secondary,
+  marginBottom: theme.spacing(2),
+}));
+
 const CustomLabel = styled(Typography)(({ theme }) => ({
   color: theme.palette.primary.main,
   fontSize: '0.75rem',
@@ -88,13 +93,15 @@ export function DeclensionFlashcard({
 
   const answer = (
     <>
-      <AnswerText sx={{ mb: 2 }}>
+      <AnswerText sx={{ mb: card.english ? 0.5 : 2 }}>
         {hidePolish && !revealed ? (
           <HiddenPolishPlaceholder />
         ) : (
           renderTappableText(card.back, tappableTextOptions, card.declined)
         )}
       </AnswerText>
+
+      {card.english && <EnglishTranslation variant="body2">{card.english}</EnglishTranslation>}
 
       <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: 'wrap', gap: 1 }}>
         <FlashcardMetaChip label={card.case} size="small" />

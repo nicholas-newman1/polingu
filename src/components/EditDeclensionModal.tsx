@@ -5,10 +5,11 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import { ModalDialog, ModalHeader, ModalContent } from './modalStyles';
 import { ModalFooter } from './ModalFooter';
 import { FormSelectField, FormTextField } from './FormFields';
-import { useEditModalClose } from '../hooks/useEditModalClose';
-import { useOptimisticModalSave, type ModalSaveResult } from '../hooks/useOptimisticModalSave';
+import { type ModalSaveResult } from '../hooks/useOptimisticModalSave';
 import { useAuthContext } from '../hooks/useAuthContext';
+import { useTranslatedEditModal } from '../hooks/useTranslatedEditModal';
 import { AudioRegenerator } from './AudioRegenerator';
+import { PolishEnglishFields } from './PolishEnglishFields';
 import type { DeclensionCard, Case, Gender, Number } from '../types';
 
 const CASES: Case[] = [
@@ -25,9 +26,12 @@ const GENDERS: Gender[] = ['Masculine', 'Feminine', 'Neuter', 'Pronoun'];
 
 const NUMBERS: Number[] = ['Singular', 'Plural'];
 
+const TRANSLATION_FIELD_NAMES = { polish: 'back', english: 'english' };
+
 interface FormData {
   front: string;
   back: string;
+  english: string;
   declined: string;
   case: Case;
   gender: Gender;
@@ -48,6 +52,7 @@ interface EditDeclensionModalProps {
 const getDefaultValues = (card: DeclensionCard | null): FormData => ({
   front: card?.front || '',
   back: card?.back || '',
+  english: card?.english || '',
   declined: card?.declined || '',
   case: card?.case || 'Nominative',
   gender: card?.gender || 'Masculine',
@@ -70,6 +75,8 @@ export function EditDeclensionModal({
     control,
     handleSubmit,
     reset,
+    setValue,
+    getValues,
     formState: { isValid },
   } = useForm<FormData>({
     values: getDefaultValues(card),
@@ -78,20 +85,26 @@ export function EditDeclensionModal({
 
   const backText = useWatch({ control, name: 'back' });
 
-  const { pendingAudioUrl, handleClose, handleAudioSaved } = useEditModalClose({
-    open,
-    onClose,
-    resetForm: () => reset(getDefaultValues(null)),
-    onAudioUpdated,
-  });
-
-  const save = useOptimisticModalSave({ onSave, onClose: handleClose });
+  const { translation, pendingAudioUrl, handleClose, handleAudioSaved, save } =
+    useTranslatedEditModal({
+      open,
+      onClose,
+      onSave,
+      onAudioUpdated,
+      form: { getValues, setValue },
+      resetForm: () => reset(getDefaultValues(null)),
+      fieldNames: TRANSLATION_FIELD_NAMES,
+    });
+  // Built-in cards always carry a translation; custom cards may leave it out.
+  const englishRequired = !isCreating && !!card && !card.isCustom;
 
   const onSubmit = (data: FormData) => {
     const trimmedHint = data.hint.trim();
     save({
       front: data.front.trim(),
       back: data.back.trim(),
+      // undefined (rather than omitted) so clearing the field removes a saved translation.
+      english: data.english.trim() || undefined,
       declined: data.declined.trim(),
       case: data.case,
       gender: data.gender,
@@ -144,13 +157,18 @@ export function EditDeclensionModal({
           multiline
           placeholder="e.g., To jest _____ (kot, masculine)"
         />
-        <FormTextField
-          name="back"
+        <PolishEnglishFields
           control={control}
-          label="Back (Answer)"
-          required
+          translation={translation}
+          dataQaPrefix="edit-declension"
           multiline
-          placeholder="e.g., To jest kot."
+          names={TRANSLATION_FIELD_NAMES}
+          labels={{
+            polish: 'Back (Answer)',
+            english: englishRequired ? 'English Translation' : 'English Translation (optional)',
+          }}
+          placeholders={{ polish: 'e.g., To jest kot.', english: 'e.g., This is a cat.' }}
+          englishRequired={englishRequired}
         />
         <FormTextField
           name="declined"

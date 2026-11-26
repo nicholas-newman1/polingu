@@ -13,11 +13,10 @@ import {
   Typography,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
-import { useEditModalClose } from '../hooks/useEditModalClose';
 import { useReviewData } from '../hooks/useReviewData';
 import { useAuthContext } from '../hooks/useAuthContext';
-import { useOptimisticModalSave, type ModalSaveResult } from '../hooks/useOptimisticModalSave';
-import { usePolishEnglishFormAutoTranslate } from '../hooks/usePolishEnglishAutoTranslate';
+import { type ModalSaveResult } from '../hooks/useOptimisticModalSave';
+import { useTranslatedEditModal } from '../hooks/useTranslatedEditModal';
 import { AudioRegenerator } from './AudioRegenerator';
 import { PolishEnglishFields } from './PolishEnglishFields';
 import { ModalDialog, ModalHeader, ModalContent } from './modalStyles';
@@ -89,19 +88,15 @@ export function EditSentenceModal({
 
   const polishText = useWatch({ control, name: 'polish' });
 
-  const translation = usePolishEnglishFormAutoTranslate({ getValues, setValue });
-
-  const { pendingAudioUrl, handleClose, handleAudioSaved } = useEditModalClose({
-    open,
-    onClose,
-    resetForm: () => {
-      reset(getDefaultValues(null));
-      translation.cancel();
-    },
-    onAudioUpdated,
-  });
-
-  const save = useOptimisticModalSave({ onSave, onClose: handleClose });
+  const { translation, pendingAudioUrl, handleClose, handleAudioSaved, save } =
+    useTranslatedEditModal({
+      open,
+      onClose,
+      onSave,
+      onAudioUpdated,
+      form: { getValues, setValue },
+      resetForm: () => reset(getDefaultValues(null)),
+    });
 
   const onSubmit = (data: FormData) => {
     save({

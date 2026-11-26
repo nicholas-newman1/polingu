@@ -19,6 +19,7 @@ export interface DeclensionCard {
   case: DeclensionCase;
   gender: DeclensionGender;
   number: DeclensionNumber;
+  english: string;
   hint?: string;
 }
 
@@ -61,6 +62,10 @@ const CARD_RULES: [check: (c: Record<string, unknown>) => boolean, message: stri
   [(c) => !!c.front && typeof c.front === 'string', 'missing or invalid "front"'],
   [(c) => !!c.back && typeof c.back === 'string', 'missing or invalid "back"'],
   [(c) => !!c.declined && typeof c.declined === 'string', 'missing or invalid "declined"'],
+  [
+    (c) => typeof c.english === 'string' && c.english.trim().length > 0,
+    'missing or invalid "english" (whole-sentence translation of "back")',
+  ],
   [
     (c) => !!c.case && isValidCase(c.case as string),
     `invalid "case" (must be one of: ${VALID_CASES.join(', ')})`,

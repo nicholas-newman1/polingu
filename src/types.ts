@@ -25,6 +25,8 @@ export interface DeclensionCard extends CardAudioFields {
   case: Case;
   gender: Gender;
   number: Number;
+  /** Whole-sentence English translation of `back`. Required on built-in cards. */
+  english?: string;
   hint?: string;
   isCustom?: boolean;
   translations?: Record<string, string>;
@@ -38,6 +40,7 @@ export interface CustomDeclensionCard extends CustomItemBase {
   case: Case;
   gender: Gender;
   number: Number;
+  english?: string;
   hint?: string;
   translations?: Record<string, string>;
   audioUrl?: string;
