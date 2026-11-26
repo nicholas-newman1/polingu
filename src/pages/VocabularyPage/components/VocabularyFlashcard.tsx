@@ -199,7 +199,7 @@ function ExampleSentences({ examples, isPolishToEnglish, revealed }: ExampleSent
 function WordDetails({ word }: { word: VocabularyWord }) {
   return (
     <>
-      <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: 'wrap', gap: 1 }}>
+      <Stack direction="row" sx={{ mb: 2, flexWrap: 'wrap', columnGap: 2, rowGap: 1 }}>
         {word.partOfSpeech && (
           <FlashcardMetaChip label={capitalize(word.partOfSpeech)} size="small" />
         )}

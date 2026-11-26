@@ -124,7 +124,7 @@ export function SentenceFlashcard({
   );
 
   const tags = sentence.tags.length > 0 && (
-    <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', gap: 0.5, mb: 2 }}>
+    <Stack direction="row" sx={{ flexWrap: 'wrap', columnGap: 1, rowGap: 0.5, mb: 2 }}>
       {sentence.tags.map((tag) => (
         <TagChip key={tag} label={tag} size="small" />
       ))}

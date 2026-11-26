@@ -125,7 +125,7 @@ function InfinitiveLine({ form }: { form: DrillableForm }) {
 
 function PromptChips({ form }: { form: DrillableForm }) {
   return (
-    <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', gap: 0.5 }}>
+    <Stack direction="row" sx={{ flexWrap: 'wrap', columnGap: 1.25, rowGap: 0.5 }}>
       <TenseChip label={getTenseLabel(form.tense)} size="small" />
       {form.person === '2nd' && form.number === 'Plural' && (
         <PluralChip label="⊕ Plural" size="small" />
@@ -137,7 +137,7 @@ function PromptChips({ form }: { form: DrillableForm }) {
 
 function VerbMetaChips({ form, showGender }: { form: DrillableForm; showGender: boolean }) {
   return (
-    <Stack direction="row" spacing={0.75} sx={{ mt: 2, flexWrap: 'wrap', gap: 0.5 }}>
+    <Stack direction="row" sx={{ mt: 2, flexWrap: 'wrap', columnGap: 1.25, rowGap: 0.5 }}>
       <AspectChip label={getAspectLabel(form.verb.aspect)} size="small" />
       <VerbClassChip label={getVerbClassLabel(form.verb.verbClass)} size="small" />
       {form.verb.isReflexive && <FlashcardMetaChip label="↩ Reflexive" size="small" />}

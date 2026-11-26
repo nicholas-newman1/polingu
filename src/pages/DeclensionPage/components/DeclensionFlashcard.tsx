@@ -103,7 +103,7 @@ export function DeclensionFlashcard({
 
       {card.english && <EnglishTranslation variant="body2">{card.english}</EnglishTranslation>}
 
-      <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: 'wrap', gap: 1 }}>
+      <Stack direction="row" sx={{ mb: 2, flexWrap: 'wrap', columnGap: 2, rowGap: 1 }}>
         <FlashcardMetaChip label={card.case} size="small" />
         <FlashcardMetaChip label={card.gender} size="small" />
         <FlashcardMetaChip label={card.number} size="small" />
