@@ -14,7 +14,7 @@ import {
   type Aspect,
   type VerbClass,
 } from '../../src/types/conjugation';
-import { expectOnlyAllowlisted, readRepoJson, violationsOf } from './repo';
+import { readRepoJson, violationsOf } from './repo';
 
 const verbIndex =
   readRepoJson<{ infinitive: string; aspect: Aspect; verbClass: VerbClass }[]>('verbIndex.json');
@@ -108,25 +108,20 @@ describe('conjugation cheat sheet patterns', () => {
 
   test('give past endings -ł/-ła/-ło built on the vowel of each infinitive ending', () => {
     // The past stem is the infinitive minus -ć, plus -ł (robić → robił, myć → mył), except
-    // that -eć verbs change e to a (umieć → umiał).
+    // that -eć verbs change e to a (umieć → umiał). A combined class gives one
+    // masculine/feminine/neuter set per class, in class order: "-ił/-iła/-iło, -ył/-yła/-yło".
     const problems = violationsOf(
       CONJUGATION_PATTERNS,
       (pattern) => pattern.verbClass,
       ({ verbClass, pastStem }) => {
-        const [masculine, feminine, neuter] = pastStem.split('/');
-        if (feminine !== `${masculine}a` || neuter !== `${masculine}o`) return pastStem;
-        const expected = alternatives(verbClass).map((c) =>
-          c === '-eć' ? '-ał' : `${c.slice(0, -1)}ł`
-        );
-        const missing = expected.filter((ending) => !pastStem.includes(ending));
-        return missing.length > 0 && `${pastStem} has no ${missing}`;
+        const expected = alternatives(verbClass)
+          .map((c) => (c === '-eć' ? '-ał' : `${c.slice(0, -1)}ł`))
+          .map((masculine) => `${masculine}/${masculine}a/${masculine}o`)
+          .join(', ');
+        return pastStem !== expected && `${pastStem}, expected ${expected}`;
       }
     );
-    expectOnlyAllowlisted(problems, {
-      // The combined class lists -ił only, so the cheat sheet gives -yć verbs (myć, żyć,
-      // uczyć) a past of "-ił" where it should be -ył/-yła/-yło.
-      '-ić/-yć': '-ił/-iła/-iło has no -ył',
-    });
+    expect([...problems]).toEqual([]);
   });
 });
 

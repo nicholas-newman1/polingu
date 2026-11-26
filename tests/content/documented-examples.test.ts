@@ -13,7 +13,7 @@ import {
   type Verb,
 } from '../../src/types/conjugation';
 import type { DeclensionCard } from '../../src/types';
-import { expectOnlyAllowlisted, readRepoJson, readRepoText } from './repo';
+import { readRepoJson, readRepoText } from './repo';
 import { asciiVerbId } from './verbIds';
 
 /**
@@ -148,12 +148,7 @@ describe('the example verbs in CONJUGATION.md', () => {
 
   test('follow the documented conjugation rules', () => {
     const problems = new Map(verbs.flatMap((verb) => [...conjugationProblems(verb)]));
-    expectOnlyAllowlisted(problems, {
-      // The impersonal example puts "it" in its 3sg present/future translations, which the
-      // "3sg Non-Gendered Forms" rule forbids: the app would show "he/she/it it rains".
-      'padac present.3sg': 'subject pronoun in it rains,it is raining',
-      'padac future.3sg': 'subject pronoun in it will rain',
-    });
+    expect([...problems]).toEqual([]);
   });
 
   test('agree with the verb index on aspect and class, and pair with an opposite aspect', () => {

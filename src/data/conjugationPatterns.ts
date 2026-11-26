@@ -3,10 +3,15 @@ export interface ConjugationPattern {
   infinitiveEnding: string;
   exampleVerb: string;
   exampleMeaning: string;
+  /** For a combined class, "-isz/-ysz" gives the ending of each class in class order. */
   presentEndings: {
     singular: [string, string, string];
     plural: [string, string, string];
   };
+  /**
+   * Past 3rd person singular endings, masculine/feminine/neuter. A combined class gives one
+   * set per class, in class order: "-ił/-iła/-iło, -ył/-yła/-yło".
+   */
   pastStem: string;
   notes?: string;
 }
@@ -33,7 +38,7 @@ export const CONJUGATION_PATTERNS: ConjugationPattern[] = [
       singular: ['-ię/-ę', '-isz/-ysz', '-i/-y'],
       plural: ['-imy/-ymy', '-icie/-ycie', '-ią/-ą'],
     },
-    pastStem: '-ił/-iła/-iło',
+    pastStem: '-ił/-iła/-iło, -ył/-yła/-yło',
     notes: 'Soft consonant stems. 1sg often has consonant change.',
   },
   {

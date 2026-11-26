@@ -249,7 +249,7 @@ Weather verbs and some state verbs only conjugate in 3rd person:
   "isImpersonal": true,
   "conjugations": {
     "present": {
-      "3sg": { "pl": "pada", "en": ["it rains", "it is raining"] },
+      "3sg": { "pl": "pada", "en": ["rains", "is raining"] },
       "3pl": { "pl": "padają", "en": ["they fall", "they are falling"] }
     },
     "past": {
@@ -260,7 +260,7 @@ Weather verbs and some state verbs only conjugate in 3rd person:
       "3pl_f": { "pl": "padały", "en": ["they fell"] }
     },
     "future": {
-      "3sg": { "pl": "będzie padać", "plAlternatives": ["będzie padało"], "en": ["it will rain"] },
+      "3sg": { "pl": "będzie padać", "plAlternatives": ["będzie padało"], "en": ["will rain"] },
       "3pl": { "pl": "będą padać", "plAlternatives": ["będą padały"], "en": ["they will fall"] }
     },
     "conditional": {

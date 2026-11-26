@@ -5,7 +5,7 @@ import {
   getExampleWordsForConsonant,
 } from '../../src/data/consonants';
 import type { ConsonantWord } from '../../src/types/consonants';
-import { expectOnlyAllowlisted, violationsOf } from './repo';
+import { violationsOf } from './repo';
 
 /**
  * Data for the hard/soft consonant driller. A word card shows only the word, its translation,
@@ -95,15 +95,7 @@ describe('consonant drill words', () => {
       (word) =>
         finalConsonant(word.word) !== word.consonant && `ends in ${finalConsonant(word.word)}`
     );
-    expectOnlyAllowlisted(problems, {
-      // dż is the first sound; the stem ends in a hard m (w dżemie), so a learner who reads
-      // the stem answers "hard" and is marked wrong.
-      'soft dż dżem': 'ends in m',
-      // dż is the first sound; the stem ends in c.
-      'soft dż dżdżownica': 'ends in c',
-      // łódź ends in dź, not ź (the dź pair already has gwóźdź and niedźwiedź).
-      'soft ź łódź': 'ends in dź',
-    });
+    expect([...problems]).toEqual([]);
   });
 
   test('hard words carry their softened form, soft words do not', () => {
@@ -134,12 +126,7 @@ describe('consonant drill words', () => {
         finalConsonant(word.hardenedForm!) !== pairFor(word)?.hard &&
         `${word.hardenedForm} ends in ${finalConsonant(word.hardenedForm!)}`
     );
-    expectOnlyAllowlisted(problems, {
-      // ziemia and armia have a soft stem in every form; there is no hard base to harden to,
-      // yet the card shows "ziemia → ziemi" as if mi came from m.
-      'soft mi ziemi': 'ziemia ends in mi',
-      'soft mi armie': 'armia ends in mi',
-    });
+    expect([...problems]).toEqual([]);
   });
 
   test('base forms are nominative singular, with an ending that fits their gender', () => {

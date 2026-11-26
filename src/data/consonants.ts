@@ -48,8 +48,8 @@ export const CONSONANT_PAIRS: ConsonantPair[] = [
 export const CONSONANT_WORDS: ConsonantWord[] = [
   // ============================================
   // m → mi (before -e in locative/dative)
-  // NOTE: m→mi softening is rare in standard declension; usually m stays hard
-  // Most m-final masculine nouns take -u or -ie without softening
+  // NOTE: Locative -ie softens m (dym → dymie, forma → formie); a few masculine nouns
+  // take -u instead and keep m hard (dom → domu)
   // ============================================
   // Hard 'm' - stem ends in m
   {
@@ -114,26 +114,27 @@ export const CONSONANT_WORDS: ConsonantWord[] = [
     softenedForm: 'piśmie',
     softenedTranslation: 'writing (loc)',
   },
-  // Soft 'mi' examples
+  // Soft 'mi' examples - masculine
   {
-    word: 'ziemi',
-    translation: 'earth (gen/dat/loc)',
+    word: 'dymie',
+    translation: 'smoke (loc)',
+    consonantType: 'soft',
+    consonant: 'mi',
+    gender: 'masculine',
+    number: 'singular',
+    hardenedForm: 'dym',
+    hardenedTranslation: 'smoke',
+  },
+  // Soft 'mi' examples - feminine
+  {
+    word: 'formie',
+    translation: 'form (loc)',
     consonantType: 'soft',
     consonant: 'mi',
     gender: 'feminine',
     number: 'singular',
-    hardenedForm: 'ziemia',
-    hardenedTranslation: 'earth',
-  },
-  {
-    word: 'armie',
-    translation: 'armies (nom pl)',
-    consonantType: 'soft',
-    consonant: 'mi',
-    gender: 'feminine',
-    number: 'plural',
-    hardenedForm: 'armia',
-    hardenedTranslation: 'army',
+    hardenedForm: 'forma',
+    hardenedTranslation: 'form',
   },
 
   // ============================================
@@ -1774,19 +1775,19 @@ export const CONSONANT_WORDS: ConsonantWord[] = [
 
   // 'dż' - always soft
   {
-    word: 'dżem',
-    translation: 'jam',
+    word: 'brydż',
+    translation: 'bridge (card game)',
     consonantType: 'soft',
     consonant: 'dż',
     gender: 'masculine',
     number: 'singular',
   },
   {
-    word: 'dżdżownica',
-    translation: 'earthworm',
+    word: 'imidż',
+    translation: 'public image',
     consonantType: 'soft',
     consonant: 'dż',
-    gender: 'feminine',
+    gender: 'masculine',
     number: 'singular',
   },
   // NOTE: dż is rare in native Polish words, mostly loanwords
@@ -2011,8 +2012,8 @@ export const CONSONANT_WORDS: ConsonantWord[] = [
 
   // 'ź' - soft z at word end
   {
-    word: 'łódź',
-    translation: 'boat',
+    word: 'więź',
+    translation: 'bond/tie',
     consonantType: 'soft',
     consonant: 'ź',
     gender: 'feminine',
@@ -2051,6 +2052,14 @@ export const CONSONANT_WORDS: ConsonantWord[] = [
     consonantType: 'soft',
     consonant: 'dź',
     gender: 'masculine',
+    number: 'singular',
+  },
+  {
+    word: 'łódź',
+    translation: 'boat',
+    consonantType: 'soft',
+    consonant: 'dź',
+    gender: 'feminine',
     number: 'singular',
   },
 ];
