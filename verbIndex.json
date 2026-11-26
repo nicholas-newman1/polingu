@@ -1,5 +1,35 @@
 [
   {
+    "id": "bac-sie",
+    "infinitive": "bać się",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "bawic-sie",
+    "infinitive": "bawić się",
+    "aspect": "Imperfective",
+    "verbClass": "-ić"
+  },
+  {
+    "id": "biegac",
+    "infinitive": "biegać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "brac",
+    "infinitive": "brać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "budzic-sie",
+    "infinitive": "budzić się",
+    "aspect": "Imperfective",
+    "verbClass": "-ić"
+  },
+  {
     "id": "byc",
     "infinitive": "być",
     "aspect": "Imperfective",
@@ -10,6 +40,42 @@
     "infinitive": "chcieć",
     "aspect": "Imperfective",
     "verbClass": "Irregular"
+  },
+  {
+    "id": "chodzic",
+    "infinitive": "chodzić",
+    "aspect": "Imperfective",
+    "verbClass": "-ić"
+  },
+  {
+    "id": "cieszyc-sie",
+    "infinitive": "cieszyć się",
+    "aspect": "Imperfective",
+    "verbClass": "-yć"
+  },
+  {
+    "id": "czekac",
+    "infinitive": "czekać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "czuc",
+    "infinitive": "czuć",
+    "aspect": "Imperfective",
+    "verbClass": "Irregular"
+  },
+  {
+    "id": "czuc-sie",
+    "infinitive": "czuć się",
+    "aspect": "Imperfective",
+    "verbClass": "Irregular"
+  },
+  {
+    "id": "czytac",
+    "infinitive": "czytać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
   },
   {
     "id": "dac",
@@ -24,16 +90,148 @@
     "verbClass": "-ać"
   },
   {
+    "id": "decydowac",
+    "infinitive": "decydować",
+    "aspect": "Imperfective",
+    "verbClass": "-ować"
+  },
+  {
+    "id": "dostac",
+    "infinitive": "dostać",
+    "aspect": "Perfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "dostawac",
+    "infinitive": "dostawać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "dowiadywac-sie",
+    "infinitive": "dowiadywać się",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "dowiedziec-sie",
+    "infinitive": "dowiedzieć się",
+    "aspect": "Perfective",
+    "verbClass": "-eć"
+  },
+  {
+    "id": "dziekowac",
+    "infinitive": "dziękować",
+    "aspect": "Imperfective",
+    "verbClass": "-ować"
+  },
+  {
+    "id": "dzwonic",
+    "infinitive": "dzwonić",
+    "aspect": "Imperfective",
+    "verbClass": "-ić"
+  },
+  {
+    "id": "gotowac",
+    "infinitive": "gotować",
+    "aspect": "Imperfective",
+    "verbClass": "-ować"
+  },
+  {
+    "id": "grac",
+    "infinitive": "grać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
     "id": "isc",
     "infinitive": "iść",
     "aspect": "Imperfective",
     "verbClass": "Irregular"
   },
   {
+    "id": "jechac",
+    "infinitive": "jechać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "jesc",
+    "infinitive": "jeść",
+    "aspect": "Imperfective",
+    "verbClass": "Irregular"
+  },
+  {
+    "id": "jezdzic",
+    "infinitive": "jeździć",
+    "aspect": "Imperfective",
+    "verbClass": "-ić"
+  },
+  {
+    "id": "klasc",
+    "infinitive": "kłaść",
+    "aspect": "Imperfective",
+    "verbClass": "Irregular"
+  },
+  {
+    "id": "kochac",
+    "infinitive": "kochać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "konczyc",
+    "infinitive": "kończyć",
+    "aspect": "Imperfective",
+    "verbClass": "-yć"
+  },
+  {
+    "id": "kosztowac",
+    "infinitive": "kosztować",
+    "aspect": "Imperfective",
+    "verbClass": "-ować"
+  },
+  {
+    "id": "kupic",
+    "infinitive": "kupić",
+    "aspect": "Perfective",
+    "verbClass": "-ić"
+  },
+  {
+    "id": "kupowac",
+    "infinitive": "kupować",
+    "aspect": "Imperfective",
+    "verbClass": "-ować"
+  },
+  {
+    "id": "leciec",
+    "infinitive": "lecieć",
+    "aspect": "Imperfective",
+    "verbClass": "-eć"
+  },
+  {
+    "id": "lezec",
+    "infinitive": "leżeć",
+    "aspect": "Imperfective",
+    "verbClass": "-eć"
+  },
+  {
+    "id": "lubic",
+    "infinitive": "lubić",
+    "aspect": "Imperfective",
+    "verbClass": "-ić"
+  },
+  {
     "id": "miec",
     "infinitive": "mieć",
     "aspect": "Imperfective",
     "verbClass": "Irregular"
+  },
+  {
+    "id": "mieszkac",
+    "infinitive": "mieszkać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
   },
   {
     "id": "moc",
@@ -54,10 +252,148 @@
     "verbClass": "Irregular"
   },
   {
+    "id": "myc",
+    "infinitive": "myć",
+    "aspect": "Imperfective",
+    "verbClass": "-yć"
+  },
+  {
+    "id": "myslec",
+    "infinitive": "myśleć",
+    "aspect": "Imperfective",
+    "verbClass": "-eć"
+  },
+  {
     "id": "napisac",
     "infinitive": "napisać",
     "aspect": "Perfective",
     "verbClass": "-ać"
+  },
+  {
+    "id": "nauczyc",
+    "infinitive": "nauczyć",
+    "aspect": "Perfective",
+    "verbClass": "-yć"
+  },
+  {
+    "id": "nauczyc-sie",
+    "infinitive": "nauczyć się",
+    "aspect": "Perfective",
+    "verbClass": "-yć"
+  },
+  {
+    "id": "nazywac-sie",
+    "infinitive": "nazywać się",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "nosic",
+    "infinitive": "nosić",
+    "aspect": "Imperfective",
+    "verbClass": "-ić"
+  },
+  {
+    "id": "obejrzec",
+    "infinitive": "obejrzeć",
+    "aspect": "Perfective",
+    "verbClass": "-eć"
+  },
+  {
+    "id": "obudzic-sie",
+    "infinitive": "obudzić się",
+    "aspect": "Perfective",
+    "verbClass": "-ić"
+  },
+  {
+    "id": "odpoczac",
+    "infinitive": "odpocząć",
+    "aspect": "Perfective",
+    "verbClass": "Irregular"
+  },
+  {
+    "id": "odpoczywac",
+    "infinitive": "odpoczywać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "odpowiadac",
+    "infinitive": "odpowiadać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "odpowiedziec",
+    "infinitive": "odpowiedzieć",
+    "aspect": "Perfective",
+    "verbClass": "-eć"
+  },
+  {
+    "id": "odwiedzac",
+    "infinitive": "odwiedzać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "odwiedzic",
+    "infinitive": "odwiedzić",
+    "aspect": "Perfective",
+    "verbClass": "-ić"
+  },
+  {
+    "id": "ogladac",
+    "infinitive": "oglądać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "opowiadac",
+    "infinitive": "opowiadać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "opowiedziec",
+    "infinitive": "opowiedzieć",
+    "aspect": "Perfective",
+    "verbClass": "-eć"
+  },
+  {
+    "id": "otwierac",
+    "infinitive": "otwierać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "otworzyc",
+    "infinitive": "otworzyć",
+    "aspect": "Perfective",
+    "verbClass": "-yć"
+  },
+  {
+    "id": "padac",
+    "infinitive": "padać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "pamietac",
+    "infinitive": "pamiętać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "patrzec",
+    "infinitive": "patrzeć",
+    "aspect": "Imperfective",
+    "verbClass": "-eć"
+  },
+  {
+    "id": "pic",
+    "infinitive": "pić",
+    "aspect": "Imperfective",
+    "verbClass": "-ić"
   },
   {
     "id": "pisac",
@@ -66,10 +402,166 @@
     "verbClass": "-ać"
   },
   {
+    "id": "placic",
+    "infinitive": "płacić",
+    "aspect": "Imperfective",
+    "verbClass": "-ić"
+  },
+  {
+    "id": "plywac",
+    "infinitive": "pływać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "pobawic-sie",
+    "infinitive": "pobawić się",
+    "aspect": "Perfective",
+    "verbClass": "-ić"
+  },
+  {
+    "id": "poczekac",
+    "infinitive": "poczekać",
+    "aspect": "Perfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "poczuc",
+    "infinitive": "poczuć",
+    "aspect": "Perfective",
+    "verbClass": "Irregular"
+  },
+  {
+    "id": "poczuc-sie",
+    "infinitive": "poczuć się",
+    "aspect": "Perfective",
+    "verbClass": "Irregular"
+  },
+  {
+    "id": "podac",
+    "infinitive": "podać",
+    "aspect": "Perfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "podawac",
+    "infinitive": "podawać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "podziekowac",
+    "infinitive": "podziękować",
+    "aspect": "Perfective",
+    "verbClass": "-ować"
+  },
+  {
+    "id": "pojechac",
+    "infinitive": "pojechać",
+    "aspect": "Perfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "pokazac",
+    "infinitive": "pokazać",
+    "aspect": "Perfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "pokazywac",
+    "infinitive": "pokazywać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "poleciec",
+    "infinitive": "polecieć",
+    "aspect": "Perfective",
+    "verbClass": "-eć"
+  },
+  {
+    "id": "polubic",
+    "infinitive": "polubić",
+    "aspect": "Perfective",
+    "verbClass": "-ić"
+  },
+  {
+    "id": "polozyc",
+    "infinitive": "położyć",
+    "aspect": "Perfective",
+    "verbClass": "-yć"
+  },
+  {
+    "id": "pomagac",
+    "infinitive": "pomagać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "pomoc",
+    "infinitive": "pomóc",
+    "aspect": "Perfective",
+    "verbClass": "Irregular"
+  },
+  {
+    "id": "pomyslec",
+    "infinitive": "pomyśleć",
+    "aspect": "Perfective",
+    "verbClass": "-eć"
+  },
+  {
+    "id": "poprosic",
+    "infinitive": "poprosić",
+    "aspect": "Perfective",
+    "verbClass": "-ić"
+  },
+  {
+    "id": "poprowadzic",
+    "infinitive": "poprowadzić",
+    "aspect": "Perfective",
+    "verbClass": "-ić"
+  },
+  {
+    "id": "porozmawiac",
+    "infinitive": "porozmawiać",
+    "aspect": "Perfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "posluchac",
+    "infinitive": "posłuchać",
+    "aspect": "Perfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "posprzatac",
+    "infinitive": "posprzątać",
+    "aspect": "Perfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "potrzebowac",
+    "infinitive": "potrzebować",
+    "aspect": "Imperfective",
+    "verbClass": "-ować"
+  },
+  {
     "id": "powiedziec",
     "infinitive": "powiedzieć",
     "aspect": "Perfective",
     "verbClass": "-eć"
+  },
+  {
+    "id": "pozwalac",
+    "infinitive": "pozwalać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "pozwolic",
+    "infinitive": "pozwolić",
+    "aspect": "Perfective",
+    "verbClass": "-ić"
   },
   {
     "id": "pojsc",
@@ -78,10 +570,376 @@
     "verbClass": "Irregular"
   },
   {
+    "id": "pracowac",
+    "infinitive": "pracować",
+    "aspect": "Imperfective",
+    "verbClass": "-ować"
+  },
+  {
+    "id": "proponowac",
+    "infinitive": "proponować",
+    "aspect": "Imperfective",
+    "verbClass": "-ować"
+  },
+  {
+    "id": "prosic",
+    "infinitive": "prosić",
+    "aspect": "Imperfective",
+    "verbClass": "-ić"
+  },
+  {
+    "id": "prowadzic",
+    "infinitive": "prowadzić",
+    "aspect": "Imperfective",
+    "verbClass": "-ić"
+  },
+  {
+    "id": "probowac",
+    "infinitive": "próbować",
+    "aspect": "Imperfective",
+    "verbClass": "-ować"
+  },
+  {
+    "id": "przeczytac",
+    "infinitive": "przeczytać",
+    "aspect": "Perfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "przepraszac",
+    "infinitive": "przepraszać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "przeprosic",
+    "infinitive": "przeprosić",
+    "aspect": "Perfective",
+    "verbClass": "-ić"
+  },
+  {
+    "id": "przestac",
+    "infinitive": "przestać",
+    "aspect": "Perfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "przestawac",
+    "infinitive": "przestawać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "przetlumaczyc",
+    "infinitive": "przetłumaczyć",
+    "aspect": "Perfective",
+    "verbClass": "-yć"
+  },
+  {
+    "id": "przychodzic",
+    "infinitive": "przychodzić",
+    "aspect": "Imperfective",
+    "verbClass": "-ić"
+  },
+  {
+    "id": "przygotowac",
+    "infinitive": "przygotować",
+    "aspect": "Perfective",
+    "verbClass": "-ować"
+  },
+  {
+    "id": "przygotowywac",
+    "infinitive": "przygotowywać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "przyjechac",
+    "infinitive": "przyjechać",
+    "aspect": "Perfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "przyjezdzac",
+    "infinitive": "przyjeżdżać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "przyjsc",
+    "infinitive": "przyjść",
+    "aspect": "Perfective",
+    "verbClass": "Irregular"
+  },
+  {
+    "id": "pytac",
+    "infinitive": "pytać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
     "id": "robic",
     "infinitive": "robić",
     "aspect": "Imperfective",
     "verbClass": "-ić"
+  },
+  {
+    "id": "rozmawiac",
+    "infinitive": "rozmawiać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "rozumiec",
+    "infinitive": "rozumieć",
+    "aspect": "Imperfective",
+    "verbClass": "-eć"
+  },
+  {
+    "id": "siadac",
+    "infinitive": "siadać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "siedziec",
+    "infinitive": "siedzieć",
+    "aspect": "Imperfective",
+    "verbClass": "-eć"
+  },
+  {
+    "id": "skonczyc",
+    "infinitive": "skończyć",
+    "aspect": "Perfective",
+    "verbClass": "-yć"
+  },
+  {
+    "id": "sluchac",
+    "infinitive": "słuchać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "slyszec",
+    "infinitive": "słyszeć",
+    "aspect": "Imperfective",
+    "verbClass": "-eć"
+  },
+  {
+    "id": "spac",
+    "infinitive": "spać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "spojrzec",
+    "infinitive": "spojrzeć",
+    "aspect": "Perfective",
+    "verbClass": "-eć"
+  },
+  {
+    "id": "spotkac",
+    "infinitive": "spotkać",
+    "aspect": "Perfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "spotykac",
+    "infinitive": "spotykać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "sprawdzac",
+    "infinitive": "sprawdzać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "sprawdzic",
+    "infinitive": "sprawdzić",
+    "aspect": "Perfective",
+    "verbClass": "-ić"
+  },
+  {
+    "id": "sprobowac",
+    "infinitive": "spróbować",
+    "aspect": "Perfective",
+    "verbClass": "-ować"
+  },
+  {
+    "id": "sprzatac",
+    "infinitive": "sprzątać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "sprzedac",
+    "infinitive": "sprzedać",
+    "aspect": "Perfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "sprzedawac",
+    "infinitive": "sprzedawać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "stac",
+    "infinitive": "stać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "stracic",
+    "infinitive": "stracić",
+    "aspect": "Perfective",
+    "verbClass": "-ić"
+  },
+  {
+    "id": "studiowac",
+    "infinitive": "studiować",
+    "aspect": "Imperfective",
+    "verbClass": "-ować"
+  },
+  {
+    "id": "szukac",
+    "infinitive": "szukać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "smiac-sie",
+    "infinitive": "śmiać się",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "spiewac",
+    "infinitive": "śpiewać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "tlumaczyc",
+    "infinitive": "tłumaczyć",
+    "aspect": "Imperfective",
+    "verbClass": "-yć"
+  },
+  {
+    "id": "tracic",
+    "infinitive": "tracić",
+    "aspect": "Imperfective",
+    "verbClass": "-ić"
+  },
+  {
+    "id": "ubierac-sie",
+    "infinitive": "ubierać się",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "ubrac-sie",
+    "infinitive": "ubrać się",
+    "aspect": "Perfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "ucieszyc-sie",
+    "infinitive": "ucieszyć się",
+    "aspect": "Perfective",
+    "verbClass": "-yć"
+  },
+  {
+    "id": "uczyc",
+    "infinitive": "uczyć",
+    "aspect": "Imperfective",
+    "verbClass": "-yć"
+  },
+  {
+    "id": "uczyc-sie",
+    "infinitive": "uczyć się",
+    "aspect": "Imperfective",
+    "verbClass": "-yć"
+  },
+  {
+    "id": "ugotowac",
+    "infinitive": "ugotować",
+    "aspect": "Perfective",
+    "verbClass": "-ować"
+  },
+  {
+    "id": "umiec",
+    "infinitive": "umieć",
+    "aspect": "Imperfective",
+    "verbClass": "-eć"
+  },
+  {
+    "id": "umierac",
+    "infinitive": "umierać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "umrzec",
+    "infinitive": "umrzeć",
+    "aspect": "Perfective",
+    "verbClass": "-eć"
+  },
+  {
+    "id": "umyc",
+    "infinitive": "umyć",
+    "aspect": "Perfective",
+    "verbClass": "-yć"
+  },
+  {
+    "id": "usiasc",
+    "infinitive": "usiąść",
+    "aspect": "Perfective",
+    "verbClass": "Irregular"
+  },
+  {
+    "id": "uslyszec",
+    "infinitive": "usłyszeć",
+    "aspect": "Perfective",
+    "verbClass": "-eć"
+  },
+  {
+    "id": "uwierzyc",
+    "infinitive": "uwierzyć",
+    "aspect": "Perfective",
+    "verbClass": "-yć"
+  },
+  {
+    "id": "uzyc",
+    "infinitive": "użyć",
+    "aspect": "Perfective",
+    "verbClass": "-yć"
+  },
+  {
+    "id": "uzywac",
+    "infinitive": "używać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "wchodzic",
+    "infinitive": "wchodzić",
+    "aspect": "Imperfective",
+    "verbClass": "-ić"
+  },
+  {
+    "id": "wejsc",
+    "infinitive": "wejść",
+    "aspect": "Perfective",
+    "verbClass": "Irregular"
+  },
+  {
+    "id": "widziec",
+    "infinitive": "widzieć",
+    "aspect": "Imperfective",
+    "verbClass": "-eć"
   },
   {
     "id": "wiedziec",
@@ -90,9 +948,351 @@
     "verbClass": "Irregular"
   },
   {
+    "id": "wierzyc",
+    "infinitive": "wierzyć",
+    "aspect": "Imperfective",
+    "verbClass": "-yć"
+  },
+  {
+    "id": "wlaczac",
+    "infinitive": "włączać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "wlaczyc",
+    "infinitive": "włączyć",
+    "aspect": "Perfective",
+    "verbClass": "-yć"
+  },
+  {
+    "id": "wolec",
+    "infinitive": "woleć",
+    "aspect": "Imperfective",
+    "verbClass": "-eć"
+  },
+  {
+    "id": "wracac",
+    "infinitive": "wracać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "wrocic",
+    "infinitive": "wrócić",
+    "aspect": "Perfective",
+    "verbClass": "-ić"
+  },
+  {
+    "id": "wstac",
+    "infinitive": "wstać",
+    "aspect": "Perfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "wstawac",
+    "infinitive": "wstawać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "wybierac",
+    "infinitive": "wybierać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "wybrac",
+    "infinitive": "wybrać",
+    "aspect": "Perfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "wychodzic",
+    "infinitive": "wychodzić",
+    "aspect": "Imperfective",
+    "verbClass": "-ić"
+  },
+  {
+    "id": "wydac",
+    "infinitive": "wydać",
+    "aspect": "Perfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "wydawac",
+    "infinitive": "wydawać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "wygrac",
+    "infinitive": "wygrać",
+    "aspect": "Perfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "wygrywac",
+    "infinitive": "wygrywać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "wyjechac",
+    "infinitive": "wyjechać",
+    "aspect": "Perfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "wyjezdzac",
+    "infinitive": "wyjeżdżać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "wyjsc",
+    "infinitive": "wyjść",
+    "aspect": "Perfective",
+    "verbClass": "Irregular"
+  },
+  {
+    "id": "wypic",
+    "infinitive": "wypić",
+    "aspect": "Perfective",
+    "verbClass": "-ić"
+  },
+  {
+    "id": "wyslac",
+    "infinitive": "wysłać",
+    "aspect": "Perfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "wysylac",
+    "infinitive": "wysyłać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "wziac",
+    "infinitive": "wziąć",
+    "aspect": "Perfective",
+    "verbClass": "Irregular"
+  },
+  {
+    "id": "zaczac",
+    "infinitive": "zacząć",
+    "aspect": "Perfective",
+    "verbClass": "Irregular"
+  },
+  {
+    "id": "zaczynac",
+    "infinitive": "zaczynać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "zadzwonic",
+    "infinitive": "zadzwonić",
+    "aspect": "Perfective",
+    "verbClass": "-ić"
+  },
+  {
+    "id": "zagrac",
+    "infinitive": "zagrać",
+    "aspect": "Perfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "zamawiac",
+    "infinitive": "zamawiać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "zamknac",
+    "infinitive": "zamknąć",
+    "aspect": "Perfective",
+    "verbClass": "Irregular"
+  },
+  {
+    "id": "zamowic",
+    "infinitive": "zamówić",
+    "aspect": "Perfective",
+    "verbClass": "-ić"
+  },
+  {
+    "id": "zamykac",
+    "infinitive": "zamykać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "zaplacic",
+    "infinitive": "zapłacić",
+    "aspect": "Perfective",
+    "verbClass": "-ić"
+  },
+  {
+    "id": "zapominac",
+    "infinitive": "zapominać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "zapomniec",
+    "infinitive": "zapomnieć",
+    "aspect": "Perfective",
+    "verbClass": "-eć"
+  },
+  {
+    "id": "zapraszac",
+    "infinitive": "zapraszać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "zaproponowac",
+    "infinitive": "zaproponować",
+    "aspect": "Perfective",
+    "verbClass": "-ować"
+  },
+  {
+    "id": "zaprosic",
+    "infinitive": "zaprosić",
+    "aspect": "Perfective",
+    "verbClass": "-ić"
+  },
+  {
+    "id": "zapytac",
+    "infinitive": "zapytać",
+    "aspect": "Perfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "zarabiac",
+    "infinitive": "zarabiać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "zarobic",
+    "infinitive": "zarobić",
+    "aspect": "Perfective",
+    "verbClass": "-ić"
+  },
+  {
+    "id": "zasmiac-sie",
+    "infinitive": "zaśmiać się",
+    "aspect": "Perfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "zaspiewac",
+    "infinitive": "zaśpiewać",
+    "aspect": "Perfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "zdecydowac",
+    "infinitive": "zdecydować",
+    "aspect": "Perfective",
+    "verbClass": "-ować"
+  },
+  {
+    "id": "zgadzac-sie",
+    "infinitive": "zgadzać się",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "zgodzic-sie",
+    "infinitive": "zgodzić się",
+    "aspect": "Perfective",
+    "verbClass": "-ić"
+  },
+  {
+    "id": "zjesc",
+    "infinitive": "zjeść",
+    "aspect": "Perfective",
+    "verbClass": "Irregular"
+  },
+  {
+    "id": "zmieniac",
+    "infinitive": "zmieniać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "zmienic",
+    "infinitive": "zmienić",
+    "aspect": "Perfective",
+    "verbClass": "-ić"
+  },
+  {
+    "id": "znac",
+    "infinitive": "znać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "znajdowac",
+    "infinitive": "znajdować",
+    "aspect": "Imperfective",
+    "verbClass": "-ować"
+  },
+  {
+    "id": "znalezc",
+    "infinitive": "znaleźć",
+    "aspect": "Perfective",
+    "verbClass": "Irregular"
+  },
+  {
+    "id": "zobaczyc",
+    "infinitive": "zobaczyć",
+    "aspect": "Perfective",
+    "verbClass": "-yć"
+  },
+  {
+    "id": "zostac",
+    "infinitive": "zostać",
+    "aspect": "Perfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "zostawac",
+    "infinitive": "zostawać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "zostawiac",
+    "infinitive": "zostawiać",
+    "aspect": "Imperfective",
+    "verbClass": "-ać"
+  },
+  {
+    "id": "zostawic",
+    "infinitive": "zostawić",
+    "aspect": "Perfective",
+    "verbClass": "-ić"
+  },
+  {
     "id": "zrobic",
     "infinitive": "zrobić",
     "aspect": "Perfective",
     "verbClass": "-ić"
+  },
+  {
+    "id": "zrozumiec",
+    "infinitive": "zrozumieć",
+    "aspect": "Perfective",
+    "verbClass": "-eć"
+  },
+  {
+    "id": "zyc",
+    "infinitive": "żyć",
+    "aspect": "Imperfective",
+    "verbClass": "-yć"
   }
 ]
