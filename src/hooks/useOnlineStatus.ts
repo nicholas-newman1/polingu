@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { syncAllPendingToFirestore } from '../lib/offlineDb/userDataWrapper';
+import { liveQuery } from 'dexie';
+import { countPendingChanges, syncAllPendingToFirestore } from '../lib/offlineDb/userDataWrapper';
 import { syncContentFromFirestore } from '../lib/offlineDb/contentSync';
 
 const SYNC_TIMEOUT_MS = 10000;
@@ -34,17 +35,25 @@ export function useOnlineStatus(): UseOnlineStatusReturn {
       const timeout = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error('Sync timed out')), SYNC_TIMEOUT_MS)
       );
-      const [syncedCount] = await Promise.race([
+      await Promise.race([
         Promise.all([syncAllPendingToFirestore(), syncContentFromFirestore()]),
         timeout,
       ]);
-      setPendingSyncCount((prev) => Math.max(0, prev - syncedCount));
     } catch (e) {
       console.error('Sync failed:', e);
     } finally {
       isSyncingRef.current = false;
       setIsSyncing(false);
     }
+  }, []);
+
+  // Counted straight from IndexedDB, so it follows every save, sync and sign-out.
+  useEffect(() => {
+    const subscription = liveQuery(countPendingChanges).subscribe({
+      next: setPendingSyncCount,
+      error: (e) => console.error('Failed to count pending changes:', e),
+    });
+    return () => subscription.unsubscribe();
   }, []);
 
   useEffect(() => {

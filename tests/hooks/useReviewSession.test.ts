@@ -340,13 +340,7 @@ describe('stepping back through history', () => {
     expect(h.session().isFinished).toBe(true);
   });
 
-  // BUG: reassess() always records `completed: false`, so a card first rated Again and then
-  // re-rated Good from history leaves the session without being added to reviewedToday.
-  // A rated-Good learning card is normally done for the day, but this one is still in the
-  // Learning state and not marked reviewed, so any rebuild (direction switch and back,
-  // reload, rebuildSession) brings it straight back. Expected: the rebuilt session is
-  // empty, as it is when the card is rated Good directly. Actual: card A is served again.
-  test.fails('a card re-rated Good after Again stays out of a rebuilt session', async () => {
+  test('a card re-rated Good after Again stays out of a rebuilt session', async () => {
     const h = renderReviewSession({ words: makeWords('A', 'B') });
     await h.settle();
     h.rate(Rating.Again);
@@ -456,15 +450,7 @@ describe('saving reviews', () => {
     expect(saved.cards.A.fsrsCard.reps).toBe(1);
   });
 
-  // BUG: while a rating waits out the 460 ms save delay, useDeferredReviewSave ignores any
-  // new reviewStore from the parent and later saves the pending rating on top of the
-  // store it had before. The background sync replaces the stores whenever the tab
-  // regains focus, so a sync that lands within 460 ms of a rating is overwritten: the
-  // review contexts diff the saved store against the synced one, so reviews made on
-  // another device are reverted and cards first studied there are deleted from the
-  // server (saveCardsDiff deletes ids missing from the new store).
-  // Expected: the saved store has both the rating and the synced card X. Actual: X is gone.
-  test.fails('a store update that lands while a rating waits to be saved is kept', async () => {
+  test('a store update that lands while a rating waits to be saved is kept', async () => {
     const h = renderReviewSession({ words: makeWords('A', 'B') });
     await h.settle();
     h.rate(Rating.Good);
@@ -558,51 +544,36 @@ describe('rebuilding and extra rounds', () => {
     expect(lastSaved(h.saves).newCardsToday).toEqual(['A', 'B']);
   });
 
-  // BUG: startExtraNewCards() flushes the pending save but then builds the round from
-  // `options.getExtraNewCards`, a closure over the reviewStore of the current render, which
-  // does not include that save yet (rebuildSession avoids this by waiting a render).
-  // Tapping "learn more" within the 460 ms save delay after the last rating offers the
-  // card just learned again as a new card, with its pre-review FSRS state; rating it
-  // overwrites the review just saved. Expected: only B is offered. Actual: A, then B.
-  test.fails(
-    'learning extra right after the last rating does not offer the card just learned',
-    async () => {
-      const h = renderReviewSession({ words: makeWords('A', 'B'), newCardsPerDay: 1 });
-      await h.settle();
-      h.rate(Rating.Good);
+  test('learning extra right after the last rating does not offer the card just learned', async () => {
+    const h = renderReviewSession({ words: makeWords('A', 'B'), newCardsPerDay: 1 });
+    await h.settle();
+    h.rate(Rating.Good);
 
-      act(() => h.session().finishedStateProps.onLearnExtra());
+    act(() => h.session().finishedStateProps.onLearnExtra());
 
-      expect(h.currentId()).toBe('B');
-      expect(h.session().totalRemaining).toBe(1);
-    }
-  );
+    expect(h.currentId()).toBe('B');
+    expect(h.session().totalRemaining).toBe(1);
+  });
 
-  // BUG: same stale closure as above, in startPracticeAhead(). Starting another practice
-  // round within the save delay offers the card just reviewed early again, because the
-  // store it is chosen from does not have it in reviewedToday yet. Expected: P. Actual: Q.
-  test.fails(
-    'another practice round right after the last rating does not repeat that card',
-    async () => {
-      const h = renderReviewSession({
-        words: makeWords('P', 'Q'),
-        stores: {
-          'pl-to-en': emptyStore({
-            cards: Object.fromEntries([entry('P', reviewCard(5)), entry('Q', reviewCard(2))]),
-          }),
-        },
-      });
-      await h.settle();
-      act(() => h.session().finishedStateProps.setPracticeAheadCount(1));
-      act(() => h.session().finishedStateProps.onPracticeAhead());
-      expect(h.currentId()).toBe('Q');
-      h.rate(Rating.Good);
+  test('another practice round right after the last rating does not repeat that card', async () => {
+    const h = renderReviewSession({
+      words: makeWords('P', 'Q'),
+      stores: {
+        'pl-to-en': emptyStore({
+          cards: Object.fromEntries([entry('P', reviewCard(5)), entry('Q', reviewCard(2))]),
+        }),
+      },
+    });
+    await h.settle();
+    act(() => h.session().finishedStateProps.setPracticeAheadCount(1));
+    act(() => h.session().finishedStateProps.onPracticeAhead());
+    expect(h.currentId()).toBe('Q');
+    h.rate(Rating.Good);
 
-      act(() => h.session().finishedStateProps.onPracticeAhead());
+    act(() => h.session().finishedStateProps.onPracticeAhead());
 
-      expect(h.currentId()).toBe('P');
-    }
-  );
+    expect(h.currentId()).toBe('P');
+  });
 });
 
 describe('editing cards mid-session', () => {

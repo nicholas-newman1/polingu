@@ -5,6 +5,7 @@ interface UserDataRecord {
   data: unknown;
   lastModified: number;
   pendingSync: number; // 1 = needs sync, 0 = synced (using number for indexing)
+  deleted?: number; // 1 = deleted locally; the delete is queued for Firestore while pending
 }
 
 export type CustomCardCollection = 'customSentences' | 'customVocabulary' | 'customDeclension';

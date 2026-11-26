@@ -87,7 +87,10 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
     sessionKey: currentDirection,
     getSessionCards: () =>
       getConjugationSessionCards(verbs, reviewStore, filters, directionSettings),
-    ...getConjugationExtraCards(verbs, reviewStore, filters),
+    getPracticeAheadCards: (count, store) =>
+      getConjugationExtraCards(verbs, store, filters).getPracticeAheadCards(count),
+    getExtraNewCards: (count, store) =>
+      getConjugationExtraCards(verbs, store, filters).getExtraNewCards(count),
     reviewStore,
     recordReview: recordFormReview,
     saveReviewStore: (store) => updateConjugationReviewStore(currentDirection, store),

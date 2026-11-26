@@ -1,6 +1,7 @@
 import type { SentenceReviewDataStore } from '../../types/sentences';
 import type { TranslationDirection } from '../../types/common';
 import forgetCard from '../fsrsUtils/forgetCard';
+import { removeFromDayLists } from '../reviewSession/sessionLists';
 
 export function canReprioritizeSentence(
   stores: Record<TranslationDirection, SentenceReviewDataStore>,
@@ -22,10 +23,6 @@ export default function reprioritizeSentence(
   if (!entry || entry.fsrsCard.state === 0) {
     return store;
   }
-  return {
-    ...store,
-    cards: { ...store.cards, [sentenceId]: forgetCard(entry, now) },
-    reviewedToday: store.reviewedToday.filter((id) => id !== sentenceId),
-    newCardsToday: store.newCardsToday.filter((id) => id !== sentenceId),
-  };
+  const forgotten = { ...store, cards: { ...store.cards, [sentenceId]: forgetCard(entry, now) } };
+  return removeFromDayLists(forgotten, sentenceId, now.getTime());
 }

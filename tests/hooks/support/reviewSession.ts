@@ -90,8 +90,9 @@ export function renderReviewSession({
       ready,
       sessionKey: direction,
       getSessionCards: () => getVocabularySessionCards(words, store, { newCardsPerDay }),
-      getPracticeAheadCards: (count) => getVocabularyPracticeAheadCards(words, store, count),
-      getExtraNewCards: (count) => getVocabularyExtraNewCards(words, store, count),
+      getPracticeAheadCards: (count, current) =>
+        getVocabularyPracticeAheadCards(words, current, count),
+      getExtraNewCards: (count, current) => getVocabularyExtraNewCards(words, current, count),
       reviewStore: store,
       recordReview: recordCardReview,
       saveReviewStore: async (next) => {

@@ -97,9 +97,9 @@ export function SentencesPage({ mode }: SentencesPageProps) {
     sessionKey: currentDirection,
     getSessionCards: () =>
       getSentenceSessionCards(filteredSentences, reviewStore, directionSettings),
-    getPracticeAheadCards: (count) =>
-      getSentencePracticeAheadCards(filteredSentences, reviewStore, count),
-    getExtraNewCards: (count) => getSentenceExtraNewCards(filteredSentences, reviewStore, count),
+    getPracticeAheadCards: (count, store) =>
+      getSentencePracticeAheadCards(filteredSentences, store, count),
+    getExtraNewCards: (count, store) => getSentenceExtraNewCards(filteredSentences, store, count),
     reviewStore,
     recordReview: recordCardReview,
     saveReviewStore: (store) => updateSentenceReviewStore(currentDirection, store),

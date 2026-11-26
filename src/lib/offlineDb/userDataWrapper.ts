@@ -8,10 +8,18 @@
  * - REFRESH: Background-refresh all cached data from Firestore after initial load
  */
 
-import { doc, getDoc, runTransaction, setDoc } from 'firebase/firestore';
+import { deleteDoc, doc, getDoc, runTransaction, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { userDb } from './userDb';
 import { getUserId, REVIEW_SESSION_DOC_PATHS } from '../storage/helpers';
+import { mergeSessionDocs } from '../reviewSession/sessionLists';
+import {
+  markSyncedIfUnchanged,
+  PENDING_CLEAR_KEY_PREFIX,
+  removeIfUnchanged,
+  type WrittenRow,
+} from './pendingWrites';
+import { syncPendingCustomCards } from '../storage/createCustomCollectionStorage';
 
 /**
  * Legacy single-document review data keys. These were per-user docs that held
@@ -37,33 +45,6 @@ export async function cleanupLegacyReviewUserDataRows(): Promise<void> {
   );
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-/**
- * Combine a session doc with the server's copy. On the same day the two devices
- * have each seen a different subset of the day's cards, so the arrays are
- * unioned; when the dates differ the later date wins outright because a new day
- * resets the counters.
- */
-function mergeSessionData(server: unknown, local: unknown): unknown {
-  if (!isRecord(server) || !isRecord(local)) return local;
-
-  const serverDate = typeof server.lastReviewDate === 'string' ? server.lastReviewDate : '';
-  const localDate = typeof local.lastReviewDate === 'string' ? local.lastReviewDate : '';
-  if (serverDate !== localDate) return localDate >= serverDate ? local : server;
-
-  const merged: Record<string, unknown> = { ...server, ...local };
-  for (const [key, localValue] of Object.entries(local)) {
-    const serverValue = server[key];
-    if (Array.isArray(localValue) && Array.isArray(serverValue)) {
-      merged[key] = Array.from(new Set([...serverValue, ...localValue]));
-    }
-  }
-  return merged;
-}
-
 /**
  * Write a session doc without discarding counters another device recorded for
  * the same day. Returns the value that actually landed on the server so the
@@ -73,10 +54,39 @@ async function writeSessionData(userId: string, docPath: string, data: unknown):
   const docRef = doc(db, 'users', userId, 'data', docPath);
   return runTransaction(db, async (tx) => {
     const snap = await tx.get(docRef);
-    const merged = snap.exists() ? mergeSessionData(snap.data(), data) : data;
+    const merged = snap.exists() ? mergeSessionDocs(snap.data(), data) : data;
     tx.set(docRef, merged as object);
     return merged;
   });
+}
+
+/**
+ * Push one cached row to Firestore and clear its pending flag, unless it was saved
+ * again while the upload was in flight (that newer save stays pending).
+ */
+async function pushRow(userId: string, key: string, written: WrittenRow & { deleted?: number }) {
+  const docRef = doc(db, 'users', userId, 'data', key);
+
+  if (written.deleted === 1) {
+    await deleteDoc(docRef);
+    await removeIfUnchanged(userDb.userData, key, written);
+    return;
+  }
+
+  if (REVIEW_SESSION_DOC_PATHS.has(key)) {
+    const merged = await writeSessionData(userId, key, written.data);
+    // Bring the cache in line with what landed on the server, unless a newer
+    // save is waiting: that one is merged with the server when it syncs.
+    await userDb.transaction('rw', userDb.userData, async () => {
+      const row = await userDb.userData.get(key);
+      if (row && (row.lastModified !== written.lastModified || row.pendingSync !== 1)) return;
+      await userDb.userData.put({ key, data: merged, lastModified: Date.now(), pendingSync: 0 });
+    });
+    return;
+  }
+
+  await setDoc(docRef, written.data as object);
+  await markSyncedIfUnchanged(userDb.userData, key, written);
 }
 
 /**
@@ -93,34 +103,42 @@ export async function saveUserData<T>(
   const userId = getUserId();
   if (!userId) return;
 
-  const serializedData = serialize ? serialize(data) : data;
-
-  await userDb.userData.put({
+  const record = {
     key: docPath,
-    data: serializedData,
+    data: serialize ? serialize(data) : data,
     lastModified: Date.now(),
     pendingSync: 1,
-  });
+  };
+  await userDb.userData.put(record);
 
   if (!navigator.onLine) return;
 
   try {
-    if (REVIEW_SESSION_DOC_PATHS.has(docPath)) {
-      const merged = await writeSessionData(userId, docPath, serializedData);
-      await userDb.userData.put({
-        key: docPath,
-        data: merged,
-        lastModified: Date.now(),
-        pendingSync: 0,
-      });
-      return;
-    }
-
-    const docRef = doc(db, 'users', userId, 'data', docPath);
-    await setDoc(docRef, serializedData as object);
-    await userDb.userData.update(docPath, { pendingSync: 0 });
+    await pushRow(userId, docPath, record);
   } catch (e) {
     console.error(`Failed to sync ${docPath} to Firestore:`, e);
+    throw e;
+  }
+}
+
+/**
+ * Deletes a user doc here and on the server. Offline, or if the server cannot be
+ * reached, the delete is queued like any other change, and loads return the
+ * default value meanwhile rather than the deleted data.
+ */
+export async function deleteUserData(docPath: string): Promise<void> {
+  const userId = getUserId();
+  if (!userId) return;
+
+  const record = { key: docPath, data: null, lastModified: Date.now(), pendingSync: 1, deleted: 1 };
+  await userDb.userData.put(record);
+
+  if (!navigator.onLine) return;
+
+  try {
+    await pushRow(userId, docPath, record);
+  } catch (e) {
+    console.error(`Failed to delete ${docPath} from Firestore:`, e);
     throw e;
   }
 }
@@ -138,6 +156,7 @@ export async function loadUserData<T>(
   if (!userId) return defaultValue;
 
   const localRecord = await userDb.userData.get(docPath);
+  if (localRecord?.deleted === 1) return defaultValue;
   if (localRecord) {
     return deserialize ? deserialize(localRecord.data) : (localRecord.data as T);
   }
@@ -180,14 +199,19 @@ export async function refreshAllUserDataFromFirestore(): Promise<void> {
       try {
         const docRef = doc(db, 'users', userId, 'data', record.key);
         const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
+        if (!docSnap.exists()) return;
+        // Leave the row alone if it was saved while the fetch was in flight.
+        await userDb.transaction('rw', userDb.userData, async () => {
+          const current = await userDb.userData.get(record.key);
+          if (!current || current.pendingSync === 1) return;
+          if (current.lastModified !== record.lastModified) return;
           await userDb.userData.put({
             key: record.key,
             data: docSnap.data(),
             lastModified: Date.now(),
             pendingSync: 0,
           });
-        }
+        });
       } catch (e) {
         console.error(`Background refresh failed for ${record.key}:`, e);
       }
@@ -196,8 +220,8 @@ export async function refreshAllUserDataFromFirestore(): Promise<void> {
 }
 
 /**
- * Sync all pending user data to Firestore
- * Call this when coming back online
+ * Sync all pending user data to Firestore: user docs and custom items.
+ * Call this when coming back online. Returns how many changes were synced.
  */
 export async function syncAllPendingToFirestore(): Promise<number> {
   const userId = getUserId();
@@ -210,24 +234,27 @@ export async function syncAllPendingToFirestore(): Promise<number> {
 
   for (const record of pending) {
     try {
-      if (REVIEW_SESSION_DOC_PATHS.has(record.key)) {
-        const merged = await writeSessionData(userId, record.key, record.data);
-        await userDb.userData.put({
-          key: record.key,
-          data: merged,
-          lastModified: Date.now(),
-          pendingSync: 0,
-        });
-      } else {
-        const docRef = doc(db, 'users', userId, 'data', record.key);
-        await setDoc(docRef, record.data as object);
-        await userDb.userData.update(record.key, { pendingSync: 0 });
-      }
+      await pushRow(userId, record.key, record);
       synced++;
     } catch (e) {
       console.error(`Failed to sync ${record.key}:`, e);
     }
   }
 
-  return synced;
+  return synced + (await syncPendingCustomCards());
+}
+
+/** How many local changes are waiting to reach the server, across every kind of user data. */
+export async function countPendingChanges(): Promise<number> {
+  const [userData, reviewCards, customCards] = await Promise.all([
+    userDb.userData.where('pendingSync').equals(1).toArray(),
+    userDb.reviewCards.where('pendingSync').equals(1).count(),
+    userDb.customCards.where('pendingSync').equals(1).count(),
+  ]);
+  const pendingResets = await userDb.userData
+    .where('key')
+    .startsWith(PENDING_CLEAR_KEY_PREFIX)
+    .count();
+  const docs = userData.filter((r) => !LEGACY_REVIEW_USER_DATA_KEYS.has(r.key)).length;
+  return docs + reviewCards + customCards + pendingResets;
 }

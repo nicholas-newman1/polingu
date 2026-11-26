@@ -2,6 +2,7 @@ import type { AspectPairsReviewDataStore } from '../../types/aspectPairs';
 import { getDefaultAspectPairsReviewStore, ASPECT_PAIRS_SESSION_DOC_PATH } from './helpers';
 import { aspectPairsReviewStorage } from './aspectPairsReviewStorage';
 import loadDailyReviewSession from './loadDailyReviewSession';
+import type { SessionChanges } from '../../types/common';
 
 export default async function loadAspectPairsReviewData(): Promise<AspectPairsReviewDataStore> {
   const { reviewedToday, newCardsToday, lastReviewDate } = getDefaultAspectPairsReviewStore();
@@ -12,6 +13,7 @@ export default async function loadAspectPairsReviewData(): Promise<AspectPairsRe
       reviewedToday,
       newCardsToday,
       lastReviewDate,
+      changedAt: undefined as SessionChanges | undefined,
     }
   );
 
@@ -20,5 +22,6 @@ export default async function loadAspectPairsReviewData(): Promise<AspectPairsRe
     reviewedToday: session.reviewedToday,
     newCardsToday: session.newCardsToday,
     lastReviewDate: session.lastReviewDate,
+    ...(session.changedAt ? { changedAt: session.changedAt } : {}),
   };
 }

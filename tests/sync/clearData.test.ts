@@ -93,13 +93,7 @@ describe('resetting declension progress', () => {
     expect(data('aspectPairsSettings')).toEqual({ newCardsPerDay: 3 });
   });
 
-  // BUG: clearDeclensionData deletes the server's `settings` doc but leaves the
-  // IndexedDB row, and the background refresh ignores docs that no longer exist.
-  // DeclensionContext shows the defaults after a reset, but the next app start
-  // loads the old settings from the cache again. The aspect-pairs, conjugation,
-  // vocabulary and sentence resets leave their local rows behind the same way.
-  // Expected: { newCardsPerDay: 10 } after the reset. Actual: { newCardsPerDay: 25 }.
-  test.fails('settings are back to the defaults after the app is reloaded', async () => {
+  test('settings are back to the defaults after the app is reloaded', async () => {
     freezeTime('2026-11-26T10:00:00-05:00');
     signIn(UID);
     await studyDeclension();
@@ -110,11 +104,7 @@ describe('resetting declension progress', () => {
     expect(await loadDeclensionSettings()).toEqual({ newCardsPerDay: 10 });
   });
 
-  // BUG: same cause: the local `declensionReviewSession` row survives the reset,
-  // so a reload later the same day restores today's counters and the learner's
-  // new-card allowance stays used up although every card was wiped.
-  // Expected: empty counters after the reset. Actual: card 1 still counted.
-  test.fails("today's counters are empty after the app is reloaded the same day", async () => {
+  test("today's counters are empty after the app is reloaded the same day", async () => {
     freezeTime('2026-11-26T10:00:00-05:00');
     signIn(UID);
     await studyDeclension();
@@ -128,12 +118,7 @@ describe('resetting declension progress', () => {
     });
   });
 
-  // BUG: clearDeclensionData catches and only logs failures (so do the vocabulary,
-  // sentence and aspect-pairs variants), so DeclensionContext's showSaveError never
-  // runs: the UI reports a successful reset while the server still holds the cards,
-  // and the next refresh brings them back. clearConjugationData does propagate.
-  // Expected: the promise rejects. Actual: it resolves.
-  test.fails('a reset that fails on the server is reported to the caller', async () => {
+  test('a reset that fails on the server is reported to the caller', async () => {
     freezeTime('2026-11-26T10:00:00-05:00');
     signIn(UID);
     await studyDeclension();
@@ -160,11 +145,7 @@ describe('resetting a feature studied in two directions', () => {
     expect((await loadVocabularyReviewData('pl-to-en')).cards).toEqual({});
   });
 
-  // BUG: same cause as the declension reset: clearVocabularyData deletes the server's
-  // session doc but leaves its IndexedDB row, so a reload the same day restores today's
-  // counters for a direction whose cards were all wiped, and the new-word allowance
-  // stays used up. Expected: empty counters. Actual: word 7 is still counted.
-  test.fails("vocabulary: today's counters are empty after a reset and a reload", async () => {
+  test("vocabulary: today's counters are empty after a reset and a reload", async () => {
     freezeTime('2026-11-26T10:00:00-05:00');
     signIn(UID);
     await studyVocabulary('pl-to-en');

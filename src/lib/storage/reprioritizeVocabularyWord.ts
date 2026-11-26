@@ -1,6 +1,7 @@
 import type { VocabularyReviewDataStore, VocabularyWordId } from '../../types/vocabulary';
 import type { TranslationDirection } from '../../types/common';
 import forgetCard from '../fsrsUtils/forgetCard';
+import { removeFromDayLists } from '../reviewSession/sessionLists';
 
 export function canReprioritizeVocabularyWord(
   stores: Record<TranslationDirection, VocabularyReviewDataStore>,
@@ -24,10 +25,6 @@ export default function reprioritizeVocabularyWord(
   if (!entry || entry.fsrsCard.state === 0) {
     return store;
   }
-  return {
-    ...store,
-    cards: { ...store.cards, [key]: forgetCard(entry, now) },
-    reviewedToday: store.reviewedToday.filter((id) => String(id) !== key),
-    newCardsToday: store.newCardsToday.filter((id) => String(id) !== key),
-  };
+  const forgotten = { ...store, cards: { ...store.cards, [key]: forgetCard(entry, now) } };
+  return removeFromDayLists(forgotten, wordId, now.getTime());
 }

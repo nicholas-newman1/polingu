@@ -2,7 +2,7 @@ import { createContext, useEffect, useState, type ReactNode } from 'react';
 import { signInWithPopup, signOut as firebaseSignOut, onAuthStateChanged } from 'firebase/auth';
 import type { User } from 'firebase/auth';
 import { auth, googleProvider } from '../lib/firebase';
-import { getCachedUser, setCachedUser } from '../lib/cachedAuth';
+import { getCachedUser, getDataOwner, setCachedUser, setDataOwner } from '../lib/cachedAuth';
 import { clearUserData } from '../lib/offlineDb/userSync';
 
 interface AuthContextType {
@@ -35,6 +35,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        // Data cached for another account (left behind when Firebase ended that
+        // session without the app's sign-out) must never be shown to or
+        // uploaded into this one. The same account keeps its unsynced changes.
+        const owner = getDataOwner();
+        if (owner && owner !== firebaseUser.uid) await clearUserData();
+        setDataOwner(firebaseUser.uid);
+      }
       setCachedUser(firebaseUser);
       setUser(firebaseUser);
 
@@ -66,6 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     await firebaseSignOut(auth);
     await clearUserData();
+    setDataOwner(null);
   };
 
   return (

@@ -1,6 +1,7 @@
 import { describe, expect, test, vi } from 'vitest';
 import {
   cleanupLegacyReviewUserDataRows,
+  deleteUserData,
   loadUserData,
   refreshAllUserDataFromFirestore,
   saveUserData,
@@ -186,6 +187,34 @@ describe('draining pending changes', () => {
   });
 });
 
+describe('deleting', () => {
+  test('a doc deleted offline reads as the default and is deleted on the server once back online', async () => {
+    signIn();
+    await saveUserData('appSettings', { autoPlayAudio: true });
+    network.goOffline();
+
+    await deleteUserData('appSettings');
+    expect(await loadUserData('appSettings', 'default')).toBe('default');
+
+    network.goOnline();
+    expect(await syncAllPendingToFirestore()).toBe(1);
+    expect(remote.get(userPath('learner-a', 'data', 'appSettings'))).toBeUndefined();
+    expect(await userDb.userData.get('appSettings')).toBeUndefined();
+  });
+
+  test('a delete the server rejects stays queued and is retried', async () => {
+    signIn();
+    await saveUserData('appSettings', { autoPlayAudio: true });
+    remote.fail({ op: 'deleteDoc' }, { times: 1 });
+
+    await expect(deleteUserData('appSettings')).rejects.toThrow();
+    expect(await loadUserData('appSettings', 'default')).toBe('default');
+
+    expect(await syncAllPendingToFirestore()).toBe(1);
+    expect(remote.get(userPath('learner-a', 'data', 'appSettings'))).toBeUndefined();
+  });
+});
+
 describe('loading', () => {
   test('on a cache miss, fetches from the server and serves later loads offline', async () => {
     signIn(UID);
@@ -311,33 +340,23 @@ describe('background refresh', () => {
     expect(remote.calls).toEqual([]);
   });
 
-  // BUG: refreshAllUserDataFromFirestore picks the non-pending rows up front and
-  // later writes the server copy over them with pendingSync=0, without checking
-  // whether the row changed in the meantime (the review-card refresh guards this
-  // with lastModified > startedAt). A change saved while the fetch is in flight
-  // is overwritten, and if it was saved offline it is also no longer pending, so
-  // it never reaches the server. Narrow window, but the loss is silent.
-  // Expected: the offline change survives and syncs. Actual: it is gone.
-  test.fails(
-    'a change saved while a refresh is in flight is not overwritten by the older server copy',
-    async () => {
-      signIn(UID);
-      await saveUserData('appSettings', { autoPlayAudio: false });
+  test('a change saved while a refresh is in flight is not overwritten by the older server copy', async () => {
+    signIn(UID);
+    await saveUserData('appSettings', { autoPlayAudio: false });
 
-      const fetch = remote.hold('getDoc');
-      const refreshing = refreshAllUserDataFromFirestore();
-      await vi.waitFor(() => expect(remote.callsTo('getDoc')).toHaveLength(1));
+    const fetch = remote.hold('getDoc');
+    const refreshing = refreshAllUserDataFromFirestore();
+    await vi.waitFor(() => expect(remote.callsTo('getDoc')).toHaveLength(1));
 
-      network.goOffline();
-      await saveUserData('appSettings', { autoPlayAudio: true });
-      fetch.release();
-      await refreshing;
+    network.goOffline();
+    await saveUserData('appSettings', { autoPlayAudio: true });
+    fetch.release();
+    await refreshing;
 
-      expect(await loadUserData('appSettings', null)).toEqual({ autoPlayAudio: true });
-      network.goOnline();
-      expect(await syncAllPendingToFirestore()).toBe(1);
-    }
-  );
+    expect(await loadUserData('appSettings', null)).toEqual({ autoPlayAudio: true });
+    network.goOnline();
+    expect(await syncAllPendingToFirestore()).toBe(1);
+  });
 });
 
 describe('daily session counters across devices', () => {

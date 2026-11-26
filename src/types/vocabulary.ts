@@ -61,7 +61,7 @@ export interface CustomVocabularyWord extends CustomItemBase {
   audioUrl?: string;
 }
 
-import type { TranslationDirection } from './common';
+import type { SessionChanges, TranslationDirection } from './common';
 
 export interface VocabularyCardReviewData {
   wordId: VocabularyWordId;
@@ -74,6 +74,8 @@ export interface VocabularyReviewDataStore {
   reviewedToday: VocabularyWordId[];
   newCardsToday: VocabularyWordId[];
   lastReviewDate: string;
+  /** When each id was added to or removed from the lists above; see sessionLists.ts. */
+  changedAt?: SessionChanges;
 }
 
 export interface VocabularyDirectionSettings {

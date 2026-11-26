@@ -3,6 +3,7 @@ import type { TranslationDirection } from '../../types/common';
 import { getDefaultVocabularyReviewStore, getVocabularySessionDocPath } from './helpers';
 import { vocabularyReviewStorage } from './vocabularyReviewStorage';
 import loadDailyReviewSession from './loadDailyReviewSession';
+import type { SessionChanges } from '../../types/common';
 
 export default async function loadVocabularyReviewData(
   direction: TranslationDirection
@@ -15,6 +16,7 @@ export default async function loadVocabularyReviewData(
       reviewedToday,
       newCardsToday,
       lastReviewDate,
+      changedAt: undefined as SessionChanges | undefined,
     }
   );
 
@@ -23,5 +25,6 @@ export default async function loadVocabularyReviewData(
     reviewedToday: session.reviewedToday,
     newCardsToday: session.newCardsToday,
     lastReviewDate: session.lastReviewDate,
+    ...(session.changedAt ? { changedAt: session.changedAt } : {}),
   };
 }

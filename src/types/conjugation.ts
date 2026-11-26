@@ -1,5 +1,5 @@
 import type { Card as FSRSCard, ReviewLog } from 'ts-fsrs';
-import type { TranslationDirection } from './common';
+import type { SessionChanges, TranslationDirection } from './common';
 import type { CardAudioFields } from './audio';
 
 export type Aspect = 'Imperfective' | 'Perfective';
@@ -91,6 +91,8 @@ export interface ConjugationReviewDataStore {
   reviewedToday: ConjugationFormKey[];
   newFormsToday: ConjugationFormKey[];
   lastReviewDate: string;
+  /** When each id was added to or removed from the lists above; see sessionLists.ts. */
+  changedAt?: SessionChanges;
 }
 
 export interface ConjugationDirectionSettings {

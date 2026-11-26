@@ -57,9 +57,9 @@ export function AspectPairsPage() {
     getAudioUrls: (card) => [card.verb.infinitiveAudioUrl, card.pairVerb.infinitiveAudioUrl],
     ready: !isLoading,
     getSessionCards: () => getAspectPairsSessionCards(aspectPairCards, reviewStore, settings),
-    getPracticeAheadCards: (count) =>
-      getAspectPairsPracticeAheadCards(aspectPairCards, reviewStore, count),
-    getExtraNewCards: (count) => getAspectPairsExtraNewCards(aspectPairCards, reviewStore, count),
+    getPracticeAheadCards: (count, store) =>
+      getAspectPairsPracticeAheadCards(aspectPairCards, store, count),
+    getExtraNewCards: (count, store) => getAspectPairsExtraNewCards(aspectPairCards, store, count),
     reviewStore,
     recordReview: recordCardReview,
     saveReviewStore: updateAspectPairsReviewStore,

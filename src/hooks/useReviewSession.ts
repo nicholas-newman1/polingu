@@ -24,6 +24,10 @@ const EMPTY_INTERVALS: RatingIntervals = {
  * Buffers review-store writes briefly so context-wide stats recalculations
  * and persistence run after the card exit animation settles, while coalescing
  * rapid consecutive ratings and flushing on unmount, direction switch, or pagehide.
+ *
+ * Buffered ratings are kept as changes, not as a finished store: if the parent
+ * hands in a new store while they wait (a background sync from another device),
+ * they are re-applied on top of it rather than saved over it.
  */
 function useDeferredReviewSave<Store>(
   reviewStore: Store,
@@ -32,20 +36,22 @@ function useDeferredReviewSave<Store>(
 ) {
   const latestStoreRef = useRef(reviewStore);
   const lastFlushedRef = useRef<Store | null>(null);
-  const hasPendingRef = useRef(false);
+  const pendingRef = useRef<Array<(base: Store) => Store>>([]);
   const timerRef = useRef<number | null>(null);
   const saveFnRef = useRef(saveReviewStore);
 
+  /** Saves any buffered ratings now and returns the store including them. */
   const flush = useCallback(() => {
     if (timerRef.current !== null) {
       window.clearTimeout(timerRef.current);
       timerRef.current = null;
     }
-    if (!hasPendingRef.current) return;
-    hasPendingRef.current = false;
+    if (pendingRef.current.length === 0) return latestStoreRef.current;
+    pendingRef.current = [];
     const storeToSave = latestStoreRef.current;
     lastFlushedRef.current = storeToSave;
     void saveFnRef.current(storeToSave);
+    return storeToSave;
   }, []);
 
   // Declared before syncing refs so sessionKey changes flush with the previous direction's saver.
@@ -58,17 +64,24 @@ function useDeferredReviewSave<Store>(
     };
   }, [sessionKey, flush]);
 
+  const baseStoreRef = useRef(reviewStore);
   useEffect(() => {
     saveFnRef.current = saveReviewStore;
-    if (!hasPendingRef.current && reviewStore !== lastFlushedRef.current) {
-      latestStoreRef.current = reviewStore;
+    if (reviewStore === baseStoreRef.current) return;
+    baseStoreRef.current = reviewStore;
+    // Our own save coming back needs nothing; any other store becomes the new base.
+    if (reviewStore !== lastFlushedRef.current) {
+      latestStoreRef.current = pendingRef.current.reduce(
+        (store, apply) => apply(store),
+        reviewStore
+      );
     }
   }, [reviewStore, saveReviewStore]);
 
   const scheduleSave = useCallback(
     (apply: (base: Store) => Store) => {
+      pendingRef.current = [...pendingRef.current, apply];
       latestStoreRef.current = apply(latestStoreRef.current);
-      hasPendingRef.current = true;
       if (timerRef.current !== null) {
         window.clearTimeout(timerRef.current);
       }
@@ -100,8 +113,10 @@ export interface UseReviewSessionOptions<
   ready: boolean;
   sessionKey?: string;
   getSessionCards: () => SessionCards<S>;
-  getPracticeAheadCards: (count: number) => S[];
-  getExtraNewCards: (count: number) => S[];
+  /** Picks from `store`, which includes ratings not yet saved back to the parent. */
+  getPracticeAheadCards: (count: number, store: Store) => S[];
+  /** Picks from `store`, which includes ratings not yet saved back to the parent. */
+  getExtraNewCards: (count: number, store: Store) => S[];
 
   reviewStore: Store;
   recordReview: (
@@ -174,16 +189,16 @@ export function useReviewSession<
   }, [flushPendingSave]);
 
   const startPracticeAhead = () => {
-    flushPendingSave();
+    const store = flushPendingSave();
     start(
-      { reviewCards: options.getPracticeAheadCards(practiceAheadCount), newCards: [] },
+      { reviewCards: options.getPracticeAheadCards(practiceAheadCount, store), newCards: [] },
       { isPracticeAhead: true }
     );
   };
 
   const startExtraNewCards = () => {
-    flushPendingSave();
-    start({ reviewCards: [], newCards: options.getExtraNewCards(extraNewCardsCount) });
+    const store = flushPendingSave();
+    start({ reviewCards: [], newCards: options.getExtraNewCards(extraNewCardsCount, store) });
   };
 
   const { currentCard } = queue;
@@ -211,10 +226,17 @@ export function useReviewSession<
     if (!historyCard || !historyMeta) return;
     const reviewData = rateCard(historyMeta, rating);
     const id = getId(historyCard);
-    queue.reassess((item) => getId(item[cardKey]) === id, reviewData, rating === Rating.Again);
+    const again = rating === Rating.Again;
+    queue.reassess((item) => getId(item[cardKey]) === id, reviewData, again);
     goForward();
+    // The queue now holds the card for a retry (Again) or has let it go, so
+    // today's reviewed list has to say the same.
     scheduleSave((baseStore) =>
-      recordReview(baseStore, id, reviewData, { isNew: false, completed: false })
+      recordReview(baseStore, id, reviewData, {
+        isNew: false,
+        completed: !again,
+        requeued: again,
+      })
     );
   };
 

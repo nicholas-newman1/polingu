@@ -89,12 +89,7 @@ describe('useDirectionalReprioritize', () => {
     expect(h.updateStore).toHaveBeenCalledExactlyOnceWith('en-to-pl', expect.anything());
   });
 
-  // BUG: the snackbar's "Review again" action closes over the review stores from when the
-  // warning was shown, and stays clickable for 8 s. Reviews saved in between (the learner
-  // closes the add dialog and rates a card) are not in that snapshot, so clicking the
-  // action writes the old store back over them. Expected: the stored update keeps the
-  // later review of "pies". Actual: "pies" is back to its state before that review.
-  test.fails('Review again from an older warning keeps reviews saved since it was shown', () => {
+  test('Review again from an older warning keeps reviews saved since it was shown', () => {
     const before = emptyStore({
       cards: Object.fromEntries([entry('kot', studied()), entry('pies', studied())]),
     });

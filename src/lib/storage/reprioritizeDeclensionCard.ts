@@ -1,5 +1,6 @@
 import type { DeclensionReviewDataStore, DeclensionCardId } from '../../types';
 import forgetCard from '../fsrsUtils/forgetCard';
+import { removeFromDayLists } from '../reviewSession/sessionLists';
 
 export function canReprioritizeDeclensionCard(
   store: DeclensionReviewDataStore,
@@ -18,11 +19,6 @@ export default function reprioritizeDeclensionCard(
   if (!entry || entry.fsrsCard.state === 0) {
     return store;
   }
-  const idStr = String(cardId);
-  return {
-    ...store,
-    cards: { ...store.cards, [cardId]: forgetCard(entry, now) },
-    reviewedToday: store.reviewedToday.filter((id) => String(id) !== idStr),
-    newCardsToday: store.newCardsToday.filter((id) => String(id) !== idStr),
-  };
+  const forgotten = { ...store, cards: { ...store.cards, [cardId]: forgetCard(entry, now) } };
+  return removeFromDayLists(forgotten, cardId, now.getTime());
 }

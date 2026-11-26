@@ -1,20 +1,16 @@
-import { doc, deleteDoc } from 'firebase/firestore';
-import { db } from '../firebase';
 import type { TranslationDirection } from '../../types/common';
 import { getUserId, getConjugationSessionDocPath } from './helpers';
 import { getConjugationSettingsDocPath } from './loadConjugationSettings';
 import { conjugationReviewStorage } from './conjugationReviewStorage';
+import { deleteUserData } from '../offlineDb/userDataWrapper';
 
+/** Resets one direction's conjugation progress and settings. Rejects if the server could not be updated. */
 export default async function clearConjugationData(direction: TranslationDirection): Promise<void> {
-  const userId = getUserId();
-  if (!userId) return;
+  if (!getUserId()) return;
 
-  const sessionRef = doc(db, 'users', userId, 'data', getConjugationSessionDocPath(direction));
-  const settingsRef = doc(db, 'users', userId, 'data', getConjugationSettingsDocPath(direction));
-
+  await conjugationReviewStorage(direction).clearAllCards();
   await Promise.all([
-    conjugationReviewStorage(direction).clearAllCards(),
-    deleteDoc(sessionRef),
-    deleteDoc(settingsRef),
+    deleteUserData(getConjugationSessionDocPath(direction)),
+    deleteUserData(getConjugationSettingsDocPath(direction)),
   ]);
 }

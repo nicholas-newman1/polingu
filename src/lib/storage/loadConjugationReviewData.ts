@@ -3,6 +3,7 @@ import type { TranslationDirection } from '../../types/common';
 import { getDefaultConjugationReviewStore, getConjugationSessionDocPath } from './helpers';
 import { conjugationReviewStorage } from './conjugationReviewStorage';
 import loadDailyReviewSession from './loadDailyReviewSession';
+import type { SessionChanges } from '../../types/common';
 
 export default async function loadConjugationReviewData(
   direction: TranslationDirection
@@ -15,6 +16,7 @@ export default async function loadConjugationReviewData(
       reviewedToday,
       newFormsToday,
       lastReviewDate,
+      changedAt: undefined as SessionChanges | undefined,
     }
   );
 
@@ -23,5 +25,6 @@ export default async function loadConjugationReviewData(
     reviewedToday: session.reviewedToday,
     newFormsToday: session.newFormsToday,
     lastReviewDate: session.lastReviewDate,
+    ...(session.changedAt ? { changedAt: session.changedAt } : {}),
   };
 }

@@ -192,8 +192,9 @@ function renderVocabularyReview(initial: VocabularyReviewDataStore) {
       getAudioUrls: () => [],
       ready: true,
       getSessionCards: () => getVocabularySessionCards(words, store, settings),
-      getPracticeAheadCards: (count) => getVocabularyPracticeAheadCards(words, store, count),
-      getExtraNewCards: (count) => getVocabularyExtraNewCards(words, store, count),
+      getPracticeAheadCards: (count, current) =>
+        getVocabularyPracticeAheadCards(words, current, count),
+      getExtraNewCards: (count, current) => getVocabularyExtraNewCards(words, current, count),
       reviewStore: store,
       recordReview: recordCardReview,
       saveReviewStore: async (next) => setStore(next),
@@ -232,22 +233,11 @@ test('a passed card changed to Again is saved as relearning and retried in the l
   expect(screen.store().cards[1].fsrsCard.lapses).toBe(1);
 });
 
-// BUG: going back and changing a passed card to Again puts it back in the live queue
-// (sessionQueue's 'reassess'), but useReviewSession.reassess records the change with
-// `completed: false`, and recordCardReview only ever adds ids to reviewedToday. The card
-// stays listed as done for today, so once the session is rebuilt (reload, direction switch,
-// settings or filter change) the relearning card is dropped until tomorrow.
-// Expected: the rebuilt session starts with word 1. Actual: it starts with a new word.
-// The session-doc merge unions reviewedToday across devices, so a fix needs more than
-// removing the id locally.
-test.fails(
-  'a passed card changed to Again is still in the session after it is rebuilt',
-  async () => {
-    const screen = await passThenChangeToAgain();
+test('a passed card changed to Again is still in the session after it is rebuilt', async () => {
+  const screen = await passThenChangeToAgain();
 
-    act(() => screen.session().rebuildSession());
-    await screen.settle();
+  act(() => screen.session().rebuildSession());
+  await screen.settle();
 
-    expect(screen.currentId()).toBe(1);
-  }
-);
+  expect(screen.currentId()).toBe(1);
+});

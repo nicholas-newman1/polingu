@@ -37,3 +37,28 @@ export function getCurrentUserId(): string | null {
   // Fall back to cached user for offline mode
   return getCachedUser()?.uid ?? null;
 }
+
+const DATA_OWNER_KEY = 'polingu_data_owner';
+
+/**
+ * The account whose data is cached in IndexedDB. The cache is not keyed by user,
+ * so when a different account signs in, the previous account's data has to be
+ * cleared first. This outlives the cached user: Firebase can end a session by
+ * itself (revoked or expired token) without the app's sign-out running.
+ */
+export function getDataOwner(): string | null {
+  try {
+    return localStorage.getItem(DATA_OWNER_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function setDataOwner(uid: string | null): void {
+  try {
+    if (uid) localStorage.setItem(DATA_OWNER_KEY, uid);
+    else localStorage.removeItem(DATA_OWNER_KEY);
+  } catch {
+    // localStorage might be unavailable
+  }
+}

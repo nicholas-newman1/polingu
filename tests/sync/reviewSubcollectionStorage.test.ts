@@ -174,36 +174,24 @@ describe('saving reviews', () => {
     expect(remote.get(`${cardsPath}/1`)).toEqual(serverCard(1, '2026-11-20T10:00:00Z'));
   });
 
-  // BUG: upsertCard() marks the row synced (pendingSync: 0) once its setDoc resolves,
-  // without checking that the row still holds what it uploaded. If the connection drops
-  // while that upload is in flight and the learner rates the same card again (an Again
-  // card coming back later in the session), the newer review is stored as pending, and
-  // then the older upload's acknowledgement clears the flag. syncPendingCards skips it,
-  // and the next refresh replaces it with the server's older copy. The same pattern is
-  // in saveUserData (setDoc branch) and the custom-item add/update.
-  // Expected: the newer review reaches the server. Actual: the server keeps the older
-  // review and this device reverts to it.
-  test.fails(
-    'a review saved offline while an earlier upload of that card is in flight is not lost',
-    async () => {
-      signIn(UID);
-      const first = { 1: card(1, '2026-11-20T10:00:00Z') };
-      const upload = remote.hold('setDoc');
-      const uploading = storage().saveCardsDiff(null, first);
-      await vi.waitFor(() => expect(remote.callsTo('setDoc')).toHaveLength(1));
+  test('a review saved offline while an earlier upload of that card is in flight is not lost', async () => {
+    signIn(UID);
+    const first = { 1: card(1, '2026-11-20T10:00:00Z') };
+    const upload = remote.hold('setDoc');
+    const uploading = storage().saveCardsDiff(null, first);
+    await vi.waitFor(() => expect(remote.callsTo('setDoc')).toHaveLength(1));
 
-      network.goOffline();
-      await storage().saveCardsDiff(first, { 1: card(1, '2026-11-20T10:05:00Z') });
-      upload.release();
-      await uploading;
+    network.goOffline();
+    await storage().saveCardsDiff(first, { 1: card(1, '2026-11-20T10:05:00Z') });
+    upload.release();
+    await uploading;
 
-      network.goOnline();
-      await storage().syncPendingCards();
-      expect(remote.get(`${cardsPath}/1`)).toEqual(serverCard(1, '2026-11-20T10:05:00Z'));
-      await storage().refreshFromFirestore();
-      expect(lastReviewOf(await storage().loadCards())).toEqual({ 1: '2026-11-20T10:05:00.000Z' });
-    }
-  );
+    network.goOnline();
+    await storage().syncPendingCards();
+    expect(remote.get(`${cardsPath}/1`)).toEqual(serverCard(1, '2026-11-20T10:05:00Z'));
+    await storage().refreshFromFirestore();
+    expect(lastReviewOf(await storage().loadCards())).toEqual({ 1: '2026-11-20T10:05:00.000Z' });
+  });
 
   test('the two study directions are stored in separate collections', async () => {
     signIn(UID);
@@ -445,11 +433,32 @@ describe('clearing all cards', () => {
     expect(remote.calls).toEqual([]);
   });
 
-  // BUG: clearAllCards() only empties the local cache when offline and records
-  // nothing to replay later. The server keeps every card, so the next refresh
-  // brings back the progress the learner chose to reset.
-  // Expected: no cards after coming back online and refreshing. Actual: card 1 returns.
-  test.fails('a reset done offline is not undone by the next refresh', async () => {
+  test('finishing an offline reset keeps cards rated on another device after it', async () => {
+    freezeTime('2026-11-26T10:00:00Z');
+    signIn(UID);
+    await storage().saveCardsDiff(null, { 1: card(1, '2026-11-20T10:00:00Z') });
+    network.goOffline();
+    await storage().clearAllCards();
+
+    remote.seed(`${cardsPath}/2`, serverCard(2, '2026-11-26T11:00:00Z'));
+    network.goOnline();
+    await storage().syncPendingCards();
+    await storage().refreshFromFirestore();
+
+    expect(Object.keys(remote.list(cardsPath))).toEqual(['2']);
+    expect(Object.keys(await storage().loadCards())).toEqual(['2']);
+  });
+
+  test('a reset the server rejects leaves this device unchanged', async () => {
+    signIn(UID);
+    await storage().saveCardsDiff(null, { 1: card(1, '2026-11-20T10:00:00Z') });
+    remote.fail({ op: 'batch.commit' });
+
+    await expect(storage().clearAllCards()).rejects.toThrow();
+    expect(Object.keys(await storage().loadCards())).toEqual(['1']);
+  });
+
+  test('a reset done offline is not undone by the next refresh', async () => {
     signIn(UID);
     await storage().saveCardsDiff(null, { 1: card(1, '2026-11-20T10:00:00Z') });
     network.goOffline();

@@ -1,17 +1,12 @@
-import { doc, deleteDoc } from 'firebase/firestore';
-import { db } from '../firebase';
 import type { TranslationDirection } from '../../types/common';
 import { getUserId, getVocabularySessionDocPath } from './helpers';
 import { vocabularyReviewStorage } from './vocabularyReviewStorage';
+import { deleteUserData } from '../offlineDb/userDataWrapper';
 
+/** Resets one direction's vocabulary progress. Rejects if the server could not be updated. */
 export default async function clearVocabularyData(direction: TranslationDirection): Promise<void> {
-  const userId = getUserId();
-  if (!userId) return;
+  if (!getUserId()) return;
 
-  try {
-    await vocabularyReviewStorage(direction).clearAllCards();
-    await deleteDoc(doc(db, 'users', userId, 'data', getVocabularySessionDocPath(direction)));
-  } catch (e) {
-    console.error('Failed to clear vocabulary data:', e);
-  }
+  await vocabularyReviewStorage(direction).clearAllCards();
+  await deleteUserData(getVocabularySessionDocPath(direction));
 }

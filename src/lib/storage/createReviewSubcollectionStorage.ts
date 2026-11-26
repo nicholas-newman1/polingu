@@ -12,6 +12,11 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { userDb, type ReviewCardCollection, type ReviewCardRecord } from '../offlineDb/userDb';
+import {
+  markSyncedIfUnchanged,
+  PENDING_CLEAR_KEY_PREFIX,
+  removeIfUnchanged,
+} from '../offlineDb/pendingWrites';
 import { getUserId } from './helpers';
 import type { Card as FSRSCard } from 'ts-fsrs';
 import type { TranslationDirection } from '../../types/common';
@@ -109,6 +114,8 @@ async function readCachedCardEntries<TCard extends ReviewCardData>(
 export function createReviewSubcollectionStorage<TCard extends ReviewCardData>(
   collectionName: ReviewCardCollection
 ): ReviewSubcollectionStorage<TCard> {
+  const pendingClearKey = `${PENDING_CLEAR_KEY_PREFIX}${collectionName}`;
+
   async function loadCards(): Promise<Record<string, TCard>> {
     const userId = getUserId();
     if (!userId) return {};
@@ -186,6 +193,9 @@ export function createReviewSubcollectionStorage<TCard extends ReviewCardData>(
   async function refreshFromFirestore(): Promise<void> {
     const userId = getUserId();
     if (!userId || !navigator.onLine) return;
+    // The server still holds the cards a queued reset will delete; applying
+    // them now would bring the reset progress back.
+    if (await userDb.userData.get(pendingClearKey)) return;
 
     const startedAt = Date.now();
     const snapshot = await getDocsFromServer(collection(db, 'users', userId, collectionName));
@@ -208,6 +218,13 @@ export function createReviewSubcollectionStorage<TCard extends ReviewCardData>(
     const userId = getUserId();
     if (!userId || !navigator.onLine) return;
 
+    try {
+      await syncPendingClear(userId);
+    } catch (e) {
+      console.error(`Failed to sync the reset of ${collectionName}:`, e);
+      return;
+    }
+
     const rows = await userDb.reviewCards.where('collection').equals(collectionName).toArray();
 
     for (const row of rows.filter((r) => r.pendingSync === 1)) {
@@ -215,7 +232,7 @@ export function createReviewSubcollectionStorage<TCard extends ReviewCardData>(
       try {
         if (row.pendingDelete === 1) {
           await deleteDoc(ref);
-          await userDb.reviewCards.delete(row.compoundKey);
+          await removeIfUnchanged(userDb.reviewCards, row.compoundKey, row);
           continue;
         }
 
@@ -227,10 +244,10 @@ export function createReviewSubcollectionStorage<TCard extends ReviewCardData>(
           return false;
         });
 
-        await userDb.reviewCards.update(row.compoundKey, {
-          pendingSync: 0,
-          ...(serverWins ? { lastModified: 0 } : {}),
-        });
+        const synced = await markSyncedIfUnchanged(userDb.reviewCards, row.compoundKey, row);
+        if (synced && serverWins) {
+          await userDb.reviewCards.update(row.compoundKey, { lastModified: 0 });
+        }
       } catch (e) {
         console.error(`Failed to sync pending ${collectionName}/${row.cardId}:`, e);
       }
@@ -258,7 +275,7 @@ export function createReviewSubcollectionStorage<TCard extends ReviewCardData>(
     try {
       const ref = doc(db, 'users', userId, collectionName, cardId);
       await setDoc(ref, serialized as object);
-      await userDb.reviewCards.update(record.compoundKey, { pendingSync: 0 });
+      await markSyncedIfUnchanged(userDb.reviewCards, record.compoundKey, record);
     } catch (e) {
       console.error(`Failed to sync ${collectionName}/${cardId}:`, e);
       throw e;
@@ -274,10 +291,12 @@ export function createReviewSubcollectionStorage<TCard extends ReviewCardData>(
       return;
     }
 
-    await userDb.reviewCards.update(key, {
-      pendingDelete: 1,
-      pendingSync: 1,
-      lastModified: Date.now(),
+    const queued = await userDb.transaction('rw', userDb.reviewCards, async () => {
+      const existing = await userDb.reviewCards.get(key);
+      if (!existing) return undefined;
+      const record = { ...existing, pendingDelete: 1, pendingSync: 1, lastModified: Date.now() };
+      await userDb.reviewCards.put(record);
+      return record;
     });
 
     if (!navigator.onLine) return;
@@ -285,7 +304,7 @@ export function createReviewSubcollectionStorage<TCard extends ReviewCardData>(
     try {
       const ref = doc(db, 'users', userId, collectionName, cardId);
       await deleteDoc(ref);
-      await userDb.reviewCards.delete(key);
+      if (queued) await removeIfUnchanged(userDb.reviewCards, key, queued);
     } catch (e) {
       console.error(`Failed to delete ${collectionName}/${cardId}:`, e);
       throw e;
@@ -324,33 +343,62 @@ export function createReviewSubcollectionStorage<TCard extends ReviewCardData>(
     await userDb.reviewCards.bulkDelete(cachedRows.map((r) => r.compoundKey));
   }
 
+  /** Deletes every card on the server, in batches under Firestore's 500-write limit. */
+  async function deleteServerCards(userId: string, ratedUpTo = Infinity): Promise<void> {
+    const snapshot = await getDocs(collection(db, 'users', userId, collectionName));
+    const docs = snapshot.docs.filter((d) => lastRatedAt(d.data()) <= ratedUpTo);
+    for (let i = 0; i < docs.length; i += 400) {
+      const batch = writeBatch(db);
+      for (const d of docs.slice(i, i + 400)) batch.delete(d.ref);
+      await batch.commit();
+    }
+  }
+
+  /**
+   * Finish a reset done offline: delete the cards on the server that were rated
+   * before the reset. Cards rated since (on any device) are kept.
+   */
+  async function syncPendingClear(userId: string): Promise<void> {
+    const marker = await userDb.userData.get(pendingClearKey);
+    if (!marker) return;
+    const { clearedAt } = marker.data as { clearedAt: number };
+    await deleteServerCards(userId, clearedAt);
+    await removeIfUnchanged(userDb.userData, pendingClearKey, marker);
+  }
+
   /**
    * Firestore is emptied before the local cache so a background refresh landing
-   * mid-clear cannot resurrect the cards it is still able to read.
+   * mid-clear cannot resurrect the cards it is still able to read. Offline, the
+   * reset is queued and finished by syncPendingCards; until then refreshes leave
+   * the (now empty) cache alone.
    */
   async function clearAllCards(): Promise<void> {
     const userId = getUserId();
 
-    if (!userId || !navigator.onLine) {
+    if (!userId) {
+      await clearLocalCards();
+      return;
+    }
+
+    if (!navigator.onLine) {
+      await userDb.userData.put({
+        key: pendingClearKey,
+        data: { clearedAt: Date.now() },
+        lastModified: Date.now(),
+        pendingSync: 0,
+      });
       await clearLocalCards();
       return;
     }
 
     try {
-      const snapshot = await getDocs(collection(db, 'users', userId, collectionName));
-      const docs = snapshot.docs;
-      for (let i = 0; i < docs.length; i += 400) {
-        const chunk = docs.slice(i, i + 400);
-        const batch = writeBatch(db);
-        for (const d of chunk) batch.delete(d.ref);
-        await batch.commit();
-      }
+      await deleteServerCards(userId);
     } catch (e) {
       console.error(`Failed to clear ${collectionName} from Firestore:`, e);
       throw e;
-    } finally {
-      await clearLocalCards();
     }
+    await userDb.userData.delete(pendingClearKey);
+    await clearLocalCards();
   }
 
   return { loadCards, saveCardsDiff, clearAllCards, refreshFromFirestore, syncPendingCards };

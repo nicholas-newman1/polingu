@@ -329,13 +329,7 @@ describe('numeric word ids', () => {
 });
 
 describe('"Review again" (reprioritize) on a word introduced today', () => {
-  // BUG: reprioritizing removes the word from newCardsToday/reviewedToday, but the
-  // session doc is saved through a same-day union merge with the server copy
-  // (userDataWrapper mergeSessionData), which adds the word straight back. After a
-  // reload the word is a New card that is also "introduced today", so the
-  // scheduler hides it until tomorrow.
-  // Expected: the word is offered as a new card after the reload. Actual: it is not.
-  test.fails('the word is still offered as a new card after reloading the same day', async () => {
+  test('the word is still offered as a new card after reloading the same day', async () => {
     freezeTime('2026-11-26T10:00:00-05:00');
     signIn();
     const studied: VocabularyReviewDataStore = {

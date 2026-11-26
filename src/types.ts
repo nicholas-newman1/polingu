@@ -1,4 +1,5 @@
 import type { Card as FSRSCard, ReviewLog } from 'ts-fsrs';
+import type { SessionChanges } from './types/common';
 import type { CustomItemBase } from './types/customItems';
 import type { CardAudioFields } from './types/audio';
 
@@ -61,4 +62,6 @@ export interface DeclensionReviewDataStore {
   reviewedToday: DeclensionCardId[];
   newCardsToday: DeclensionCardId[];
   lastReviewDate: string;
+  /** When each id was added to or removed from the lists above; see sessionLists.ts. */
+  changedAt?: SessionChanges;
 }

@@ -3,11 +3,13 @@ import type { TranslationDirection } from '../../types/common';
 import { getVocabularySessionDocPath } from './helpers';
 import { saveUserData } from '../offlineDb/userDataWrapper';
 import { vocabularyReviewStorage } from './vocabularyReviewStorage';
+import type { SessionChanges } from '../../types/common';
 
 interface VocabularyReviewSession {
   reviewedToday: VocabularyReviewDataStore['reviewedToday'];
   newCardsToday: VocabularyReviewDataStore['newCardsToday'];
   lastReviewDate: string;
+  changedAt?: SessionChanges;
 }
 
 export default async function saveVocabularyReviewData(
@@ -20,6 +22,7 @@ export default async function saveVocabularyReviewData(
     reviewedToday: next.reviewedToday,
     newCardsToday: next.newCardsToday,
     lastReviewDate: next.lastReviewDate,
+    ...(next.changedAt ? { changedAt: next.changedAt } : {}),
   };
   await Promise.all([
     storage.saveCardsDiff(prev?.cards ?? null, next.cards),

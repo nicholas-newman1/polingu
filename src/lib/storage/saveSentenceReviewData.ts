@@ -3,11 +3,13 @@ import type { TranslationDirection } from '../../types/common';
 import { getSentenceSessionDocPath } from './helpers';
 import { saveUserData } from '../offlineDb/userDataWrapper';
 import { sentenceReviewStorage } from './sentenceReviewStorage';
+import type { SessionChanges } from '../../types/common';
 
 interface SentenceReviewSession {
   reviewedToday: SentenceReviewDataStore['reviewedToday'];
   newCardsToday: SentenceReviewDataStore['newCardsToday'];
   lastReviewDate: string;
+  changedAt?: SessionChanges;
 }
 
 export default async function saveSentenceReviewData(
@@ -20,6 +22,7 @@ export default async function saveSentenceReviewData(
     reviewedToday: next.reviewedToday,
     newCardsToday: next.newCardsToday,
     lastReviewDate: next.lastReviewDate,
+    ...(next.changedAt ? { changedAt: next.changedAt } : {}),
   };
   await Promise.all([
     storage.saveCardsDiff(prev?.cards ?? null, next.cards),

@@ -158,13 +158,7 @@ describe('reloading review data', () => {
   });
 });
 
-// BUG: the counters are dated when the store is loaded, and recordCardReview never
-// re-dates them. A learner who keeps studying past midnight without reloading has
-// the new day's reviews filed under the previous day, and the next load throws
-// them away. Expected: a word first studied at 00:05 counts toward that day's
-// new-card limit. Actual: after reloading, newCardsToday is empty and the learner
-// is offered a full allowance on top of the words already introduced.
-test.fails('a new word first studied just after midnight counts toward that day', async () => {
+test('a new word first studied just after midnight counts toward that day', async () => {
   freezeTime('2026-11-26T23:50:00-05:00');
   const loadedLastNight = await loadVocabularyReviewData('pl-to-en');
 

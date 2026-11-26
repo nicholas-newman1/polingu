@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import type { TranslationDirection } from '../types/common';
 import { useSnackbar } from './useSnackbar';
 
@@ -23,6 +23,12 @@ export function useDirectionalReprioritize<Store, Id>({
   duplicateMessage,
 }: DirectionalReprioritizeOptions<Store, Id>) {
   const { showSnackbar } = useSnackbar();
+  // The duplicate warning's action can be clicked seconds after it is shown, so
+  // "Review again" reads the stores at click time, not when it was created.
+  const storesRef = useRef(stores);
+  useEffect(() => {
+    storesRef.current = stores;
+  }, [stores]);
 
   const canReprioritize = useCallback(
     (id: Id) => canReprioritizeInStores(stores, id),
@@ -32,7 +38,7 @@ export function useDirectionalReprioritize<Store, Id>({
   const reprioritize = useCallback(
     (id: Id) => {
       const updates = DIRECTIONS.flatMap((direction) => {
-        const store = stores[direction];
+        const store = storesRef.current[direction];
         const next = reprioritizeInStore(store, id);
         return next === store ? [] : [updateStore(direction, next)];
       });
@@ -40,7 +46,7 @@ export function useDirectionalReprioritize<Store, Id>({
       void Promise.all(updates);
       showSnackbar(queuedMessage, 'success');
     },
-    [stores, reprioritizeInStore, updateStore, showSnackbar, queuedMessage]
+    [reprioritizeInStore, updateStore, showSnackbar, queuedMessage]
   );
 
   const showDuplicateError = useCallback(

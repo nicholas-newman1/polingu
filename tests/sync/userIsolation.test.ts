@@ -168,26 +168,26 @@ describe('signing out and in as someone else', () => {
     expect(await loadCustomVocabulary()).toEqual([]);
   });
 
-  // BUG: IndexedDB rows are not keyed by user, so isolation relies entirely on
-  // AuthContext.signOut() calling clearUserData(). When the Firebase session ends any
-  // other way (token revoked or expired, account disabled), AuthProvider's
-  // onAuthStateChanged handler only forgets the cached uid. The next account to sign in
-  // on this browser is then served the previous learner's cached data, and the previous
-  // learner's pending changes are uploaded into the new account.
-  // Expected: learner B sees the default settings and gets none of A's changes.
-  // Actual: B is shown A's settings (and A's pending filters are pushed into B).
-  test.fails(
-    "when Firebase ends the session by itself, the next account does not see the previous learner's data",
-    async () => {
-      await learnerAWithData();
-      await firebaseEndsSession();
-      await firebaseSignsIn('learner-b');
+  test("when Firebase ends the session by itself, the next account does not see the previous learner's data", async () => {
+    await learnerAWithData();
+    await firebaseEndsSession();
+    await firebaseSignsIn('learner-b');
 
-      expect(await loadAppSettings()).toEqual(DEFAULT_APP_SETTINGS);
-      await syncAllPendingToFirestore();
-      expect(remote.list(userPath('learner-b', 'data'))).toEqual({});
-    }
-  );
+    expect(await loadAppSettings()).toEqual(DEFAULT_APP_SETTINGS);
+    await syncAllPendingToFirestore();
+    expect(remote.list(userPath('learner-b', 'data'))).toEqual({});
+  });
+  test('when Firebase ends the session and the same learner signs back in, their unsynced change still uploads', async () => {
+    await learnerAWithData();
+    await firebaseEndsSession();
+    await firebaseSignsIn('learner-a');
+
+    expect(await loadAppSettings()).toMatchObject({ autoPlayAudio: true, hidePolishText: true });
+    expect(await syncAllPendingToFirestore()).toBe(1);
+    expect(remote.get(userPath('learner-a', 'data', 'userFilters'))).toEqual({
+      declension: { cases: ['Genitive'] },
+    });
+  });
 });
 
 describe('starting offline with a remembered account', () => {

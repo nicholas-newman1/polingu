@@ -1,19 +1,14 @@
-import { doc, deleteDoc } from 'firebase/firestore';
-import { db } from '../firebase';
 import { getUserId, ASPECT_PAIRS_SESSION_DOC_PATH } from './helpers';
 import { aspectPairsReviewStorage } from './aspectPairsReviewStorage';
+import { deleteUserData } from '../offlineDb/userDataWrapper';
 
+/** Resets aspect-pair progress and settings. Rejects if the server could not be updated. */
 export default async function clearAspectPairsData(): Promise<void> {
-  const userId = getUserId();
-  if (!userId) return;
+  if (!getUserId()) return;
 
-  try {
-    await aspectPairsReviewStorage.clearAllCards();
-    await Promise.all([
-      deleteDoc(doc(db, 'users', userId, 'data', ASPECT_PAIRS_SESSION_DOC_PATH)),
-      deleteDoc(doc(db, 'users', userId, 'data', 'aspectPairsSettings')),
-    ]);
-  } catch (e) {
-    console.error('Failed to clear aspect pairs data:', e);
-  }
+  await aspectPairsReviewStorage.clearAllCards();
+  await Promise.all([
+    deleteUserData(ASPECT_PAIRS_SESSION_DOC_PATH),
+    deleteUserData('aspectPairsSettings'),
+  ]);
 }

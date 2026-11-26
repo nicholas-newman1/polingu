@@ -87,7 +87,9 @@ describe('useOnlineStatus', () => {
   });
 
   test('a sync that never answers is given up after 10 seconds so a later one can run', async () => {
-    vi.useFakeTimers();
+    // Only the sync timeout's timers: the in-memory IndexedDB behind the hook's
+    // pending-change count schedules its work with setImmediate.
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     vi.mocked(syncAllPendingToFirestore).mockReturnValue(new Promise(() => {}));
     const { result } = renderHook(() => useOnlineStatus());
     act(() => void result.current.triggerSync());
@@ -109,11 +111,7 @@ describe('useOnlineStatus', () => {
     expect(result.current.isSyncing).toBe(false);
   });
 
-  // BUG: pendingSyncCount starts at 0 and is only ever decreased (clamped at 0), so it is
-  // always 0 and the offline indicator's "N changes pending" text never appears.
-  // Expected: a change saved while offline (stored in IndexedDB with pendingSync = 1)
-  // is counted. Actual: the count stays 0.
-  test.fails('counts changes saved while offline as pending', async () => {
+  test('counts changes saved while offline as pending', async () => {
     signInFakeUser('learner');
     const { result } = renderHook(() => useOnlineStatus());
     goOffline();

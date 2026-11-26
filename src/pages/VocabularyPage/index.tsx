@@ -101,8 +101,9 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
     ready: !contextLoading,
     sessionKey: currentDirection,
     getSessionCards: () => getVocabularySessionCards(allWords, reviewStore, directionSettings),
-    getPracticeAheadCards: (count) => getVocabularyPracticeAheadCards(allWords, reviewStore, count),
-    getExtraNewCards: (count) => getVocabularyExtraNewCards(allWords, reviewStore, count),
+    getPracticeAheadCards: (count, store) =>
+      getVocabularyPracticeAheadCards(allWords, store, count),
+    getExtraNewCards: (count, store) => getVocabularyExtraNewCards(allWords, store, count),
     reviewStore,
     recordReview: recordCardReview,
     saveReviewStore: (store) => updateVocabularyReviewStore(currentDirection, store),

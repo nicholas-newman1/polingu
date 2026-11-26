@@ -91,7 +91,10 @@ export function DeclensionPage() {
     ready: !contextLoading && !filtersLoading && allDeclensionCards.length > 0,
     getSessionCards: () =>
       getDeclensionSessionCards(allDeclensionCards, reviewStore, filters, settings),
-    ...getDeclensionExtraCards(allDeclensionCards, reviewStore, filters),
+    getPracticeAheadCards: (count, store) =>
+      getDeclensionExtraCards(allDeclensionCards, store, filters).getPracticeAheadCards(count),
+    getExtraNewCards: (count, store) =>
+      getDeclensionExtraCards(allDeclensionCards, store, filters).getExtraNewCards(count),
     reviewStore,
     recordReview: recordCardReview,
     saveReviewStore: updateDeclensionReviewStore,

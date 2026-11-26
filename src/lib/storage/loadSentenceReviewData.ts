@@ -3,6 +3,7 @@ import type { TranslationDirection } from '../../types/common';
 import { getDefaultSentenceReviewStore, getSentenceSessionDocPath } from './helpers';
 import { sentenceReviewStorage } from './sentenceReviewStorage';
 import loadDailyReviewSession from './loadDailyReviewSession';
+import type { SessionChanges } from '../../types/common';
 
 export default async function loadSentenceReviewData(
   direction: TranslationDirection
@@ -15,6 +16,7 @@ export default async function loadSentenceReviewData(
       reviewedToday,
       newCardsToday,
       lastReviewDate,
+      changedAt: undefined as SessionChanges | undefined,
     }
   );
 
@@ -23,5 +25,6 @@ export default async function loadSentenceReviewData(
     reviewedToday: session.reviewedToday,
     newCardsToday: session.newCardsToday,
     lastReviewDate: session.lastReviewDate,
+    ...(session.changedAt ? { changedAt: session.changedAt } : {}),
   };
 }

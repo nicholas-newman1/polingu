@@ -129,12 +129,7 @@ describe('adding, editing and deleting while online', () => {
     expect(ids(await vocabStorage().load())).toEqual(['custom_1']);
   });
 
-  // BUG: update() merges the edit into the cached item and strips `undefined`, then
-  // sends the stripped *updates* with updateDoc. A field the learner cleared
-  // (AddVocabularyModal sends `notes: undefined` for an empty box) is therefore
-  // left untouched on the server, and the next snapshot brings it back.
-  // Expected: no `notes` on the server after the edit. Actual: the old note stays.
-  test.fails('clearing an optional field in an edit removes it on the server too', async () => {
+  test('clearing an optional field in an edit removes it on the server too', async () => {
     signIn(UID);
     const original = word('custom_1', 'kot', { notes: 'old note' });
     await saveCustomVocabulary([original]);
@@ -276,13 +271,7 @@ describe('changes made offline', () => {
     expect(remote.calls).toEqual([]);
   });
 
-  // BUG: custom items have no pending-write replay. add() returns early when
-  // offline and nothing ever pushes rows with pendingSync=1 (there is no
-  // syncPending for customCards, and neither the reconnect sync nor the background
-  // sync touches them), so the item never reaches the account and is wiped by
-  // clearUserData on sign-out.
-  // Expected: the item is on the server after reconnecting. Actual: it never arrives.
-  test.fails('an item added offline reaches the server once back online', async () => {
+  test('an item added offline reaches the server once back online', async () => {
     signIn(UID);
     network.goOffline();
     await saveCustomVocabulary([word('custom_1', 'kot')]);
@@ -296,11 +285,7 @@ describe('changes made offline', () => {
     expect(remote.get(`${vocabPath}/custom_1`)).toEqual(word('custom_1', 'kot'));
   });
 
-  // BUG: the snapshot handler writes every server item back into the cache with
-  // pendingDelete=0, so a delete queued offline is silently undone the next time
-  // the listener delivers (reconnect or app start).
-  // Expected: the item stays deleted. Actual: it reappears.
-  test.fails('an item deleted offline stays deleted after reconnecting', async () => {
+  test('an item deleted offline stays deleted after reconnecting', async () => {
     signIn(UID);
     await vocabStorage().add(word('custom_1', 'kot'));
     network.goOffline();
@@ -312,10 +297,7 @@ describe('changes made offline', () => {
     expect(delivered).toEqual([]);
   });
 
-  // BUG: same cause: the snapshot handler overwrites the cached row, including
-  // the pending offline edit, with the server's older copy.
-  // Expected: the edited English text survives. Actual: it reverts.
-  test.fails('an item edited offline keeps the edit after reconnecting', async () => {
+  test('an item edited offline keeps the edit after reconnecting', async () => {
     signIn(UID);
     await vocabStorage().add(word('custom_1', 'kot'));
     network.goOffline();
