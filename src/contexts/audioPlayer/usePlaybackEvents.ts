@@ -1,9 +1,15 @@
-import { startTransition, useEffect, type RefObject } from 'react';
+import { useEffect, type RefObject } from 'react';
 import { emitAudioModeEvent } from '../../lib/audio/audioModeBus';
 import type { TranscriptSegment } from '../../types/audio';
 import { syncPositionState } from './useMediaSession';
 
 const HIGHLIGHT_LOOKAHEAD_S = 0.5;
+/**
+ * How often (ms) the rAF loop publishes `currentTime` to React. Publishing every frame re-renders
+ * every context consumer 60x/s, which can starve renders so the displayed time lags far behind the
+ * real position. Exact values are still published on pause, seek, and end.
+ */
+const TIME_PUBLISH_INTERVAL_MS = 200;
 
 /** Index of the span containing `time` (spans sorted by start), or -1. */
 function findActiveIndex(spans: { startTime: number; endTime: number }[], time: number): number {
@@ -88,16 +94,33 @@ export function usePlaybackEvents({
       return { segIdx, wordIdx };
     }
 
+    let lastSegIdx = -1;
+    let lastWordIdx = -1;
+    let lastPublishAt = 0;
+
+    function publishPosition(force: boolean) {
+      if (!audio) return;
+      const time = audio.currentTime;
+      const { segIdx, wordIdx } = computeIndices(time);
+      if (force || segIdx !== lastSegIdx) {
+        lastSegIdx = segIdx;
+        setActiveSegmentIndex(segIdx);
+      }
+      if (force || wordIdx !== lastWordIdx) {
+        lastWordIdx = wordIdx;
+        setActiveWordIndex(wordIdx);
+      }
+      const now = performance.now();
+      if (force || now - lastPublishAt >= TIME_PUBLISH_INTERVAL_MS) {
+        lastPublishAt = now;
+        setCurrentTime(time);
+      }
+    }
+
     function loop() {
       if (!audio || audio.paused) return;
-      const time = audio.currentTime;
-      persistTime(time);
-      const { segIdx, wordIdx } = computeIndices(time);
-      startTransition(() => {
-        setActiveSegmentIndex(segIdx);
-        setActiveWordIndex(wordIdx);
-        setCurrentTime(time);
-      });
+      persistTime(audio.currentTime);
+      publishPosition(false);
       rafRef.current = requestAnimationFrame(loop);
     }
 
@@ -110,6 +133,7 @@ export function usePlaybackEvents({
     const onPause = () => {
       setIsPlaying(false);
       cancelAnimationFrame(rafRef.current);
+      publishPosition(true);
       persistTime(audio.currentTime);
       flushTime();
       syncPositionState(audio);
@@ -117,6 +141,7 @@ export function usePlaybackEvents({
     const onEnded = () => {
       setIsPlaying(false);
       cancelAnimationFrame(rafRef.current);
+      publishPosition(true);
       flushTime();
       playNextRef.current?.();
     };
@@ -130,11 +155,7 @@ export function usePlaybackEvents({
       syncPositionState(audio);
     };
     const onSeeked = () => {
-      const time = audio.currentTime;
-      const { segIdx, wordIdx } = computeIndices(time);
-      setCurrentTime(time);
-      setActiveSegmentIndex(segIdx);
-      setActiveWordIndex(wordIdx);
+      publishPosition(true);
       syncPositionState(audio);
     };
     const onCanPlay = () => {

@@ -50,6 +50,8 @@ interface AudioPlayerActions {
   pause: () => void;
   togglePlay: () => void;
   seek: (time: number) => void;
+  /** Seeks relative to the element's actual position (not the throttled `currentTime`). */
+  seekBy: (delta: number) => void;
   setPlaybackRate: (rate: number) => void;
   nextTrack: () => void;
   previousTrack: () => void;
@@ -367,7 +369,18 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     const audio = audioRef.current;
     if (!audio) return;
     audio.currentTime = time;
+    setCurrentTime(audio.currentTime);
   }, []);
+
+  const seekBy = useCallback(
+    (delta: number) => {
+      const audio = audioRef.current;
+      if (!audio) return;
+      const max = Number.isFinite(audio.duration) ? audio.duration : Infinity;
+      seek(Math.max(0, Math.min(max, audio.currentTime + delta)));
+    },
+    [seek]
+  );
 
   const setPlaybackRate = useCallback((rate: number) => {
     playbackRateRef.current = rate;
@@ -401,6 +414,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     pause,
     togglePlay,
     seek,
+    seekBy,
     setPlaybackRate,
     nextTrack,
     previousTrack,

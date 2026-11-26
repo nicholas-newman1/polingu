@@ -289,17 +289,8 @@ function SpeedControl() {
 }
 
 function PlaybackButtons() {
-  const {
-    isPlaying,
-    currentTime,
-    duration,
-    hasNext,
-    hasPrevious,
-    togglePlay,
-    seek,
-    nextTrack,
-    previousTrack,
-  } = useAudioPlayerContext();
+  const { isPlaying, hasNext, hasPrevious, togglePlay, seekBy, nextTrack, previousTrack } =
+    useAudioPlayerContext();
 
   return (
     <PlaybackGroup>
@@ -311,11 +302,7 @@ function PlaybackButtons() {
       >
         <SkipPreviousIcon />
       </IconButton>
-      <IconButton
-        onClick={() => seek(Math.max(0, currentTime - 10))}
-        aria-label="Skip back 10 seconds"
-        sx={SKIP_BUTTON_SX}
-      >
+      <IconButton onClick={() => seekBy(-10)} aria-label="Skip back 10 seconds" sx={SKIP_BUTTON_SX}>
         <Replay10Icon />
       </IconButton>
       <IconButton
@@ -330,11 +317,7 @@ function PlaybackButtons() {
       >
         {isPlaying ? <PauseIcon fontSize="small" /> : <PlayArrowIcon fontSize="small" />}
       </IconButton>
-      <IconButton
-        onClick={() => seek(Math.min(duration, currentTime + 10))}
-        aria-label="Skip ahead 10 seconds"
-        sx={SKIP_BUTTON_SX}
-      >
+      <IconButton onClick={() => seekBy(10)} aria-label="Skip ahead 10 seconds" sx={SKIP_BUTTON_SX}>
         <Forward10Icon />
       </IconButton>
       <IconButton
