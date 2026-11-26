@@ -17,7 +17,11 @@ import {
 import type { TranslationDirection } from '../types/common';
 import type { CEFRLevel } from '../types/sentences';
 import { ALL_LEVELS } from '../types/sentences';
-import { getDrillableFormsForVerb } from '../lib/conjugationUtils';
+import { getDrillableFormsForVerb, matchesFilters } from '../lib/conjugationUtils';
+import matchesDeclensionFilters from '../lib/declensionScheduler/matchesFilters';
+import type { DrillableForm } from '../types/conjugation';
+import type { UserFilters } from '../types/userFilters';
+import { unlessFilteredOut, useSessionFilters } from '../contexts/review/sessionFilters';
 
 export interface ProgressStats {
   total: number;
@@ -42,7 +46,7 @@ export interface AllProgressStats {
   aspectPairs: ProgressStats;
 }
 
-type Data = Pick<
+type Data = { filters: UserFilters } & Pick<
   ReviewDataContextType,
   | 'declensionCards'
   | 'declensionReviewStore'
@@ -117,10 +121,13 @@ function flagDeclension(data: Data): FlaggedCard[] {
   const store = data.declensionReviewStore;
   const tracked = data.declensionCards.map((card) => {
     const { fsrsCard } = getOrCreateDeclensionCardReviewData(card.id, store);
-    const bucket = getReviewBucket(
-      fsrsCard,
-      includesDeclensionCardId(store.newCardsToday, card.id),
-      includesDeclensionCardId(store.reviewedToday, card.id)
+    const bucket = unlessFilteredOut(
+      getReviewBucket(
+        fsrsCard,
+        includesDeclensionCardId(store.newCardsToday, card.id),
+        includesDeclensionCardId(store.reviewedToday, card.id)
+      ),
+      matchesDeclensionFilters(card, data.filters.declension)
     );
     return { fsrsCard, bucket };
   });
@@ -172,15 +179,19 @@ function summarizeSentencesByLevel(data: Data, flagged: FlaggedCard[]): Translat
 function flagConjugation(
   data: Data,
   direction: TranslationDirection,
-  formKeys: string[]
+  forms: DrillableForm[]
 ): FlaggedCard[] {
   const store = data.conjugationReviewStores[direction];
-  const tracked = formKeys.map((key) => {
+  const tracked = forms.map((form) => {
+    const key = form.fullFormKey;
     const { fsrsCard } = getOrCreateConjugationFormReviewData(key, store);
-    const bucket = getReviewBucket(
-      fsrsCard,
-      includesFormKey(store.newFormsToday, key),
-      includesFormKey(store.reviewedToday, key)
+    const bucket = unlessFilteredOut(
+      getReviewBucket(
+        fsrsCard,
+        includesFormKey(store.newFormsToday, key),
+        includesFormKey(store.reviewedToday, key)
+      ),
+      matchesFilters(form, data.filters.conjugation)
     );
     return { fsrsCard, bucket };
   });
@@ -207,10 +218,8 @@ function flagAspectPairs(data: Data): FlaggedCard[] {
 function computeAllStats(data: Data): AllProgressStats {
   const vocabulary = mapDirections((d) => flagVocabulary(data, d));
   const sentences = mapDirections((d) => flagSentences(data, d));
-  const formKeys = data.verbs.flatMap((verb) =>
-    getDrillableFormsForVerb(verb).map((form) => form.fullFormKey)
-  );
-  const conjugation = mapDirections((d) => flagConjugation(data, d, formKeys));
+  const forms = data.verbs.flatMap(getDrillableFormsForVerb);
+  const conjugation = mapDirections((d) => flagConjugation(data, d, forms));
 
   return {
     declension: summarize(flagDeclension(data)),
@@ -242,10 +251,12 @@ export function useProgressStats(): AllProgressStats {
     aspectPairsReviewStore,
     aspectPairsSettings,
   } = useReviewData();
+  const filters = useSessionFilters();
 
   return useMemo(
     () =>
       computeAllStats({
+        filters,
         declensionCards,
         declensionReviewStore,
         declensionSettings,
@@ -263,6 +274,7 @@ export function useProgressStats(): AllProgressStats {
         aspectPairsSettings,
       }),
     [
+      filters,
       declensionCards,
       declensionReviewStore,
       declensionSettings,

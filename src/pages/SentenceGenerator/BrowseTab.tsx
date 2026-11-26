@@ -3,9 +3,10 @@ import { TextField, Box, Button, Typography, Chip, Stack, IconButton } from '@mu
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import type { Timestamp } from 'firebase/firestore';
-import type { CEFRLevel } from '../../types/sentences';
+import type { CEFRLevel, Sentence } from '../../types/sentences';
 import { ALL_LEVELS } from '../../types/sentences';
 import { deleteSentence } from '../../lib/storage/systemSentences';
+import { loadCustomSentences, saveCustomSentences } from '../../lib/storage/customSentences';
 import { ChipGroup } from './shared';
 import { computeCoverageStats, formatCreatedAt } from './utils';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
@@ -14,6 +15,7 @@ import type { BrowseTabProps } from './types';
 export const BrowseTab = memo(function BrowseTab({
   sentences,
   setSentences,
+  setCustomSentences,
   sentenceTags,
   showSnackbar,
 }: BrowseTabProps) {
@@ -85,18 +87,25 @@ export const BrowseTab = memo(function BrowseTab({
   });
 
   const handleDeleteSentence = useCallback(
-    async (sentenceId: string) => {
+    async (sentence: Sentence) => {
       if (!window.confirm('Delete this sentence?')) return;
       try {
-        await deleteSentence(sentenceId);
-        setSentences(sentences.filter((s) => s.id !== sentenceId));
+        if (sentence.isCustom) {
+          // The admin's own sentences live in their custom collection, not the built-in one.
+          const remaining = (await loadCustomSentences()).filter((s) => s.id !== sentence.id);
+          await saveCustomSentences(remaining);
+          setCustomSentences(remaining);
+        } else {
+          await deleteSentence(sentence.id);
+          setSentences(sentences.filter((s) => s.id !== sentence.id));
+        }
         showSnackbar('Sentence deleted', 'success');
       } catch (e) {
         console.error('Delete failed:', e);
         showSnackbar('Failed to delete sentence', 'error');
       }
     },
-    [sentences, setSentences, showSnackbar]
+    [sentences, setSentences, setCustomSentences, showSnackbar]
   );
 
   const handleClearDates = useCallback(() => {
@@ -250,7 +259,7 @@ export const BrowseTab = memo(function BrowseTab({
                   </Box>
                   <IconButton
                     size="small"
-                    onClick={() => handleDeleteSentence(sentence.id)}
+                    onClick={() => handleDeleteSentence(sentence)}
                     sx={{ alignSelf: 'flex-start', color: 'error.main' }}
                   >
                     <DeleteIcon fontSize="small" />

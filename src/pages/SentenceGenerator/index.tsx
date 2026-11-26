@@ -19,7 +19,8 @@ const PageContainer = styled(Box)(() => ({
 
 export function SentenceGeneratorPage() {
   const { isAdmin } = useAuthContext();
-  const { sentences, setSentences, sentenceTags, addSentenceTag } = useReviewData();
+  const { sentences, setSentences, setCustomSentences, sentenceTags, addSentenceTag } =
+    useReviewData();
   const { showSnackbar } = useSnackbar();
 
   const [tabIndex, setTabIndex] = useState(0);
@@ -57,6 +58,8 @@ export function SentenceGeneratorPage() {
         <Box sx={{ pt: 3 }}>
           <GenerateTab
             key={pendingGenerate ? `${pendingGenerate.level}-${pendingGenerate.tag}` : 'default'}
+            initialLevel={pendingGenerate?.level}
+            initialTag={pendingGenerate?.tag}
             sentences={sentences}
             setSentences={setSentences}
             sentenceTags={sentenceTags}
@@ -71,6 +74,7 @@ export function SentenceGeneratorPage() {
           <BrowseTab
             sentences={sentences}
             setSentences={setSentences}
+            setCustomSentences={setCustomSentences}
             sentenceTags={sentenceTags}
             showSnackbar={showSnackbar}
           />

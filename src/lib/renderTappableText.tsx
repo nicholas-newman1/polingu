@@ -1,5 +1,6 @@
 import { TranslatableWord } from '../components/TranslatableWord';
 import { TranslatableText } from '../components/TranslatableText';
+import { translationCacheKey } from './translate';
 
 interface RenderTappableTextOptions {
   translations?: Record<string, string>;
@@ -24,15 +25,14 @@ export function renderTappableText(
     sentenceContext,
   } = options;
   const tokens = text.split(/(\s+)/);
+  const cleanHighlight = highlightedWord && translationCacheKey(highlightedWord);
 
   let wordIndex = 0;
   const elements = tokens.map((token, index) => {
     if (/^\s+$/.test(token)) {
       return token;
     }
-    const cleanToken = token.replace(/[.,!?;:"""''()]/g, '').toLowerCase();
-    const cleanHighlight = highlightedWord?.replace(/[.,!?;:"""''()]/g, '').toLowerCase();
-    const isHighlighted = !!(cleanHighlight && cleanToken === cleanHighlight);
+    const isHighlighted = !!(cleanHighlight && translationCacheKey(token) === cleanHighlight);
     const currentWordIndex = wordIndex;
     wordIndex++;
 

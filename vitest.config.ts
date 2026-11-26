@@ -25,6 +25,9 @@ export default defineConfig({
           exclude: ['tests/rules/**'],
           environment: 'jsdom',
           setupFiles: ['tests/setup/unit.ts'],
+          // Page-level UI tests render the whole provider tree; leave room for slow CI runners.
+          testTimeout: 20_000,
+          hookTimeout: 20_000,
         },
       },
       {

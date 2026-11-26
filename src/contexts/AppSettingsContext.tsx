@@ -3,6 +3,8 @@ import type { AppSettings } from '../types/appSettings';
 import { DEFAULT_APP_SETTINGS } from '../types/appSettings';
 import loadAppSettings from '../lib/storage/loadAppSettings';
 import saveAppSettings from '../lib/storage/saveAppSettings';
+import { showSaveError } from '../lib/storage/errorHandler';
+import { stripUndefined } from '../lib/storage/firestoreUtils';
 import { useAuthContext } from '../hooks/useAuthContext';
 
 interface AppSettingsContextType {
@@ -57,9 +59,15 @@ export function AppSettingsProvider({ children }: AppSettingsProviderProps) {
 
   const updateSettings = useCallback(
     async (updates: Partial<AppSettings>) => {
-      const newSettings = { ...settings, ...updates };
+      // An undefined value removes that setting; Firestore rejects undefined fields.
+      const newSettings = stripUndefined({ ...settings, ...updates });
       setSettings(newSettings);
-      await saveAppSettings(newSettings);
+      try {
+        await saveAppSettings(newSettings);
+      } catch (e) {
+        // The change is kept locally and synced later.
+        showSaveError(e);
+      }
     },
     [settings]
   );

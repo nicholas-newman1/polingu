@@ -4,15 +4,19 @@ import { useOnlineStatus } from '../../src/hooks/useOnlineStatus';
 import { saveUserData, syncAllPendingToFirestore } from '../../src/lib/offlineDb/userDataWrapper';
 import { syncContentFromFirestore } from '../../src/lib/offlineDb/contentSync';
 import type { ContentData } from '../../src/lib/offlineDb/contentSync';
+import { syncAllPendingReviewCards } from '../../src/lib/storage/reviewStorageRegistry';
 import { signInFakeUser } from '../fakes/firebase';
 import { deferred } from './support/deferred';
 
-// The two sync calls talk to Firestore; saving offline stays real (IndexedDB only).
+// The sync calls talk to Firestore; saving offline stays real (IndexedDB only).
 vi.mock('../../src/lib/offlineDb/userDataWrapper', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../src/lib/offlineDb/userDataWrapper')>()),
   syncAllPendingToFirestore: vi.fn(),
 }));
 vi.mock('../../src/lib/offlineDb/contentSync', () => ({ syncContentFromFirestore: vi.fn() }));
+vi.mock('../../src/lib/storage/reviewStorageRegistry', () => ({
+  syncAllPendingReviewCards: vi.fn(),
+}));
 
 let online = true;
 
@@ -23,6 +27,7 @@ beforeEach(() => {
   vi.spyOn(console, 'error').mockImplementation(() => {});
   vi.mocked(syncAllPendingToFirestore).mockResolvedValue(0);
   vi.mocked(syncContentFromFirestore).mockResolvedValue({} as ContentData);
+  vi.mocked(syncAllPendingReviewCards).mockResolvedValue();
 });
 
 const goOffline = () =>
@@ -59,6 +64,19 @@ describe('useOnlineStatus', () => {
     expect(syncContentFromFirestore).toHaveBeenCalledTimes(1);
 
     await act(async () => pending.resolve(2));
+    expect(result.current.isSyncing).toBe(false);
+  });
+
+  // The day's session docs (reviewedToday etc.) are among the pending changes sent on
+  // reconnecting, so the cards' own progress, kept in separate collections, must go too.
+  test('coming back online also sends the review progress saved offline', async () => {
+    const { result } = renderHook(() => useOnlineStatus());
+    goOffline();
+
+    goOnline();
+    expect(syncAllPendingReviewCards).toHaveBeenCalledTimes(1);
+
+    await act(async () => {});
     expect(result.current.isSyncing).toBe(false);
   });
 

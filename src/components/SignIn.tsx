@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Box, Button, Card, Divider, Typography, Avatar, styled } from '@mui/material';
 import { useAuthContext } from '../hooks/useAuthContext';
+import { useSnackbar } from '../hooks/useSnackbar';
 import { alpha } from '../lib/theme';
 import { SITE_NAME, SITE_TAGLINE } from '../constants';
 import { SiteLogo } from './SiteLogo';
@@ -98,13 +99,23 @@ const GoogleIcon = () => (
   </svg>
 );
 
+// The user closed the popup, or opened another one: not a failure worth reporting.
+const CANCELLED_SIGN_IN_CODES = ['auth/popup-closed-by-user', 'auth/cancelled-popup-request'];
+
 export function SignIn() {
   const { signInWithGoogle, user } = useAuthContext();
+  const { showSnackbar } = useSnackbar();
   const navigate = useNavigate();
 
   const handleSignIn = async () => {
-    await signInWithGoogle();
-    navigate('/dashboard');
+    try {
+      await signInWithGoogle();
+      navigate('/dashboard');
+    } catch (error) {
+      if (CANCELLED_SIGN_IN_CODES.includes((error as { code?: string }).code ?? '')) return;
+      console.error('Google sign-in failed:', error);
+      showSnackbar('Sign-in failed. Please try again.', 'error');
+    }
   };
 
   useEffect(() => {

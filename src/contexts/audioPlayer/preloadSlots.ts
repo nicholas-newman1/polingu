@@ -22,6 +22,11 @@ function isBuffered(el: HTMLAudioElement | null): el is HTMLAudioElement {
   return !!el && el.readyState >= 2;
 }
 
+/** A buffered element may hold a track left mid-way; switching to a track starts it at 0. */
+function rewind(el: HTMLAudioElement) {
+  if (el.currentTime !== 0) el.currentTime = 0;
+}
+
 /**
  * If `audioId` is already buffered in the next/previous slot, rotates that element into the active
  * slot (the outgoing track becomes the buffer on the opposite side) and returns its URL.
@@ -42,6 +47,7 @@ export function promotePreloaded(
     prevPreloadRef.current = oldActive;
     prevPreloadedTrackRef.current = outgoing;
     preloadedTrackRef.current = null;
+    rewind(audioRef.current);
     return next.url;
   }
 
@@ -51,6 +57,7 @@ export function promotePreloaded(
     preloadRef.current = oldActive;
     preloadedTrackRef.current = outgoing;
     prevPreloadedTrackRef.current = null;
+    rewind(audioRef.current);
     return prev.url;
   }
 

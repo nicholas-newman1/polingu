@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { Chip, FormControl, InputLabel, MenuItem, Select } from '@mui/material';
 import { styled } from '../lib/styled';
 
@@ -24,10 +25,12 @@ export function MultiSelectFilter<T extends string>({
   onChange,
   getLabel = String,
 }: MultiSelectFilterProps<T>) {
+  const labelId = useId();
   return (
     <FilterFormControl size="small">
-      <InputLabel>{label}</InputLabel>
+      <InputLabel id={labelId}>{label}</InputLabel>
       <Select<T[]>
+        labelId={labelId}
         multiple
         value={value}
         label={label}
@@ -62,10 +65,12 @@ interface NumberFilterProps<T extends string> {
 }
 
 export function NumberFilter<T extends string>({ options, value, onChange }: NumberFilterProps<T>) {
+  const labelId = useId();
   return (
     <FilterFormControl size="small" sx={{ minWidth: 130 }}>
-      <InputLabel>Number</InputLabel>
+      <InputLabel id={labelId}>Number</InputLabel>
       <Select
+        labelId={labelId}
         value={value}
         label="Number"
         onChange={(e) => onChange(e.target.value as T | 'All')}

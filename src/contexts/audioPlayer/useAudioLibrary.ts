@@ -16,6 +16,9 @@ export function useAudioLibrary() {
 
   useEffect(() => {
     let cancelled = false;
+    // A device copy read after a live snapshot is older than it, so it is ignored.
+    let haveLiveItems = false;
+    let haveLiveSystemItems = false;
     const applyItems = (next: AudioItem[]) => {
       if (cancelled) return;
       setItems(next);
@@ -27,10 +30,20 @@ export function useAudioLibrary() {
       systemItemsRef.current = next;
     };
 
-    getCachedAudioItems().then(applyItems);
-    getCachedSystemAudioItems().then(applySystemItems);
-    const unsubItems = subscribeToAudioItemsUpdates(applyItems);
-    const unsubSystem = subscribeToSystemAudioItems(applySystemItems);
+    getCachedAudioItems().then((cached) => {
+      if (!haveLiveItems) applyItems(cached);
+    });
+    getCachedSystemAudioItems().then((cached) => {
+      if (!haveLiveSystemItems) applySystemItems(cached);
+    });
+    const unsubItems = subscribeToAudioItemsUpdates((live) => {
+      haveLiveItems = true;
+      applyItems(live);
+    });
+    const unsubSystem = subscribeToSystemAudioItems((live) => {
+      haveLiveSystemItems = true;
+      applySystemItems(live);
+    });
 
     return () => {
       cancelled = true;

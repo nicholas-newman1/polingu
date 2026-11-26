@@ -77,13 +77,12 @@ export function usePlaybackEvents({
     const alreadyLoaded = skipLoadRef.current;
     skipLoadRef.current = false;
 
-    if (alreadyLoaded) {
-      audio.playbackRate = playbackRateRef.current;
-    } else {
+    if (!alreadyLoaded) {
       audio.src = audioUrl;
-      audio.playbackRate = playbackRateRef.current;
       audio.load();
     }
+    // After load(), which resets playbackRate to defaultPlaybackRate.
+    audio.playbackRate = playbackRateRef.current;
 
     function computeIndices(time: number) {
       const segments = transcriptRef.current;
@@ -147,10 +146,12 @@ export function usePlaybackEvents({
     };
     const onLoadedMetadata = () => {
       setDuration(audio.duration);
-      if (restoreTimeRef.current > 0 && restoreTimeRef.current < audio.duration) {
-        audio.currentTime = restoreTimeRef.current;
-        setCurrentTime(restoreTimeRef.current);
-        restoreTimeRef.current = 0;
+      // Consumed by this track even when out of range, so it can't apply to a later one.
+      const restoreTime = restoreTimeRef.current;
+      restoreTimeRef.current = 0;
+      if (restoreTime > 0 && restoreTime < audio.duration) {
+        audio.currentTime = restoreTime;
+        setCurrentTime(restoreTime);
       }
       syncPositionState(audio);
     };

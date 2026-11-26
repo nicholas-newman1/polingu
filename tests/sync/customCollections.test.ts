@@ -1,5 +1,8 @@
 import { describe, expect, test, vi } from 'vitest';
-import { createCustomCollectionStorage } from '../../src/lib/storage/createCustomCollectionStorage';
+import {
+  createCustomCollectionStorage,
+  syncPendingCustomCards,
+} from '../../src/lib/storage/createCustomCollectionStorage';
 import { loadCustomVocabulary, saveCustomVocabulary } from '../../src/lib/storage/customVocabulary';
 import { loadCustomSentences, saveCustomSentences } from '../../src/lib/storage/customSentences';
 import {
@@ -121,12 +124,35 @@ describe('adding, editing and deleting while online', () => {
     expect(Object.keys(remote.list(vocabPath))).toEqual(['custom_2']);
   });
 
-  test('a rejected server write surfaces the error but keeps the item on this device', async () => {
+  // A refused write (e.g. permission-denied) would fail again on every retry; the SDK
+  // waits rather than rejects while offline.
+  test('a rejected server write surfaces the error and leaves the device as it was', async () => {
     signIn(UID);
     remote.fail({ op: 'setDoc' });
 
     await expect(vocabStorage().add(word('custom_1', 'kot'))).rejects.toThrow();
-    expect(ids(await vocabStorage().load())).toEqual(['custom_1']);
+    expect(await vocabStorage().load()).toEqual([]);
+
+    // Nothing is left pending to be sent later.
+    remote.clearFailures();
+    expect(await syncPendingCustomCards()).toBe(0);
+    expect(remote.list(vocabPath)).toEqual({});
+  });
+
+  test('a rejected edit or delete restores the item as it was', async () => {
+    signIn(UID);
+    await vocabStorage().add(word('custom_1', 'kot', { notes: 'pet' }));
+    remote.fail({ op: ['updateDoc', 'deleteDoc'] });
+
+    await expect(
+      vocabStorage().update('custom_1', { english: 'cat', notes: undefined })
+    ).rejects.toThrow();
+    await expect(vocabStorage().delete('custom_1')).rejects.toThrow();
+
+    expect(await vocabStorage().load()).toEqual([word('custom_1', 'kot', { notes: 'pet' })]);
+    remote.clearFailures();
+    expect(await syncPendingCustomCards()).toBe(0);
+    expect(remote.get(`${vocabPath}/custom_1`)).toEqual(word('custom_1', 'kot', { notes: 'pet' }));
   });
 
   test('clearing an optional field in an edit removes it on the server too', async () => {

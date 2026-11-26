@@ -1,4 +1,4 @@
-import { createContext, useState, useCallback, type ReactNode } from 'react';
+import { createContext, useState, useCallback, useRef, type ReactNode } from 'react';
 import { AddVocabularyModal } from '../components/AddVocabularyModal';
 import { loadCustomVocabulary, saveCustomVocabulary } from '../lib/storage/customVocabulary';
 import type { CustomVocabularyWord } from '../types/vocabulary';
@@ -6,6 +6,8 @@ import { useVocabulary } from '../hooks/useReviewData';
 import { normalizeVocabularyPrefill } from '../lib/utils/normalizeVocabularyPrefill';
 import { findCustomWordWithSamePolish } from '../lib/utils/findDuplicateCustomVocabularyPolish';
 import { useReprioritizeVocabularyWord } from '../hooks/useReprioritizeVocabularyWord';
+
+type NewWord = Omit<CustomVocabularyWord, 'id' | 'isCustom' | 'createdAt'>;
 
 interface AddToVocabularyContextType {
   openAddToVocabulary: (polish: string, english: string) => void;
@@ -23,8 +25,11 @@ export function AddToVocabularyProvider({ children }: AddToVocabularyProviderPro
   const [initialValues, setInitialValues] = useState<
     { polish: string; english: string } | undefined
   >();
+  // The saved words, read when the dialog opens, so a duplicate is caught
+  // synchronously and the dialog stays open with what was typed.
+  const savedRef = useRef<CustomVocabularyWord[]>([]);
 
-  const { refreshVocabularyWords } = useVocabulary();
+  const { customWords, refreshVocabularyWords } = useVocabulary();
   const { showDuplicateError } = useReprioritizeVocabularyWord();
 
   const openAddToVocabulary = useCallback((polish: string, english: string) => {
@@ -33,6 +38,11 @@ export function AddToVocabularyProvider({ children }: AddToVocabularyProviderPro
       english: normalizeVocabularyPrefill(english),
     });
     setModalOpen(true);
+    savedRef.current = [];
+    loadCustomVocabulary().then(
+      (loaded) => (savedRef.current = loaded),
+      (e) => console.error('Failed to load custom vocabulary:', e)
+    );
   }, []);
 
   const handleClose = useCallback(() => {
@@ -40,14 +50,20 @@ export function AddToVocabularyProvider({ children }: AddToVocabularyProviderPro
     setInitialValues(undefined);
   }, []);
 
-  const handleSave = useCallback(
-    async (wordData: Omit<CustomVocabularyWord, 'id' | 'isCustom' | 'createdAt'>) => {
+  const reportDuplicate = useCallback(
+    (words: CustomVocabularyWord[], polish: string) => {
+      const duplicate = findCustomWordWithSamePolish(words, polish);
+      if (duplicate) showDuplicateError(duplicate.id);
+      return !!duplicate;
+    },
+    [showDuplicateError]
+  );
+
+  const addWord = useCallback(
+    async (wordData: NewWord) => {
       const loaded = await loadCustomVocabulary();
-      const duplicate = findCustomWordWithSamePolish(loaded, wordData.polish);
-      if (duplicate) {
-        showDuplicateError(duplicate.id);
-        return;
-      }
+      // Checked again in case the save came before the list above had loaded.
+      if (reportDuplicate(loaded, wordData.polish)) return;
       const newWord: CustomVocabularyWord = {
         ...wordData,
         id: `custom_${Date.now()}`,
@@ -58,7 +74,16 @@ export function AddToVocabularyProvider({ children }: AddToVocabularyProviderPro
       await saveCustomVocabulary(newCustomVocabulary);
       await refreshVocabularyWords();
     },
-    [refreshVocabularyWords, showDuplicateError]
+    [refreshVocabularyWords, reportDuplicate]
+  );
+
+  const handleSave = useCallback(
+    (wordData: NewWord) =>
+      // The live list covers words the stored copy may not have yet.
+      reportDuplicate([...customWords, ...savedRef.current], wordData.polish)
+        ? false
+        : addWord(wordData),
+    [customWords, reportDuplicate, addWord]
   );
 
   return (

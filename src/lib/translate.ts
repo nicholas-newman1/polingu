@@ -70,6 +70,46 @@ export interface TranslationResult {
   resetTime: string;
 }
 
+/**
+ * The key word and phrase translations are cached under. Must match cleanTextForCacheKey
+ * in functions/src/shared/rateLimits.ts, which stores translations on sentences and
+ * declension cards under this key.
+ */
+export function translationCacheKey(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9ąćęłńóśźż ]+/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean)
+    .join(' ');
+}
+
+/**
+ * A tapped word as it is sent for translation: lowercased, without the punctuation around
+ * it. Empty for a token of punctuation alone.
+ */
+export function wordToTranslate(word: string): string {
+  return word.toLowerCase().replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '');
+}
+
+/** The translate function rejects a longer context (validateRequest in functions/src/callables/translate.ts). */
+const MAX_CONTEXT_LENGTH = 1000;
+
+const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** Cuts a context over the server's limit down to the stretch around `text`. */
+function fitContext(context: string | undefined, text: string): string | undefined {
+  if (!context || context.length <= MAX_CONTEXT_LENGTH) return context;
+  const pattern = text.trim().split(/\s+/).map(escapeRegExp).join('\\s+');
+  const match = new RegExp(pattern, 'iu').exec(context);
+  const middle = match ? match.index + match[0].length / 2 : 0;
+  const start = Math.min(
+    Math.max(0, Math.round(middle - MAX_CONTEXT_LENGTH / 2)),
+    context.length - MAX_CONTEXT_LENGTH
+  );
+  return context.slice(start, start + MAX_CONTEXT_LENGTH);
+}
+
 const translateFn = httpsCallable<TranslateRequest, TranslateResponse>(functions, 'translate');
 
 export async function translate(
@@ -80,7 +120,9 @@ export async function translate(
   try {
     // Firebase encodes undefined values as null; optional fields must be omitted.
     const definedOptions = Object.fromEntries(
-      Object.entries(options).filter(([, value]) => value !== undefined)
+      Object.entries({ ...options, context: fitContext(options.context, text) }).filter(
+        ([, value]) => value !== undefined
+      )
     );
     const result = await translateFn({ ...definedOptions, text, targetLang });
     return {

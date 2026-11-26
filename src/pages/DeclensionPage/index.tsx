@@ -6,6 +6,7 @@ import { DeclensionFilterControls } from './components/DeclensionFilterControls'
 import { SettingsPanel } from '../../components/SettingsPanel';
 import { FinishedState } from '../../components/FinishedState';
 import { ReviewStage } from '../../components/ReviewStage';
+import { EmptyState } from '../../components/EmptyState';
 import { SessionStatusLine } from '../../components/SessionStatusLine';
 import { ReviewMainContent } from '../../components/ReviewLayout';
 import { EditDeclensionModal } from '../../components/EditDeclensionModal';
@@ -21,6 +22,7 @@ import getDeclensionSessionCards from '../../lib/declensionScheduler/getSessionC
 import getDeclensionExtraCards from '../../lib/declensionScheduler/getExtraCards';
 import matchesDeclensionFilters from '../../lib/declensionScheduler/matchesFilters';
 import type { DeclensionFilters } from '../../lib/declensionScheduler/types';
+import { DEFAULT_USER_FILTERS } from '../../types/userFilters';
 import { recordCardReview } from '../../lib/reviewSession/recordReview';
 import { useAuthContext } from '../../hooks/useAuthContext';
 import { useReviewData } from '../../hooks/useReviewData';
@@ -115,6 +117,9 @@ export function DeclensionPage() {
   const handleSettingsChange = async (newCardsPerDay: number) => {
     const newSettings = { ...settings, newCardsPerDay };
     await updateDeclensionSettings(newSettings);
+    session.startSession(
+      getDeclensionSessionCards(allDeclensionCards, reviewStore, filters, newSettings)
+    );
   };
 
   const handleResetAllData = async () => {
@@ -265,7 +270,8 @@ export function DeclensionPage() {
       ? (word: string, translation: string) => handleUpdateTranslation(card.id, word, translation)
       : undefined;
 
-  if (contextLoading || filtersLoading || !session.isBuilt) {
+  // No session is built without cards; the stage's fallback says so instead of a spinner.
+  if (contextLoading || filtersLoading || (allDeclensionCards.length > 0 && !session.isBuilt)) {
     return (
       <LoadingContainer>
         <CircularProgress sx={{ color: 'text.disabled' }} />
@@ -284,6 +290,7 @@ export function DeclensionPage() {
         onCaseChange={(cases: Case[]) => handleFiltersChange({ ...filters, cases })}
         onGenderChange={(genders: Gender[]) => handleFiltersChange({ ...filters, genders })}
         onNumberChange={(number: Number | 'All') => handleFiltersChange({ ...filters, number })}
+        onClearFilters={() => handleFiltersChange(DEFAULT_USER_FILTERS.declension)}
         onTogglePractice={() =>
           practice.toggle(allDeclensionCards.filter((c) => matchesDeclensionFilters(c, filters)))
         }
@@ -317,7 +324,7 @@ export function DeclensionPage() {
       )}
 
       <ReviewMainContent>
-        <SessionStatusLine session={session} unitLabel="cards" />
+        {session.isBuilt && <SessionStatusLine session={session} unitLabel="cards" />}
 
         <ReviewStage
           session={session}
@@ -370,6 +377,11 @@ export function DeclensionPage() {
               onUpdateTranslation={translationHandler(card)}
             />
           )}
+          fallback={
+            allDeclensionCards.length === 0 && (
+              <EmptyState message="No declension cards available." />
+            )
+          }
         />
       </ReviewMainContent>
 

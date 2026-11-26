@@ -287,7 +287,7 @@ export function SentencesPage({ mode }: SentencesPageProps) {
           handleUpdateTranslation(sentence.id, word, translation)
       : undefined;
 
-  const isLoading = contextLoading;
+  const isLoading = contextLoading || !session.isBuilt;
 
   if (!mode) {
     return (

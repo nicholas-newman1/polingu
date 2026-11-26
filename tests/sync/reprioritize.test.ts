@@ -35,7 +35,7 @@ const vocabStore = (): VocabularyReviewDataStore => ({
   cards: {
     5: { wordId: 5, fsrsCard: ratedCard(RATED) },
     6: { wordId: 6, fsrsCard: ratedCard(RATED) },
-    custom_1: { wordId: 'custom_1', fsrsCard: createEmptyCard() },
+    custom_1: { wordId: 'custom_1', fsrsCard: createEmptyCard(new Date(RATED)) },
   },
   reviewedToday: [5, 6],
   newCardsToday: ['5', 6],

@@ -50,9 +50,10 @@ createRoot(document.getElementById('root')!).render(
         <SnackbarProvider>
           <AuthProvider>
             <AuthGate>
-              <ReviewDataProvider>
-                <AppSettingsProvider>
-                  <UserFiltersProvider>
+              {/* Above the review data, whose due counts follow the learner's session filters. */}
+              <UserFiltersProvider>
+                <ReviewDataProvider>
+                  <AppSettingsProvider>
                     <TranslationProvider>
                       <CheatSheetProvider>
                         <AudioPlayerProvider>
@@ -135,9 +136,9 @@ createRoot(document.getElementById('root')!).render(
                         </AudioPlayerProvider>
                       </CheatSheetProvider>
                     </TranslationProvider>
-                  </UserFiltersProvider>
-                </AppSettingsProvider>
-              </ReviewDataProvider>
+                  </AppSettingsProvider>
+                </ReviewDataProvider>
+              </UserFiltersProvider>
             </AuthGate>
           </AuthProvider>
           <AppSnackbar />

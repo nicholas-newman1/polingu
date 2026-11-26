@@ -271,7 +271,7 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
     updateWordEverywhere(wordId, { examples: mergedExamples });
   };
 
-  const isLoading = contextLoading;
+  const isLoading = contextLoading || !session.isBuilt;
 
   if (!mode) {
     return (

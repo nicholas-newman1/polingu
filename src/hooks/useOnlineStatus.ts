@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { liveQuery } from 'dexie';
 import { countPendingChanges, syncAllPendingToFirestore } from '../lib/offlineDb/userDataWrapper';
 import { syncContentFromFirestore } from '../lib/offlineDb/contentSync';
+import { syncAllPendingReviewCards } from '../lib/storage/reviewStorageRegistry';
 
 const SYNC_TIMEOUT_MS = 10000;
 
@@ -36,7 +37,11 @@ export function useOnlineStatus(): UseOnlineStatusReturn {
         setTimeout(() => reject(new Error('Sync timed out')), SYNC_TIMEOUT_MS)
       );
       await Promise.race([
-        Promise.all([syncAllPendingToFirestore(), syncContentFromFirestore()]),
+        Promise.all([
+          syncAllPendingToFirestore(),
+          syncAllPendingReviewCards(),
+          syncContentFromFirestore(),
+        ]),
         timeout,
       ]);
     } catch (e) {

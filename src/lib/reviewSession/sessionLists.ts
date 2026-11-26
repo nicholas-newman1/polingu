@@ -10,7 +10,7 @@
  * fall back to the old union.
  */
 
-import type { SessionChanges } from '../../types/common';
+import type { SessionChanges, TranslationDirection } from '../../types/common';
 
 export type { SessionChanges };
 
@@ -75,6 +75,18 @@ export function startDayIfNeeded<Store extends SessionDoc>(
   const fresh: Store = { ...store, lastReviewDate: today, changedAt: {} };
   for (const list of lists) (fresh as Record<string, unknown>)[list] = [];
   return fresh;
+}
+
+/** startDayIfNeeded for both directions' stores, returning `stores` itself when neither changes. */
+export function startDayInBothDirections<Store extends SessionDoc>(
+  stores: Record<TranslationDirection, Store>,
+  lists: ListKey<Store>[],
+  today: string
+): Record<TranslationDirection, Store> {
+  const plToEn = startDayIfNeeded(stores['pl-to-en'], lists, today);
+  const enToPl = startDayIfNeeded(stores['en-to-pl'], lists, today);
+  if (plToEn === stores['pl-to-en'] && enToPl === stores['en-to-pl']) return stores;
+  return { 'pl-to-en': plToEn, 'en-to-pl': enToPl };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

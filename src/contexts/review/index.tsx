@@ -1,4 +1,13 @@
-import { useState, useEffect, useCallback, useRef, memo, type ReactNode } from 'react';
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useContext,
+  useRef,
+  memo,
+  type ComponentProps,
+  type ReactNode,
+} from 'react';
 import type { DeclensionCard } from '../../types';
 import type { VocabularyWord } from '../../types/vocabulary';
 import type { Sentence } from '../../types/sentences';
@@ -22,6 +31,7 @@ import { SentenceProvider, SentenceContext, loadSentenceData } from './SentenceC
 import { ConjugationProvider, ConjugationContext, loadConjugationData } from './ConjugationContext';
 import { AspectPairsProvider, AspectPairsContext, loadAspectPairsData } from './AspectPairsContext';
 import { ReviewCountsProvider, ReviewCountsContext } from './ReviewCountsContext';
+import { latestLocalChange } from './localChanges';
 
 export type { DeclensionContextType } from './DeclensionContext';
 export type { VocabularyContextType } from './VocabularyContext';
@@ -55,6 +65,12 @@ interface LoadedData {
   systemWords?: VocabularyWord[];
   systemSentences?: Sentence[];
   verbs?: Verb[];
+  /**
+   * When this load or sync started reading storage (latestLocalChange). The
+   * providers keep what was changed in memory since, such as custom items the
+   * live listener delivered while a slow load was still reading.
+   */
+  readAt?: number;
 }
 
 /** Signed-out users only get system content, so the user-data sections stay empty. */
@@ -100,6 +116,14 @@ const MemoizedChildTree = memo(function MemoizedChildTree({ children }: { childr
   return children;
 });
 
+/** Builds the aspect pairs from the conjugation context's verbs, so they follow setVerbs. */
+function AspectPairsFromConjugationVerbs(
+  props: Omit<ComponentProps<typeof AspectPairsProvider>, 'verbs'>
+) {
+  const verbs = useContext(ConjugationContext)?.verbs;
+  return <AspectPairsProvider {...props} verbs={verbs} />;
+}
+
 export function ReviewDataProvider({ children }: ReviewDataProviderProps) {
   const { user } = useAuthContext();
   const [loading, setLoading] = useState(true);
@@ -127,6 +151,7 @@ export function ReviewDataProvider({ children }: ReviewDataProviderProps) {
     if (syncInFlightRef.current) return;
     syncInFlightRef.current = true;
     const syncUid = getUserId();
+    const readAt = latestLocalChange();
     try {
       await Promise.all([syncAllPendingToFirestore(), syncAllPendingReviewCards()]);
       await Promise.all([
@@ -138,7 +163,7 @@ export function ReviewDataProvider({ children }: ReviewDataProviderProps) {
       const fresh = await fetchAllData();
       if (mountedRef.current && getUserId() === syncUid) {
         freshDataAppliedRef.current = true;
-        setData(fresh);
+        setData({ ...fresh, readAt });
       }
     } catch (e) {
       console.error('Background sync failed:', e);
@@ -155,9 +180,10 @@ export function ReviewDataProvider({ children }: ReviewDataProviderProps) {
       console.error('Failed to remove legacy review IndexedDB rows:', e);
     });
 
+    const readAt = latestLocalChange();
     fetchAllData().then((result) => {
       if (!active) return;
-      if (!freshDataAppliedRef.current) setData(result);
+      if (!freshDataAppliedRef.current) setData({ ...result, readAt });
       setLoading(false);
       performBackgroundSync();
     });
@@ -189,12 +215,14 @@ export function ReviewDataProvider({ children }: ReviewDataProviderProps) {
       initialSystemCards={d.systemDeclensionCards}
       initialReviewStore={d.declensionData.reviewData}
       initialSettings={d.declensionData.settings}
+      readAt={d.readAt}
     >
       <VocabularyProvider
         initialCustomWords={d.vocabularyData.customWords}
         initialSystemWords={d.systemWords}
         initialReviewStores={d.vocabularyData.reviewStores}
         initialSettings={d.vocabularyData.settings}
+        readAt={d.readAt}
       >
         <SentenceProvider
           initialCustomSentences={d.sentenceData.customSentences}
@@ -202,21 +230,23 @@ export function ReviewDataProvider({ children }: ReviewDataProviderProps) {
           initialReviewStores={d.sentenceData.reviewStores}
           initialSettings={d.sentenceData.settings}
           initialTags={d.sentenceData.tags}
+          readAt={d.readAt}
         >
           <ConjugationProvider
             initialVerbs={d.verbs}
             initialReviewStores={d.conjugationData.reviewStores}
             initialSettings={d.conjugationData.settings}
+            readAt={d.readAt}
           >
-            <AspectPairsProvider
-              verbs={d.verbs}
+            <AspectPairsFromConjugationVerbs
               initialReviewStore={d.aspectPairsData.reviewData}
               initialSettings={d.aspectPairsData.settings}
+              readAt={d.readAt}
             >
               <ReviewCountsProvider loading={loading}>
                 <MemoizedChildTree>{children}</MemoizedChildTree>
               </ReviewCountsProvider>
-            </AspectPairsProvider>
+            </AspectPairsFromConjugationVerbs>
           </ConjugationProvider>
         </SentenceProvider>
       </VocabularyProvider>

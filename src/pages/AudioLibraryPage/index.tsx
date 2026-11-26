@@ -6,6 +6,7 @@ import { styled } from '../../lib/styled';
 import { uploadAudio } from '../../lib/audio';
 import { useAudioPlayerContext } from '../../contexts/AudioPlayerContext';
 import { useAuthContext } from '../../hooks/useAuthContext';
+import { useSnackbar } from '../../hooks/useSnackbar';
 import type { AudioUploadProgress } from '../../types/audio';
 import { MiniPlayerBar, MINI_PLAYER_HEIGHT } from '../../components/MiniPlayerBar';
 import { UploadProgressOverlay } from '../../components/UploadProgressOverlay';
@@ -51,6 +52,7 @@ export function AudioLibraryPage() {
     playFromLibrary,
   } = useAudioPlayerContext();
   const { isAdmin } = useAuthContext();
+  const { showSnackbar } = useSnackbar();
   const [uploadProgress, setUploadProgress] = useState<AudioUploadProgress | null>(null);
   const [menuAnchor, setMenuAnchor] = useState<{ el: HTMLElement; item: MergedItem } | null>(null);
   const [renaming, setRenaming] = useState<MergedItem | null>(null);
@@ -96,6 +98,7 @@ export function AudioLibraryPage() {
       await uploadAudio(file, setUploadProgress);
     } catch (error) {
       console.error('Upload failed:', error);
+      showSnackbar(error instanceof Error ? error.message : 'Upload failed', 'error');
     } finally {
       setUploadProgress(null);
     }

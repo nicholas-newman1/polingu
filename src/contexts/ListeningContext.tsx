@@ -296,6 +296,8 @@ export function ListeningProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const pause = useCallback(() => {
+    // In the gap between clips the element is already paused, so no `pause` event follows.
+    setIsPlaying(false);
     setPauseToken((t) => t + 1);
   }, []);
 

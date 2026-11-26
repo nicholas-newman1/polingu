@@ -1,7 +1,11 @@
 import { useCallback } from 'react';
 import { useSnackbar } from './useSnackbar';
 
-export type ModalSaveResult = void | boolean | Promise<void | boolean>;
+/**
+ * Return `false` (synchronously) to keep the modal open. A promise is never waited for,
+ * so it can't keep the modal open.
+ */
+export type ModalSaveResult = void | boolean | Promise<void>;
 
 interface OptimisticModalSaveOptions<T extends unknown[]> {
   onSave: (...data: T) => ModalSaveResult;

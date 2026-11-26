@@ -155,12 +155,8 @@ export function CustomDeclensionPage() {
     });
   };
 
-  const handleDeleteCard = useCallback(
+  const deleteCard = useCallback(
     (cardId: string) => {
-      if (!window.confirm('Are you sure you want to delete this card?')) {
-        return;
-      }
-
       const newCustomCards = customCards.filter((c) => c.id !== cardId);
 
       applyOptimisticCustomCards(newCustomCards, async () => {
@@ -169,6 +165,13 @@ export function CustomDeclensionPage() {
       });
     },
     [customCards, applyOptimisticCustomCards, setCustomCardsBase]
+  );
+
+  const handleDeleteCard = useCallback(
+    (cardId: string) => {
+      if (window.confirm('Are you sure you want to delete this card?')) deleteCard(cardId);
+    },
+    [deleteCard]
   );
 
   const handleOpenAddModal = useCallback(() => setShowAddModal(true), []);
@@ -220,7 +223,8 @@ export function CustomDeclensionPage() {
         onDelete={
           editingCard
             ? () => {
-                handleDeleteCard(editingCard.id);
+                // The dialog has already asked for confirmation.
+                deleteCard(editingCard.id);
                 setShowAddModal(false);
                 setEditingCard(null);
               }

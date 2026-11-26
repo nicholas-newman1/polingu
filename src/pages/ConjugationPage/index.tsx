@@ -159,13 +159,16 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
     );
   };
 
-  const withUpdatedForm = (form: DrillableForm, updates: Partial<ConjugationForm>) => {
+  const withUpdatedForm = (
+    form: DrillableForm,
+    update: (current: ConjugationForm) => ConjugationForm
+  ) => {
     const { verb, tense, formKey } = form;
     const tenseForms = verb.conjugations[tense] as Record<string, ConjugationForm> | undefined;
     if (!tenseForms) return verb.conjugations;
     return {
       ...verb.conjugations,
-      [tense]: { ...tenseForms, [formKey]: { ...tenseForms[formKey], ...updates } },
+      [tense]: { ...tenseForms, [formKey]: update(tenseForms[formKey]) },
     };
   };
 
@@ -182,7 +185,11 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
     if (!editingForm) return;
 
     const verb = editingForm.verb;
-    const updatedConjugations = withUpdatedForm(editingForm, formUpdates);
+    // The modal edits everything but the audio, so a field it leaves out (such as an
+    // emptied plAlternatives) was removed rather than left unchanged.
+    const updatedConjugations = withUpdatedForm(editingForm, ({ audioUrl }) =>
+      audioUrl ? { ...formUpdates, audioUrl } : formUpdates
+    );
     const updatedVerb: Verb = { ...verb, ...verbUpdates, conjugations: updatedConjugations };
     const newVerbs = verbs.map((v) => (v.id === verb.id ? updatedVerb : v));
 
@@ -223,7 +230,8 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
     setEditingForm(null);
   };
 
-  const isLoading = contextLoading || filtersLoading;
+  // No session is built without verbs; the stage's fallback says so instead of a spinner.
+  const isLoading = contextLoading || filtersLoading || (verbs.length > 0 && !session.isBuilt);
 
   const getAspectPairVerb = (form: DrillableForm): Verb | undefined => {
     if (!form.verb.aspectPair) return undefined;
@@ -277,7 +285,7 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
           <CircularProgress sx={{ color: 'text.disabled' }} />
         ) : (
           <>
-            <SessionStatusLine session={session} unitLabel="forms" />
+            {session.isBuilt && <SessionStatusLine session={session} unitLabel="forms" />}
 
             <ReviewStage
               session={session}
@@ -366,7 +374,10 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
         form={editingForm}
         onAudioUpdated={(audioUrl) => {
           if (!editingForm) return;
-          const conjugations = withUpdatedForm(editingForm, { audioUrl });
+          const conjugations = withUpdatedForm(editingForm, (current) => ({
+            ...current,
+            audioUrl,
+          }));
           replaceVerbInForms({ ...editingForm.verb, conjugations });
         }}
       />

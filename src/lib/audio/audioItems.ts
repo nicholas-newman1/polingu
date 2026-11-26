@@ -4,6 +4,7 @@ import { getDownloadURL, ref } from 'firebase/storage';
 import { db, functions, storage } from '../firebase';
 import { getUserId } from '../storage/helpers';
 import { userDb } from '../offlineDb/userDb';
+import { removeCachedAudioBlob } from './audioCache';
 import type { AudioItem } from '../../types/audio';
 
 const AUDIO_ITEMS_CACHE_KEY = '__audio-items-list';
@@ -71,6 +72,7 @@ export async function deleteUserAudio(audioId: string): Promise<void> {
     'deleteUserAudio'
   );
   await deleteFn({ audioId });
+  await removeCachedAudioBlob(audioId);
 }
 
 export async function createUserAudio(data: { title: string; text: string }): Promise<string> {

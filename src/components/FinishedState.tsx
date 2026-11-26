@@ -304,6 +304,7 @@ export function FinishedState({
               </Box>
               <StepperButton
                 size="small"
+                aria-label="Fewer new cards"
                 onClick={() => setExtraNewCardsCount(Math.max(1, extraNewCardsCount - 1))}
                 disabled={extraNewCardsCount <= 1}
               >
@@ -313,15 +314,20 @@ export function FinishedState({
                 value={extraNew.draft}
                 onChange={extraNew.onChange}
                 onBlur={extraNew.onBlur}
-                inputProps={{ inputMode: 'numeric', pattern: '[0-9]*' }}
+                inputProps={{
+                  inputMode: 'numeric',
+                  pattern: '[0-9]*',
+                  'aria-label': 'Number of new cards',
+                }}
               />
               <StepperButton
                 size="small"
+                aria-label="More new cards"
                 onClick={() => setExtraNewCardsCount(extraNewCardsCount + 1)}
               >
                 <AddIcon />
               </StepperButton>
-              <GoButton size="small" onClick={onLearnExtra}>
+              <GoButton size="small" aria-label="Start learning new cards" onClick={onLearnExtra}>
                 <PlayArrowRoundedIcon />
               </GoButton>
             </ActionRow>
@@ -337,6 +343,7 @@ export function FinishedState({
               </Box>
               <StepperButton
                 size="small"
+                aria-label="Fewer cards to review early"
                 onClick={() => setPracticeAheadCount(Math.max(1, practiceAheadCount - 1))}
                 disabled={practiceAheadCount <= 1}
               >
@@ -346,15 +353,20 @@ export function FinishedState({
                 value={practiceAhead.draft}
                 onChange={practiceAhead.onChange}
                 onBlur={practiceAhead.onBlur}
-                inputProps={{ inputMode: 'numeric', pattern: '[0-9]*' }}
+                inputProps={{
+                  inputMode: 'numeric',
+                  pattern: '[0-9]*',
+                  'aria-label': 'Number of cards to review early',
+                }}
               />
               <StepperButton
                 size="small"
+                aria-label="More cards to review early"
                 onClick={() => setPracticeAheadCount(practiceAheadCount + 1)}
               >
                 <AddIcon />
               </StepperButton>
-              <GoButton size="small" onClick={onPracticeAhead}>
+              <GoButton size="small" aria-label="Start reviewing early" onClick={onPracticeAhead}>
                 <PlayArrowRoundedIcon />
               </GoButton>
             </ActionRow>

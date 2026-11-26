@@ -215,6 +215,35 @@ describe('deleting', () => {
   });
 });
 
+describe('undefined values', () => {
+  test('a value saved with undefined fields reaches the server without them', async () => {
+    signIn();
+    await saveUserData('appSettings', { autoPlayAudio: true, dashboardOrder: undefined });
+
+    expect(remote.get(userPath('learner-a', 'data', 'appSettings'))).toEqual({
+      autoPlayAudio: true,
+    });
+    expect((await userDb.userData.get('appSettings'))?.data).toEqual({ autoPlayAudio: true });
+  });
+
+  test('a pending row cached with an undefined field still syncs', async () => {
+    signIn();
+    // As left by older builds, which cached settings with undefined values.
+    await userDb.userData.put({
+      key: 'appSettings',
+      data: { autoPlayAudio: false, dashboardOrder: undefined },
+      lastModified: Date.now(),
+      pendingSync: 1,
+    });
+
+    expect(await syncAllPendingToFirestore()).toBe(1);
+    expect(remote.get(userPath('learner-a', 'data', 'appSettings'))).toEqual({
+      autoPlayAudio: false,
+    });
+    expect((await userDb.userData.get('appSettings'))?.pendingSync).toBe(0);
+  });
+});
+
 describe('loading', () => {
   test('on a cache miss, fetches from the server and serves later loads offline', async () => {
     signIn(UID);

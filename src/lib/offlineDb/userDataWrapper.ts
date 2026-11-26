@@ -12,6 +12,7 @@ import { deleteDoc, doc, getDoc, runTransaction, setDoc } from 'firebase/firesto
 import { db } from '../firebase';
 import { userDb } from './userDb';
 import { getUserId, REVIEW_SESSION_DOC_PATHS } from '../storage/helpers';
+import { stripUndefinedDeep } from '../storage/firestoreUtils';
 import { mergeSessionDocs } from '../reviewSession/sessionLists';
 import {
   markSyncedIfUnchanged,
@@ -74,7 +75,7 @@ async function pushRow(userId: string, key: string, written: WrittenRow & { dele
   }
 
   if (REVIEW_SESSION_DOC_PATHS.has(key)) {
-    const merged = await writeSessionData(userId, key, written.data);
+    const merged = await writeSessionData(userId, key, stripUndefinedDeep(written.data));
     // Bring the cache in line with what landed on the server, unless a newer
     // save is waiting: that one is merged with the server when it syncs.
     await userDb.transaction('rw', userDb.userData, async () => {
@@ -85,7 +86,9 @@ async function pushRow(userId: string, key: string, written: WrittenRow & { dele
     return;
   }
 
-  await setDoc(docRef, written.data as object);
+  // Rows cached before undefined values were stripped on save would otherwise
+  // fail on every sync.
+  await setDoc(docRef, stripUndefinedDeep(written.data) as object);
   await markSyncedIfUnchanged(userDb.userData, key, written);
 }
 
@@ -105,7 +108,8 @@ export async function saveUserData<T>(
 
   const record = {
     key: docPath,
-    data: serialize ? serialize(data) : data,
+    // Firestore rejects undefined values, so they never go into the cache either.
+    data: stripUndefinedDeep(serialize ? serialize(data) : data),
     lastModified: Date.now(),
     pendingSync: 1,
   };

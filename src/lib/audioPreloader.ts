@@ -72,18 +72,23 @@ export async function getAudioCacheCount(): Promise<number> {
 }
 
 /**
- * Get an estimate of the cache size in bytes
+ * Get the total size in bytes of the audio files currently in the cache
  */
 export async function getAudioCacheSize(): Promise<number> {
   try {
-    if ('storage' in navigator && 'estimate' in navigator.storage) {
-      const estimate = await navigator.storage.estimate();
-      return estimate.usage ?? 0;
+    const cache = await caches.open(AUDIO_CACHE_NAME);
+    let total = 0;
+    for (const request of await cache.keys()) {
+      const response = await cache.match(request);
+      if (!response) continue;
+      // The header avoids reading the body; fall back to it when the header is missing.
+      const length = Number(response.headers.get('content-length'));
+      total += length > 0 ? length : (await response.blob()).size;
     }
+    return total;
   } catch {
-    // Storage API not available
+    return 0;
   }
-  return 0;
 }
 
 /**

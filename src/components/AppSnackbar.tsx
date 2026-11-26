@@ -9,9 +9,10 @@ export function AppSnackbar() {
 
   if (!snackbar) return null;
 
+  // Hide first, so a message the action shows (e.g. a confirmation) replaces this one.
   const handleActionClick = () => {
-    snackbar.action?.onClick();
     hideSnackbar();
+    snackbar.action?.onClick();
   };
 
   return (

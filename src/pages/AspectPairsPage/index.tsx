@@ -17,7 +17,7 @@ import getAspectPairsPracticeAheadCards from '../../lib/aspectPairsScheduler/get
 import getAspectPairsExtraNewCards from '../../lib/aspectPairsScheduler/getAspectPairsExtraNewCards';
 import { recordCardReview } from '../../lib/reviewSession/recordReview';
 import { useAuthContext } from '../../hooks/useAuthContext';
-import { useAspectPairs, useConjugation } from '../../hooks/useReviewData';
+import { useReviewData } from '../../hooks/useReviewData';
 import { useOptimistic } from '../../hooks/useOptimistic';
 import { useSnackbar } from '../../hooks/useSnackbar';
 import { useReviewSession } from '../../hooks/useReviewSession';
@@ -32,14 +32,16 @@ export function AspectPairsPage() {
   const { user, isAdmin } = useAuthContext();
   const { showSnackbar } = useSnackbar();
   const {
+    loading: contextLoading,
     aspectPairCards,
     aspectPairsReviewStore: reviewStore,
     aspectPairsSettings: settings,
     updateAspectPairsReviewStore,
     updateAspectPairsSettings,
     clearAspectPairsData,
-  } = useAspectPairs();
-  const { verbs: contextVerbs, setVerbs: setContextVerbs } = useConjugation();
+    verbs: contextVerbs,
+    setVerbs: setContextVerbs,
+  } = useReviewData();
 
   const [verbs, applyOptimisticVerbs] = useOptimistic(contextVerbs, {
     onError: () => showSnackbar('Failed to save. Please try again.', 'error'),
@@ -49,13 +51,11 @@ export function AspectPairsPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingCard, setEditingCard] = useState<AspectPairCard | null>(null);
 
-  const isLoading = !(aspectPairCards.length > 0 || reviewStore);
-
   const session = useReviewSession({
     cardKey: 'card',
     getId: (card) => card.verb.id,
     getAudioUrls: (card) => [card.verb.infinitiveAudioUrl, card.pairVerb.infinitiveAudioUrl],
-    ready: !isLoading,
+    ready: !contextLoading && aspectPairCards.length > 0,
     getSessionCards: () => getAspectPairsSessionCards(aspectPairCards, reviewStore, settings),
     getPracticeAheadCards: (count, store) =>
       getAspectPairsPracticeAheadCards(aspectPairCards, store, count),
@@ -191,7 +191,9 @@ export function AspectPairsPage() {
     }
   };
 
-  if (aspectPairCards.length === 0 && !isLoading) {
+  const isLoading = contextLoading || !session.isBuilt;
+
+  if (!contextLoading && aspectPairCards.length === 0) {
     return (
       <ReviewMainContent>
         <EmptyState message="No aspect pairs available. Verbs need aspectPair data to drill." />

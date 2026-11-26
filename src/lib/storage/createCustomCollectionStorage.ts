@@ -27,8 +27,9 @@ import { getUserId } from './helpers';
  *   - add/update/delete:      Single-card writes; optimistically update IndexedDB, then sync to Firestore.
  *   - save(items):            Compat shim — diffs items[] against current cache and issues per-card ops.
  *
- * Writes made offline (or that fail) stay flagged pendingSync=1 and are replayed by
- * syncPendingCustomCards, which runs with the other pending-data syncs.
+ * Writes made offline stay flagged pendingSync=1 and are replayed by
+ * syncPendingCustomCards, which runs with the other pending-data syncs. A write the
+ * server refuses is undone on this device too, and the error is rethrown.
  */
 export interface CollectionStorage<T extends CustomItemBase> {
   load(): Promise<T[]>;
@@ -69,21 +70,44 @@ async function writeCacheItem<T extends CustomItemBase>(
 async function markCachePendingDelete(
   collectionName: CustomCardCollection,
   cardId: string
-): Promise<CustomCardRecord | undefined> {
+): Promise<{ record?: CustomCardRecord; previous?: CustomCardRecord }> {
   const key = compoundKey(collectionName, cardId);
   return userDb.transaction('rw', userDb.customCards, async () => {
     const existing = await userDb.customCards.get(key);
-    if (!existing) return undefined;
+    if (!existing) return {};
     const record = { ...existing, pendingDelete: 1, pendingSync: 1, lastModified: Date.now() };
     await userDb.customCards.put(record);
-    return record;
+    return { record, previous: existing };
   });
 }
 
 /**
- * Push every custom-item change still waiting in IndexedDB (made offline, or
- * whose write failed) to Firestore. Each pending row holds the whole item, so it
- * is written in full. Returns how many changes reached the server.
+ * Puts a cached row back as it was before a write the server refused (`previous`
+ * undefined: the row did not exist), unless it was saved again since. A refused
+ * write would only fail again, so it is not left pending for the next sync.
+ */
+async function restoreIfUnchanged(
+  written: CustomCardRecord,
+  previous: CustomCardRecord | undefined
+): Promise<void> {
+  await userDb.transaction('rw', userDb.customCards, async () => {
+    const row = await userDb.customCards.get(written.compoundKey);
+    if (
+      !row ||
+      row.lastModified !== written.lastModified ||
+      JSON.stringify(row.data) !== JSON.stringify(written.data)
+    ) {
+      return;
+    }
+    if (previous) await userDb.customCards.put(previous);
+    else await userDb.customCards.delete(written.compoundKey);
+  });
+}
+
+/**
+ * Push every custom-item change still waiting in IndexedDB (made offline) to
+ * Firestore. Each pending row holds the whole item, so it is written in full.
+ * Returns how many changes reached the server.
  */
 export async function syncPendingCustomCards(): Promise<number> {
   const userId = getUserId();
@@ -177,6 +201,7 @@ export function createCustomCollectionStorage<T extends CustomItemBase>(
 
   async function add(item: T): Promise<void> {
     const cleaned = stripUndefined(item);
+    const previous = await userDb.customCards.get(compoundKey(collectionName, item.id));
     const record = await writeCacheItem(collectionName, cleaned, 1);
 
     const userId = getUserId();
@@ -188,6 +213,7 @@ export function createCustomCollectionStorage<T extends CustomItemBase>(
       await markSyncedIfUnchanged(userDb.customCards, record.compoundKey, record);
     } catch (e) {
       console.error(`Failed to add ${collectionName}/${item.id}:`, e);
+      await restoreIfUnchanged(record, previous);
       throw e;
     }
   }
@@ -209,6 +235,7 @@ export function createCustomCollectionStorage<T extends CustomItemBase>(
       await markSyncedIfUnchanged(userDb.customCards, record.compoundKey, record);
     } catch (e) {
       console.error(`Failed to update ${collectionName}/${id}:`, e);
+      await restoreIfUnchanged(record, existing);
       throw e;
     }
   }
@@ -220,7 +247,7 @@ export function createCustomCollectionStorage<T extends CustomItemBase>(
       return;
     }
 
-    const record = await markCachePendingDelete(collectionName, id);
+    const { record, previous } = await markCachePendingDelete(collectionName, id);
 
     if (!navigator.onLine) return;
 
@@ -231,6 +258,7 @@ export function createCustomCollectionStorage<T extends CustomItemBase>(
       else await removeCacheItem(collectionName, id);
     } catch (e) {
       console.error(`Failed to delete ${collectionName}/${id}:`, e);
+      if (record) await restoreIfUnchanged(record, previous);
       throw e;
     }
   }

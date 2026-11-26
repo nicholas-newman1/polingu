@@ -25,6 +25,12 @@ export function useUserFilters(): UserFiltersContextType {
   return context;
 }
 
+/** The filters context, or null outside a UserFiltersProvider. */
+// eslint-disable-next-line react-refresh/only-export-components
+export function useOptionalUserFilters(): UserFiltersContextType | null {
+  return useContext(UserFiltersContext);
+}
+
 interface UserFiltersProviderProps {
   children: ReactNode;
 }

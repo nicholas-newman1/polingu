@@ -114,10 +114,14 @@ export function EditVerbModal({
   onAudioUpdated,
 }: EditVerbModalProps) {
   const [editConjugations, setEditConjugations] = useState(() => cloneConjugations(verb));
+  // Each edited English field's text as typed, so a comma or space can come before the
+  // next translation (the parsed list drops them).
+  const [englishDrafts, setEnglishDrafts] = useState<Record<string, string>>({});
   const [prevVerb, setPrevVerb] = useState(verb);
   if (verb !== prevVerb) {
     setPrevVerb(verb);
     setEditConjugations(cloneConjugations(verb));
+    setEnglishDrafts({});
   }
 
   const {
@@ -138,12 +142,16 @@ export function EditVerbModal({
     resetForm: () => {
       reset(getDefaultValues(null));
       setEditConjugations({});
+      setEnglishDrafts({});
     },
     onAudioUpdated,
   });
 
   const updateFormField = useCallback(
     (tense: Tense, formKey: string, field: 'pl' | 'en', value: string) => {
+      if (field === 'en') {
+        setEnglishDrafts((prev) => ({ ...prev, [`${tense}.${formKey}`]: value }));
+      }
       setEditConjugations((prev) =>
         updateConjugationForm(prev, tense, formKey, (form) =>
           field === 'pl'
@@ -293,7 +301,7 @@ export function EditVerbModal({
                           />
                           <TextField
                             size="small"
-                            value={form.en.join(', ')}
+                            value={englishDrafts[`${tense}.${fk}`] ?? form.en.join(', ')}
                             onChange={(e) => updateFormField(tense, fk, 'en', e.target.value)}
                             sx={{ flex: 1.5 }}
                             slotProps={{ htmlInput: { style: { fontSize: '0.8125rem' } } }}

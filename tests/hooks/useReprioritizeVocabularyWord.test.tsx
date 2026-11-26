@@ -1,0 +1,111 @@
+import { beforeEach, describe, expect, test, vi } from 'vitest';
+import { act, renderHook } from '@testing-library/react';
+import { useReprioritizeVocabularyWord } from '../../src/hooks/useReprioritizeVocabularyWord';
+import saveVocabularyReviewData from '../../src/lib/storage/saveVocabularyReviewData';
+import type { SnackbarOptions } from '../../src/contexts/SnackbarContext';
+import { fsrsCard, inDays, State } from '../helpers/fsrs';
+import { emptyStore, entry, type Store, type Stores } from './support/reviewSession';
+import { withSnackbar } from './support/providers';
+import { renderWithReviewData } from './support/reviewDataProviders';
+
+// The providers' live custom-collection listeners are the Firestore boundary.
+vi.mock('../../src/lib/storage/customVocabulary', () => ({
+  loadCustomVocabulary: vi.fn(),
+  subscribeCustomVocabulary: vi.fn(),
+}));
+vi.mock('../../src/lib/storage/customDeclension', () => ({
+  loadCustomDeclension: vi.fn(),
+  subscribeCustomDeclension: vi.fn(),
+}));
+vi.mock('../../src/lib/storage/customSentences', () => ({
+  loadCustomSentences: vi.fn(),
+  subscribeCustomSentences: vi.fn(),
+}));
+// Saving the review store is the storage boundary; the provider updates its state first.
+vi.mock('../../src/lib/storage/saveVocabularyReviewData', () => ({ default: vi.fn() }));
+
+const QUEUED = 'Word queued for review again.';
+const DUPLICATE = 'This Polish word is already in your custom vocabulary.';
+
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-03-10T12:00:00'));
+});
+
+/** A store where each of `ids` was studied (and reviewed earlier today). */
+const studiedStore = (...ids: string[]): Store =>
+  emptyStore({
+    cards: Object.fromEntries(ids.map((id) => entry(id, fsrsCard(State.Review, inDays(20))))),
+    reviewedToday: ids,
+  });
+
+/** Renders the hook inside the real vocabulary review data, plus a snackbar. */
+function renderReprioritize(vocabularyStores: Stores) {
+  const snackbar = withSnackbar();
+  const h = renderWithReviewData(
+    useReprioritizeVocabularyWord,
+    { vocabularyStores },
+    { wrapper: snackbar.wrapper }
+  );
+  /** The action offered by the last snackbar shown. */
+  const action = () =>
+    (snackbar.showSnackbar.mock.calls.at(-1)?.[2] as SnackbarOptions | undefined)?.action;
+  /** Each store saved, with its direction. */
+  const saved = () =>
+    vi.mocked(saveVocabularyReviewData).mock.calls.map(([, store, direction]) => ({
+      direction,
+      store,
+    }));
+  return { ...h, showSnackbar: snackbar.showSnackbar, action, saved };
+}
+
+describe('useReprioritizeVocabularyWord', () => {
+  test('review again resets the word in every direction it was studied in, and confirms', () => {
+    const h = renderReprioritize({
+      'pl-to-en': studiedStore('kot', 'pies'),
+      'en-to-pl': studiedStore('kot'),
+    });
+    expect(h.result.current.canReprioritize('kot')).toBe(true);
+
+    act(() => h.result.current.reprioritize('kot'));
+
+    expect(h.saved().map(({ direction }) => direction)).toEqual(['pl-to-en', 'en-to-pl']);
+    for (const { store } of h.saved()) {
+      expect(store.cards.kot.fsrsCard.state).toBe(State.New);
+      expect(store.reviewedToday).not.toContain('kot');
+    }
+    expect(h.saved()[0].store.cards.pies.fsrsCard.state).toBe(State.Review);
+    expect(h.showSnackbar).toHaveBeenCalledExactlyOnceWith(QUEUED, 'success');
+    // The vocabulary data now holds the reset word, so there is nothing left to re-queue.
+    expect(h.result.current.canReprioritize('kot')).toBe(false);
+  });
+
+  test('a duplicate custom word offers review again only when studied, and the action re-queues it', () => {
+    const h = renderReprioritize({ 'pl-to-en': studiedStore('kot'), 'en-to-pl': emptyStore() });
+
+    act(() => h.result.current.showDuplicateError('pies'));
+    expect(h.showSnackbar).toHaveBeenLastCalledWith(DUPLICATE, 'error', undefined);
+
+    act(() => h.result.current.showDuplicateError('kot'));
+    expect(h.showSnackbar).toHaveBeenLastCalledWith(DUPLICATE, 'error', {
+      action: { label: 'Review again', onClick: expect.any(Function) },
+    });
+
+    act(() => h.action()!.onClick());
+
+    expect(h.saved()).toEqual([
+      { direction: 'pl-to-en', store: expect.objectContaining({ reviewedToday: [] }) },
+    ]);
+    expect(h.showSnackbar).toHaveBeenLastCalledWith(QUEUED, 'success');
+    expect(h.result.current.canReprioritize('kot')).toBe(false);
+  });
+
+  test('throws a clear error outside ReviewDataProvider', () => {
+    // React reports the error thrown by a hook used outside its provider; keep the log quiet.
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { wrapper } = withSnackbar();
+    expect(() => renderHook(useReprioritizeVocabularyWord, { wrapper })).toThrow(
+      'useVocabulary must be used within a ReviewDataProvider'
+    );
+  });
+});

@@ -9,6 +9,7 @@ import {
   memo,
   type ReactNode,
 } from 'react';
+import type { TranslationResult } from '../lib/translate';
 
 interface ActiveWordState {
   index: number;
@@ -17,6 +18,10 @@ interface ActiveWordState {
   sentenceContext?: string;
   declensionCardId?: number;
   sentenceId?: string;
+  /** The translation hovering the word already found, so tapping it need not ask again. */
+  translation?: string;
+  /** The hover lookup still in flight, which the tap waits for instead of asking again. */
+  pendingTranslation?: Promise<TranslationResult>;
 }
 
 interface TranslatableTextActionsContextValue {
@@ -26,8 +31,10 @@ interface TranslatableTextActionsContextValue {
   cancelDrag: () => void;
   registerWord: (index: number, word: string) => void;
   closePhraseTooltip: () => void;
-  handleWordClick: (word: ActiveWordState) => void;
+  /** Returns whether the tap opened the word's tooltip (it may close one instead). */
+  handleWordClick: (word: ActiveWordState) => boolean;
   closeWordTooltip: () => void;
+  isWordActive: (index: number) => boolean;
   subscribeSelection: (callback: () => void) => () => void;
   isIndexSelected: (index: number) => boolean;
   getSelectedIndices: () => number[];
@@ -197,15 +204,18 @@ export function TranslatableTextProvider({
     const prev = activeWordRef.current;
     if (prev?.index === input.index) {
       setActiveWord(null);
-      return;
+      return false;
     }
     if (prev !== null) {
       setActiveWord(null);
-      return;
+      return false;
     }
     onWordTapRef.current?.();
     setActiveWord(input);
+    return true;
   }, []);
+
+  const isWordActive = useCallback((index: number) => activeWordRef.current?.index === index, []);
 
   const isIndexSelected = useCallback((index: number): boolean => {
     const range = getRange(dragStartRef.current, dragEndRef.current);
@@ -336,6 +346,7 @@ export function TranslatableTextProvider({
       closePhraseTooltip,
       handleWordClick,
       closeWordTooltip,
+      isWordActive,
       subscribeSelection,
       isIndexSelected,
       getSelectedIndices,
@@ -351,6 +362,7 @@ export function TranslatableTextProvider({
       closePhraseTooltip,
       handleWordClick,
       closeWordTooltip,
+      isWordActive,
       subscribeSelection,
       isIndexSelected,
       getSelectedIndices,

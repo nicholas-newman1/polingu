@@ -22,6 +22,7 @@ interface DeclensionFilterControlsProps {
   onCaseChange: (value: Case[]) => void;
   onGenderChange: (value: Gender[]) => void;
   onNumberChange: (value: Number | 'All') => void;
+  onClearFilters: () => void;
   onTogglePractice: () => void;
   onToggleSettings: () => void;
   onAddCard?: () => void;
@@ -37,6 +38,7 @@ export function DeclensionFilterControls({
   onCaseChange,
   onGenderChange,
   onNumberChange,
+  onClearFilters,
   onTogglePractice,
   onToggleSettings,
   onAddCard,
@@ -74,15 +76,7 @@ export function DeclensionFilterControls({
         />
         <NumberFilter options={NUMBERS} value={numberFilter} onChange={onNumberChange} />
 
-        {hasActiveFilters && (
-          <ClearButton
-            onClick={() => {
-              onCaseChange([]);
-              onGenderChange([]);
-              onNumberChange('All');
-            }}
-          />
-        )}
+        {hasActiveFilters && <ClearButton onClick={onClearFilters} />}
       </Box>
 
       {hasActiveFilters && (

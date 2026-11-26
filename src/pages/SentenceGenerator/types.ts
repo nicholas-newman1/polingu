@@ -1,4 +1,4 @@
-import type { CEFRLevel, Sentence, TagCategory } from '../../types/sentences';
+import type { CEFRLevel, CustomSentence, Sentence, TagCategory } from '../../types/sentences';
 import type { SentenceTagsData } from '../../lib/storage/sentenceTags';
 
 export type SnackbarSeverity = 'success' | 'error' | 'info' | 'warning';
@@ -12,9 +12,14 @@ export interface BaseTabProps {
 
 export interface GenerateTabProps extends BaseTabProps {
   addSentenceTag: (category: TagCategory, tag: string) => Promise<void>;
+  /** Preselected level and tag, e.g. from a curriculum suggestion. */
+  initialLevel?: CEFRLevel;
+  initialTag?: string;
 }
 
-export type BrowseTabProps = BaseTabProps;
+export interface BrowseTabProps extends BaseTabProps {
+  setCustomSentences: (sentences: CustomSentence[]) => void;
+}
 
 export interface CurriculumTabProps {
   sentenceTags: SentenceTagsData;

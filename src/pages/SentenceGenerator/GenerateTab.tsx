@@ -28,9 +28,11 @@ export const GenerateTab = memo(function GenerateTab({
   sentenceTags,
   addSentenceTag,
   showSnackbar,
+  initialLevel = 'B1',
+  initialTag,
 }: GenerateTabProps) {
-  const [selectedLevel, setSelectedLevel] = useState<CEFRLevel>('B1');
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [selectedLevel, setSelectedLevel] = useState<CEFRLevel>(initialLevel);
+  const [selectedTags, setSelectedTags] = useState<string[]>(initialTag ? [initialTag] : []);
   const [countInput, setCountInput] = useState('5');
   const [guidance, setGuidance] = useState('');
   const [generating, setGenerating] = useState(false);

@@ -14,6 +14,9 @@ import clearAspectPairsData from '../../lib/storage/clearAspectPairsData';
 import { getDefaultAspectPairsReviewStore } from '../../lib/storage/helpers';
 import { showSaveError } from '../../lib/storage/errorHandler';
 import { useSyncProps } from '../../hooks/useSyncProps';
+import { startDayIfNeeded } from '../../lib/reviewSession/sessionLists';
+import { useLocalChanges } from './localChanges';
+import { useToday } from './useToday';
 
 export interface AspectPairsContextType {
   aspectPairCards: AspectPairCard[];
@@ -34,6 +37,8 @@ interface AspectPairsProviderProps {
   verbs?: Verb[];
   initialReviewStore?: AspectPairsReviewDataStore;
   initialSettings?: AspectPairsSettings;
+  /** When a load started reading this data (latestLocalChange); changes made since are kept. */
+  readAt?: number;
 }
 
 export function AspectPairsProvider({
@@ -41,6 +46,7 @@ export function AspectPairsProvider({
   verbs = EMPTY_VERBS,
   initialReviewStore,
   initialSettings = DEFAULT_ASPECT_PAIRS_SETTINGS,
+  readAt,
 }: AspectPairsProviderProps) {
   const [aspectPairsReviewStore, setAspectPairsReviewStore] = useState<AspectPairsReviewDataStore>(
     initialReviewStore ?? getDefaultAspectPairsReviewStore()
@@ -48,13 +54,22 @@ export function AspectPairsProvider({
   const storeRef = useRef(aspectPairsReviewStore);
   const [aspectPairsSettings, setAspectPairsSettings] =
     useState<AspectPairsSettings>(initialSettings);
+  const localChanges = useLocalChanges();
 
   useSyncProps({ initialReviewStore, initialSettings }, () => {
-    const next = initialReviewStore ?? getDefaultAspectPairsReviewStore();
-    setAspectPairsReviewStore(next);
-    storeRef.current = next;
-    setAspectPairsSettings(initialSettings);
+    if (!localChanges.changedSince('reviewStore', readAt)) {
+      const next = initialReviewStore ?? getDefaultAspectPairsReviewStore();
+      setAspectPairsReviewStore(next);
+      storeRef.current = next;
+    }
+    if (!localChanges.changedSince('settings', readAt)) setAspectPairsSettings(initialSettings);
   });
+
+  const today = useToday();
+  const todaysReviewStore = useMemo(
+    () => startDayIfNeeded(aspectPairsReviewStore, ['reviewedToday', 'newCardsToday'], today),
+    [aspectPairsReviewStore, today]
+  );
 
   const aspectPairCards = useMemo<AspectPairCard[]>(() => {
     const verbsById = new Map(verbs.map((v) => [v.id, v]));
@@ -77,25 +92,33 @@ export function AspectPairsProvider({
     return cards;
   }, [verbs]);
 
-  const updateAspectPairsReviewStore = useCallback(async (store: AspectPairsReviewDataStore) => {
-    const prev = storeRef.current;
-    storeRef.current = store;
-    setAspectPairsReviewStore(store);
-    try {
-      await saveAspectPairsReviewData(prev, store);
-    } catch (e) {
-      showSaveError(e);
-    }
-  }, []);
+  const updateAspectPairsReviewStore = useCallback(
+    async (store: AspectPairsReviewDataStore) => {
+      const prev = storeRef.current;
+      storeRef.current = store;
+      setAspectPairsReviewStore(store);
+      localChanges.note('reviewStore');
+      try {
+        await saveAspectPairsReviewData(prev, store);
+      } catch (e) {
+        showSaveError(e);
+      }
+    },
+    [localChanges]
+  );
 
-  const updateAspectPairsSettingsFn = useCallback(async (settings: AspectPairsSettings) => {
-    setAspectPairsSettings(settings);
-    try {
-      await saveAspectPairsSettings(settings);
-    } catch (e) {
-      showSaveError(e);
-    }
-  }, []);
+  const updateAspectPairsSettingsFn = useCallback(
+    async (settings: AspectPairsSettings) => {
+      setAspectPairsSettings(settings);
+      localChanges.note('settings');
+      try {
+        await saveAspectPairsSettings(settings);
+      } catch (e) {
+        showSaveError(e);
+      }
+    },
+    [localChanges]
+  );
 
   const clearAspectPairsDataFn = useCallback(async () => {
     try {
@@ -104,16 +127,18 @@ export function AspectPairsProvider({
       storeRef.current = freshStore;
       setAspectPairsReviewStore(freshStore);
       setAspectPairsSettings(DEFAULT_ASPECT_PAIRS_SETTINGS);
+      localChanges.note('reviewStore');
+      localChanges.note('settings');
     } catch (e) {
       showSaveError(e);
     }
-  }, []);
+  }, [localChanges]);
 
   return (
     <AspectPairsContext.Provider
       value={{
         aspectPairCards,
-        aspectPairsReviewStore,
+        aspectPairsReviewStore: todaysReviewStore,
         aspectPairsSettings,
         updateAspectPairsReviewStore,
         updateAspectPairsSettings: updateAspectPairsSettingsFn,

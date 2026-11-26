@@ -9,6 +9,7 @@ import {
   Typography,
 } from '@mui/material';
 import { updateBook } from '../../../lib/reader';
+import { useSnackbar } from '../../../hooks/useSnackbar';
 import type { Book, BookColor } from '../../../types/reader';
 import { BOOK_COLORS } from '../../../types/reader';
 import { BookTitleAuthorFields } from './BookTitleAuthorFields';
@@ -23,6 +24,7 @@ export function EditBookDialog({ book, onClose }: EditBookDialogProps) {
   const [author, setAuthor] = useState('');
   const [color, setColor] = useState<BookColor>('red');
   const [saving, setSaving] = useState(false);
+  const { showSnackbar } = useSnackbar();
 
   useEffect(() => {
     if (book) {
@@ -50,6 +52,7 @@ export function EditBookDialog({ book, onClose }: EditBookDialogProps) {
       onClose();
     } catch (error) {
       console.error('Update failed:', error);
+      showSnackbar('Failed to save the changes. Please try again.', 'error');
     } finally {
       setSaving(false);
     }

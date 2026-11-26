@@ -27,6 +27,24 @@ export function stripUndefined<T extends object>(obj: T): T {
 }
 
 /**
+ * Like stripUndefined, but also inside nested plain objects and arrays. Other
+ * values (Dates, Timestamps, FieldValues) are kept as they are.
+ */
+export function stripUndefinedDeep<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value.filter((item) => item !== undefined).map(stripUndefinedDeep) as T;
+  }
+  if (value === null || typeof value !== 'object') return value;
+  const proto = Object.getPrototypeOf(value);
+  if (proto !== Object.prototype && proto !== null) return value;
+  const result: Record<string, unknown> = {};
+  for (const [key, item] of Object.entries(value)) {
+    if (item !== undefined) result[key] = stripUndefinedDeep(item);
+  }
+  return result as T;
+}
+
+/**
  * Converts undefined values to deleteField() for Firestore updateDoc operations.
  * Use this when you want undefined fields to be removed from the document.
  */

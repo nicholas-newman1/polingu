@@ -19,7 +19,8 @@ function openDb(): Promise<IDBDatabase> {
 export async function getCachedAudioBlob(storagePath: string): Promise<Blob | null> {
   try {
     const db = await openDb();
-    return new Promise((resolve, reject) => {
+    // Awaited so a failed read lands in the catch and counts as a miss.
+    return await new Promise<Blob | null>((resolve, reject) => {
       const tx = db.transaction(STORE_NAME, 'readonly');
       const store = tx.objectStore(STORE_NAME);
       const request = store.get(storagePath);
@@ -34,7 +35,7 @@ export async function getCachedAudioBlob(storagePath: string): Promise<Blob | nu
 export async function cacheAudioBlob(storagePath: string, blob: Blob): Promise<void> {
   try {
     const db = await openDb();
-    return new Promise((resolve, reject) => {
+    await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(STORE_NAME, 'readwrite');
       const store = tx.objectStore(STORE_NAME);
       const request = store.put(blob, storagePath);
@@ -43,5 +44,20 @@ export async function cacheAudioBlob(storagePath: string, blob: Blob): Promise<v
     });
   } catch {
     // Silently fail — caching is best-effort
+  }
+}
+
+export async function removeCachedAudioBlob(storagePath: string): Promise<void> {
+  try {
+    const db = await openDb();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      const request = store.delete(storagePath);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  } catch {
+    // Best-effort, like caching
   }
 }

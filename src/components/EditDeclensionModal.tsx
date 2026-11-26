@@ -99,17 +99,16 @@ export function EditDeclensionModal({
   const englishRequired = !isCreating && !!card && !card.isCustom;
 
   const onSubmit = (data: FormData) => {
-    const trimmedHint = data.hint.trim();
     save({
       front: data.front.trim(),
       back: data.back.trim(),
-      // undefined (rather than omitted) so clearing the field removes a saved translation.
+      // undefined (rather than omitted) so clearing a field removes the saved value.
       english: data.english.trim() || undefined,
       declined: data.declined.trim(),
       case: data.case,
       gender: data.gender,
       number: data.number,
-      ...(trimmedHint && { hint: trimmedHint }),
+      hint: data.hint.trim() || undefined,
     });
   };
 

@@ -8,6 +8,7 @@ import {
   Typography,
 } from '@mui/material';
 import { deleteBook } from '../../../lib/reader';
+import { useSnackbar } from '../../../hooks/useSnackbar';
 import type { Book } from '../../../types/reader';
 
 interface DeleteBookDialogProps {
@@ -18,6 +19,7 @@ interface DeleteBookDialogProps {
 
 export function DeleteBookDialog({ book, onClose, onComplete }: DeleteBookDialogProps) {
   const [deleting, setDeleting] = useState(false);
+  const { showSnackbar } = useSnackbar();
 
   const handleClose = () => {
     if (deleting) return;
@@ -34,6 +36,7 @@ export function DeleteBookDialog({ book, onClose, onComplete }: DeleteBookDialog
       onClose();
     } catch (error) {
       console.error('Delete failed:', error);
+      showSnackbar('Failed to delete the book. Please try again.', 'error');
     } finally {
       setDeleting(false);
     }

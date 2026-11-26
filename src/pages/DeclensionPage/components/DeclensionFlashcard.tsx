@@ -87,18 +87,17 @@ export function DeclensionFlashcard({
     </>
   );
 
-  const question = (
-    <QuestionText>{renderTappableText(card.front, tappableTextOptions)}</QuestionText>
-  );
+  const question =
+    hidePolish && !revealed ? (
+      <HiddenPolishPlaceholder />
+    ) : (
+      <QuestionText>{renderTappableText(card.front, tappableTextOptions)}</QuestionText>
+    );
 
   const answer = (
     <>
       <AnswerText sx={{ mb: card.english ? 0.5 : 2 }}>
-        {hidePolish && !revealed ? (
-          <HiddenPolishPlaceholder />
-        ) : (
-          renderTappableText(card.back, tappableTextOptions, card.declined)
-        )}
+        {renderTappableText(card.back, tappableTextOptions, card.declined)}
       </AnswerText>
 
       {card.english && <EnglishTranslation variant="body2">{card.english}</EnglishTranslation>}

@@ -9,7 +9,7 @@ import {
 } from 'react';
 import { subscribeToAudioItem, subscribeToSystemAudioItem } from '../lib/audio';
 import type { AudioItem, SystemAudioItem, TranscriptSegment } from '../types/audio';
-import { useQueueManager, type QueueManager } from '../hooks/useQueueManager';
+import { useQueueManager, type QueueManager, type QueueSection } from '../hooks/useQueueManager';
 import { subscribeAudioModeEvent } from '../lib/audio/audioModeBus';
 import { useAudioLibrary } from './audioPlayer/useAudioLibrary';
 import { useAudioUrlResolver } from './audioPlayer/useAudioUrlResolver';
@@ -122,19 +122,28 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   }, [audioUrl]);
 
   const queueManager = useQueueManager();
-  const { initializeQueue, advanceQueue, rewindQueue, persistTime, flushTime } = queueManager;
+  const { initializeQueue, advanceQueue, rewindQueue, skipToQueueItem, persistTime, flushTime } =
+    queueManager;
   const restoreTimeRef = useRef<number>(0);
   const activeAudioIdRef = useRef<string | null>(null);
   useEffect(() => {
     activeAudioIdRef.current = activeAudioId;
   }, [activeAudioId]);
 
+  /**
+   * Stops the outgoing track when switching. The queue already names the new track, so the stop
+   * must not reach the playback listeners, which would save its position as the new track's:
+   * clearing the URL lets the playback effect detach them before pausing. With no URL loaded no
+   * listeners are attached, and the element is paused directly.
+   */
+  const stopOutgoingTrack = useCallback(() => {
+    if (!audioUrlRef.current) audioRef.current?.pause();
+    setAudioUrl(null);
+  }, []);
+
   const resetPlayerState = useCallback(() => {
     cancelAnimationFrame(rafRef.current);
-    if (audioRef.current) {
-      audioRef.current.pause();
-    }
-    setAudioUrl(null);
+    stopOutgoingTrack();
     setIsPlaying(autoPlayRef.current);
     setCurrentTime(0);
     setDuration(0);
@@ -142,7 +151,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     setActiveWordIndex(-1);
     setError(null);
     transcriptRef.current = [];
-  }, []);
+  }, [stopOutgoingTrack]);
 
   const resolveAudioUrl = useAudioUrlResolver(audioUrlRef);
 
@@ -182,6 +191,8 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
           setAudioUrl(preloadedUrl);
           setLoading(false);
         } else {
+          // Now, rather than once the new URL resolves (if it does).
+          stopOutgoingTrack();
           setLoading(true);
           resolveAudioUrl(audioId, cachedItem.storagePath)
             .then((url) => {
@@ -230,7 +241,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
         }
       });
     },
-    [resetPlayerState, items, systemItemsRef, resolveAudioUrl]
+    [resetPlayerState, stopOutgoingTrack, items, systemItemsRef, resolveAudioUrl]
   );
 
   const loadTrack = useCallback(
@@ -289,6 +300,15 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       loadTrackInternal(prevId, true);
     }
   }, [rewindQueue, loadTrackInternal]);
+
+  const skipToQueueItemAndPlay = useCallback(
+    (section: QueueSection, index: number) => {
+      const trackId = skipToQueueItem(section, index);
+      if (trackId) loadTrackInternal(trackId, true);
+      return trackId;
+    },
+    [skipToQueueItem, loadTrackInternal]
+  );
 
   useEffect(() => {
     playNextRef.current = nextTrack;
@@ -420,6 +440,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     previousTrack,
     playFromLibrary,
     ...queueManager,
+    skipToQueueItem: skipToQueueItemAndPlay,
   };
 
   return (

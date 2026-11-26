@@ -32,7 +32,8 @@ const IconContainer = styled(Box)(({ theme }) => ({
   },
 }));
 
-function formatTimeRemaining(resetTime: string): string {
+/** When the limit resets, phrased to follow "Your limit will reset". */
+function formatResetTime(resetTime: string): string {
   const now = new Date();
   const reset = new Date(resetTime);
   const diffMs = reset.getTime() - now.getTime();
@@ -45,9 +46,9 @@ function formatTimeRemaining(resetTime: string): string {
   const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
 
   if (hours > 0) {
-    return `${hours} hour${hours !== 1 ? 's' : ''} ${minutes} minute${minutes !== 1 ? 's' : ''}`;
+    return `in ${hours} hour${hours !== 1 ? 's' : ''} ${minutes} minute${minutes !== 1 ? 's' : ''}`;
   }
-  return `${minutes} minute${minutes !== 1 ? 's' : ''}`;
+  return `in ${minutes} minute${minutes !== 1 ? 's' : ''}`;
 }
 
 export function LimitReachedDialog() {
@@ -68,7 +69,7 @@ export function LimitReachedDialog() {
     return () => clearInterval(interval);
   }, [open, resetTime]);
 
-  const timeRemaining = formatTimeRemaining(resetTime);
+  const resetsAt = formatResetTime(resetTime);
 
   return (
     <StyledDialog open={open} onClose={onClose}>
@@ -80,7 +81,7 @@ export function LimitReachedDialog() {
       </DialogTitle>
       <DialogContent>
         <Typography variant="body2" color="text.secondary">
-          Your limit will reset in {timeRemaining}
+          Your limit will reset {resetsAt}
         </Typography>
       </DialogContent>
       <DialogActions sx={{ justifyContent: 'center', pb: 3 }}>

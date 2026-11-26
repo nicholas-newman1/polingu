@@ -157,8 +157,13 @@ export function getCurrentSessionCard<S>(state: SessionQueueState<S>): S | undef
   return state.sessionQueue[state.currentIndex] ?? state.learningQueue[0];
 }
 
+/** A queue that was never started has no cards yet, but it isn't finished. */
 export function isSessionFinished<S>(state: SessionQueueState<S>): boolean {
-  return state.currentIndex >= state.sessionQueue.length && state.learningQueue.length === 0;
+  return (
+    state.isBuilt &&
+    state.currentIndex >= state.sessionQueue.length &&
+    state.learningQueue.length === 0
+  );
 }
 
 export function getRemainingCount<S>(state: SessionQueueState<S>): number {

@@ -23,7 +23,12 @@ import { useAddToVocabulary } from '../hooks/useAddToVocabulary';
 import { useAddSentence } from '../hooks/useAddSentence';
 import { useSnackbar } from '../hooks/useSnackbar';
 import { useAuthContext } from '../hooks/useAuthContext';
-import { translate, handleTooltipTranslationError } from '../lib/translate';
+import {
+  translate,
+  handleTooltipTranslationError,
+  translationCacheKey,
+  wordToTranslate,
+} from '../lib/translate';
 import { useDismissOnOutsideClick } from '../hooks/useDismissOnOutsideClick';
 import { TooltipContent, WordTooltipPopper } from './shared';
 
@@ -40,18 +45,6 @@ interface PhraseTooltipProps {
   sentenceId?: string;
   onDailyLimitReached?: (resetTime: string) => void;
   onUpdateTranslation?: (phrase: string, translation: string) => void;
-}
-
-function cleanPhrase(phrase: string): string {
-  return phrase
-    .split(/\s+/)
-    .map((word) => word.replace(/[.,!?;:"""''()]/g, '').toLowerCase())
-    .filter(Boolean)
-    .join(' ');
-}
-
-function cleanWord(word: string): string {
-  return word.replace(/[.,!?;:"""''()]/g, '').toLowerCase();
 }
 
 const TooltipIconButton = styled(IconButton)(({ theme }) => ({
@@ -136,22 +129,23 @@ function PhraseTooltip({
   };
 
   useEffect(() => {
+    setLoading(false);
+    setError(null);
     if (!selectedPhrase) {
       setTranslation(null);
-      setError(null);
       return;
     }
 
-    const cacheKey = cleanPhrase(selectedPhrase);
+    const cacheKey = translationCacheKey(selectedPhrase);
     const cachedTranslation = translations?.[cacheKey];
     if (cachedTranslation) {
       setTranslation(cachedTranslation);
       return;
     }
 
+    let stale = false;
     const fetchTranslation = async () => {
       setLoading(true);
-      setError(null);
       try {
         const dynamicContext = getSentenceContextRef.current?.(getSelectedIndices?.() ?? []);
         const effectiveContext = dynamicContext ?? sentenceContext;
@@ -160,9 +154,11 @@ function PhraseTooltip({
           declensionCardId,
           sentenceId,
         });
+        if (stale) return;
         setTranslation(result.translatedText);
         onUpdateTranslation?.(cacheKey, result.translatedText);
       } catch (err) {
+        if (stale) return;
         handleTooltipTranslationError(err, {
           setError,
           showSnackbar,
@@ -172,11 +168,15 @@ function PhraseTooltip({
           },
         });
       } finally {
-        setLoading(false);
+        if (!stale) setLoading(false);
       }
     };
 
     fetchTranslation();
+    // A late answer for an earlier selection must not land on the current one.
+    return () => {
+      stale = true;
+    };
   }, [
     selectedPhrase,
     sentenceContext,
@@ -334,31 +334,42 @@ function WordTooltip({
   const closeWordTooltip = actions?.closeWordTooltip;
 
   useEffect(() => {
+    setLoading(false);
+    setError(null);
     if (!activeWord) {
       setTranslation(null);
-      setError(null);
       setIsEditing(false);
       return;
     }
 
-    const cacheKey = cleanWord(activeWord.word);
-    const cachedTranslation = translations?.[cacheKey];
-    if (cachedTranslation) {
-      setTranslation(cachedTranslation);
+    const text = wordToTranslate(activeWord.word);
+    // A token of punctuation alone has nothing to look up.
+    if (!text) {
+      setTranslation(null);
       return;
     }
 
+    const knownTranslation =
+      translations?.[translationCacheKey(activeWord.word)] ?? activeWord.translation;
+    if (knownTranslation) {
+      setTranslation(knownTranslation);
+      return;
+    }
+
+    let stale = false;
     const fetchTranslation = async () => {
       setLoading(true);
-      setError(null);
       try {
-        const result = await translate(cacheKey, 'EN', {
-          context: activeWord.sentenceContext,
-          declensionCardId,
-          sentenceId,
-        });
+        const result = await (activeWord.pendingTranslation ??
+          translate(text, 'EN', {
+            context: activeWord.sentenceContext,
+            declensionCardId,
+            sentenceId,
+          }));
+        if (stale) return;
         setTranslation(result.translatedText);
       } catch (err) {
+        if (stale) return;
         handleTooltipTranslationError(err, {
           setError,
           showSnackbar,
@@ -368,11 +379,15 @@ function WordTooltip({
           },
         });
       } finally {
-        setLoading(false);
+        if (!stale) setLoading(false);
       }
     };
 
     fetchTranslation();
+    // A late answer for a word the learner has moved on from must not land on this one.
+    return () => {
+      stale = true;
+    };
   }, [
     activeWord,
     translations,
@@ -417,8 +432,7 @@ function WordTooltip({
 
     setIsSaving(true);
     try {
-      const cacheKey = cleanWord(activeWord.word);
-      await onUpdateTranslation?.(cacheKey, editValue.trim());
+      await onUpdateTranslation?.(translationCacheKey(activeWord.word), editValue.trim());
       setTranslation(editValue.trim());
       setIsEditing(false);
     } catch {

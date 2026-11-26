@@ -32,6 +32,9 @@ import clearVocabularyData from '../../lib/storage/clearVocabularyData';
 import { getDefaultVocabularyReviewStore } from '../../lib/storage/helpers';
 import { showSaveError } from '../../lib/storage/errorHandler';
 import { useSyncProps } from '../../hooks/useSyncProps';
+import { startDayInBothDirections } from '../../lib/reviewSession/sessionLists';
+import { keepDirections, useLocalChanges } from './localChanges';
+import { useToday } from './useToday';
 
 export interface VocabularyContextType {
   vocabularyReviewStores: Record<TranslationDirection, VocabularyReviewDataStore>;
@@ -62,6 +65,8 @@ interface VocabularyProviderProps {
   initialSystemWords?: VocabularyWord[];
   initialReviewStores?: Record<TranslationDirection, VocabularyReviewDataStore>;
   initialSettings?: VocabularySettings;
+  /** When a load started reading this data (latestLocalChange); changes made since are kept. */
+  readAt?: number;
 }
 
 const EMPTY_CUSTOM_WORDS: CustomVocabularyWord[] = [];
@@ -73,6 +78,7 @@ export function VocabularyProvider({
   initialSystemWords = EMPTY_SYSTEM_WORDS,
   initialReviewStores,
   initialSettings = DEFAULT_VOCABULARY_SETTINGS,
+  readAt,
 }: VocabularyProviderProps) {
   const [vocabularyReviewStores, setVocabularyReviewStores] = useState<
     Record<TranslationDirection, VocabularyReviewDataStore>
@@ -84,22 +90,38 @@ export function VocabularyProvider({
   );
   const storesRef = useRef(vocabularyReviewStores);
   const [vocabularySettings, setVocabularySettings] = useState<VocabularySettings>(initialSettings);
-  const [customWords, setCustomWords] = useState<CustomVocabularyWord[]>(initialCustomWords);
+  const [customWords, setCustomWordsState] = useState<CustomVocabularyWord[]>(initialCustomWords);
   const [systemWords, setSystemWords] = useState<VocabularyWord[]>(initialSystemWords);
+  const localChanges = useLocalChanges();
 
   useSyncProps(
     { initialReviewStores, initialSettings, initialCustomWords, initialSystemWords },
     () => {
-      const nextStores = initialReviewStores ?? {
+      const loadedStores = initialReviewStores ?? {
         'pl-to-en': getDefaultVocabularyReviewStore(),
         'en-to-pl': getDefaultVocabularyReviewStore(),
       };
+      const nextStores = keepDirections(loadedStores, storesRef.current, (d) =>
+        localChanges.changedSince(`reviewStore:${d}`, readAt)
+      );
       setVocabularyReviewStores(nextStores);
       storesRef.current = nextStores;
-      setVocabularySettings(initialSettings);
-      setCustomWords(initialCustomWords);
+      setVocabularySettings((current) =>
+        keepDirections(initialSettings, current, (d) =>
+          localChanges.changedSince(`settings:${d}`, readAt)
+        )
+      );
+      if (!localChanges.changedSince('customItems', readAt))
+        setCustomWordsState(initialCustomWords);
       setSystemWords(initialSystemWords);
     }
+  );
+
+  const today = useToday();
+  const todaysReviewStores = useMemo(
+    () =>
+      startDayInBothDirections(vocabularyReviewStores, ['reviewedToday', 'newCardsToday'], today),
+    [vocabularyReviewStores, today]
   );
 
   const vocabularyWords = useMemo<VocabularyWord[]>(
@@ -107,14 +129,28 @@ export function VocabularyProvider({
     [customWords, systemWords]
   );
 
+  // Listener snapshots and page edits; a load that read the list before them must not undo them.
+  const setCustomWords = useCallback(
+    (words: CustomVocabularyWord[]) => {
+      setCustomWordsState(words);
+      localChanges.note('customItems');
+    },
+    [localChanges]
+  );
+
   const { user } = useAuthContext();
   useEffect(() => {
     if (!user) return;
+    let active = true;
     const unsub = subscribeCustomVocabulary((items) => {
-      setCustomWords(items);
+      // Dropped if the listener closed (sign-out or account switch) while it was being handled.
+      if (active) setCustomWords(items);
     });
-    return unsub;
-  }, [user]);
+    return () => {
+      active = false;
+      unsub();
+    };
+  }, [user, setCustomWords]);
 
   const updateVocabularyReviewStore = useCallback(
     async (direction: TranslationDirection, store: VocabularyReviewDataStore) => {
@@ -122,13 +158,14 @@ export function VocabularyProvider({
       const nextAll = { ...storesRef.current, [direction]: store };
       storesRef.current = nextAll;
       setVocabularyReviewStores(nextAll);
+      localChanges.note(`reviewStore:${direction}`);
       try {
         await saveVocabularyReviewData(prevStore, store, direction);
       } catch (e) {
         showSaveError(e);
       }
     },
-    []
+    [localChanges]
   );
 
   const updateVocabularySettingsFn = useCallback(
@@ -137,26 +174,31 @@ export function VocabularyProvider({
         ...prev,
         [direction]: settings,
       }));
+      localChanges.note(`settings:${direction}`);
       try {
         await saveVocabularySettings(settings, direction);
       } catch (e) {
         showSaveError(e);
       }
     },
-    []
+    [localChanges]
   );
 
-  const clearVocabularyReviewDataFn = useCallback(async (direction: TranslationDirection) => {
-    try {
-      await clearVocabularyData(direction);
-      const freshStore = getDefaultVocabularyReviewStore();
-      const nextAll = { ...storesRef.current, [direction]: freshStore };
-      storesRef.current = nextAll;
-      setVocabularyReviewStores(nextAll);
-    } catch (e) {
-      showSaveError(e);
-    }
-  }, []);
+  const clearVocabularyReviewDataFn = useCallback(
+    async (direction: TranslationDirection) => {
+      try {
+        await clearVocabularyData(direction);
+        const freshStore = getDefaultVocabularyReviewStore();
+        const nextAll = { ...storesRef.current, [direction]: freshStore };
+        storesRef.current = nextAll;
+        setVocabularyReviewStores(nextAll);
+        localChanges.note(`reviewStore:${direction}`);
+      } catch (e) {
+        showSaveError(e);
+      }
+    },
+    [localChanges]
+  );
 
   const refreshVocabularyWords = useCallback(async () => {
     const [loadedCustomWords, vocabularySnapshot] = await Promise.all([
@@ -166,12 +208,12 @@ export function VocabularyProvider({
     const loadedSystemWords = vocabularySnapshot.docs.map((doc) => doc.data() as VocabularyWord);
     setCustomWords(loadedCustomWords);
     setSystemWords(loadedSystemWords);
-  }, []);
+  }, [setCustomWords]);
 
   return (
     <VocabularyContext.Provider
       value={{
-        vocabularyReviewStores,
+        vocabularyReviewStores: todaysReviewStores,
         vocabularySettings,
         vocabularyWords,
         customWords,

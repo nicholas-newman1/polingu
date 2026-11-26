@@ -3,7 +3,13 @@ import { CircularProgress, Typography, IconButton } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { styled } from '../lib/styled';
-import { translate, handleTooltipTranslationError } from '../lib/translate';
+import {
+  translate,
+  handleTooltipTranslationError,
+  translationCacheKey,
+  wordToTranslate,
+  type TranslationResult,
+} from '../lib/translate';
 import {
   useTooltipInteraction,
   TappableSpan,
@@ -60,6 +66,14 @@ const noopSubscribe = () => () => {};
 const returnFalse = () => false;
 const defaultInteractionSnapshot = '0:0';
 
+interface HoverLookup {
+  /** The text looked up. Words are keyed by position, so a mounted word's text can change. */
+  text: string;
+  translation: string | null;
+  error: string | null;
+  pending: Promise<TranslationResult> | null;
+}
+
 interface TranslatableWordProps {
   word: string;
   wordIndex?: number;
@@ -83,9 +97,13 @@ function TranslatableWordComponent({
   onDailyLimitReached,
   disableHoverTranslate = false,
 }: TranslatableWordProps) {
-  const [translation, setTranslation] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const textToTranslate = wordToTranslate(word);
+  const cacheKey = translationCacheKey(word);
+  const [lookup, setLookup] = useState<HoverLookup | null>(null);
+  const currentLookup = lookup?.text === textToTranslate ? lookup : null;
+  const translation = currentLookup?.translation ?? null;
+  const error = currentLookup?.error ?? null;
+  const loading = !!currentLookup?.pending;
 
   const actions = useTranslatableTextActions();
   const addToVocabulary = useAddToVocabulary();
@@ -138,32 +156,38 @@ function TranslatableWordComponent({
     }
   }, [isDragging, close]);
 
-  const cleanWord = word.replace(/[.,!?;:"""''()]/g, '').toLowerCase();
-
   const fetchTranslation = useCallback(async () => {
-    if (!cleanWord) return;
+    if (!textToTranslate) return;
 
-    const cachedTranslation = translations?.[cleanWord];
+    const cachedTranslation = translations?.[cacheKey];
     if (cachedTranslation) {
-      setTranslation(cachedTranslation);
+      setLookup({
+        text: textToTranslate,
+        translation: cachedTranslation,
+        error: null,
+        pending: null,
+      });
       return;
     }
 
     if (translation || loading) return;
 
-    setLoading(true);
-    setError(null);
+    const pending = translate(textToTranslate, 'EN', {
+      context: sentenceContext,
+      declensionCardId,
+      sentenceId,
+    });
+    setLookup({ text: textToTranslate, translation: null, error: null, pending });
+    // Skipped once the word has changed and been looked up again.
+    const update = (changes: Partial<HoverLookup>) =>
+      setLookup((prev) => (prev?.pending === pending ? { ...prev, ...changes } : prev));
 
     try {
-      const result = await translate(cleanWord, 'EN', {
-        context: sentenceContext,
-        declensionCardId,
-        sentenceId,
-      });
-      setTranslation(result.translatedText);
+      const result = await pending;
+      update({ translation: result.translatedText });
     } catch (err) {
       handleTooltipTranslationError(err, {
-        setError,
+        setError: (message) => update({ error: message }),
         showSnackbar,
         onDailyLimit: (resetTime) => {
           setIsClicked(false);
@@ -171,10 +195,11 @@ function TranslatableWordComponent({
         },
       });
     } finally {
-      setLoading(false);
+      update({ pending: null });
     }
   }, [
-    cleanWord,
+    textToTranslate,
+    cacheKey,
     sentenceContext,
     translations,
     declensionCardId,
@@ -299,6 +324,8 @@ function TranslatableWordComponent({
       if (isDragEnabled) {
         actions!.updateDrag(wordIndex);
       }
+      // The word's tap tooltip is open: a hover tooltip would stack on top of it.
+      if (isDragEnabled && actions!.isWordActive(wordIndex)) return;
       if (!isDragging && !hasPhrase && !disableHoverTranslate) {
         baseHandleMouseEnter(event);
         fetchTranslation();
@@ -331,14 +358,18 @@ function TranslatableWordComponent({
       if (isDragging) return;
 
       if (usesSharedClickTooltip) {
-        actions!.handleWordClick({
+        const opened = actions!.handleWordClick({
           index: wordIndex,
           word,
           anchorEl: event.currentTarget,
           sentenceContext,
           declensionCardId,
           sentenceId,
+          translation: translation ?? undefined,
+          pendingTranslation: currentLookup?.pending ?? undefined,
         });
+        // The tap tooltip takes over from the hover tooltip and its lookup.
+        if (opened) close();
         return;
       }
 
@@ -362,6 +393,9 @@ function TranslatableWordComponent({
       sentenceContext,
       declensionCardId,
       sentenceId,
+      translation,
+      currentLookup,
+      close,
       isClicked,
       setIsClicked,
       fetchTranslation,
