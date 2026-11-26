@@ -1,7 +1,7 @@
 import type { VocabularyWord, VocabularyReviewDataStore } from '../../types/vocabulary';
 import getOrCreateVocabularyCardReviewData from '../storage/getOrCreateVocabularyCardReviewData';
 import { includesWordId } from '../storage/helpers';
-import isDue from '../fsrsUtils/isDue';
+import isPracticeAheadCandidate from '../fsrsUtils/isPracticeAheadCandidate';
 import sortByDueDate from '../fsrsUtils/sortByDueDate';
 import type { VocabularySessionCard } from './types';
 
@@ -14,16 +14,10 @@ export default function getVocabularyPracticeAheadCards(
 
   for (const word of allWords) {
     const reviewData = getOrCreateVocabularyCardReviewData(word.id, reviewStore);
-    const isNew = reviewData.fsrsCard.state === 0;
-
-    if (isNew) continue;
-
-    const isDueCard = isDue(reviewData.fsrsCard);
     const reviewedToday = includesWordId(reviewStore.reviewedToday, word.id);
+    if (!isPracticeAheadCandidate(reviewData.fsrsCard, reviewedToday)) continue;
 
-    if (!isDueCard || reviewedToday) {
-      practiceCards.push({ word, reviewData, isNew: false });
-    }
+    practiceCards.push({ word, reviewData, isNew: false });
   }
 
   practiceCards.sort(sortByDueDate);

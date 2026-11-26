@@ -1,7 +1,7 @@
 import type { DeclensionCard, DeclensionReviewDataStore } from '../../types';
 import getOrCreateDeclensionCardReviewData from '../storage/getOrCreateDeclensionCardReviewData';
 import { includesDeclensionCardId } from '../storage/helpers';
-import isDue from '../fsrsUtils/isDue';
+import isPracticeAheadCandidate from '../fsrsUtils/isPracticeAheadCandidate';
 import sortByDueDate from '../fsrsUtils/sortByDueDate';
 import shuffleArray from '../utils/shuffleArray';
 import type { DeclensionFilters, DeclensionSessionCard } from './types';
@@ -29,9 +29,10 @@ export default function getDeclensionExtraCards(
     getPracticeAheadCards: (count: number): DeclensionSessionCard[] => {
       const { custom, system } = pick(
         ({ card, reviewData }) =>
-          reviewData.fsrsCard.state !== 0 &&
-          (!isDue(reviewData.fsrsCard) ||
-            includesDeclensionCardId(reviewStore.reviewedToday, card.id)),
+          isPracticeAheadCandidate(
+            reviewData.fsrsCard,
+            includesDeclensionCardId(reviewStore.reviewedToday, card.id)
+          ),
         false
       );
       return [...custom.sort(sortByDueDate), ...system.sort(sortByDueDate)].slice(0, count);
