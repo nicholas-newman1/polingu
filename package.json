@@ -8,8 +8,12 @@
     "start:phone": "node --import tsx scripts/phone-preview.ts",
     "build": "tsc -b && node node_modules/vite/bin/vite.js build",
     "lint": "eslint .",
-    "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css}\"",
-    "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json,css}\"",
+    "format": "prettier --write \"{src,tests,functions/tests}/**/*.{ts,tsx,js,jsx,json,css}\"",
+    "format:check": "prettier --check \"{src,tests,functions/tests}/**/*.{ts,tsx,js,jsx,json,css}\"",
+    "test": "vitest run --project unit --project functions",
+    "test:watch": "vitest --project unit --project functions",
+    "test:rules": "firebase emulators:exec --only firestore,storage --project demo-polingu \"vitest run --project rules\"",
+    "test:types": "tsc -b tsconfig.test.json && tsc -p functions/tsconfig.test.json",
     "preview": "node node_modules/vite/bin/vite.js preview",
     "declension:import": "tsx scripts/declension-import.ts",
     "declension:sync": "tsx scripts/declension-sync.ts",
@@ -49,6 +53,10 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@firebase/rules-unit-testing": "^5.0.2",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/jest-dom": "^8.0.0",
+    "@testing-library/react": "^16.3.3",
     "@types/compression": "^1.8.1",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.5",
@@ -60,8 +68,11 @@
     "eslint-plugin-prettier": "^5.5.5",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
+    "fake-indexeddb": "^6.2.8",
     "firebase-admin": "^13.6.0",
+    "firebase-tools": "^15.37.0",
     "globals": "^16.5.0",
+    "jsdom": "^31.0.1",
     "prettier": "^3.8.1",
     "tsx": "^4.19.0",
     "typescript": "~5.9.3",
@@ -70,6 +81,7 @@
     "vite-phone": "npm:vite@~8.1.7",
     "vite-phone-react": "npm:@vitejs/plugin-react-swc@~4.3.3",
     "vite-plugin-checker": "^0.12.0",
-    "vite-plugin-pwa": "^1.2.0"
+    "vite-plugin-pwa": "^1.2.0",
+    "vitest": "^5.1.2"
   }
 }

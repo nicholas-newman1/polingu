@@ -16,7 +16,24 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - run: npm ci && npm run build
+          cache-dependency-path: |
+            package-lock.json
+            functions/package-lock.json
+      # The Firestore and Storage emulators used by the rules tests need Java.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/firebase/emulators
+          key: firebase-emulators-${{ hashFiles('package-lock.json') }}
+      - run: npm ci && npm ci --prefix functions
+      # Any failing test stops the deploy.
+      - run: npm test
+      - run: npm run test:types
+      - run: npm run test:rules
+      - run: npm run build
         env:
           BUILD_NUMBER: ${{ github.run_number }}
           COMMIT_SHA: ${{ github.sha }}
