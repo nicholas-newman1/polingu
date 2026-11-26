@@ -13,3 +13,11 @@
 - Timestamp-only amendments must preserve file contents, staged changes, commit messages, author identities, commit order, and merge structure. Do not accidentally include staged changes in an amendment.
 - Do not rewrite published commits or other contributors' commits, or force-push, solely to enforce this policy. If any such outgoing commit violates the policy, explain the conflict before pushing.
 - Report timestamp adjustments when completing a commit/push request. This policy changes Git metadata; it does not change the actual time work or a push occurs.
+
+## Testing signed in
+
+- To check a signed-in flow in the app, run `npm start` and open the local URL with `?devSignIn` (e.g. `http://localhost:5173/dashboard?devSignIn`). The app signs in as the shared test user `dev-test-user` ("Dev Tester"), with no password or Google account involved.
+- The token comes from a dev-server-only endpoint (`scripts/lib/devSignInPlugin.ts`) that answers only local requests and needs `service-account.json` in the project root. It is not part of production builds or the phone preview.
+- The test user reads and writes the production Firebase project, but only its own data under `users/dev-test-user`. Create, edit and delete custom items freely there, and clean up anything that would confuse later tests.
+- The test user is deliberately not an admin. Never give it an admin claim, and don't use it for admin-only flows (built-in content edits, audio regeneration); those change shared production data.
+- Signing in this way replaces any other account in that browser and clears its offline data, as a normal sign-out does.

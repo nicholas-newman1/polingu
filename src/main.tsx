@@ -145,3 +145,7 @@ createRoot(document.getElementById('root')!).render(
     </ColorModeProvider>
   </StrictMode>
 );
+
+if (import.meta.env.DEV) {
+  void import('./lib/devSignIn').then(({ devSignInFromUrl }) => devSignInFromUrl());
+}
