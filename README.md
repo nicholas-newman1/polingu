@@ -157,6 +157,7 @@ Content and audio pipelines are managed through `tsx` scripts (require Firebase 
 ```bash
 # Declension content
 npm run declension:import      # Import declension JSON into Firestore
+npm run declension:update      # Correct existing cards (dry run unless --apply)
 npm run declension:sync        # Sync Firestore declensions to local index
 npm run declension:export      # Export declension cards to JSON
 

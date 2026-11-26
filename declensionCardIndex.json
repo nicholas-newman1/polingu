@@ -120,7 +120,7 @@
   },
   {
     "id": 18,
-    "front": "Jest mi ___ (zimno).",
+    "front": "___ (Brat) jest zimno.",
     "case": "Dative",
     "gender": "Masculine",
     "number": "Singular"
@@ -134,7 +134,7 @@
   },
   {
     "id": 20,
-    "front": "Ufam ___ (rodzice).",
+    "front": "Ufam ___ (rodzic) (pl).",
     "case": "Dative",
     "gender": "Masculine",
     "number": "Plural"
@@ -155,7 +155,7 @@
   },
   {
     "id": 23,
-    "front": "To jest przeciw ___ (zasady).",
+    "front": "To jest przeciw ___ (zasada) (pl).",
     "case": "Dative",
     "gender": "Feminine",
     "number": "Plural"
@@ -246,7 +246,7 @@
   },
   {
     "id": 36,
-    "front": "Stoję między dwoma ___ (samochód).",
+    "front": "Stoję między dwoma ___ (samochód) (pl).",
     "case": "Instrumental",
     "gender": "Masculine",
     "number": "Plural"
@@ -365,14 +365,14 @@
   },
   {
     "id": 53,
-    "front": "___ (Ludzie)!",
+    "front": "___ (Człowiek) (pl)!",
     "case": "Vocative",
     "gender": "Masculine",
     "number": "Plural"
   },
   {
     "id": 54,
-    "front": "___ (Przyjaciele)!",
+    "front": "Witajcie, ___ (przyjaciel) (pl)!",
     "case": "Vocative",
     "gender": "Masculine",
     "number": "Plural"
@@ -456,7 +456,7 @@
   },
   {
     "id": 66,
-    "front": "Nie ma ___ (ludzie).",
+    "front": "Nie ma ___ (człowiek) (pl).",
     "case": "Genitive",
     "gender": "Masculine",
     "number": "Plural"
@@ -470,7 +470,7 @@
   },
   {
     "id": 68,
-    "front": "Pomagam ___ (rodzice) (pl).",
+    "front": "Pomagam ___ (rodzic) (pl).",
     "case": "Dative",
     "gender": "Masculine",
     "number": "Plural"
@@ -673,14 +673,14 @@
   },
   {
     "id": 97,
-    "front": "___ (Ludzie) (pl)!",
+    "front": "Hej, ___ (człowiek) (pl)!",
     "case": "Vocative",
     "gender": "Masculine",
     "number": "Plural"
   },
   {
     "id": 98,
-    "front": "___ (Rodzice) (pl)!",
+    "front": "___ (Rodzic) (pl)!",
     "case": "Vocative",
     "gender": "Masculine",
     "number": "Plural"
@@ -694,28 +694,28 @@
   },
   {
     "id": 100,
-    "front": "___ (Lekarze)!",
+    "front": "___ (Lekarz) (pl)!",
     "case": "Vocative",
     "gender": "Masculine",
     "number": "Plural"
   },
   {
     "id": 101,
-    "front": "___ (Siostry)!",
+    "front": "___ (Siostra) (pl)!",
     "case": "Vocative",
     "gender": "Feminine",
     "number": "Plural"
   },
   {
     "id": 102,
-    "front": "___ (Koledzy)!",
+    "front": "___ (Kolega) (pl)!",
     "case": "Vocative",
     "gender": "Masculine",
     "number": "Plural"
   },
   {
     "id": 103,
-    "front": "___ (Sąsiedzi)!",
+    "front": "___ (Sąsiad) (pl)!",
     "case": "Vocative",
     "gender": "Masculine",
     "number": "Plural"
@@ -911,7 +911,7 @@
   },
   {
     "id": 131,
-    "front": "Pokazuję ___ (uczeń) (pl)  przykład.",
+    "front": "Pokazuję ___ (uczeń) (pl) przykład.",
     "case": "Dative",
     "gender": "Masculine",
     "number": "Plural"
@@ -1170,7 +1170,7 @@
   },
   {
     "id": 168,
-    "front": "Wybrałem go spośród ___ (wszyscy kandydaci).",
+    "front": "Wybrałem go spośród wszystkich ___ (kandydat) (pl).",
     "case": "Genitive",
     "gender": "Masculine",
     "number": "Plural"
@@ -1296,7 +1296,7 @@
   },
   {
     "id": 186,
-    "front": "Każdy zajmuje się ___ (swoje sprawy).",
+    "front": "Każdy zajmuje się swoimi ___ (sprawa) (pl).",
     "case": "Instrumental",
     "gender": "Feminine",
     "number": "Plural"
@@ -1408,7 +1408,7 @@
   },
   {
     "id": 202,
-    "front": "Wyszedł spomiędzy ___ (ludzie).",
+    "front": "Wyszedł spomiędzy ___ (człowiek) (pl).",
     "case": "Genitive",
     "gender": "Masculine",
     "number": "Plural"
@@ -1478,7 +1478,7 @@
   },
   {
     "id": 212,
-    "front": "Na ___ (zewnątrz) pada śnieg.",
+    "front": "Na ___ (podwórko) pada śnieg.",
     "case": "Locative",
     "gender": "Neuter",
     "number": "Singular"
@@ -1758,7 +1758,7 @@
   },
   {
     "id": 252,
-    "front": "Kupiłem kilogram ___ (jabłko).",
+    "front": "Kupiłem kilogram ___ (jabłko) (pl).",
     "case": "Genitive",
     "gender": "Neuter",
     "number": "Plural"
@@ -1772,7 +1772,7 @@
   },
   {
     "id": 254,
-    "front": "Mam trochę ___ (cukierki).",
+    "front": "Mam trochę ___ (cukierek) (pl).",
     "case": "Genitive",
     "gender": "Masculine",
     "number": "Plural"
@@ -1821,14 +1821,14 @@
   },
   {
     "id": 261,
-    "front": "Zjedliśmy porcję ___ (pierogi).",
+    "front": "Zjedliśmy porcję ___ (pieróg) (pl).",
     "case": "Genitive",
     "gender": "Masculine",
     "number": "Plural"
   },
   {
     "id": 262,
-    "front": "Kupiłem paczkę ___ (czipsy).",
+    "front": "Kupiłem paczkę ___ (czips) (pl).",
     "case": "Genitive",
     "gender": "Masculine",
     "number": "Plural"
@@ -1863,7 +1863,7 @@
   },
   {
     "id": 267,
-    "front": "Zjadłem pełno ___ (ciastka).",
+    "front": "Zjadłem pełno ___ (ciastko) (pl).",
     "case": "Genitive",
     "gender": "Neuter",
     "number": "Plural"
@@ -1877,7 +1877,7 @@
   },
   {
     "id": 269,
-    "front": "Zrobiliśmy dużo ___ (zdjęcia).",
+    "front": "Zrobiliśmy dużo ___ (zdjęcie) (pl).",
     "case": "Genitive",
     "gender": "Neuter",
     "number": "Plural"
@@ -1891,14 +1891,14 @@
   },
   {
     "id": 271,
-    "front": "Przyniósł worek ___ (ziemniaki).",
+    "front": "Przyniósł worek ___ (ziemniak) (pl).",
     "case": "Genitive",
     "gender": "Masculine",
     "number": "Plural"
   },
   {
     "id": 272,
-    "front": "Kupiłem zestaw ___ (narzędzia).",
+    "front": "Kupiłem zestaw ___ (narzędzie) (pl).",
     "case": "Genitive",
     "gender": "Neuter",
     "number": "Plural"

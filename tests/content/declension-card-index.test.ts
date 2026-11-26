@@ -141,10 +141,7 @@ describe('declension card front prompts', () => {
         (front !== front.trim() || / {2}/.test(front) || /\s[.!?,]/.test(front)) &&
         JSON.stringify(front)
     );
-    expectOnlyAllowlisted(problems, {
-      // Two spaces between "(pl)" and "przykład".
-      131: '"Pokazuję ___ (uczeń) (pl)  przykład."',
-    });
+    expect([...problems]).toEqual([]);
   });
 
   test('are sentences that start with a capital or the blank and end with . ! or ?', () => {
@@ -175,32 +172,9 @@ describe('declension card front prompts', () => {
         card.number === 'Plural' && !prompt.plMarker && card.gender !== 'Pronoun' && card.front
     );
     expectOnlyAllowlisted(problems, {
-      // The base form is singular, so nothing on the front says the answer is plural.
-      36: 'Stoję między dwoma ___ (samochód).',
-      252: 'Kupiłem kilogram ___ (jabłko).',
-      // The base form is already the nominative plural (or a plurale tantum) instead of the
-      // nominative singular + (pl) that DECLENSION.md asks for.
-      20: 'Ufam ___ (rodzice).',
-      23: 'To jest przeciw ___ (zasady).',
-      53: '___ (Ludzie)!',
-      54: '___ (Przyjaciele)!',
-      66: 'Nie ma ___ (ludzie).',
-      100: '___ (Lekarze)!',
-      101: '___ (Siostry)!',
-      102: '___ (Koledzy)!',
-      103: '___ (Sąsiedzi)!',
+      // Pluralia tantum: drzwi has no singular to show, and is plural in itself.
       142: 'Mężczyzna uderza pięścią o ___ (drzwi).',
       166: 'Wyjdź za ___ (drzwi).',
-      168: 'Wybrałem go spośród ___ (wszyscy kandydaci).',
-      186: 'Każdy zajmuje się ___ (swoje sprawy).',
-      202: 'Wyszedł spomiędzy ___ (ludzie).',
-      254: 'Mam trochę ___ (cukierki).',
-      261: 'Zjedliśmy porcję ___ (pierogi).',
-      262: 'Kupiłem paczkę ___ (czipsy).',
-      267: 'Zjadłem pełno ___ (ciastka).',
-      269: 'Zrobiliśmy dużo ___ (zdjęcia).',
-      271: 'Przyniósł worek ___ (ziemniaki).',
-      272: 'Kupiłem zestaw ___ (narzędzia).',
     });
   });
 
@@ -224,17 +198,8 @@ describe('declension card front prompts', () => {
         `${card.gender}: ${card.front}`
     );
     expectOnlyAllowlisted(problems, {
-      // "zimno" is an adverb; the dative in "Jest mi zimno" is "mi", so the blank is not a
-      // declined masculine noun at all.
-      18: 'Masculine: Jest mi ___ (zimno).',
       // Genuine exception: książę (prince) is a masculine noun ending in -ę.
       380: 'Masculine: Kłaniam się ___ (książę).',
-      // "zewnątrz" is an indeclinable adverb, not a neuter noun.
-      212: 'Neuter: Na ___ (zewnątrz) pada śnieg.',
-      // The base form is already plural, and (pl) is added on top of it.
-      68: 'Masculine: Pomagam ___ (rodzice) (pl).',
-      97: 'Masculine: ___ (Ludzie) (pl)!',
-      98: 'Masculine: ___ (Rodzice) (pl)!',
     });
   });
 

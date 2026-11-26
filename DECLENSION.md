@@ -127,6 +127,10 @@ npm run declension:review <file.json>
 # Import new cards from a JSON file
 npm run declension:import <file.json>
 
+# Correct existing cards (full cards with existing ids, as export writes them).
+# Shows the changes; add --apply to write them. A changed `back` regenerates the audio.
+npm run declension:update <file.json> [--apply]
+
 # Sync local index from Firestore
 npm run declension:sync
 
