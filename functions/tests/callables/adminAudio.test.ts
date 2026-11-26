@@ -152,6 +152,23 @@ describe('createSystemAudio', () => {
     ]);
   });
 
+  test('a task that cannot be queued removes the item and reports the failure', async () => {
+    tasks.failure = new Error('queue unavailable');
+
+    const error = await rejection(
+      call(createSystemAudio, { title: 'Lekcja 1', text: 'Dzień dobry.' }, admin)
+    );
+    expect(error).toMatchObject({
+      code: 'unavailable',
+      message: 'Could not start generating audio. Please try again.',
+    });
+    expect(db.childPaths('systemAudioItems')).toEqual([]);
+
+    tasks.failure = null;
+    await call(createSystemAudio, { title: 'Lekcja 1', text: 'Dzień dobry.' }, admin);
+    expect(tasks.enqueued).toHaveLength(1);
+  });
+
   test('accepts text of exactly 50,000 characters', async () => {
     await call(createSystemAudio, { title: 'Long', text: 'a'.repeat(50_000) }, admin);
     expect(tasks.enqueued).toHaveLength(1);
