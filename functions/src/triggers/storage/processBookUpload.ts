@@ -37,7 +37,7 @@ async function buildPdfBook(
   const author = provided.author || extracted.author;
   return {
     ...base,
-    title: provided.title || extracted.title || base.fileName.replace(/\.pdf$/i, ''),
+    title: provided.title || extracted.title || base.fileName.replace(/\.pdf$/i, '') || 'Untitled',
     ...(author && { author }),
     fileType: 'pdf',
     pageCount: extracted.pageCount,
@@ -90,8 +90,10 @@ export const processBookUpload = onObjectFinalized(
     const bookRef = db.collection('users').doc(userId).collection('books').doc(bookId);
 
     try {
-      const isPdf = contentType === 'application/pdf' || fileName.endsWith('.pdf');
-      const isText = contentType === 'text/plain' || fileName.endsWith('.txt');
+      // The extension is matched in any case, as the upload form and storage.rules do.
+      const lowerName = fileName.toLowerCase();
+      const isPdf = contentType === 'application/pdf' || lowerName.endsWith('.pdf');
+      const isText = contentType === 'text/plain' || lowerName.endsWith('.txt');
 
       if (!isPdf && !isText) {
         throw new Error('Invalid file type. Only PDF and plain text files are supported.');

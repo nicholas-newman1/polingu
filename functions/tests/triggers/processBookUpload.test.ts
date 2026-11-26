@@ -128,15 +128,14 @@ describe('successful uploads', () => {
     expect(db.data(bookPath())).toMatchObject({ status: 'ready', fileType: 'pdf' });
   });
 
-  // BUG: uploadBook() in src/lib/reader/uploadBook.ts accepts a file whose name ends in
-  // ".pdf" in any case, and the browser may give such a file no type, so Storage records
-  // application/octet-stream. processBookUpload checks the extension case-sensitively
-  // (fileName.endsWith('.pdf')), so "SCAN.PDF" is turned into an error book. storage.rules
-  // has the same case-sensitive check (see tests/rules/storage.test.ts), so both need the
-  // fix. Expected: a ready PDF book. Actual: "Invalid file type".
-  test.fails('a PDF with an upper-case extension and a generic type is accepted', async () => {
+  test('a PDF with an upper-case extension and a generic type is accepted', async () => {
     await upload('SCAN.PDF', pdf(), { contentType: 'application/octet-stream' });
     expect(db.data(bookPath())).toMatchObject({ status: 'ready', fileType: 'pdf' });
+  });
+
+  test('a text file with an upper-case extension and a generic type is accepted', async () => {
+    await upload('NOTES.TXT', Buffer.from('Notatki'), { contentType: 'application/octet-stream' });
+    expect(db.data(bookPath())).toMatchObject({ status: 'ready', fileType: 'text' });
   });
 
   test('a PDF without an author is stored without one', async () => {
@@ -146,10 +145,7 @@ describe('successful uploads', () => {
     expect(db.data(bookPath())).not.toHaveProperty('author');
   });
 
-  // BUG: buildPdfBook falls back to the file name with `extracted.title || fileName`, but
-  // extractPdfMetadata always returns a title ("Untitled" when the PDF has none), so the
-  // fallback can never run. Expected title: "Lalka" (from Lalka.pdf). Actual: "Untitled".
-  test.fails('a PDF without a title is named after its file', async () => {
+  test('a PDF without a title is named after its file', async () => {
     await upload('Lalka.pdf', makePdf({ pages: 2 }), { contentType: 'application/pdf' });
     expect(db.data(bookPath())?.title).toBe('Lalka');
   });

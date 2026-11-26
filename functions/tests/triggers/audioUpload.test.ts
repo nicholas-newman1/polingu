@@ -211,14 +211,16 @@ describe('transcribeAudio', () => {
     expect(openai.transcriptionRequests[0]).toMatchObject({ file: { name: 'rec.wav' } });
   });
 
-  async function expectFailure(task: Record<string, unknown>, message: string, uid = learner.uid) {
-    await expect(runTask(transcribeAudio, task)).rejects.toThrow(message);
+  /** A refusal the learner sees: recorded on the item, the upload removed, and not retried. */
+  async function expectRejected(task: Record<string, unknown>, message: string, uid = learner.uid) {
+    // Resolving tells Cloud Tasks the task is done, so it does not run it again.
+    await runTask(transcribeAudio, task);
     expect(db.data(itemPath(uid))).toMatchObject({ status: 'error', error: message });
     expect(storage.file(DEFAULT_BUCKET, task.filePath as string)).toBeUndefined();
   }
 
   test('rejects a learner’s recording whose header says it is over 10 minutes, before transcribing', async () => {
-    await expectFailure(pending(601), 'Audio too long. Maximum duration is 10 minutes.');
+    await expectRejected(pending(601), 'Audio too long. Maximum duration is 10 minutes.');
     expect(openai.transcriptionRequests).toHaveLength(0);
   });
 
@@ -229,7 +231,7 @@ describe('transcribeAudio', () => {
   });
 
   test('rejects a learner’s recording whose length cannot be read', async () => {
-    await expectFailure(
+    await expectRejected(
       pending(0, learner.uid, Buffer.from('definitely not audio')),
       'Could not determine audio duration. File may be corrupt.'
     );
@@ -238,7 +240,7 @@ describe('transcribeAudio', () => {
 
   test('rejects a learner’s recording that Whisper finds longer than 10 minutes', async () => {
     openai.transcription = { duration: 601, segments, words };
-    await expectFailure(pending(5), 'Audio too long. Maximum duration is 10 minutes.');
+    await expectRejected(pending(5), 'Audio too long. Maximum duration is 10 minutes.');
   });
 
   test('admins can transcribe long recordings', async () => {
@@ -249,7 +251,7 @@ describe('transcribeAudio', () => {
 
   test('refuses learners while audio is disabled', async () => {
     db.seed('config/killSwitch', { audioDisabled: true });
-    await expectFailure(pending(2), 'Audio processing is temporarily unavailable.');
+    await expectRejected(pending(2), 'Audio processing is temporarily unavailable.');
   });
 
   test('admins are not affected by the kill switch', async () => {
@@ -261,44 +263,70 @@ describe('transcribeAudio', () => {
 
   test('fails when the OpenAI key is missing', async () => {
     vi.stubEnv('OPENAI_API_KEY', '');
-    await expectFailure(pending(2), 'OpenAI API key not configured');
+    await expectRejected(pending(2), 'OpenAI API key not configured');
   });
 
-  test('a Whisper failure marks the item failed and rethrows so the task is retried', async () => {
+  test('a Whisper failure rethrows so the task is retried, keeping the item and its upload', async () => {
+    const task = pending(2);
     openai.transcription = new Error('Whisper 503');
-    await expectFailure(pending(2), 'Whisper 503');
+
+    await expect(runTask(transcribeAudio, task, { retryCount: 0 })).rejects.toThrow('Whisper 503');
+    expect(db.data(itemPath())).toEqual({
+      id: 'a1',
+      userId: learner.uid,
+      status: 'processing',
+      duration: 0,
+    });
+    expect(storage.file(DEFAULT_BUCKET, task.filePath)).toBeDefined();
   });
 
-  // BUG: the catch block deletes the pending upload before rethrowing for a Cloud Tasks
-  // retry (retryConfig maxAttempts: 2). The retry then cannot download the file, and
-  // overwrites the item's error with a storage "No such object" message. Expected: a
-  // transient Whisper failure followed by a successful retry leaves the item ready.
-  // Actual: the learner's recording is gone and the item stays in error.
-  test.fails(
-    'a retry after a transient Whisper failure can still transcribe the upload',
-    async () => {
-      const task = pending(2);
-      openai.transcription = new Error('Whisper 503');
-      await runTask(transcribeAudio, task).catch(() => {});
+  test('a Whisper failure on the last attempt marks the item failed and removes the upload', async () => {
+    const task = pending(2);
+    openai.transcription = new Error('Whisper 503');
 
-      openai.transcription = { duration: 2, segments, words };
-      await runTask(transcribeAudio, task);
-      expect(db.data(itemPath())?.status).toBe('ready');
-    }
-  );
+    await expect(runTask(transcribeAudio, task, { retryCount: 1 })).rejects.toThrow('Whisper 503');
+    expect(db.data(itemPath())).toMatchObject({ status: 'error', error: 'Whisper 503' });
+    expect(storage.file(DEFAULT_BUCKET, task.filePath)).toBeUndefined();
+  });
 
-  // BUG: same cause as above. A recording rejected for being too long is rethrown, so
-  // Cloud Tasks runs the task a second time; that run cannot find the deleted upload and
-  // replaces the reason with a storage "No such object" message. Expected: the learner
-  // still sees "Audio too long...". Actual: they see a meaningless storage error.
-  test.fails('a retry of a rejected recording keeps the reason the learner was given', async () => {
+  test('a retry after a transient Whisper failure can still transcribe the upload', async () => {
+    const task = pending(2);
+    openai.transcription = new Error('Whisper 503');
+    await runTask(transcribeAudio, task, { retryCount: 0 }).catch(() => {});
+
+    openai.transcription = { duration: 2, segments, words };
+    await runTask(transcribeAudio, task, { retryCount: 1 });
+    expect(db.data(itemPath())?.status).toBe('ready');
+  });
+
+  test('a repeated delivery of a rejected recording keeps the reason the learner was given', async () => {
     const task = pending(601);
-    await runTask(transcribeAudio, task).catch(() => {});
-    await runTask(transcribeAudio, task).catch(() => {});
+    await runTask(transcribeAudio, task);
+    await runTask(transcribeAudio, task);
 
     expect(db.data(itemPath())).toMatchObject({
       status: 'error',
       error: 'Audio too long. Maximum duration is 10 minutes.',
     });
+  });
+
+  test('a repeated delivery of a finished transcription changes nothing', async () => {
+    const task = pending(2);
+    openai.transcription = { duration: 2, segments, words };
+    await runTask(transcribeAudio, task);
+    const ready = db.data(itemPath());
+
+    await runTask(transcribeAudio, task);
+    expect(db.data(itemPath())).toEqual(ready);
+    expect(openai.transcriptionRequests).toHaveLength(1);
+  });
+
+  test('removes the upload of an item the learner deleted before it was transcribed', async () => {
+    const task = pending(2);
+    db.docs.delete(itemPath());
+
+    await runTask(transcribeAudio, task);
+    expect(storage.file(DEFAULT_BUCKET, task.filePath)).toBeUndefined();
+    expect(openai.transcriptionRequests).toHaveLength(0);
   });
 });

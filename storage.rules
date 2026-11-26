@@ -7,7 +7,7 @@ service firebase.storage {
                    && request.auth.uid == userId
                    && request.resource.size < 25 * 1024 * 1024
                    && (request.resource.contentType.matches('audio/.*')
-                       || fileName.matches('.*\\.(mp3|wav|ogg|flac|m4a)$'));
+                       || fileName.lower().matches('.*\\.(mp3|wav|ogg|flac|m4a)$'));
       allow read: if false;
     }
     
@@ -40,7 +40,7 @@ service firebase.storage {
                    && request.resource.size < 50 * 1024 * 1024
                    && (request.resource.contentType == 'application/pdf'
                        || request.resource.contentType == 'text/plain'
-                       || fileName.matches('.*\\.(pdf|txt)$'));
+                       || fileName.lower().matches('.*\\.(pdf|txt)$'));
       // No direct reads from pending - Cloud Function processes these
       allow read: if false;
     }

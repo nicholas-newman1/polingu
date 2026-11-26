@@ -62,14 +62,34 @@ describe('synthesizeChunkedTTS', () => {
     expect(texts()).toEqual(['bez kropki na końcu']);
   });
 
-  // BUG: long text is split with /[^.!?]+[.!?]+\s*/g, which only matches runs that end
-  // in sentence punctuation, so anything after the last full stop is silently dropped.
-  // Expected: the final chunk ends with "i jeszcze ogon bez kropki". Actual: that text
-  // is never sent to TTS, so the generated audio (and its transcript) stop early.
-  test.fails('long text keeps a trailing fragment without a full stop', async () => {
+  test('long text keeps a trailing fragment without a full stop', async () => {
     const text = `${sentences(4, 1000)}i jeszcze ogon bez kropki`;
     await synthesizeChunkedTTS(text);
     expect(texts().at(-1)).toMatch(/i jeszcze ogon bez kropki$/);
+    expect(texts().join(' ')).toBe(text);
+  });
+
+  test('a sentence too long for one request is split between words', async () => {
+    const text = 'słowo '.repeat(1000).trim();
+    await synthesizeChunkedTTS(text);
+
+    expect(tts.requests.length).toBeGreaterThan(1);
+    for (const chunk of texts()) {
+      expect(bytes(chunk)).toBeLessThanOrEqual(TTS_BYTE_LIMIT);
+      expect(chunk).toMatch(/^słowo( słowo)*$/);
+    }
+    expect(texts().join(' ')).toBe(text);
+  });
+
+  test('a run of text with no spaces is split between characters', async () => {
+    const text = 'ż'.repeat(3000);
+    await synthesizeChunkedTTS(text);
+
+    expect(tts.requests.length).toBeGreaterThan(1);
+    for (const chunk of texts()) {
+      expect(bytes(chunk)).toBeLessThanOrEqual(TTS_BYTE_LIMIT);
+    }
+    expect(texts().join('')).toBe(text);
   });
 
   test('fails when a chunk comes back without audio', async () => {

@@ -137,17 +137,19 @@ describe('createUserAudio', () => {
     expect(tasks.enqueued).toHaveLength(1);
   });
 
-  // BUG: createUserAudio reserves the learner's single audio slot and then enqueues the
-  // synthesis task outside any try/catch. If enqueueing fails the item is left in
-  // "processing" forever and keeps blocking the learner's only slot. processAudioUpload
-  // handles the same failure by marking the item as an error. Expected: the item is
-  // marked failed (or removed). Actual: it stays "processing".
-  test.fails('an item whose task cannot be queued is not left processing forever', async () => {
+  test('a task that cannot be queued frees the learner’s slot and reports the failure', async () => {
     tasks.failure = new Error('queue unavailable');
-    await create({ title: 'T', text: 'Cześć' }).catch(() => {});
 
-    const [path] = items();
-    expect(db.data(path)?.status).not.toBe('processing');
+    const error = await rejection(create({ title: 'T', text: 'Cześć' }));
+    expect(error).toMatchObject({
+      code: 'unavailable',
+      message: 'Could not start generating audio. Please try again.',
+    });
+    expect(items()).toEqual([]);
+
+    tasks.failure = null;
+    await create({ title: 'T', text: 'Cześć' });
+    expect(tasks.enqueued).toHaveLength(1);
   });
 });
 

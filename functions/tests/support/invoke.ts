@@ -92,7 +92,14 @@ export function runObjectFinalized<Out>(
   return Promise.resolve(fn.run({ data: object } as never));
 }
 
-/** Runs a Cloud Tasks onTaskDispatched handler with `data` as the task payload. */
-export function runTask<Out>(fn: Runnable<never, Out>, data: Data): Promise<Awaited<Out>> {
-  return Promise.resolve(fn.run({ data } as never));
+/**
+ * Runs a Cloud Tasks onTaskDispatched handler with `data` as the task payload.
+ * `retryCount` mimics the X-CloudTasks-TaskRetryCount header (0 on the first attempt).
+ */
+export function runTask<Out>(
+  fn: Runnable<never, Out>,
+  data: Data,
+  { retryCount }: { retryCount?: number } = {}
+): Promise<Awaited<Out>> {
+  return Promise.resolve(fn.run({ data, retryCount } as never));
 }

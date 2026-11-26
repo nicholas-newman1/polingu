@@ -11,24 +11,51 @@ export async function getTtsClient(): Promise<TextToSpeechClient> {
   return ttsClientInstance;
 }
 
-function chunkTextForTTS(text: string): string[] {
-  if (Buffer.byteLength(text, 'utf8') <= TTS_BYTE_LIMIT) return [text];
+const fits = (text: string) => Buffer.byteLength(text, 'utf8') <= TTS_BYTE_LIMIT;
 
-  const sentences = text.match(/[^.!?]+[.!?]+\s*/g) || [text];
+/** Sentences with the punctuation and spacing after them, plus any unpunctuated tail. */
+const SENTENCES = /[^.!?]*[.!?]+\s*|[^.!?]+$/g;
+/** Words with the spacing around them. */
+const WORDS = /\s*\S+\s*/g;
+
+/** Cuts a word too long for one request between characters, never inside one. */
+function splitWord(word: string): string[] {
+  const parts: string[] = [];
+  let current = '';
+  for (const char of word) {
+    if (!fits(current + char)) {
+      parts.push(current);
+      current = '';
+    }
+    current += char;
+  }
+  return [...parts, current];
+}
+
+/**
+ * Splits text into requests of at most TTS_BYTE_LIMIT bytes, at sentence ends where
+ * possible, then between words. No text is dropped.
+ */
+function chunkTextForTTS(text: string): string[] {
+  if (fits(text)) return [text];
+
+  const pieces = (text.match(SENTENCES) ?? []).flatMap((sentence) =>
+    fits(sentence)
+      ? [sentence]
+      : (sentence.match(WORDS) ?? []).flatMap((word) => (fits(word) ? [word] : splitWord(word)))
+  );
+
   const chunks: string[] = [];
   let current = '';
-
-  for (const sentence of sentences) {
-    const candidate = current + sentence;
-    if (Buffer.byteLength(candidate, 'utf8') > TTS_BYTE_LIMIT && current) {
+  for (const piece of pieces) {
+    if (current && !fits(current + piece)) {
       chunks.push(current.trim());
-      current = sentence;
-    } else {
-      current = candidate;
+      current = '';
     }
+    current += piece;
   }
-  if (current.trim()) chunks.push(current.trim());
-  return chunks;
+  chunks.push(current.trim());
+  return chunks.filter(Boolean);
 }
 
 export async function synthesizeChunkedTTS(text: string): Promise<Buffer> {

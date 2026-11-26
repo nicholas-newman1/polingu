@@ -72,9 +72,9 @@ describe('extractPdfMetadata', () => {
     });
   });
 
-  test('falls back to Untitled with no author when the PDF has no document info', async () => {
+  test('has no title or author when the PDF has no document info', async () => {
     expect(await extractPdfMetadata(makePdf({ pages: 1 }))).toEqual({
-      title: 'Untitled',
+      title: undefined,
       author: undefined,
       pageCount: 1,
     });
@@ -82,7 +82,7 @@ describe('extractPdfMetadata', () => {
 
   test('treats a blank title or author as missing', async () => {
     const pdf = makePdf({ info: { Title: '   ', Author: ' ' } });
-    expect(await extractPdfMetadata(pdf)).toMatchObject({ title: 'Untitled', author: undefined });
+    expect(await extractPdfMetadata(pdf)).toMatchObject({ title: undefined, author: undefined });
   });
 
   test('rejects a file that is not a PDF', async () => {

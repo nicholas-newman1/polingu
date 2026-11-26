@@ -62,8 +62,16 @@ export const createUserAudio = onCall<CreateUserAudioRequest, Promise<{ id: stri
       throw new HttpsError('resource-exhausted', message);
     }
 
-    const queue = getFunctions().taskQueue(PROCESS_USER_TEXT_AUDIO_QUEUE);
-    await queue.enqueue({ userId, audioId, text }, { dispatchDeadlineSeconds: 600 });
+    try {
+      const queue = getFunctions().taskQueue(PROCESS_USER_TEXT_AUDIO_QUEUE);
+      await queue.enqueue({ userId, audioId, text }, { dispatchDeadlineSeconds: 600 });
+    } catch (error) {
+      console.error(`Failed to queue text audio ${audioId} (user ${userId}):`, error);
+      // Nothing will ever process the item, so give the learner their slot back and let
+      // them try again rather than leaving it "processing" forever.
+      await audioRef.delete();
+      throw new HttpsError('unavailable', 'Could not start generating audio. Please try again.');
+    }
 
     return { id: audioId };
   }

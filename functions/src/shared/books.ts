@@ -86,7 +86,8 @@ export async function getUserStorageUsage(userId: string): Promise<number> {
 }
 
 export interface ExtractedPdfMetadata {
-  title: string;
+  /** Undefined when the PDF has no title of its own. */
+  title?: string;
   author?: string;
   pageCount: number;
 }
@@ -96,7 +97,7 @@ export async function extractPdfMetadata(buffer: Buffer): Promise<ExtractedPdfMe
   const data = new Uint8Array(buffer);
   const pdf = await pdfjsLib.getDocument({ data }).promise;
 
-  let title = 'Untitled';
+  let title: string | undefined;
   let author: string | undefined;
 
   try {

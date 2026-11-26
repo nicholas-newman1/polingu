@@ -61,13 +61,8 @@ describe('pending audio uploads (audio/users/{uid}/pending/{audioId}/{file})', (
     await assertFails(upload(owner(), pending(fileName), contentType));
   });
 
-  // BUG: the upload form (src/lib/audio/uploadAudio.ts) and the processing
-  // function (functions/src/shared/userAudio.ts) both lower-case the extension,
-  // so they accept "VOICE.M4A" even when the browser gives it no audio type
-  // (Storage then sends application/octet-stream). storage.rules matches the
-  // extension case-sensitively, so the upload is rejected with a permission
-  // error. Expected: accepted, like "voice.m4a". Actual: denied.
-  test.fails('the owner can upload an upper-case .M4A that has no audio type', async () => {
+  // The upload form and the processing function both accept the extension in any case.
+  test('the owner can upload an upper-case .M4A that has no audio type', async () => {
     await assertSucceeds(upload(owner(), pending('VOICE.M4A'), 'application/octet-stream'));
   });
 
@@ -126,12 +121,8 @@ describe('pending book uploads (books/users/{uid}/pending/{bookId}/{file})', () 
     await assertFails(upload(owner(), pending(fileName), contentType));
   });
 
-  // BUG: uploadBook() in src/lib/reader/uploadBook.ts accepts any file whose
-  // name ends in ".pdf" case-insensitively, but storage.rules only accepts a
-  // lower-case ".pdf" when the type is not application/pdf. A "SCAN.PDF" the
-  // browser reports without a type passes the client check and is then
-  // rejected with a permission error. Expected: accepted. Actual: denied.
-  test.fails('the owner can upload an upper-case .PDF that has no PDF type', async () => {
+  // uploadBook() and processBookUpload both accept the extension in any case.
+  test('the owner can upload an upper-case .PDF that has no PDF type', async () => {
     await assertSucceeds(upload(owner(), pending('SCAN.PDF'), 'application/octet-stream'));
   });
 
