@@ -14,6 +14,11 @@
 - Do not rewrite published commits or other contributors' commits, or force-push, solely to enforce this policy. If any such outgoing commit violates the policy, explain the conflict before pushing.
 - Report timestamp adjustments when completing a commit/push request. This policy changes Git metadata; it does not change the actual time work or a push occurs.
 
+## Branches and pushing
+
+- Committing and pushing directly to `main` is fine for this project. Don't create a feature branch or pull request unless the user asks for one.
+- A push to `main` deploys to production (`.github/workflows/firebase-hosting-merge.yml`). That workflow runs the tests first and stops the deploy if any fail, but run `npm test` before pushing anyway, plus `npm run test:rules` when `firestore.rules` or `storage.rules` change.
+
 ## Testing signed in
 
 - Whenever you open the app in a browser (the built-in browser pane or Chrome), add `?devMute` to the first URL (e.g. `http://localhost:5173/dashboard?devSignIn&devMute`). App audio is disturbing for the user to hear while you test. It mutes every sound in that browser until `?devMute=off`, while playback still runs, so audio features stay testable (`src/lib/devMute.ts`, dev server only).
