@@ -18,12 +18,18 @@ import { alpha } from '../../../lib/theme';
 import { VerbConjugationTooltip } from '../../../components/VerbConjugationTooltip';
 import { useAudioPlayer } from '../../../hooks/useAudioPlayer';
 import { useAppSettings } from '../../../contexts/AppSettingsContext';
-import { FlashcardMetaChip, AccentNoteBox } from '../../../components/flashcardStyles';
+import {
+  FlashcardMetaChip,
+  FlashcardHint,
+  AccentNoteBox,
+} from '../../../components/flashcardStyles';
 
 interface ConjugationFlashcardProps extends ReviewFlashcardProps {
   form: DrillableForm;
   direction: TranslationDirection;
   aspectPairVerb?: Verb;
+  /** Another verb has the same English prompt: name this verb's English gloss on the front. */
+  showGlossHint?: boolean;
   canEdit?: boolean;
   isAdmin?: boolean;
   onDelete?: () => void;
@@ -150,6 +156,7 @@ export function ConjugationFlashcard({
   form,
   direction,
   aspectPairVerb,
+  showGlossHint = false,
   isViewingHistory = false,
   canEdit = false,
   onDelete,
@@ -190,6 +197,11 @@ export function ConjugationFlashcard({
         polishShown={polishShown}
         Text={QuestionText}
       />
+      {!isPolishToEnglish && showGlossHint && (
+        <FlashcardHint variant="body2" color="text.secondary">
+          {form.verb.infinitiveEn}
+        </FlashcardHint>
+      )}
       {isPolishToEnglish && polishShown && <InfinitiveLine form={form} />}
     </Box>
   );

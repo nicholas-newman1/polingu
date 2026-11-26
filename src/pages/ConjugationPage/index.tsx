@@ -31,6 +31,7 @@ import {
   getDrillableFormsForVerb,
   matchesFilters,
   getDefaultFilters,
+  getAmbiguousEnglishPromptKeys,
 } from '../../lib/conjugationUtils';
 import { useUserFilters } from '../../contexts/UserFiltersContext';
 import { updateVerb, deleteVerb } from '../../lib/storage/systemVerbs';
@@ -104,6 +105,8 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
     }
     return map;
   }, [verbs]);
+
+  const ambiguousPromptKeys = useMemo(() => getAmbiguousEnglishPromptKeys(verbs), [verbs]);
 
   const handleSelectMode = useCallback(
     (direction: TranslationDirection) =>
@@ -282,6 +285,7 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
                   form={form}
                   direction={currentDirection}
                   aspectPairVerb={getAspectPairVerb(form)}
+                  showGlossHint={ambiguousPromptKeys.has(form.fullFormKey)}
                   practiceMode
                   canEdit={isAdmin}
                   onNext={practice.next}
@@ -295,6 +299,7 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
                   form={form}
                   direction={currentDirection}
                   aspectPairVerb={getAspectPairVerb(form)}
+                  showGlossHint={ambiguousPromptKeys.has(form.fullFormKey)}
                   isViewingHistory
                   canGoBack={canGoBack}
                   canEdit={isAdmin}
@@ -326,6 +331,7 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
                   form={form}
                   direction={currentDirection}
                   aspectPairVerb={getAspectPairVerb(form)}
+                  showGlossHint={ambiguousPromptKeys.has(form.fullFormKey)}
                   intervals={session.intervals}
                   remainingCount={session.totalRemaining}
                   canGoBack={canGoBack}

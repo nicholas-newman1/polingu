@@ -231,3 +231,29 @@ export function getVerbClassLabel(verbClass: string): string {
   if (verbClass === 'Irregular') return '✱ Irregular';
   return verbClass;
 }
+
+/**
+ * What the learner can tell apart on an English→Polish card: the tense, the form key (person,
+ * number, gender) and the English prompt. Aspect and reflexivity are included too, so aspect
+ * pairs (which share a gloss) don't count as ambiguous; the answer side covers those.
+ */
+function getEnglishPromptKey(form: DrillableForm): string {
+  const prompt = getQuestionDisplay(form, 'en-to-pl').trim().toLowerCase();
+  const reflexive = form.verb.isReflexive ? 'reflexive' : '';
+  return [form.tense, form.formKey, form.verb.aspect, reflexive, prompt].join('|');
+}
+
+/**
+ * The fullFormKeys of forms whose English→Polish prompt is identical to another verb's, so the
+ * card needs the verb's English gloss to say which verb is meant.
+ */
+export function getAmbiguousEnglishPromptKeys(verbs: Verb[]): Set<string> {
+  const formsByPrompt = new Map<string, string[]>();
+  for (const form of verbs.flatMap(getDrillableFormsForVerb)) {
+    const key = getEnglishPromptKey(form);
+    const group = formsByPrompt.get(key);
+    if (group) group.push(form.fullFormKey);
+    else formsByPrompt.set(key, [form.fullFormKey]);
+  }
+  return new Set([...formsByPrompt.values()].filter((group) => group.length > 1).flat());
+}
