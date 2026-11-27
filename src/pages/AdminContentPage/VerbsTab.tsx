@@ -1,6 +1,7 @@
 import { useState, memo } from 'react';
 import { Box, Chip } from '@mui/material';
 import { useConjugation } from '../../hooks/useReviewData';
+import { useConfirm } from '../../hooks/useConfirm';
 import { updateVerb, deleteVerb } from '../../lib/storage/systemVerbs';
 import { EditVerbModal } from '../../components/EditVerbModal';
 import type { Verb } from '../../types/conjugation';
@@ -40,6 +41,7 @@ function VerbRowContent({ verb }: { verb: Verb }) {
 export const VerbsTab = memo(function VerbsTab() {
   const { verbs, setVerbs } = useConjugation();
   const [editingVerb, setEditingVerb] = useState<Verb | null>(null);
+  const { confirm, confirmDialog } = useConfirm();
   const { deleteItem, patchItem } = useAdminItems<Verb, Partial<Omit<Verb, 'id'>>>({
     items: verbs,
     setItems: setVerbs,
@@ -67,14 +69,13 @@ export const VerbsTab = memo(function VerbsTab() {
         getAudioUrl={(verb) => verb.infinitiveAudioUrl}
         renderContent={(verb) => <VerbRowContent verb={verb} />}
         onSelect={setEditingVerb}
-        onDelete={(verb) => {
-          if (
-            window.confirm(
-              `Delete "${verb.infinitive}" and all its conjugation forms? This affects all users.`
-            )
-          ) {
-            void deleteItem(verb);
-          }
+        onDelete={async (verb) => {
+          const confirmed = await confirm({
+            title: 'Delete Verb',
+            message: `Delete "${verb.infinitive}" and all its conjugation forms? This affects all users.`,
+            confirmLabel: 'Delete',
+          });
+          if (confirmed) void deleteItem(verb);
         }}
       />
 
@@ -92,6 +93,7 @@ export const VerbsTab = memo(function VerbsTab() {
           )
         }
       />
+      {confirmDialog}
     </>
   );
 });

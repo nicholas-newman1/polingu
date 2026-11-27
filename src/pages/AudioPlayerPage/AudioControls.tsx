@@ -20,7 +20,7 @@ import FormatSizeIcon from '@mui/icons-material/FormatSize';
 import EditNoteIcon from '@mui/icons-material/EditNote';
 import CheckIcon from '@mui/icons-material/Check';
 import { styled } from '../../lib/styled';
-import { BOTTOM_MENU_BAR_HEIGHT } from '../../constants/layout';
+import { AUDIO_PLAYER_CONTROLS_HEIGHT, BOTTOM_MENU_BAR_HEIGHT } from '../../constants/layout';
 import type { TranscriptFontSize } from '../../types/appSettings';
 import { formatDuration } from '../../lib/utils/formatDuration';
 import { useAudioPlayerContext } from '../../contexts/AudioPlayerContext';
@@ -230,6 +230,7 @@ function SpeedControl() {
         aria-controls={anchor ? 'speed-menu' : undefined}
         aria-haspopup="true"
         aria-expanded={!!anchor}
+        aria-label={`Playback speed ${playbackRate}x`}
         sx={{ flexShrink: 0 }}
       >
         {`${playbackRate}x`}
@@ -304,6 +305,7 @@ function PlaybackButtons() {
       </IconButton>
       <IconButton
         onClick={togglePlay}
+        aria-label={isPlaying ? 'Pause' : 'Play'}
         sx={{
           bgcolor: 'primary.main',
           color: 'primary.contrastText',
@@ -436,4 +438,4 @@ export function AudioControls({
   );
 }
 
-export const CONTROLS_HEIGHT = 108 + BOTTOM_MENU_BAR_HEIGHT;
+export const CONTROLS_HEIGHT = AUDIO_PLAYER_CONTROLS_HEIGHT + BOTTOM_MENU_BAR_HEIGHT;

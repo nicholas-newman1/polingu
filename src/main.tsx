@@ -25,7 +25,6 @@ import { ConsonantDrillerPage } from './pages/ConsonantDrillerPage';
 import { CustomVocabularyPage } from './pages/CustomVocabularyPage';
 import { CustomDeclensionPage } from './pages/CustomDeclensionPage';
 import { CustomSentencesPage } from './pages/CustomSentencesPage';
-import { StatsPage } from './pages/StatsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { SentenceGeneratorPage } from './pages/SentenceGenerator';
 import { AdminContentPage } from './pages/AdminContentPage';
@@ -108,7 +107,6 @@ createRoot(document.getElementById('root')!).render(
                                     element={<CustomDeclensionPage />}
                                   />
                                   <Route path="/my-sentences" element={<CustomSentencesPage />} />
-                                  <Route path="/stats" element={<StatsPage />} />
                                   <Route path="/settings" element={<SettingsPage />} />
                                   <Route path="/library" element={<LibraryPage />} />
                                   <Route path="/reader/:bookId" element={<ReaderPage />} />

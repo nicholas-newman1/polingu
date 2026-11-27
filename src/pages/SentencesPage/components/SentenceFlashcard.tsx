@@ -10,6 +10,7 @@ import type { Sentence, CEFRLevel } from '../../../types/sentences';
 import type { TranslationDirection } from '../../../types/common';
 import { useAudioPlayer } from '../../../hooks/useAudioPlayer';
 import { useAppSettings } from '../../../contexts/AppSettingsContext';
+import { useConfirm } from '../../../hooks/useConfirm';
 
 interface SentenceFlashcardProps extends ReviewFlashcardProps {
   sentence: Sentence;
@@ -68,6 +69,7 @@ export function SentenceFlashcard({
   const [revealed, setRevealed] = useState(isViewingHistory);
   const { settings } = useAppSettings();
   const hidePolish = settings.hidePolishText;
+  const { confirm, confirmDialog } = useConfirm();
 
   const isPolishToEnglish = direction === 'pl-to-en';
 
@@ -108,10 +110,13 @@ export function SentenceFlashcard({
       renderTappableText(sentence.polish, tappableTextOptions)
     );
 
-  const handleDelete = () => {
-    if (window.confirm('Are you sure you want to delete this sentence?')) {
-      onDelete?.();
-    }
+  const handleDelete = async () => {
+    const confirmed = await confirm({
+      title: 'Delete Sentence',
+      message: 'Are you sure you want to delete this sentence?',
+      confirmLabel: 'Delete',
+    });
+    if (confirmed) onDelete?.();
   };
 
   const header = <LevelChip $level={sentence.level} label={sentence.level} />;
@@ -146,18 +151,21 @@ export function SentenceFlashcard({
   );
 
   return (
-    <FlashcardShell
-      {...shellProps}
-      revealed={revealed}
-      isViewingHistory={isViewingHistory}
-      maxWidth={520}
-      canEdit={canEdit}
-      onReveal={() => setRevealed(true)}
-      onDelete={handleDelete}
-      header={header}
-      headerActions={headerActions}
-      question={question}
-      answer={answer}
-    />
+    <>
+      <FlashcardShell
+        {...shellProps}
+        revealed={revealed}
+        isViewingHistory={isViewingHistory}
+        maxWidth={520}
+        canEdit={canEdit}
+        onReveal={() => setRevealed(true)}
+        onDelete={handleDelete}
+        header={header}
+        headerActions={headerActions}
+        question={question}
+        answer={answer}
+      />
+      {confirmDialog}
+    </>
   );
 }

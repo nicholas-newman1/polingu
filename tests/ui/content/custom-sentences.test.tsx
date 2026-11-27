@@ -198,7 +198,9 @@ describe('My Sentences', () => {
     await screen.findByText('Mam kota.');
     fireEvent.click(within(rowWith('Mam kota.')).getByRole('button', { name: 'delete sentence' }));
 
-    expect(window.confirm).toHaveBeenCalledWith('Are you sure you want to delete this sentence?');
+    const confirmation = await findDialog('Delete Sentence');
+    expect(confirmation).toHaveTextContent('Are you sure you want to delete this sentence?');
+    fireEvent.click(within(confirmation).getByRole('button', { name: 'Delete' }));
     await waitFor(() => expect(screen.queryByText('Mam kota.')).toBeNull());
     await waitFor(() => expect(serverSentences()).toEqual({}));
   });

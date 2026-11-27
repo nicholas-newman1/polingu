@@ -134,13 +134,49 @@ describe('usePolishEnglishAutoTranslate', () => {
     expect(translate).toHaveBeenCalledTimes(1);
   });
 
-  test('a reworked rather than extended Polish text keeps the earlier translation', async () => {
+  test('replacing the whole Polish text replaces its own translation too', async () => {
+    const h = renderPair();
+    h.typePolish('żyrafa');
+    await h.pause();
+    h.typePolish('dom');
+    await h.pause();
+    expect(h.row(0).english).toBe('EN(dom)');
+  });
+
+  test('an edit in the middle of the Polish re-translates it', async () => {
     const h = renderPair();
     h.typePolish('duży kot');
     await h.pause();
     h.typePolish('mały kot');
     await h.pause();
-    expect(h.row(0).english).toBe('EN(duży kot)');
+    expect(h.row(0).english).toBe('EN(mały kot)');
+  });
+
+  test('English the learner edited is kept however the Polish changes', async () => {
+    const h = renderPair();
+    h.typePolish('żyrafa');
+    await h.pause();
+    h.typeEnglish('a giraffe');
+    h.typePolish('dom');
+    await h.pause();
+    expect(h.row(0).english).toBe('a giraffe');
+    expect(translate).toHaveBeenCalledTimes(1);
+  });
+
+  test('a slow translation of replaced text is dropped in favour of the new text', async () => {
+    const requests = answerByHand();
+    const h = renderPair();
+    h.typePolish('żyrafa');
+    await h.pause();
+    await requests.answer(0, 'giraffe');
+    h.typePolish('kot');
+    await h.pause();
+    h.typePolish('dom');
+    await h.pause();
+
+    await requests.answer(2, 'house');
+    await requests.answer(1, 'cat');
+    expect(h.row(0).english).toBe('house');
   });
 
   test('after leaving the Polish field its translation is settled', async () => {

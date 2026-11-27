@@ -1,6 +1,7 @@
 import { useState, memo } from 'react';
 import { Box, Chip } from '@mui/material';
 import { useVocabulary } from '../../hooks/useReviewData';
+import { useConfirm } from '../../hooks/useConfirm';
 import {
   updateSystemVocabularyWord,
   deleteSystemVocabularyWord,
@@ -28,6 +29,7 @@ function WordRowContent({ word }: { word: VocabularyWord }) {
 export const VocabularyTab = memo(function VocabularyTab() {
   const { systemWords, setSystemWords } = useVocabulary();
   const [editingWord, setEditingWord] = useState<VocabularyWord | null>(null);
+  const { confirm, confirmDialog } = useConfirm();
   const { deleteItem, patchItem } = useAdminItems<
     VocabularyWord,
     Partial<Omit<CustomVocabularyWord, 'id' | 'isCustom' | 'createdAt'>>
@@ -51,8 +53,13 @@ export const VocabularyTab = memo(function VocabularyTab() {
         getAudioUrl={(word) => word.audioUrl}
         renderContent={(word) => <WordRowContent word={word} />}
         onSelect={setEditingWord}
-        onDelete={(word) => {
-          if (window.confirm(`Delete "${word.polish}"?`)) void deleteItem(word);
+        onDelete={async (word) => {
+          const confirmed = await confirm({
+            title: 'Delete Word',
+            message: `Delete "${word.polish}"?`,
+            confirmLabel: 'Delete',
+          });
+          if (confirmed) void deleteItem(word);
         }}
       />
 
@@ -65,6 +72,7 @@ export const VocabularyTab = memo(function VocabularyTab() {
           patchItem(editingWord, { audioUrl }, { error: 'Failed to update audio' })
         }
       />
+      {confirmDialog}
     </>
   );
 });

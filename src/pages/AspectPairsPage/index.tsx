@@ -20,6 +20,7 @@ import { useAuthContext } from '../../hooks/useAuthContext';
 import { useReviewData } from '../../hooks/useReviewData';
 import { useOptimistic } from '../../hooks/useOptimistic';
 import { useSnackbar } from '../../hooks/useSnackbar';
+import { useConfirm } from '../../hooks/useConfirm';
 import { useReviewSession } from '../../hooks/useReviewSession';
 import { updateVerb } from '../../lib/storage/systemVerbs';
 
@@ -31,6 +32,7 @@ const replaceVerbs =
 export function AspectPairsPage() {
   const { user, isAdmin } = useAuthContext();
   const { showSnackbar } = useSnackbar();
+  const { confirm, confirmDialog } = useConfirm();
   const {
     loading: contextLoading,
     aspectPairCards,
@@ -74,11 +76,12 @@ export function AspectPairsPage() {
   };
 
   const handleResetAllData = async () => {
-    if (
-      window.confirm(
-        'Are you sure? This will erase all your aspect pairs progress and cannot be undone.'
-      )
-    ) {
+    const confirmed = await confirm({
+      title: 'Reset Progress',
+      message: 'Are you sure? This will erase all your aspect pairs progress and cannot be undone.',
+      confirmLabel: 'Reset',
+    });
+    if (confirmed) {
       await clearAspectPairsData();
       session.rebuildSession();
       setShowSettings(false);
@@ -135,10 +138,10 @@ export function AspectPairsPage() {
     });
   };
 
-  const unlinkPair = (
+  const unlinkPair = async (
     card: AspectPairCard,
     { skipConfirm = false }: { skipConfirm?: boolean } = {}
-  ): boolean => {
+  ): Promise<boolean> => {
     const verb1 = card.verb;
     const verb2 = card.pairVerb;
 
@@ -146,9 +149,11 @@ export function AspectPairsPage() {
 
     if (
       !skipConfirm &&
-      !window.confirm(
-        'Are you sure you want to unlink this aspect pair? This will affect all users.'
-      )
+      !(await confirm({
+        title: 'Unlink Pair',
+        message: 'Are you sure you want to unlink this aspect pair? This will affect all users.',
+        confirmLabel: 'Unlink',
+      }))
     ) {
       return false;
     }
@@ -174,7 +179,7 @@ export function AspectPairsPage() {
 
   const handleUnlinkPair = () => {
     if (!editingCard) return;
-    unlinkPair(editingCard, { skipConfirm: true });
+    void unlinkPair(editingCard, { skipConfirm: true });
     setShowEditModal(false);
     setEditingCard(null);
   };
@@ -245,7 +250,7 @@ export function AspectPairsPage() {
                   canEdit={isAdmin}
                   onNext={practice.next}
                   onEdit={() => openEditModal(card)}
-                  onUnlink={() => unlinkPair(card)}
+                  onUnlink={() => void unlinkPair(card)}
                 />
               )}
               renderHistory={(card) => (
@@ -260,8 +265,8 @@ export function AspectPairsPage() {
                   onContinue={goForward}
                   onReassess={session.reassess}
                   onEdit={() => openEditModal(card)}
-                  onUnlink={() => {
-                    if (unlinkPair(card)) goForward();
+                  onUnlink={async () => {
+                    if (await unlinkPair(card)) goForward();
                   }}
                 />
               )}
@@ -279,7 +284,7 @@ export function AspectPairsPage() {
                   onRate={session.rate}
                   onGoBack={goBack}
                   onEdit={() => openEditModal(card)}
-                  onUnlink={() => unlinkPair(card)}
+                  onUnlink={() => void unlinkPair(card)}
                 />
               )}
             />
@@ -299,6 +304,7 @@ export function AspectPairsPage() {
         onVerb1AudioUpdated={(audioUrl) => handleAudioUpdated('verb', audioUrl)}
         onVerb2AudioUpdated={(audioUrl) => handleAudioUpdated('pairVerb', audioUrl)}
       />
+      {confirmDialog}
     </>
   );
 }

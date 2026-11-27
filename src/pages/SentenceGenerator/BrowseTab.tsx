@@ -10,6 +10,7 @@ import { loadCustomSentences, saveCustomSentences } from '../../lib/storage/cust
 import { ChipGroup } from './shared';
 import { computeCoverageStats, formatCreatedAt } from './utils';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
+import { useConfirm } from '../../hooks/useConfirm';
 import type { BrowseTabProps } from './types';
 
 export const BrowseTab = memo(function BrowseTab({
@@ -26,6 +27,7 @@ export const BrowseTab = memo(function BrowseTab({
   const [browseDateTo, setBrowseDateTo] = useState('');
 
   const debouncedSearch = useDebouncedValue(browseSearch, 300);
+  const { confirm, confirmDialog } = useConfirm();
   const parentRef = useRef<HTMLDivElement>(null);
 
   const coverage = useMemo(() => computeCoverageStats(sentences), [sentences]);
@@ -88,7 +90,12 @@ export const BrowseTab = memo(function BrowseTab({
 
   const handleDeleteSentence = useCallback(
     async (sentence: Sentence) => {
-      if (!window.confirm('Delete this sentence?')) return;
+      const confirmed = await confirm({
+        title: 'Delete Sentence',
+        message: 'Delete this sentence?',
+        confirmLabel: 'Delete',
+      });
+      if (!confirmed) return;
       try {
         if (sentence.isCustom) {
           // The admin's own sentences live in their custom collection, not the built-in one.
@@ -105,7 +112,7 @@ export const BrowseTab = memo(function BrowseTab({
         showSnackbar('Failed to delete sentence', 'error');
       }
     },
-    [sentences, setSentences, setCustomSentences, showSnackbar]
+    [confirm, sentences, setSentences, setCustomSentences, showSnackbar]
   );
 
   const handleClearDates = useCallback(() => {
@@ -275,6 +282,7 @@ export const BrowseTab = memo(function BrowseTab({
           </Typography>
         )}
       </Box>
+      {confirmDialog}
     </Stack>
   );
 });

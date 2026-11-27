@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useParams } from 'react-router-dom';
-import { Box, CircularProgress, Typography } from '@mui/material';
+import { Link, useParams } from 'react-router-dom';
+import { Box, Button, CircularProgress, Typography } from '@mui/material';
 import { styled } from '../../lib/styled';
 import {
   getBook,
@@ -9,6 +9,7 @@ import {
   getReadingProgress,
   saveReadingProgress,
 } from '../../lib/reader';
+import { BookTextOfflineError } from '../../lib/reader/bookService';
 import type { Book, ReadingProgress } from '../../types/reader';
 import { PdfViewer } from './components/PdfViewer';
 import { TextViewer } from './components/TextViewer';
@@ -42,6 +43,33 @@ const LoadingContainer = styled(Box)({
   gap: 16,
 });
 
+const LOAD_FAILED_MESSAGE = "Couldn't load this book. Check your connection and try again.";
+
+interface LoadError {
+  message: string;
+  canRetry: boolean;
+}
+
+function ReaderLoadError({ error, onRetry }: { error: LoadError; onRetry: () => void }) {
+  return (
+    <LoadingContainer>
+      <Typography color="error" role="alert" sx={{ textAlign: 'center', px: 2 }}>
+        {error.message}
+      </Typography>
+      <Box sx={{ display: 'flex', gap: 1 }}>
+        {error.canRetry && (
+          <Button variant="contained" onClick={onRetry}>
+            Retry
+          </Button>
+        )}
+        <Button component={Link} to="/library">
+          Back to Library
+        </Button>
+      </Box>
+    </LoadingContainer>
+  );
+}
+
 export function ReaderPage() {
   const { bookId } = useParams<{ bookId: string }>();
 
@@ -50,7 +78,8 @@ export function ReaderPage() {
   usePageTitle(book?.title || null);
   const [progress, setProgress] = useState<ReadingProgress | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<LoadError | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [textContent, setTextContent] = useState<string | null>(null);
 
@@ -69,30 +98,31 @@ export function ReaderPage() {
 
   useEffect(() => {
     if (!bookId) {
-      setError('No book ID provided');
+      setError({ message: 'No book ID provided', canRetry: false });
       setLoading(false);
       return;
     }
 
+    let cancelled = false;
     const loadBook = async () => {
       try {
         const bookData = await getBook(bookId);
+        if (cancelled) return;
 
         if (!bookData) {
-          setError('Book not found');
-          setLoading(false);
+          setError({ message: 'Book not found', canRetry: false });
           return;
         }
 
         if (bookData.fileType !== 'pdf' && bookData.fileType !== 'text') {
-          setError('Unsupported book format');
-          setLoading(false);
+          setError({ message: 'Unsupported book format', canRetry: false });
           return;
         }
 
         setBook(bookData);
 
         const progressData = await getReadingProgress(bookId);
+        if (cancelled) return;
         const initialProgress = progressData || {
           bookId,
           currentPage: 1,
@@ -106,21 +136,34 @@ export function ReaderPage() {
 
         if (bookData.fileType === 'pdf') {
           const url = await getBookDownloadUrl(bookData.storagePath);
-          setPdfUrl(url);
+          if (!cancelled) setPdfUrl(url);
         } else {
           const text = await getBookTextContent(bookId, bookData.storagePath);
-          setTextContent(text);
+          if (!cancelled) setTextContent(text);
         }
       } catch (err) {
         console.error('Failed to load book:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load book');
+        if (cancelled) return;
+        setError({
+          message: err instanceof BookTextOfflineError ? err.message : LOAD_FAILED_MESSAGE,
+          canRetry: true,
+        });
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
     loadBook();
-  }, [bookId]);
+    return () => {
+      cancelled = true;
+    };
+  }, [bookId, loadAttempt]);
+
+  const retryLoad = useCallback(() => {
+    setError(null);
+    setLoading(true);
+    setLoadAttempt((attempt) => attempt + 1);
+  }, []);
 
   const scheduleProgressSave = useCallback((newProgress: ReadingProgress) => {
     setProgress(newProgress);
@@ -217,9 +260,10 @@ export function ReaderPage() {
 
   if (error || !book || !progress) {
     return (
-      <LoadingContainer>
-        <Typography color="error">{error || 'Failed to load book'}</Typography>
-      </LoadingContainer>
+      <ReaderLoadError
+        error={error ?? { message: LOAD_FAILED_MESSAGE, canRetry: true }}
+        onRetry={retryLoad}
+      />
     );
   }
 

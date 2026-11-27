@@ -37,6 +37,7 @@ import { useUserFilters } from '../../contexts/UserFiltersContext';
 import { updateVerb, deleteVerb } from '../../lib/storage/systemVerbs';
 import { useOptimistic } from '../../hooks/useOptimistic';
 import { useSnackbar } from '../../hooks/useSnackbar';
+import { useConfirm } from '../../hooks/useConfirm';
 import { useReviewSession } from '../../hooks/useReviewSession';
 
 function getFilteredForms(verbs: Verb[], filters: ConjugationFilters): DrillableForm[] {
@@ -53,6 +54,7 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
   const navigate = useNavigate();
   const { user, isAdmin } = useAuthContext();
   const { showSnackbar } = useSnackbar();
+  const { confirm, confirmDialog } = useConfirm();
   const {
     loading: contextLoading,
     conjugationReviewStores,
@@ -124,11 +126,13 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
   };
 
   const handleResetAllData = async () => {
-    if (
-      window.confirm(
-        'Are you sure? This will erase all your conjugation progress for this direction and cannot be undone.'
-      )
-    ) {
+    const confirmed = await confirm({
+      title: 'Reset Progress',
+      message:
+        'Are you sure? This will erase all your conjugation progress for this direction and cannot be undone.',
+      confirmLabel: 'Reset',
+    });
+    if (confirmed) {
       await clearConjugationReviewData(currentDirection);
       session.rebuildSession();
       setShowSettings(false);
@@ -201,15 +205,18 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
     });
   };
 
-  const deleteVerbById = (
+  const deleteVerbById = async (
     verbId: string,
     { skipConfirm = false }: { skipConfirm?: boolean } = {}
-  ): boolean => {
+  ): Promise<boolean> => {
     if (
       !skipConfirm &&
-      !window.confirm(
-        'Are you sure you want to delete this verb? This will remove all conjugation forms for this verb and affect all users.'
-      )
+      !(await confirm({
+        title: 'Delete Verb',
+        message:
+          'Are you sure you want to delete this verb? This will remove all conjugation forms for this verb and affect all users.',
+        confirmLabel: 'Delete',
+      }))
     ) {
       return false;
     }
@@ -225,7 +232,7 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
 
   const handleDeleteEditingVerb = () => {
     if (!editingForm) return;
-    deleteVerbById(editingForm.verb.id, { skipConfirm: true });
+    void deleteVerbById(editingForm.verb.id, { skipConfirm: true });
     setShowEditModal(false);
     setEditingForm(null);
   };
@@ -301,7 +308,7 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
                   canEdit={isAdmin}
                   onNext={practice.next}
                   onEdit={() => openEditModal(form)}
-                  onDelete={() => deleteVerbById(form.verb.id)}
+                  onDelete={() => void deleteVerbById(form.verb.id)}
                 />
               )}
               renderHistory={(form) => (
@@ -319,8 +326,8 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
                   onContinue={goForward}
                   onReassess={session.reassess}
                   onEdit={() => openEditModal(form)}
-                  onDelete={() => {
-                    if (deleteVerbById(form.verb.id)) goForward();
+                  onDelete={async () => {
+                    if (await deleteVerbById(form.verb.id)) goForward();
                   }}
                 />
               )}
@@ -350,7 +357,7 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
                   onRate={session.rate}
                   onGoBack={goBack}
                   onEdit={() => openEditModal(form)}
-                  onDelete={() => deleteVerbById(form.verb.id)}
+                  onDelete={() => void deleteVerbById(form.verb.id)}
                 />
               )}
               fallback={
@@ -381,6 +388,7 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
           replaceVerbInForms({ ...editingForm.verb, conjugations });
         }}
       />
+      {confirmDialog}
     </>
   );
 }

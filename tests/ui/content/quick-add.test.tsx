@@ -1,8 +1,31 @@
 import { describe, expect, test, vi } from 'vitest';
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
-import { callables, renderApp, setupUiTests, waitForReviewData, LEARNER } from './support/app';
-import { seedCustom, sentence, serverItems, word } from './support/data';
-import { findDialog, findSnackbar, press, settle, type, waitForDialogsToClose } from './support/ui';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import {
+  callables,
+  quiesce,
+  renderApp,
+  setupUiTests,
+  waitForReviewData,
+  LEARNER,
+} from './support/app';
+import {
+  seedCustom,
+  seedReviewedWord,
+  sentence,
+  serverItems,
+  userPath,
+  word,
+} from './support/data';
+import { remote } from './support/firestore';
+import {
+  findDialog,
+  findSnackbar,
+  press,
+  querySnackbar,
+  settle,
+  type,
+  waitForDialogsToClose,
+} from './support/ui';
 
 vi.mock('firebase/firestore', () => import('./support/firestore'));
 vi.mock('firebase/functions', () => import('./support/functions'));
@@ -91,6 +114,44 @@ describe('Quick add button', () => {
     await settle(300);
     expect(screen.getByRole('dialog', { name: 'Add New Word' })).toBeInTheDocument();
     expect(within(dialog).getByRole('textbox', { name: 'English' })).toHaveValue('hound');
+  });
+
+  describe('a word already in the built-in deck', () => {
+    const BUILT_IN_DUPLICATE = 'This Polish word is already in the built-in deck.';
+
+    async function addBuiltInDom() {
+      remote.seed('vocabulary/79', { id: 79, polish: 'dom', english: 'house' });
+      const menu = await openQuickAdd();
+      // The start-up sync loads the built-in deck.
+      await act(quiesce);
+      fireEvent.click(within(menu).getByRole('menuitem', { name: 'Vocabulary' }));
+      const dialog = await findDialog('Add New Word');
+      type(within(dialog).getByRole('textbox', { name: 'Polish' }), 'Dom ');
+      type(within(dialog).getByRole('textbox', { name: 'English' }), 'home');
+      await press(within(dialog).getByRole('button', { name: 'Add Word' }));
+      return findSnackbar(BUILT_IN_DUPLICATE);
+    }
+
+    test('is refused and not saved', async () => {
+      const snackbar = await addBuiltInDom();
+      expect(
+        within(snackbar).queryByRole('button', { name: 'Review again', hidden: true })
+      ).toBeNull();
+      await settle(300);
+      expect(screen.getByRole('dialog', { name: 'Add New Word' })).toBeInTheDocument();
+      expect(serverItems(UID, 'customVocabulary')).toEqual({});
+    });
+
+    test('offers "Review again" when studied, which requeues the built-in word', async () => {
+      seedReviewedWord(UID, '79', 'pl-to-en');
+      const snackbar = await addBuiltInDom();
+      fireEvent.click(within(snackbar).getByRole('button', { name: 'Review again', hidden: true }));
+
+      const reviewCard = userPath(UID, 'vocabularyReviewCards-pl-en', '79');
+      await waitFor(() => expect(remote.get(reviewCard)).toMatchObject({ fsrsCard: { state: 0 } }));
+      expect(querySnackbar('Word queued for review again.')).toBeInTheDocument();
+      expect(serverItems(UID, 'customVocabulary')).toEqual({});
+    });
   });
 
   test('a sentence added from anywhere is saved to My Sentences', async () => {

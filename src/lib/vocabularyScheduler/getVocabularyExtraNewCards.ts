@@ -1,6 +1,7 @@
 import type { VocabularyWord, VocabularyReviewDataStore } from '../../types/vocabulary';
 import getOrCreateVocabularyCardReviewData from '../storage/getOrCreateVocabularyCardReviewData';
 import { includesWordId } from '../storage/helpers';
+import prioritizeNewCards from './prioritizeNewCards';
 import type { VocabularySessionCard } from './types';
 
 export default function getVocabularyExtraNewCards(
@@ -16,9 +17,8 @@ export default function getVocabularyExtraNewCards(
 
     if (isNew && !includesWordId(reviewStore.newCardsToday, word.id)) {
       newCards.push({ word, reviewData, isNew: true });
-      if (newCards.length >= count) break;
     }
   }
 
-  return newCards;
+  return prioritizeNewCards(newCards).slice(0, count);
 }

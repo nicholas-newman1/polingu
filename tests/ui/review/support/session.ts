@@ -140,4 +140,5 @@ export async function chooseFilter(page: Page, label: string, ...options: string
 }
 
 /** The removable chip showing an active filter value. */
-export const filterChip = (page: Page, label: string) => page.getByRole('button', { name: label });
+export const filterChip = (page: Page, label: string) =>
+  page.getByRole('button', { name: `Remove ${label} filter` });

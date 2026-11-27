@@ -1,6 +1,7 @@
 import { useState, memo } from 'react';
 import { Box, Typography, Chip } from '@mui/material';
 import { useSentences } from '../../hooks/useReviewData';
+import { useConfirm } from '../../hooks/useConfirm';
 import { updateSentence, deleteSentence } from '../../lib/storage/systemSentences';
 import { EditSentenceModal } from '../../components/EditSentenceModal';
 import type { Sentence } from '../../types/sentences';
@@ -31,6 +32,7 @@ function SentenceRowContent({ sentence }: { sentence: Sentence }) {
 export const SentencesTab = memo(function SentencesTab() {
   const { systemSentences, setSystemSentences } = useSentences();
   const [editingSentence, setEditingSentence] = useState<Sentence | null>(null);
+  const { confirm, confirmDialog } = useConfirm();
   const { deleteItem, patchItem } = useAdminItems<Sentence, Partial<Omit<Sentence, 'id'>>>({
     items: systemSentences,
     setItems: setSystemSentences,
@@ -51,8 +53,13 @@ export const SentencesTab = memo(function SentencesTab() {
         getAudioUrl={(sentence) => sentence.audioUrl}
         renderContent={(sentence) => <SentenceRowContent sentence={sentence} />}
         onSelect={setEditingSentence}
-        onDelete={(sentence) => {
-          if (window.confirm('Delete this sentence?')) void deleteItem(sentence);
+        onDelete={async (sentence) => {
+          const confirmed = await confirm({
+            title: 'Delete Sentence',
+            message: 'Delete this sentence?',
+            confirmLabel: 'Delete',
+          });
+          if (confirmed) void deleteItem(sentence);
         }}
       />
 
@@ -65,6 +72,7 @@ export const SentencesTab = memo(function SentencesTab() {
           patchItem(editingSentence, { audioUrl }, { error: 'Failed to update audio' })
         }
       />
+      {confirmDialog}
     </>
   );
 });

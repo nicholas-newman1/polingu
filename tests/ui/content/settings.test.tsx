@@ -26,7 +26,7 @@ const AUDIO_CACHE = 'polingu-audio';
 
 async function openSettings() {
   const app = renderApp('/settings');
-  await screen.findByRole('heading', { name: 'Settings' });
+  await screen.findByRole('heading', { name: 'Settings', level: 5 });
   return app;
 }
 
@@ -110,7 +110,7 @@ describe('Settings', () => {
 
   test('a guest’s choices apply for the visit but are not saved anywhere', async () => {
     const app = renderApp('/settings', { account: null });
-    await screen.findByRole('heading', { name: 'Settings' });
+    await screen.findByRole('heading', { name: 'Settings', level: 5 });
     fireEvent.click(settingSwitch('Hide Polish text'));
     expect(settingSwitch('Hide Polish text')).toBeChecked();
     await act(quiesce);
@@ -118,7 +118,7 @@ describe('Settings', () => {
     app.unmount();
 
     renderApp('/settings', { account: null });
-    await screen.findByRole('heading', { name: 'Settings' });
+    await screen.findByRole('heading', { name: 'Settings', level: 5 });
     await act(quiesce);
     expect(settingSwitch('Hide Polish text')).not.toBeChecked();
   });

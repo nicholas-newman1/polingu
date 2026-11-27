@@ -35,6 +35,7 @@ setupUiTests();
 
 const UID = LEARNER.uid;
 const DUPLICATE = 'This Polish word is already in your custom vocabulary.';
+const BUILT_IN_DUPLICATE = 'This Polish word is already in the built-in deck.';
 const SAVE_FAILED = 'Failed to save. Please try again.';
 
 async function openPage(account = LEARNER) {
@@ -54,6 +55,13 @@ function fillWord(dialog: HTMLElement, polish: string, english: string) {
 }
 
 const serverWords = () => Object.values(serverItems(UID, 'customVocabulary'));
+
+/** Answers the "Delete Word" confirmation with `answer`. */
+async function answerDeleteConfirmation(answer: 'Delete' | 'Cancel') {
+  const confirmation = await findDialog('Delete Word');
+  expect(confirmation).toHaveTextContent('Are you sure you want to delete this word?');
+  fireEvent.click(within(confirmation).getByRole('button', { name: answer }));
+}
 
 async function editRow(polish: string) {
   await screen.findByText(polish);
@@ -224,6 +232,70 @@ describe('Adding a word', () => {
     expect(querySnackbar('Word queued for review again.')).toBeInTheDocument();
   });
 
+  /** Opens the page once the built-in deck, which has "dom" (id 79), has loaded. */
+  async function openPageWithBuiltInDom() {
+    remote.seed('vocabulary/79', { id: 79, polish: 'dom', english: 'house' });
+    await openPage();
+    await waitForReviewData();
+    await act(quiesce);
+  }
+
+  test('a word already in the built-in deck is refused, ignoring case and spacing', async () => {
+    await openPageWithBuiltInDom();
+    const dialog = await openAddDialog();
+    fillWord(dialog, ' DOM ', 'home');
+    await press(within(dialog).getByRole('button', { name: 'Add Word' }));
+
+    const snackbar = await findSnackbar(BUILT_IN_DUPLICATE);
+    // Never studied, so there is nothing to review again; it can be studied next instead.
+    expect(
+      within(snackbar).queryByRole('button', { name: 'Review again', hidden: true })
+    ).toBeNull();
+    expect(
+      within(snackbar).getByRole('button', { name: 'Study next', hidden: true })
+    ).toBeInTheDocument();
+    await expectDialogToStayOpen('Add New Word');
+    expect(serverWords()).toHaveLength(0);
+  });
+
+  test('"Study next" on a built-in word never studied puts it first in both directions', async () => {
+    await openPageWithBuiltInDom();
+    const dialog = await openAddDialog();
+    fillWord(dialog, 'dom', 'house');
+    await press(within(dialog).getByRole('button', { name: 'Add Word' }));
+
+    const snackbar = await findSnackbar(BUILT_IN_DUPLICATE);
+    fireEvent.click(within(snackbar).getByRole('button', { name: 'Study next', hidden: true }));
+
+    for (const collection of ['vocabularyReviewCards-pl-en', 'vocabularyReviewCards-en-pl']) {
+      const reviewCard = userPath(UID, collection, '79');
+      await waitFor(() =>
+        expect(remote.get(reviewCard)).toMatchObject({
+          fsrsCard: { state: 0 },
+          prioritizedAt: expect.any(Number),
+        })
+      );
+    }
+    expect(querySnackbar('Word moved to the front of your new words.')).toBeInTheDocument();
+    expect(serverWords()).toHaveLength(0);
+  });
+
+  test('the built-in duplicate warning offers "Review again" for a studied word, which requeues it', async () => {
+    seedReviewedWord(UID, '79', 'en-to-pl');
+    await openPageWithBuiltInDom();
+    const dialog = await openAddDialog();
+    fillWord(dialog, 'dom', 'house');
+    await press(within(dialog).getByRole('button', { name: 'Add Word' }));
+
+    const snackbar = await findSnackbar(BUILT_IN_DUPLICATE);
+    fireEvent.click(within(snackbar).getByRole('button', { name: 'Review again', hidden: true }));
+
+    const reviewCard = userPath(UID, 'vocabularyReviewCards-en-pl', '79');
+    await waitFor(() => expect(remote.get(reviewCard)).toMatchObject({ fsrsCard: { state: 0 } }));
+    expect(querySnackbar('Word queued for review again.')).toBeInTheDocument();
+    expect(serverWords()).toHaveLength(0);
+  });
+
   test('a save the server rejects is taken back out of the list with an error', async () => {
     await openPage();
     remote.fail({ op: 'setDoc', path: /customVocabulary/ });
@@ -327,13 +399,14 @@ describe('Deleting a word', () => {
     await openPage();
     await screen.findByText('kot');
 
-    vi.mocked(window.confirm).mockReturnValueOnce(false);
     fireEvent.click(within(rowWith('kot')).getByRole('button', { name: 'delete word' }));
-    await settle();
+    await answerDeleteConfirmation('Cancel');
+    await waitForDialogsToClose();
     expect(screen.getByText('kot')).toBeInTheDocument();
     expect(serverWords()).toHaveLength(1);
 
     fireEvent.click(within(rowWith('kot')).getByRole('button', { name: 'delete word' }));
+    await answerDeleteConfirmation('Delete');
     await waitFor(() => expect(screen.queryByText('kot')).toBeNull());
     await waitFor(() => expect(serverWords()).toHaveLength(0));
   });
@@ -345,6 +418,7 @@ describe('Deleting a word', () => {
     remote.fail({ op: 'deleteDoc', path: /customVocabulary/ });
 
     fireEvent.click(within(rowWith('kot')).getByRole('button', { name: 'delete word' }));
+    await answerDeleteConfirmation('Delete');
 
     expect(await findSnackbar(SAVE_FAILED)).toBeInTheDocument();
     expect(await screen.findByText('kot')).toBeInTheDocument();
@@ -487,6 +561,24 @@ describe('Search, filters, sorting and pages', () => {
     type(search, 'zebra');
     expect(screen.getByText('No words match your filters')).toBeInTheDocument();
     expect(screen.getByText('0 of 3 words')).toBeInTheDocument();
+  });
+
+  test('search ignores Polish diacritics, including ł', async () => {
+    seedCustom(UID, 'customVocabulary', [
+      word('w1', 'żyrafa', 'giraffe'),
+      word('w2', 'łódź', 'boat'),
+      word('w3', 'kot', 'cat'),
+    ]);
+    await openPage();
+    await screen.findByText('kot');
+    const search = screen.getByPlaceholderText('Search words...');
+
+    type(search, 'zyraf');
+    expect(columnValues('Polish')).toEqual(['żyrafa']);
+    type(search, 'LODZ');
+    expect(columnValues('Polish')).toEqual(['łódź']);
+    type(search, 'Żyr');
+    expect(columnValues('Polish')).toEqual(['żyrafa']);
   });
 
   test('filters by part of speech and gender together', async () => {

@@ -91,6 +91,7 @@ function RemovableChip({ label, onRemove }: { label: string; onRemove: () => voi
   return (
     <Chip
       label={label}
+      aria-label={`Remove ${label} filter`}
       size="small"
       onClick={onRemove}
       onDelete={onRemove}

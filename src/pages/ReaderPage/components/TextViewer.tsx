@@ -300,9 +300,13 @@ export const TextViewer = memo(function TextViewer({
       </ViewerContainer>
 
       <ReaderNavigationBar $bottom={BOTTOM_MENU_HEIGHT} $gap={0.5}>
-        <Tooltip title="Smaller text">
+        <Tooltip title="Smaller text" describeChild>
           <span>
-            <IconButton onClick={() => cycleFontSize('down')} disabled={fontSize === 'small'}>
+            <IconButton
+              onClick={() => cycleFontSize('down')}
+              disabled={fontSize === 'small'}
+              aria-label="Smaller text"
+            >
               <TextDecreaseIcon />
             </IconButton>
           </span>
@@ -322,20 +326,25 @@ export const TextViewer = memo(function TextViewer({
           {Math.round(scrollPercent * 100)}%
         </Typography>
 
-        <Tooltip title="Bookmarks">
+        <Tooltip title="Bookmarks" describeChild>
           <span>
             <IconButton
               onClick={(e) => setBookmarkMenuAnchor(e.currentTarget)}
               disabled={bookmarks.length === 0}
+              aria-label="Bookmarks"
             >
               <BookmarksIcon />
             </IconButton>
           </span>
         </Tooltip>
 
-        <Tooltip title="Larger text">
+        <Tooltip title="Larger text" describeChild>
           <span>
-            <IconButton onClick={() => cycleFontSize('up')} disabled={fontSize === 'large'}>
+            <IconButton
+              onClick={() => cycleFontSize('up')}
+              disabled={fontSize === 'large'}
+              aria-label="Larger text"
+            >
               <TextIncreaseIcon />
             </IconButton>
           </span>

@@ -18,7 +18,6 @@ import Person from '@mui/icons-material/Person';
 import Abc from '@mui/icons-material/Abc';
 import School from '@mui/icons-material/School';
 import Translate from '@mui/icons-material/Translate';
-import BarChart from '@mui/icons-material/BarChart';
 import ArrowBack from '@mui/icons-material/ArrowBack';
 import Settings from '@mui/icons-material/Settings';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -94,11 +93,6 @@ export function Header({ user, onSignOut, pageTitle, backPath }: HeaderProps) {
     navigate('/my-sentences');
   };
 
-  const handleStats = () => {
-    handleMenuClose();
-    navigate('/stats');
-  };
-
   const handleSettings = () => {
     handleMenuClose();
     navigate('/settings');
@@ -113,7 +107,7 @@ export function Header({ user, onSignOut, pageTitle, backPath }: HeaderProps) {
     >
       <Stack direction="row" alignItems="center" sx={{ minWidth: 0, overflow: 'hidden', flex: 1 }}>
         {backPath && (
-          <BackButton size="small" onClick={handleBack}>
+          <BackButton size="small" onClick={handleBack} aria-label="Back">
             <ArrowBack fontSize="small" />
           </BackButton>
         )}
@@ -171,12 +165,6 @@ export function Header({ user, onSignOut, pageTitle, backPath }: HeaderProps) {
                 <ListItemText>My Sentences</ListItemText>
               </MenuItem>
               <Divider />
-              <MenuItem onClick={handleStats}>
-                <ListItemIcon>
-                  <BarChart fontSize="small" />
-                </ListItemIcon>
-                <ListItemText>Statistics</ListItemText>
-              </MenuItem>
               <MenuItem onClick={handleSettings}>
                 <ListItemIcon>
                   <Settings fontSize="small" />

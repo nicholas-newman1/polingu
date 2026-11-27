@@ -71,6 +71,14 @@ export async function getBookDownloadUrl(storagePath: string): Promise<string> {
   return getDownloadURL(storageRef);
 }
 
+/** A book's text was never downloaded, so it can't be read until the device is back online. */
+export class BookTextOfflineError extends Error {
+  constructor() {
+    super('Text not available offline. Open this book once while online.');
+    this.name = 'BookTextOfflineError';
+  }
+}
+
 export async function getBookTextContent(bookId: string, storagePath: string): Promise<string> {
   const cacheKey = `${BOOK_TEXT_CACHE_PREFIX}${bookId}`;
   const cached = await userDb.userData.get(cacheKey);
@@ -79,7 +87,7 @@ export async function getBookTextContent(bookId: string, storagePath: string): P
   }
 
   if (!navigator.onLine) {
-    throw new Error('Text not available offline. Open this book once while online.');
+    throw new BookTextOfflineError();
   }
 
   const url = await getBookDownloadUrl(storagePath);

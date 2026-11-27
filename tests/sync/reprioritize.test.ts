@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { createEmptyCard, State } from 'ts-fsrs';
 import reprioritizeVocabularyWord, {
   canReprioritizeVocabularyWord,
+  prioritizeNewVocabularyWord,
 } from '../../src/lib/storage/reprioritizeVocabularyWord';
 import reprioritizeSentence, {
   canReprioritizeSentence,
@@ -42,6 +43,33 @@ const vocabStore = (): VocabularyReviewDataStore => ({
   lastReviewDate: '2026-11-26',
 });
 
+describe('"Study next" puts a word not studied yet first among the new words', () => {
+  test('an unseen word gets a new card stamped with the time it was asked for', () => {
+    const next = prioritizeNewVocabularyWord(vocabStore(), 79, NOW);
+
+    expect(next.cards[79].fsrsCard.state).toBe(State.New);
+    expect(next.cards[79].prioritizedAt).toBe(NOW.getTime());
+    expect(next.cards[5]).toEqual(vocabStore().cards[5]);
+  });
+
+  test("a word introduced today but not yet rated leaves today's new list", () => {
+    const next = prioritizeNewVocabularyWord(
+      { ...vocabStore(), newCardsToday: ['5', 6, 'custom_1'] },
+      'custom_1',
+      NOW
+    );
+
+    expect(next.cards.custom_1.prioritizedAt).toBe(NOW.getTime());
+    expect(next.newCardsToday).toEqual(['5', 6]);
+  });
+
+  test('a word already studied is left as it is', () => {
+    const store = vocabStore();
+
+    expect(prioritizeNewVocabularyWord(store, 5, NOW)).toBe(store);
+  });
+});
+
 describe('"Review again" puts a studied card back in the new queue', () => {
   test("vocabulary: the card becomes new, due now, and leaves today's counters", () => {
     const next = reprioritizeVocabularyWord(vocabStore(), 5, NOW);
@@ -51,6 +79,13 @@ describe('"Review again" puts a studied card back in the new queue', () => {
     expect(next.reviewedToday).toEqual([6]);
     expect(next.newCardsToday).toEqual([6]);
     expect(next.cards[6]).toEqual(vocabStore().cards[6]);
+  });
+
+  test('vocabulary: the reset word is put first in line among the new words', () => {
+    const next = reprioritizeVocabularyWord(vocabStore(), 5, NOW);
+
+    expect(next.cards[5].prioritizedAt).toBe(NOW.getTime());
+    expect(next.cards[6].prioritizedAt).toBeUndefined();
   });
 
   test('vocabulary: the history of earlier reviews (reps, lapses) is kept', () => {

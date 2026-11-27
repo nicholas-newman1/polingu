@@ -4,6 +4,7 @@ import {
   createSessionQueueState,
   getCurrentSessionCard,
   getRemainingCount,
+  getRemainingCountsByKind,
   getUpcomingSessionCards,
   isSessionFinished,
   sessionQueueReducer,
@@ -16,10 +17,12 @@ import {
 interface Item {
   id: string;
   label?: string;
+  isNew: boolean;
   reviewData: { attempts: number };
 }
 
-const item = (id: string): Item => ({ id, reviewData: { attempts: 0 } });
+/** Ids starting with "n" are new cards; any other id is a due review. */
+const item = (id: string): Item => ({ id, isNew: id.startsWith('n'), reviewData: { attempts: 0 } });
 const is = (id: string) => (i: Item) => i.id === id;
 
 type State = SessionQueueState<Item>;
@@ -58,8 +61,7 @@ describe('building a session', () => {
 
     expect(state.isBuilt).toBe(true);
     expect(state.sessionQueue.map((i) => i.id)).toEqual(['r1', 'r2', 'n1', 'n2']);
-    expect(state.reviewCount).toBe(2);
-    expect(state.newCount).toBe(2);
+    expect(getRemainingCountsByKind(state)).toEqual({ reviewCount: 2, newCount: 2 });
     expect(currentId(state)).toBe('r1');
     expect(getRemainingCount(state)).toBe(4);
     expect(isSessionFinished(state)).toBe(false);
@@ -115,7 +117,11 @@ describe('rating', () => {
 
     const { shown, state: afterRest } = play(state, [Rating.Good, Rating.Good, Rating.Good]);
     expect(shown).toEqual(['r2', 'n1', 'n2']);
-    expect(getCurrentSessionCard(afterRest)).toEqual({ id: 'r1', reviewData: { attempts: 1 } });
+    expect(getCurrentSessionCard(afterRest)).toEqual({
+      id: 'r1',
+      isNew: false,
+      reviewData: { attempts: 1 },
+    });
     expect(isSessionFinished(afterRest)).toBe(false);
   });
 
@@ -163,6 +169,47 @@ describe('rating', () => {
   });
 });
 
+describe('review and new counts', () => {
+  const counts = (state: State) => getRemainingCountsByKind(state);
+
+  test('passing a card takes it off its own count', () => {
+    let state = twoReviewsTwoNew();
+    state = rate(state, Rating.Good);
+    expect(counts(state)).toEqual({ reviewCount: 1, newCount: 2 });
+
+    state = rate(rate(state, Rating.Good), Rating.Good);
+    expect(counts(state)).toEqual({ reviewCount: 0, newCount: 1 });
+    expect(getRemainingCount(state)).toBe(1);
+  });
+
+  test('a card rated Again keeps counting until its retry is passed', () => {
+    let state = start({ reviewCards: [item('r1')], newCards: [item('n1')] });
+    state = rate(state, Rating.Good); // r1 passed
+    state = rate(state, Rating.Again); // n1 to retries
+    expect(counts(state)).toEqual({ reviewCount: 0, newCount: 1 });
+    expect(getRemainingCount(state)).toBe(1);
+
+    state = rate(state, Rating.Good);
+    expect(counts(state)).toEqual({ reviewCount: 0, newCount: 0 });
+    expect(isSessionFinished(state)).toBe(true);
+  });
+
+  test('reassessing and deleting cards update the counts with the remaining total', () => {
+    let state = rate(twoReviewsTwoNew(), Rating.Good); // r1 passed
+    state = reduce(state, {
+      type: 'reassess',
+      predicate: is('r1'),
+      reviewData: { attempts: 9 },
+      again: true,
+    });
+    expect(counts(state)).toEqual({ reviewCount: 2, newCount: 2 });
+
+    state = reduce(state, { type: 'remove', predicate: is('n2') });
+    expect(counts(state)).toEqual({ reviewCount: 2, newCount: 1 });
+    expect(getRemainingCount(state)).toBe(3);
+  });
+});
+
 describe('upcoming cards', () => {
   test('during the session, lists the cards after the current one and then the retries', () => {
     let state = twoReviewsTwoNew();
@@ -199,7 +246,7 @@ describe('reassessing the previous card', () => {
       again: true,
     });
 
-    expect(state.learningQueue).toEqual([{ id: 'r1', reviewData: { attempts: 9 } }]);
+    expect(state.learningQueue).toEqual([{ id: 'r1', isNew: false, reviewData: { attempts: 9 } }]);
     expect(getRemainingCount(state)).toBe(4);
     expect(currentId(state)).toBe('r2');
   });
@@ -214,7 +261,7 @@ describe('reassessing the previous card', () => {
       again: true,
     });
 
-    expect(state.learningQueue).toEqual([{ id: 'r1', reviewData: { attempts: 9 } }]);
+    expect(state.learningQueue).toEqual([{ id: 'r1', isNew: false, reviewData: { attempts: 9 } }]);
   });
 
   test('changing a card rated Again to a pass removes its retry', () => {
@@ -245,7 +292,11 @@ describe('reassessing the previous card', () => {
     });
 
     expect(isSessionFinished(state)).toBe(false);
-    expect(getCurrentSessionCard(state)).toEqual({ id: 'a', reviewData: { attempts: 9 } });
+    expect(getCurrentSessionCard(state)).toEqual({
+      id: 'a',
+      isNew: false,
+      reviewData: { attempts: 9 },
+    });
     expect(getRemainingCount(state)).toBe(1);
   });
 

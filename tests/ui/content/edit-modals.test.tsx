@@ -53,6 +53,19 @@ const FIRST_PERSON: DrillableForm = {
   fullFormKey: 'robic_present_1sg',
 };
 
+/** Answers the confirmation titled `title`, after checking its message. */
+async function answerConfirmation(title: string, message: string | RegExp, answer: string) {
+  const confirmation = await findDialog(title);
+  expect(confirmation).toHaveTextContent(message);
+  fireEvent.click(within(confirmation).getByRole('button', { name: answer }));
+}
+
+/** Waits until only the dialog titled `title` is left open. */
+async function waitForDialogsToCloseExcept(title: string) {
+  await waitFor(() => expect(screen.getAllByRole('dialog', { hidden: true })).toHaveLength(1));
+  expect(screen.getByRole('dialog', { name: title })).toBeInTheDocument();
+}
+
 function audioService(audioUrl = 'https://audio.test/new.mp3') {
   callables.set('generateAudioPreview', () => ({ audioBase64: 'AAAA' }));
   callables.set('saveAudio', () => ({ audioUrl }));
@@ -119,12 +132,19 @@ describe('Edit Conjugation dialog', () => {
   test('"Delete Verb" deletes only after confirmation', async () => {
     const { onDelete, onClose } = renderModal();
     const dialog = await findDialog('Edit Conjugation');
-    vi.mocked(window.confirm).mockReturnValueOnce(false);
     fireEvent.click(within(dialog).getByRole('button', { name: 'Delete Verb' }));
+    await answerConfirmation(
+      'Delete Verb',
+      'Are you sure you want to delete this verb? This will remove all conjugation forms for this verb and affect all users.',
+      'Cancel'
+    );
+    await waitForDialogsToCloseExcept('Edit Conjugation');
     expect(onDelete).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
 
     fireEvent.click(within(dialog).getByRole('button', { name: 'Delete Verb' }));
-    expect(onDelete).toHaveBeenCalledTimes(1);
+    await answerConfirmation('Delete Verb', /delete this verb/, 'Delete');
+    await waitFor(() => expect(onDelete).toHaveBeenCalledTimes(1));
     expect(onClose).toHaveBeenCalled();
   });
 
@@ -284,11 +304,14 @@ describe('Edit Aspect Pair dialog', () => {
       />
     );
     const dialog = await findDialog('Edit Aspect Pair');
-    vi.mocked(window.confirm).mockReturnValueOnce(false);
     fireEvent.click(within(dialog).getByRole('button', { name: 'Unlink Pair' }));
+    await answerConfirmation('Unlink Pair', /unlink this aspect pair/, 'Cancel');
+    await waitForDialogsToCloseExcept('Edit Aspect Pair');
     expect(onUnlink).not.toHaveBeenCalled();
+
     fireEvent.click(within(dialog).getByRole('button', { name: 'Unlink Pair' }));
-    expect(onUnlink).toHaveBeenCalledTimes(1);
+    await answerConfirmation('Unlink Pair', /unlink this aspect pair/, 'Unlink');
+    await waitFor(() => expect(onUnlink).toHaveBeenCalledTimes(1));
     expect(onClose).toHaveBeenCalled();
   });
 
@@ -357,10 +380,12 @@ describe('Edit Verb dialog (admin)', () => {
     const { onDelete, onClose } = renderVerb();
     const dialog = await findDialog('Edit Verb');
     fireEvent.click(within(dialog).getByRole('button', { name: 'Delete Verb' }));
-    expect(window.confirm).toHaveBeenCalledWith(
-      'Delete this verb and all its conjugation forms? This affects all users.'
+    await answerConfirmation(
+      'Delete Verb',
+      'Delete this verb and all its conjugation forms? This affects all users.',
+      'Delete'
     );
-    expect(onDelete).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(onDelete).toHaveBeenCalledTimes(1));
     expect(onClose).toHaveBeenCalled();
   });
 

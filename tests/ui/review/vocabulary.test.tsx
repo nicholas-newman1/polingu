@@ -48,6 +48,14 @@ async function openDeck(path = '/vocabulary/recognition', extra?: ReactNode) {
   return { ...app, session: reviewSession(app.page), finished: finishedState(app.page) };
 }
 
+/** Answers the in-app confirmation titled `title`, after checking its message. */
+async function answerConfirmation(title: string, message: string, answer: string) {
+  const dialog = await until(() => screen.getByRole('dialog', { name: title }));
+  expect(dialog).toHaveTextContent(message);
+  click(within(dialog).getByRole('button', { name: answer }));
+  await elapse();
+}
+
 const shownWord = (page: ReturnType<typeof renderApp>['page']) =>
   page.getAllByRole('heading', { level: 4 }).map((h) => h.textContent);
 
@@ -106,7 +114,7 @@ describe('a vocabulary session', () => {
     await session.rate('Good');
 
     expect(page.getByRole('heading', { name: 'pies' })).toBeInTheDocument();
-    expect(session.status()).toBe('0 reviews · 2 new · 1 remaining');
+    expect(session.status()).toBe('0 reviews · 1 new · 1 remaining');
     expect(page.getByRole('progressbar', { name: 'Session progress' })).toHaveAttribute(
       'aria-valuenow',
       '50'
@@ -560,12 +568,16 @@ describe('vocabulary settings', () => {
     seed.vocabulary(kot, pies);
     seed.progress(PL_EN, 1, 'wordId', reviewCardDueIn(-1));
     seed.progress(EN_PL, 1, 'wordId', reviewCardDueIn(-1));
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
 
     const { page, session } = await openDeck();
     expect(session.status()).toBe('1 reviews · 1 new · 2 remaining');
     session.openSettings();
     click(page.getByRole('button', { name: 'Reset PL→EN Progress' }));
+    await answerConfirmation(
+      'Reset Progress',
+      'Are you sure? This will erase all your vocabulary progress for this direction and cannot be undone.',
+      'Reset'
+    );
 
     expect(await until(() => page.getByText(/0 reviews · 2 new/))).toBeInTheDocument();
     expect(page.queryByRole('spinbutton')).not.toBeInTheDocument();
@@ -577,11 +589,11 @@ describe('vocabulary settings', () => {
   test('declining the reset confirmation keeps all progress', async () => {
     seed.vocabulary(kot);
     seed.progress(PL_EN, 1, 'wordId', reviewCardDueIn(-1));
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
 
     const { page, session } = await openDeck();
     session.openSettings();
     click(page.getByRole('button', { name: 'Reset PL→EN Progress' }));
+    await answerConfirmation('Reset Progress', 'cannot be undone', 'Cancel');
     await settle();
 
     expect(storedIds(PL_EN)).toEqual(['1']);
@@ -788,7 +800,6 @@ describe('custom words in the deck', () => {
   test('a custom word is marked as such and can be deleted after confirming', async () => {
     await seed.customItem('customVocabulary', kawa);
     seed.vocabulary(kot);
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
 
     const { page, session } = await openDeck();
     expect(shownWord(page)).toEqual(['kawa']);
@@ -796,21 +807,23 @@ describe('custom words in the deck', () => {
     expect(session.status()).toBe('0 reviews · 2 new · 2 remaining');
 
     click(page.getByRole('button', { name: 'delete' }));
-    expect(window.confirm).toHaveBeenCalledWith(
-      'Are you sure you want to delete this custom word?'
+    await answerConfirmation(
+      'Delete Word',
+      'Are you sure you want to delete this custom word?',
+      'Delete'
     );
     expect(shownWord(page)).toEqual(['kot']);
-    expect(session.status()).toBe('0 reviews · 2 new · 1 remaining');
+    expect(session.status()).toBe('0 reviews · 1 new · 1 remaining');
     await settle();
     expect(storedIds('customVocabulary')).toEqual([]);
   });
 
   test('declining the confirmation keeps the custom word', async () => {
     await seed.customItem('customVocabulary', kawa);
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
 
     const { page } = await openDeck();
     click(page.getByRole('button', { name: 'delete' }));
+    await answerConfirmation('Delete Word', 'delete this custom word', 'Cancel');
     await settle();
     expect(shownWord(page)).toEqual(['kawa']);
     expect(storedIds('customVocabulary')).toEqual(['custom-1']);

@@ -1,5 +1,5 @@
-import { useForm, useWatch } from 'react-hook-form';
-import { DialogTitle, IconButton, Divider } from '@mui/material';
+import { Controller, useForm, useWatch } from 'react-hook-form';
+import { DialogTitle, IconButton, Divider, TextField } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { ModalDialog, ModalHeader, ModalContent } from './modalStyles';
@@ -8,6 +8,8 @@ import { FormSelectField, FormTextField } from './FormFields';
 import { type ModalSaveResult } from '../hooks/useOptimisticModalSave';
 import { useAuthContext } from '../hooks/useAuthContext';
 import { useTranslatedEditModal } from '../hooks/useTranslatedEditModal';
+import { useConfirm } from '../hooks/useConfirm';
+import { containsWholePhrase } from '../lib/utils/containsWholePhrase';
 import { AudioRegenerator } from './AudioRegenerator';
 import { PolishEnglishFields } from './PolishEnglishFields';
 import type { DeclensionCard, Case, Gender, Number } from '../types';
@@ -33,8 +35,9 @@ interface FormData {
   back: string;
   english: string;
   declined: string;
-  case: Case;
-  gender: Gender;
+  // Empty until chosen: a new card must not silently default to the wrong grammar.
+  case: Case | '';
+  gender: Gender | '';
   number: Number;
   hint: string;
 }
@@ -54,8 +57,8 @@ const getDefaultValues = (card: DeclensionCard | null): FormData => ({
   back: card?.back || '',
   english: card?.english || '',
   declined: card?.declined || '',
-  case: card?.case || 'Nominative',
-  gender: card?.gender || 'Masculine',
+  case: card?.case || '',
+  gender: card?.gender || '',
   number: card?.number || 'Singular',
   hint: card?.hint || '',
 });
@@ -84,6 +87,8 @@ export function EditDeclensionModal({
   });
 
   const backText = useWatch({ control, name: 'back' });
+  const declinedText = useWatch({ control, name: 'declined' });
+  const { confirm, confirmDialog } = useConfirm();
 
   const { translation, pendingAudioUrl, handleClose, handleAudioSaved, save } =
     useTranslatedEditModal({
@@ -97,8 +102,15 @@ export function EditDeclensionModal({
     });
   // Built-in cards always carry a translation; custom cards may leave it out.
   const englishRequired = !isCreating && !!card && !card.isCustom;
+  // Checked only on the learner's own cards, so an admin is never blocked from editing built-in ones.
+  const declinedNotInBack =
+    (isCreating || !card || !!card.isCustom) &&
+    !!declinedText.trim() &&
+    !!backText.trim() &&
+    !containsWholePhrase(backText, declinedText);
 
   const onSubmit = (data: FormData) => {
+    if (declinedNotInBack || !data.case || !data.gender) return;
     save({
       front: data.front.trim(),
       back: data.back.trim(),
@@ -112,10 +124,14 @@ export function EditDeclensionModal({
     });
   };
 
-  const handleDelete = () => {
-    if (onDelete && window.confirm('Are you sure you want to delete this card?')) {
-      onDelete();
-    }
+  const handleDelete = async () => {
+    if (!onDelete) return;
+    const confirmed = await confirm({
+      title: 'Delete Card',
+      message: 'Are you sure you want to delete this card?',
+      confirmLabel: 'Delete',
+    });
+    if (confirmed) onDelete();
   };
 
   const title = isCreating
@@ -169,12 +185,25 @@ export function EditDeclensionModal({
           placeholders={{ polish: 'e.g., To jest kot.', english: 'e.g., This is a cat.' }}
           englishRequired={englishRequired}
         />
-        <FormTextField
+        <Controller
           name="declined"
           control={control}
-          label="Declined Word"
-          required
-          placeholder="e.g., kot"
+          rules={{ required: true, validate: (v) => v.trim().length > 0 }}
+          render={({ field }) => (
+            <TextField
+              {...field}
+              label="Declined Word"
+              fullWidth
+              required
+              placeholder="e.g., kot"
+              error={declinedNotInBack}
+              helperText={
+                declinedNotInBack
+                  ? 'The declined word must appear in the Back (Answer).'
+                  : undefined
+              }
+            />
+          )}
         />
         <FormSelectField name="case" control={control} label="Case" options={CASES} required />
         <FormSelectField
@@ -203,11 +232,12 @@ export function EditDeclensionModal({
         onCancel={handleClose}
         onSubmit={handleSubmit(onSubmit)}
         submitLabel={isCreating ? 'Create Card' : 'Save Changes'}
-        submitDisabled={!isValid}
+        submitDisabled={!isValid || declinedNotInBack}
         destructiveAction={
           onDelete && { label: 'Delete', icon: <DeleteIcon />, onClick: handleDelete }
         }
       />
+      {confirmDialog}
     </ModalDialog>
   );
 }

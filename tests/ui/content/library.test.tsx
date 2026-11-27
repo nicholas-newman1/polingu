@@ -1,8 +1,9 @@
 import { describe, expect, test, vi } from 'vitest';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
-import { callables, renderApp, setupUiTests, uploads, LEARNER } from './support/app';
+import { accounts, callables, renderApp, setupUiTests, uploads, LEARNER } from './support/app';
 import { book, daysAfterBase, seedBooks, seedReadingProgress, userPath } from './support/data';
 import { remote } from './support/firestore';
+import type { Account } from './support/auth';
 import { userDb } from '../../../src/lib/offlineDb/userDb';
 import {
   expectDialogToStayOpen,
@@ -86,6 +87,32 @@ function finishProcessing(id: string, extra: Parameters<typeof book>[1] = {}) {
 }
 
 describe('Library', () => {
+  test('signing in while the library is open loads that account’s books and storage', async () => {
+    await seedBooks(UID, [book('b1', { title: 'Lalka' })]);
+    storageUsage();
+    renderApp('/library', { account: null });
+    await screen.findByText('My Library');
+    expect(screen.getByText('Your library is empty')).toBeInTheDocument();
+    expect(screen.queryByText('Lalka')).toBeNull();
+
+    act(() => accounts.signIn(LEARNER));
+    expect(await screen.findByText('Lalka')).toBeInTheDocument();
+    expect(await screen.findByText('1.5 MB / 100.0 MB')).toBeInTheDocument();
+  });
+
+  test('switching account replaces the books with the new account’s', async () => {
+    const other: Account = { uid: 'learner-b', displayName: 'Grace Hopper' };
+    await seedBooks(UID, [book('b1', { title: 'Lalka' })]);
+    remote.seed(userPath(other.uid, 'books', 'c1'), book('c1', { title: 'Quo Vadis' }));
+    storageUsage();
+    await openLibrary();
+    await screen.findByText('Lalka');
+
+    act(() => accounts.signIn(other));
+    expect(await screen.findByText('Quo Vadis')).toBeInTheDocument();
+    expect(screen.queryByText('Lalka')).toBeNull();
+  });
+
   test('an empty library invites adding a book and shows the storage used', async () => {
     storageUsage();
     await openLibrary();

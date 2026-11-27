@@ -243,7 +243,7 @@ export function ListeningHubPage() {
             Listening mode
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Passive audio practice. No FSRS writes.
+            Listen to your cards hands-free. Listening doesn't change your review schedule.
           </Typography>
         </Box>
       </Stack>

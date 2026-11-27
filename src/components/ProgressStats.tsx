@@ -57,7 +57,7 @@ const StatValue = styled(Typography)<{ $layout: Layout }>(({ $layout }) => ({
 }));
 
 const StatLabel = styled(Typography)<{ $layout: Layout }>(({ theme, $layout }) => ({
-  color: theme.palette.text.disabled,
+  color: theme.palette.text.secondary,
   fontSize: $layout === 'stacked' ? '0.7rem' : '0.65rem',
   textTransform: 'uppercase',
   letterSpacing: '0.05em',

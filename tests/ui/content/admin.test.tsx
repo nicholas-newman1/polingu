@@ -83,6 +83,13 @@ async function openContent(tab = 'vocabulary') {
   return app;
 }
 
+/** Confirms the dialog titled `title` with its `confirmLabel` button, after checking its message. */
+async function confirmDialog(title: string, message: string | RegExp, confirmLabel = 'Delete') {
+  const confirmation = await findDialog(title);
+  expect(confirmation).toHaveTextContent(message);
+  fireEvent.click(within(confirmation).getByRole('button', { name: confirmLabel }));
+}
+
 /** The row in an admin list showing `text`. */
 const listRow = (text: string) =>
   screen.getByText(text, { exact: false }).closest('[data-index]') as HTMLElement;
@@ -130,7 +137,7 @@ describe('Built-in content editor', () => {
     await screen.findByText('kot');
     fireEvent.click(within(listRow('kot')).getByTestId('DeleteIcon').closest('button')!);
 
-    expect(window.confirm).toHaveBeenCalledWith('Delete "kot"?');
+    await confirmDialog('Delete Word', 'Delete "kot"?');
     expect(await findSnackbar('Word deleted')).toBeInTheDocument();
     expect(remote.get('vocabulary/1')).toBeUndefined();
     expect(screen.getByText('Showing 1 of 1 words')).toBeInTheDocument();
@@ -141,6 +148,7 @@ describe('Built-in content editor', () => {
     await screen.findByText('kot');
     remote.fail({ op: 'deleteDoc', path: 'vocabulary' });
     fireEvent.click(within(listRow('kot')).getByTestId('DeleteIcon').closest('button')!);
+    await confirmDialog('Delete Word', 'Delete "kot"?');
 
     expect(await findSnackbar('Failed to delete word')).toBeInTheDocument();
     expect(screen.getByText('kot')).toBeInTheDocument();
@@ -202,6 +210,7 @@ describe('Built-in content editor', () => {
     fireEvent.click(await screen.findByText('robić'));
     const dialog = await findDialog('Edit Verb');
     fireEvent.click(within(dialog).getByRole('button', { name: 'Delete Verb' }));
+    await confirmDialog('Delete Verb', /Delete this verb and all its conjugation forms/);
 
     expect(await findSnackbar('Verb deleted')).toBeInTheDocument();
     expect(remote.get('verbs/robic')).toBeUndefined();
@@ -300,7 +309,7 @@ describe('Sentence generator', () => {
     expect(screen.getByText('Showing 1 of 1 sentences')).toBeInTheDocument();
 
     fireEvent.click(within(listRow('Jutro pojadę')).getByTestId('DeleteIcon').closest('button')!);
-    expect(window.confirm).toHaveBeenCalledWith('Delete this sentence?');
+    await confirmDialog('Delete Sentence', 'Delete this sentence?');
     expect(await findSnackbar('Sentence deleted')).toBeInTheDocument();
     expect(remote.get('sentences/b1_007')).toBeUndefined();
     expect(screen.getByText('Showing 0 of 0 sentences')).toBeInTheDocument();
@@ -313,6 +322,7 @@ describe('Sentence generator', () => {
     fireEvent.click(await screen.findByRole('tab', { name: 'Browse (2)' }));
     await screen.findByText('Mój kot.');
     fireEvent.click(within(listRow('Mój kot.')).getByTestId('DeleteIcon').closest('button')!);
+    await confirmDialog('Delete Sentence', 'Delete this sentence?');
 
     expect(await findSnackbar('Sentence deleted')).toBeInTheDocument();
     expect(remote.get(userPath(ADMIN.uid, 'customSentences', 'custom_1'))).toBeUndefined();

@@ -18,6 +18,7 @@ import {
   removeIfUnchanged,
 } from '../offlineDb/pendingWrites';
 import { getUserId } from './helpers';
+import { stripUndefinedDeep } from './firestoreUtils';
 import type { Card as FSRSCard } from 'ts-fsrs';
 import type { TranslationDirection } from '../../types/common';
 
@@ -52,16 +53,17 @@ export interface ReviewSubcollectionStorage<TCard> extends ReviewSubcollectionSy
 
 type ReviewCardData = { fsrsCard: FSRSCard };
 
+/** A card ready for Firestore, which rejects undefined fields (a card never rated has no last_review). */
 function serialize<TCard extends ReviewCardData>(card: TCard): unknown {
   const { due, last_review } = card.fsrsCard;
-  return {
+  return stripUndefinedDeep({
     ...card,
     fsrsCard: {
       ...card.fsrsCard,
       due: due instanceof Date ? due.toISOString() : due,
       last_review: last_review instanceof Date ? last_review.toISOString() : last_review,
     },
-  };
+  });
 }
 
 function deserialize<TCard extends ReviewCardData>(raw: unknown): TCard {

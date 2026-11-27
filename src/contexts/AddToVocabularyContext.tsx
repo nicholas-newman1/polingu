@@ -4,7 +4,6 @@ import { loadCustomVocabulary, saveCustomVocabulary } from '../lib/storage/custo
 import type { CustomVocabularyWord } from '../types/vocabulary';
 import { useVocabulary } from '../hooks/useReviewData';
 import { normalizeVocabularyPrefill } from '../lib/utils/normalizeVocabularyPrefill';
-import { findCustomWordWithSamePolish } from '../lib/utils/findDuplicateCustomVocabularyPolish';
 import { useReprioritizeVocabularyWord } from '../hooks/useReprioritizeVocabularyWord';
 
 type NewWord = Omit<CustomVocabularyWord, 'id' | 'isCustom' | 'createdAt'>;
@@ -30,7 +29,7 @@ export function AddToVocabularyProvider({ children }: AddToVocabularyProviderPro
   const savedRef = useRef<CustomVocabularyWord[]>([]);
 
   const { customWords, refreshVocabularyWords } = useVocabulary();
-  const { showDuplicateError } = useReprioritizeVocabularyWord();
+  const { reportDuplicatePolish: reportDuplicate } = useReprioritizeVocabularyWord();
 
   const openAddToVocabulary = useCallback((polish: string, english: string) => {
     setInitialValues({
@@ -49,15 +48,6 @@ export function AddToVocabularyProvider({ children }: AddToVocabularyProviderPro
     setModalOpen(false);
     setInitialValues(undefined);
   }, []);
-
-  const reportDuplicate = useCallback(
-    (words: CustomVocabularyWord[], polish: string) => {
-      const duplicate = findCustomWordWithSamePolish(words, polish);
-      if (duplicate) showDuplicateError(duplicate.id);
-      return !!duplicate;
-    },
-    [showDuplicateError]
-  );
 
   const addWord = useCallback(
     async (wordData: NewWord) => {

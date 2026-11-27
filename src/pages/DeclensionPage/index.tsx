@@ -28,6 +28,7 @@ import { useAuthContext } from '../../hooks/useAuthContext';
 import { useReviewData } from '../../hooks/useReviewData';
 import { useOptimistic } from '../../hooks/useOptimistic';
 import { useSnackbar } from '../../hooks/useSnackbar';
+import { useConfirm } from '../../hooks/useConfirm';
 import { useReviewSession } from '../../hooks/useReviewSession';
 import { useUserFilters } from '../../contexts/UserFiltersContext';
 import { useListening } from '../../contexts/ListeningContext';
@@ -44,6 +45,7 @@ export function DeclensionPage() {
   const navigate = useNavigate();
   const { user, isAdmin } = useAuthContext();
   const { showSnackbar } = useSnackbar();
+  const { confirm, confirmDialog } = useConfirm();
   const {
     loading: contextLoading,
     customDeclensionCards: contextCustomDeclensionCards,
@@ -123,7 +125,12 @@ export function DeclensionPage() {
   };
 
   const handleResetAllData = async () => {
-    if (window.confirm('Are you sure? This will erase all your progress and cannot be undone.')) {
+    const confirmed = await confirm({
+      title: 'Reset Progress',
+      message: 'Are you sure? This will erase all your progress and cannot be undone.',
+      confirmLabel: 'Reset',
+    });
+    if (confirmed) {
       await clearDeclensionData();
       session.rebuildSession();
       setShowSettings(false);
@@ -197,10 +204,10 @@ export function DeclensionPage() {
     }
   };
 
-  const deleteCard = (
+  const deleteCard = async (
     card: DeclensionCard,
     { skipConfirm = false }: { skipConfirm?: boolean } = {}
-  ): boolean => {
+  ): Promise<boolean> => {
     const isCustomCard = card.isCustom === true;
     if (!isCustomCard && !isAdmin) return false;
 
@@ -208,7 +215,12 @@ export function DeclensionPage() {
       const confirmMessage = isCustomCard
         ? 'Are you sure you want to delete this custom card?'
         : 'Are you sure you want to delete this system declension card? This will affect all users.';
-      if (!window.confirm(confirmMessage)) return false;
+      const confirmed = await confirm({
+        title: 'Delete Card',
+        message: confirmMessage,
+        confirmLabel: 'Delete',
+      });
+      if (!confirmed) return false;
     }
 
     session.removeCards((c) => c.id === card.id);
@@ -231,7 +243,7 @@ export function DeclensionPage() {
 
   const handleDeleteEditingCard = () => {
     if (!editingCard) return;
-    deleteCard(editingCard, { skipConfirm: true });
+    void deleteCard(editingCard, { skipConfirm: true });
     setShowEditModal(false);
     setEditingCard(null);
   };
@@ -337,7 +349,7 @@ export function DeclensionPage() {
               canEdit={card.isCustom || isAdmin}
               onNext={practice.next}
               onEdit={() => openEditModal(card)}
-              onDelete={() => deleteCard(card)}
+              onDelete={() => void deleteCard(card)}
               onUpdateTranslation={translationHandler(card)}
             />
           )}
@@ -353,8 +365,8 @@ export function DeclensionPage() {
               onContinue={goForward}
               onReassess={session.reassess}
               onEdit={() => openEditModal(card)}
-              onDelete={() => {
-                if (deleteCard(card)) goForward();
+              onDelete={async () => {
+                if (await deleteCard(card)) goForward();
               }}
               onUpdateTranslation={translationHandler(card)}
             />
@@ -373,7 +385,7 @@ export function DeclensionPage() {
               onRate={session.rate}
               onGoBack={goBack}
               onEdit={() => openEditModal(card)}
-              onDelete={() => deleteCard(card)}
+              onDelete={() => void deleteCard(card)}
               onUpdateTranslation={translationHandler(card)}
             />
           )}
@@ -404,6 +416,7 @@ export function DeclensionPage() {
           if (editingCard) replaceCard({ ...editingCard, audioUrl });
         }}
       />
+      {confirmDialog}
     </>
   );
 }

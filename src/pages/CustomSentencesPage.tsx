@@ -6,6 +6,7 @@ import { EditSentenceModal } from '../components/EditSentenceModal';
 import { InlineAudioRegenerator } from '../components/AudioRegenerator';
 import { saveCustomSentences, subscribeCustomSentences } from '../lib/storage/customSentences';
 import { findCustomSentenceWithSamePolish } from '../lib/utils/findDuplicateCustomSentence';
+import { foldForSearch, matchesSearch } from '../lib/utils/foldForSearch';
 import type { CustomSentence, CEFRLevel, Sentence } from '../types/sentences';
 import { ALL_LEVELS } from '../types/sentences';
 import { createCustomItem } from '../types/customItems';
@@ -14,6 +15,7 @@ import { useCustomCollection } from '../hooks/useCustomCollection';
 import { useOptimistic } from '../hooks/useOptimistic';
 import { useReprioritizeSentence } from '../hooks/useReprioritizeSentence';
 import { useSnackbar } from '../hooks/useSnackbar';
+import { useConfirm } from '../hooks/useConfirm';
 import { useReviewData } from '../hooks/useReviewData';
 import {
   PageContainer,
@@ -70,6 +72,7 @@ export function CustomSentencesPage() {
   const { isAdmin } = useAuthContext();
   const { showSnackbar } = useSnackbar();
   const { setCustomSentences: setContextCustomSentences } = useReviewData();
+  const { confirm, confirmDialog } = useConfirm();
   const {
     items: customSentencesBase,
     setItems: setCustomSentencesBase,
@@ -137,10 +140,13 @@ export function CustomSentencesPage() {
   };
 
   const handleDeleteSentence = useCallback(
-    (sentenceId: string) => {
-      if (!window.confirm('Are you sure you want to delete this sentence?')) {
-        return;
-      }
+    async (sentenceId: string) => {
+      const confirmed = await confirm({
+        title: 'Delete Sentence',
+        message: 'Are you sure you want to delete this sentence?',
+        confirmLabel: 'Delete',
+      });
+      if (!confirmed) return;
 
       const newCustomSentences = customSentences.filter((s) => s.id !== sentenceId);
 
@@ -151,6 +157,7 @@ export function CustomSentencesPage() {
       });
     },
     [
+      confirm,
       customSentences,
       applyOptimisticCustomSentences,
       setCustomSentencesBase,
@@ -209,6 +216,7 @@ export function CustomSentencesPage() {
         sentence={editingSentence}
         isCreating={!editingSentence}
       />
+      {confirmDialog}
     </PageContainer>
   );
 }
@@ -241,12 +249,10 @@ const SentencesTable = memo(function SentencesTable({
 
   const { sortField, sortDirection } = sort;
   const filteredAndSortedSentences = useMemo(() => {
-    const query = searchQuery.toLowerCase();
+    const query = foldForSearch(searchQuery);
     const filtered = customSentences.filter(
       (sentence) =>
-        (!query ||
-          sentence.polish.toLowerCase().includes(query) ||
-          sentence.english.toLowerCase().includes(query)) &&
+        matchesSearch(query, sentence.polish, sentence.english) &&
         (!levelFilter || sentence.level === levelFilter)
     );
     return sortItems(filtered, COMPARATORS, { sortField, sortDirection });

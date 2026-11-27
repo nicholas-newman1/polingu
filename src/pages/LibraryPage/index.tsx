@@ -3,6 +3,7 @@ import { Box, Typography, CircularProgress } from '@mui/material';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
 import { styled } from '../../lib/styled';
 import { useSnackbar } from '../../hooks/useSnackbar';
+import { useAuthContext } from '../../hooks/useAuthContext';
 import {
   getCachedBooks,
   subscribeToBooksUpdates,
@@ -65,9 +66,16 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
 
+/** Remounts the library for each account, so one account's books never show under another. */
 export function LibraryPage() {
+  const { user } = useAuthContext();
+  const userId = user?.uid ?? null;
+  return <Library key={userId ?? ''} userId={userId} />;
+}
+
+function Library({ userId }: { userId: string | null }) {
   const [books, setBooks] = useState<Book[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(userId !== null);
   const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
   const [bookToDelete, setBookToDelete] = useState<Book | null>(null);
   const [bookToEdit, setBookToEdit] = useState<Book | null>(null);
@@ -94,10 +102,12 @@ export function LibraryPage() {
   }, []);
 
   useEffect(() => {
+    if (!userId) return;
     let cancelled = false;
+    let subscribed = false;
 
     getCachedBooks().then((cached) => {
-      if (!cancelled) {
+      if (!cancelled && !subscribed) {
         setBooks(cached);
         setLoading(false);
       }
@@ -105,6 +115,7 @@ export function LibraryPage() {
 
     const unsubscribe = subscribeToBooksUpdates((updatedBooks: Book[]) => {
       if (!cancelled) {
+        subscribed = true;
         setBooks(updatedBooks);
         setLoading(false);
       }
@@ -120,7 +131,7 @@ export function LibraryPage() {
       cancelled = true;
       unsubscribe();
     };
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
     const loadProgress = async () => {

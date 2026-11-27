@@ -18,6 +18,7 @@ import { FormTextField, FormYesNoField, VerbDetailsFields } from './FormFields';
 import { useEditModalClose } from '../hooks/useEditModalClose';
 import { useOptimisticModalSave, type ModalSaveResult } from '../hooks/useOptimisticModalSave';
 import { useAuthContext } from '../hooks/useAuthContext';
+import { useConfirm } from '../hooks/useConfirm';
 import { AudioRegenerator } from './AudioRegenerator';
 import type { DrillableForm, ConjugationForm, Aspect, VerbClass } from '../types/conjugation';
 import { TENSE_LABELS } from '../types/conjugation';
@@ -93,6 +94,7 @@ export function EditConjugationModal({
   onAudioUpdated,
 }: EditConjugationModalProps) {
   const { isAdmin } = useAuthContext();
+  const { confirm, confirmDialog } = useConfirm();
 
   const {
     control,
@@ -145,13 +147,15 @@ export function EditConjugationModal({
     save(verbUpdates, formUpdates);
   };
 
-  const handleDelete = () => {
-    if (
-      onDelete &&
-      window.confirm(
-        'Are you sure you want to delete this verb? This will remove all conjugation forms for this verb and affect all users.'
-      )
-    ) {
+  const handleDelete = async () => {
+    if (!onDelete) return;
+    const confirmed = await confirm({
+      title: 'Delete Verb',
+      message:
+        'Are you sure you want to delete this verb? This will remove all conjugation forms for this verb and affect all users.',
+      confirmLabel: 'Delete',
+    });
+    if (confirmed) {
       onDelete();
       handleClose();
     }
@@ -256,6 +260,7 @@ export function EditConjugationModal({
           onDelete && { label: 'Delete Verb', icon: <DeleteIcon />, onClick: handleDelete }
         }
       />
+      {confirmDialog}
     </ModalDialog>
   );
 }

@@ -6,6 +6,7 @@ import { AddVocabularyModal } from '../components/AddVocabularyModal';
 import { InlineAudioRegenerator } from '../components/AudioRegenerator';
 import { saveCustomVocabulary, subscribeCustomVocabulary } from '../lib/storage/customVocabulary';
 import { findCustomWordWithSamePolish } from '../lib/utils/findDuplicateCustomVocabularyPolish';
+import { foldForSearch, matchesSearch } from '../lib/utils/foldForSearch';
 import capitalize from '../lib/utils/capitalize';
 import {
   PARTS_OF_SPEECH,
@@ -20,6 +21,7 @@ import { useReprioritizeVocabularyWord } from '../hooks/useReprioritizeVocabular
 import { useCustomCollection } from '../hooks/useCustomCollection';
 import { useOptimistic } from '../hooks/useOptimistic';
 import { useSnackbar } from '../hooks/useSnackbar';
+import { useConfirm } from '../hooks/useConfirm';
 import {
   PageContainer,
   FiltersRow,
@@ -70,7 +72,8 @@ const GenderChip = styled(Chip)<{
 export function CustomVocabularyPage() {
   const { isAdmin } = useAuthContext();
   const { showSnackbar } = useSnackbar();
-  const { canReprioritize, reprioritize, showDuplicateError } = useReprioritizeVocabularyWord();
+  const { canReprioritize, reprioritize, reportDuplicatePolish } = useReprioritizeVocabularyWord();
+  const { confirm, confirmDialog } = useConfirm();
   const {
     items: customWordsBase,
     setItems: setCustomWordsBase,
@@ -88,11 +91,7 @@ export function CustomVocabularyPage() {
   const [editingWord, setEditingWord] = useState<CustomVocabularyWord | null>(null);
 
   const handleAddWord = (wordData: Omit<CustomVocabularyWord, 'id' | 'isCustom' | 'createdAt'>) => {
-    const duplicate = findCustomWordWithSamePolish(customWords, wordData.polish);
-    if (duplicate) {
-      showDuplicateError(duplicate.id);
-      return false;
-    }
+    if (reportDuplicatePolish(customWords, wordData.polish)) return false;
     const newWord = createCustomItem(wordData);
     const newCustomWords = [newWord, ...customWordsBase];
 
@@ -122,10 +121,13 @@ export function CustomVocabularyPage() {
   };
 
   const handleDeleteWord = useCallback(
-    (wordId: string) => {
-      if (!window.confirm('Are you sure you want to delete this word?')) {
-        return;
-      }
+    async (wordId: string) => {
+      const confirmed = await confirm({
+        title: 'Delete Word',
+        message: 'Are you sure you want to delete this word?',
+        confirmLabel: 'Delete',
+      });
+      if (!confirmed) return;
 
       const newCustomWords = customWords.filter((w) => w.id !== wordId);
 
@@ -134,7 +136,7 @@ export function CustomVocabularyPage() {
         setCustomWordsBase(newCustomWords);
       });
     },
-    [customWords, applyOptimisticCustomWords, setCustomWordsBase]
+    [confirm, customWords, applyOptimisticCustomWords, setCustomWordsBase]
   );
 
   const handleOpenAddModal = useCallback(() => setShowAddModal(true), []);
@@ -185,6 +187,7 @@ export function CustomVocabularyPage() {
         onSave={editingWord ? handleEditWord : handleAddWord}
         editWord={editingWord}
       />
+      {confirmDialog}
     </PageContainer>
   );
 }
@@ -218,13 +221,10 @@ const VocabularyTable = memo(function VocabularyTable({
 
   const { sortField, sortDirection } = sort;
   const filteredAndSortedWords = useMemo(() => {
-    const query = searchQuery.toLowerCase();
+    const query = foldForSearch(searchQuery);
     const filtered = customWords.filter(
       (word) =>
-        (!query ||
-          word.polish.toLowerCase().includes(query) ||
-          word.english.toLowerCase().includes(query) ||
-          word.notes?.toLowerCase().includes(query)) &&
+        matchesSearch(query, word.polish, word.english, word.notes) &&
         (!posFilter || word.partOfSpeech === posFilter) &&
         (!genderFilter || word.gender === genderFilter)
     );

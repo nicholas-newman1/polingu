@@ -2,6 +2,7 @@ import type { VocabularyReviewDataStore, VocabularyWordId } from '../../types/vo
 import type { TranslationDirection } from '../../types/common';
 import forgetCard from '../fsrsUtils/forgetCard';
 import { removeFromDayLists } from '../reviewSession/sessionLists';
+import getOrCreateVocabularyCardReviewData from './getOrCreateVocabularyCardReviewData';
 
 export function canReprioritizeVocabularyWord(
   stores: Record<TranslationDirection, VocabularyReviewDataStore>,
@@ -15,6 +16,10 @@ export function canReprioritizeVocabularyWord(
   );
 }
 
+/**
+ * "Review again": resets a studied word and puts it first in line among the new words.
+ * A word never studied in this direction is left as it is.
+ */
 export default function reprioritizeVocabularyWord(
   store: VocabularyReviewDataStore,
   wordId: VocabularyWordId,
@@ -25,6 +30,31 @@ export default function reprioritizeVocabularyWord(
   if (!entry || entry.fsrsCard.state === 0) {
     return store;
   }
-  const forgotten = { ...store, cards: { ...store.cards, [key]: forgetCard(entry, now) } };
-  return removeFromDayLists(forgotten, wordId, now.getTime());
+  const forgotten = { ...forgetCard(entry, now), prioritizedAt: now.getTime() };
+  return removeFromDayLists(
+    { ...store, cards: { ...store.cards, [key]: forgotten } },
+    wordId,
+    now.getTime()
+  );
+}
+
+/**
+ * "Study next": puts a word not yet studied first in line among the new words, so it is
+ * introduced before the others. A word already studied is left as it is.
+ */
+export function prioritizeNewVocabularyWord(
+  store: VocabularyReviewDataStore,
+  wordId: VocabularyWordId,
+  now: Date = new Date()
+): VocabularyReviewDataStore {
+  const key = String(wordId);
+  const entry = getOrCreateVocabularyCardReviewData(wordId, store);
+  if (entry.fsrsCard.state !== 0) {
+    return store;
+  }
+  const prioritized = {
+    ...store,
+    cards: { ...store.cards, [key]: { ...entry, prioritizedAt: now.getTime() } },
+  };
+  return removeFromDayLists(prioritized, wordId, now.getTime());
 }

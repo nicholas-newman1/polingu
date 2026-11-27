@@ -25,7 +25,6 @@ import { VocabularyPage } from '../../../../src/pages/VocabularyPage';
 import { ConjugationPage } from '../../../../src/pages/ConjugationPage';
 import { AspectPairsPage } from '../../../../src/pages/AspectPairsPage';
 import { ConsonantDrillerPage } from '../../../../src/pages/ConsonantDrillerPage';
-import { StatsPage } from '../../../../src/pages/StatsPage';
 
 function CurrentPath() {
   const { pathname } = useLocation();
@@ -99,7 +98,6 @@ export function AppTree({ path, extra }: { path: string; extra?: ReactNode }) {
           </Route>
           <Route path="/aspect-pairs" element={<AspectPairsPage />} />
           <Route path="/consonant-driller" element={<ConsonantDrillerPage />} />
-          <Route path="/stats" element={<StatsPage />} />
           <Route path="/listen/play" element={<ListeningPlayer />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>

@@ -30,6 +30,7 @@ import { useReviewData } from '../../hooks/useReviewData';
 import { useProgressStats } from '../../hooks/useProgressStats';
 import { useOptimistic } from '../../hooks/useOptimistic';
 import { useSnackbar } from '../../hooks/useSnackbar';
+import { useConfirm } from '../../hooks/useConfirm';
 import { useTranslationContext } from '../../hooks/useTranslationContext';
 import { useReviewSession } from '../../hooks/useReviewSession';
 import {
@@ -50,6 +51,7 @@ export function SentencesPage({ mode }: SentencesPageProps) {
   const navigate = useNavigate();
   const { user, isAdmin } = useAuthContext();
   const { showSnackbar } = useSnackbar();
+  const { confirm, confirmDialog } = useConfirm();
   const { handleDailyLimitReached } = useTranslationContext();
   const {
     loading: contextLoading,
@@ -168,11 +170,13 @@ export function SentencesPage({ mode }: SentencesPageProps) {
   };
 
   const handleResetAllData = async () => {
-    if (
-      window.confirm(
-        'Are you sure? This will erase all your sentence progress for this direction and cannot be undone.'
-      )
-    ) {
+    const confirmed = await confirm({
+      title: 'Reset Progress',
+      message:
+        'Are you sure? This will erase all your sentence progress for this direction and cannot be undone.',
+      confirmLabel: 'Reset',
+    });
+    if (confirmed) {
       await clearSentenceReviewData(currentDirection);
       session.rebuildSession();
       setShowSettings(false);
@@ -449,6 +453,7 @@ export function SentencesPage({ mode }: SentencesPageProps) {
           if (editingSentence) replaceSentence({ ...editingSentence, audioUrl });
         }}
       />
+      {confirmDialog}
     </>
   );
 }

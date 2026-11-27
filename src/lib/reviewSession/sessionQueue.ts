@@ -17,8 +17,6 @@ export interface SessionQueueState<S> {
   sessionQueue: S[];
   learningQueue: S[];
   currentIndex: number;
-  reviewCount: number;
-  newCount: number;
   isPracticeAhead: boolean;
   ratingCounter: number;
   isBuilt: boolean;
@@ -56,8 +54,6 @@ export function createSessionQueueState<S>(): SessionQueueState<S> {
     sessionQueue: [],
     learningQueue: [],
     currentIndex: 0,
-    reviewCount: 0,
-    newCount: 0,
     isPracticeAhead: false,
     ratingCounter: 0,
     isBuilt: false,
@@ -91,8 +87,6 @@ export function sessionQueueReducer<S extends { reviewData: unknown }>(
         sessionQueue: [...reviewCards, ...newCards],
         learningQueue: [],
         currentIndex: 0,
-        reviewCount: reviewCards.length,
-        newCount: newCards.length,
         isPracticeAhead: action.isPracticeAhead,
         isBuilt: true,
         stats: createEmptyStats(),
@@ -168,6 +162,15 @@ export function isSessionFinished<S>(state: SessionQueueState<S>): boolean {
 
 export function getRemainingCount<S>(state: SessionQueueState<S>): number {
   return state.sessionQueue.length - state.currentIndex + state.learningQueue.length;
+}
+
+/** Splits the cards still to pass by kind; a new card stays new until it is passed. */
+export function getRemainingCountsByKind<S extends { isNew: boolean }>(
+  state: SessionQueueState<S>
+): { reviewCount: number; newCount: number } {
+  const remaining = [...state.sessionQueue.slice(state.currentIndex), ...state.learningQueue];
+  const newCount = remaining.filter((item) => item.isNew).length;
+  return { reviewCount: remaining.length - newCount, newCount };
 }
 
 export function getUpcomingSessionCards<S>(state: SessionQueueState<S>, count: number): S[] {

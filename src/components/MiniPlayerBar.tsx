@@ -77,6 +77,7 @@ export function MiniPlayerBar() {
             togglePlay();
           }}
           sx={{ color: 'text.primary' }}
+          aria-label={isPlaying ? 'Pause' : 'Play'}
         >
           {isPlaying ? <PauseIcon /> : <PlayArrowIcon />}
         </IconButton>
@@ -87,6 +88,7 @@ export function MiniPlayerBar() {
             setQueueOpen(true);
           }}
           sx={{ color: 'text.secondary' }}
+          aria-label="Queue"
         >
           <MoreVertIcon fontSize="small" />
         </IconButton>

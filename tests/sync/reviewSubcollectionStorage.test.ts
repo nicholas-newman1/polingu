@@ -1,4 +1,5 @@
 import { describe, expect, test, vi } from 'vitest';
+import { createEmptyCard } from 'ts-fsrs';
 import { createReviewSubcollectionStorage } from '../../src/lib/storage/createReviewSubcollectionStorage';
 import { vocabularyReviewStorage } from '../../src/lib/storage/vocabularyReviewStorage';
 import { declensionReviewStorage } from '../../src/lib/storage/declensionReviewStorage';
@@ -108,6 +109,22 @@ describe('saving reviews', () => {
     await storage().saveCardsDiff(null, { 1: card(1, '2026-11-20T10:00:00Z') });
 
     expect(remote.get(`${cardsPath}/1`)).toEqual(serverCard(1, '2026-11-20T10:00:00Z'));
+  });
+
+  test('a card never rated (no last review yet) is written without undefined fields', async () => {
+    signIn(UID);
+    const unseen: DeclensionCardReviewData = {
+      cardId: 7,
+      fsrsCard: createEmptyCard(new Date('2026-11-20T10:00:00Z')),
+    };
+    await storage().saveCardsDiff(null, { 7: unseen });
+
+    const saved = remote.get(`${cardsPath}/7`)!;
+    expect(saved).toMatchObject({
+      cardId: 7,
+      fsrsCard: { state: 0, due: '2026-11-20T10:00:00.000Z' },
+    });
+    expect('last_review' in (saved.fsrsCard as object)).toBe(false);
   });
 
   test('only cards that changed since the previous store are written', async () => {

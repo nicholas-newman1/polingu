@@ -19,6 +19,8 @@ import {
   press,
   querySnackbar,
   rowWith,
+  selectFor,
+  settle,
   type,
   waitForDialogsToClose,
 } from './support/ui';
@@ -32,6 +34,7 @@ setupUiTests();
 
 const UID = LEARNER.uid;
 const DUPLICATE = 'This declension card is already in your collection.';
+const ERROR = 'The declined word must appear in the Back (Answer).';
 
 async function openPage() {
   renderApp('/my-declensions');
@@ -66,6 +69,13 @@ async function editRow(question: string) {
   return findDialog('Edit Custom Card');
 }
 
+/** Answers the "Delete Card" confirmation shown over the edit dialog. */
+async function answerDeleteConfirmation(answer: 'Delete' | 'Cancel') {
+  const confirmation = await findDialog('Delete Card');
+  expect(confirmation).toHaveTextContent('Are you sure you want to delete this card?');
+  fireEvent.click(within(confirmation).getByRole('button', { name: answer }));
+}
+
 const KOTA = { front: 'Nie mam ___.', back: 'Nie mam kota.', declined: 'kota' };
 
 describe('My Declensions', () => {
@@ -79,6 +89,7 @@ describe('My Declensions', () => {
     const dialog = await openCreateDialog();
     await fillCard(dialog, { ...KOTA, front: ' Nie mam ___. ' });
     await choose('Case', 'Genitive', dialog);
+    await choose('Gender', 'Masculine', dialog);
     await choose('Number', 'Singular', dialog);
     type(within(dialog).getByRole('textbox', { name: 'Hint (optional)' }), ' nie + genitive ');
     await press(within(dialog).getByRole('button', { name: 'Create Card' }));
@@ -104,6 +115,59 @@ describe('My Declensions', () => {
     expect(Object.values(serverCards())[0]).not.toHaveProperty('english');
   });
 
+  test('a new card starts with no case or gender and cannot be created until both are chosen', async () => {
+    await openPage();
+    const dialog = await openCreateDialog();
+    expect(selectFor('Case', dialog)).not.toHaveTextContent(/[a-z]/i);
+    expect(selectFor('Gender', dialog)).not.toHaveTextContent(/[a-z]/i);
+    await fillCard(dialog, KOTA);
+    const create = within(dialog).getByRole('button', { name: 'Create Card' });
+    await settle();
+    expect(create).toBeDisabled();
+
+    await choose('Case', 'Genitive', dialog);
+    await settle();
+    expect(create).toBeDisabled();
+    await choose('Gender', 'Masculine', dialog);
+    await waitFor(() => expect(create).toBeEnabled());
+  });
+
+  test('editing a card keeps its saved case and gender', async () => {
+    seedCustom(UID, 'customDeclension', [
+      declensionCard('d1', KOTA.front, 'kota', { case: 'Accusative', gender: 'Feminine' }),
+    ]);
+    await openPage();
+    const dialog = await editRow(KOTA.front);
+    expect(selectFor('Case', dialog)).toHaveTextContent('Accusative');
+    expect(selectFor('Gender', dialog)).toHaveTextContent('Feminine');
+  });
+
+  test('the declined word must appear as a whole word in the answer', async () => {
+    await openPage();
+    const dialog = await openCreateDialog();
+    await fillCard(dialog, { ...KOTA, declined: 'kot' });
+    await choose('Case', 'Genitive', dialog);
+    await choose('Gender', 'Masculine', dialog);
+    const create = within(dialog).getByRole('button', { name: 'Create Card' });
+    const declined = within(dialog).getByRole('textbox', { name: 'Declined Word' });
+
+    // "kot" is only part of "kota".
+    expect(within(dialog).getByText(ERROR)).toBeInTheDocument();
+    expect(declined).toHaveAttribute('aria-invalid', 'true');
+    expect(create).toBeDisabled();
+
+    // Case and the full stop after it are ignored.
+    type(declined, 'KOTA');
+    expect(within(dialog).queryByText(ERROR)).toBeNull();
+    await waitFor(() => expect(create).toBeEnabled());
+
+    // Changing the answer checks again.
+    type(within(dialog).getByRole('textbox', { name: 'Back (Answer)' }), 'Nie mam psa.');
+    expect(within(dialog).getByText(ERROR)).toBeInTheDocument();
+    expect(create).toBeDisabled();
+    expect(serverCards()).toEqual({});
+  });
+
   test('a card with the same question, answer, case, gender and number is refused', async () => {
     seedCustom(UID, 'customDeclension', [declensionCard('d1', KOTA.front, 'kota')]);
     await openPage();
@@ -111,6 +175,7 @@ describe('My Declensions', () => {
     const dialog = await openCreateDialog();
     await fillCard(dialog, { ...KOTA, front: 'nie  MAM ___.', declined: 'Kota ' });
     await choose('Case', 'Genitive', dialog);
+    await choose('Gender', 'Masculine', dialog);
     await press(within(dialog).getByRole('button', { name: 'Create Card' }));
 
     const snackbar = await findSnackbar(DUPLICATE);
@@ -129,6 +194,7 @@ describe('My Declensions', () => {
     const dialog = await openCreateDialog();
     await fillCard(dialog, KOTA);
     await choose('Case', 'Accusative', dialog);
+    await choose('Gender', 'Masculine', dialog);
     await press(within(dialog).getByRole('button', { name: 'Create Card' }));
 
     await waitFor(() => expect(Object.keys(serverCards())).toHaveLength(2));
@@ -144,6 +210,7 @@ describe('My Declensions', () => {
     const dialog = await openCreateDialog();
     await fillCard(dialog, KOTA);
     await choose('Case', 'Genitive', dialog);
+    await choose('Gender', 'Masculine', dialog);
     await press(within(dialog).getByRole('button', { name: 'Create Card' }));
 
     const snackbar = await findSnackbar(DUPLICATE);
@@ -201,6 +268,7 @@ describe('My Declensions', () => {
       'nie + genitive'
     );
     type(within(dialog).getByRole('textbox', { name: 'Hint (optional)' }), '');
+    type(within(dialog).getByRole('textbox', { name: 'Back (Answer)' }), 'Nie mam kotka.');
     type(within(dialog).getByRole('textbox', { name: 'Declined Word' }), 'kotka');
     await press(within(dialog).getByRole('button', { name: 'Save Changes' }));
 
@@ -214,7 +282,7 @@ describe('My Declensions', () => {
     const dialog = await editRow(KOTA.front);
     fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }));
 
-    expect(window.confirm).toHaveBeenCalledWith('Are you sure you want to delete this card?');
+    await answerDeleteConfirmation('Delete');
     await waitForDialogsToClose();
     await waitFor(() => expect(screen.queryByText(KOTA.front)).toBeNull());
     await waitFor(() => expect(serverCards()).toEqual({}));
@@ -225,17 +293,19 @@ describe('My Declensions', () => {
     await openPage();
     const dialog = await editRow(KOTA.front);
     fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }));
+    await answerDeleteConfirmation('Delete');
 
     await waitFor(() => expect(serverCards()).toEqual({}));
-    expect(window.confirm).toHaveBeenCalledTimes(1);
+    await waitForDialogsToClose();
+    expect(screen.queryByRole('dialog', { name: 'Delete Card' })).toBeNull();
   });
 
   test('declining the confirmation in the edit dialog keeps the card', async () => {
     seedCustom(UID, 'customDeclension', [declensionCard('d1', KOTA.front, 'kota')]);
     await openPage();
     const dialog = await editRow(KOTA.front);
-    vi.mocked(window.confirm).mockReturnValue(false);
     fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }));
+    await answerDeleteConfirmation('Cancel');
 
     const stillOpen = await expectDialogToStayOpen('Edit Custom Card');
     expect(within(stillOpen).getByRole('textbox', { name: 'Declined Word' })).toHaveValue('kota');

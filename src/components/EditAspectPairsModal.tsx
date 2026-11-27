@@ -10,6 +10,7 @@ import { VerbDetailsFields } from './FormFields';
 import { useBackClose } from '../hooks/useBackClose';
 import { useOptimisticModalSave, type ModalSaveResult } from '../hooks/useOptimisticModalSave';
 import { useAuthContext } from '../hooks/useAuthContext';
+import { useConfirm } from '../hooks/useConfirm';
 import { AudioRegenerator } from './AudioRegenerator';
 import type { AspectPairCard } from '../types/aspectPairs';
 import type { Aspect, VerbClass } from '../types/conjugation';
@@ -132,6 +133,7 @@ export function EditAspectPairsModal({
   onVerb2AudioUpdated,
 }: EditAspectPairsModalProps) {
   const { isAdmin } = useAuthContext();
+  const { confirm, confirmDialog } = useConfirm();
   const [pendingVerb1AudioUrl, setPendingVerb1AudioUrl] = useState<string | null>(null);
   const [pendingVerb2AudioUrl, setPendingVerb2AudioUrl] = useState<string | null>(null);
 
@@ -189,13 +191,15 @@ export function EditAspectPairsModal({
     save(verb1Updates, verb2Updates);
   };
 
-  const handleUnlink = () => {
-    if (
-      onUnlink &&
-      window.confirm(
-        'Are you sure you want to unlink this aspect pair? The verbs will remain but will no longer be paired together. This affects all users.'
-      )
-    ) {
+  const handleUnlink = async () => {
+    if (!onUnlink) return;
+    const confirmed = await confirm({
+      title: 'Unlink Pair',
+      message:
+        'Are you sure you want to unlink this aspect pair? The verbs will remain but will no longer be paired together. This affects all users.',
+      confirmLabel: 'Unlink',
+    });
+    if (confirmed) {
       onUnlink();
       handleClose();
     }
@@ -265,6 +269,7 @@ export function EditAspectPairsModal({
             : undefined
         }
       />
+      {confirmDialog}
     </ModalDialog>
   );
 }

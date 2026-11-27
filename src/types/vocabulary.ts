@@ -67,6 +67,8 @@ export interface VocabularyCardReviewData {
   wordId: VocabularyWordId;
   fsrsCard: FSRSCard;
   log?: ReviewLog;
+  /** When the learner asked to study this word next; such unseen words come before other new words. */
+  prioritizedAt?: number;
 }
 
 export interface VocabularyReviewDataStore {

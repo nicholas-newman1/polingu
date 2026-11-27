@@ -1,6 +1,7 @@
 import { useState, memo } from 'react';
 import { Box, Typography, Chip } from '@mui/material';
 import { useDeclension } from '../../hooks/useReviewData';
+import { useConfirm } from '../../hooks/useConfirm';
 import { updateDeclensionCard, deleteDeclensionCard } from '../../lib/storage/systemDeclension';
 import { EditDeclensionModal } from '../../components/EditDeclensionModal';
 import type { DeclensionCard } from '../../types';
@@ -30,6 +31,7 @@ function DeclensionRowContent({ card }: { card: DeclensionCard }) {
 export const DeclensionsTab = memo(function DeclensionsTab() {
   const { systemDeclensionCards, setSystemDeclensionCards } = useDeclension();
   const [editingCard, setEditingCard] = useState<DeclensionCard | null>(null);
+  const { confirm, confirmDialog } = useConfirm();
   const { deleteItem, patchItem } = useAdminItems<
     DeclensionCard,
     Partial<Omit<DeclensionCard, 'id' | 'isCustom'>>
@@ -53,8 +55,13 @@ export const DeclensionsTab = memo(function DeclensionsTab() {
         getAudioUrl={(card) => card.audioUrl}
         renderContent={(card) => <DeclensionRowContent card={card} />}
         onSelect={setEditingCard}
-        onDelete={(card) => {
-          if (window.confirm(`Delete card "${card.declined}"?`)) void deleteItem(card);
+        onDelete={async (card) => {
+          const confirmed = await confirm({
+            title: 'Delete Card',
+            message: `Delete card "${card.declined}"?`,
+            confirmLabel: 'Delete',
+          });
+          if (confirmed) void deleteItem(card);
         }}
       />
 
@@ -67,6 +74,7 @@ export const DeclensionsTab = memo(function DeclensionsTab() {
           patchItem(editingCard, { audioUrl }, { error: 'Failed to update audio' })
         }
       />
+      {confirmDialog}
     </>
   );
 });

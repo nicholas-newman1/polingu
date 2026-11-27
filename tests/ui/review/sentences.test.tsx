@@ -99,7 +99,7 @@ describe('going back and finishing', () => {
 
     await session.rate('Easy');
     expect(sentenceText(page, 'Lubię kawę.')).toBeInTheDocument();
-    expect(session.status()).toBe('0 reviews · 2 new · 1 remaining');
+    expect(session.status()).toBe('0 reviews · 1 new · 1 remaining');
     await settle();
     expect(storedCard(PL_EN, 's1')).toMatchObject({ state: State.Review, reps: 1 });
   });

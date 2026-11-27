@@ -20,20 +20,6 @@ async function translateText(
   }
 }
 
-/**
- * True while the source is still being composed rather than reworked: the new
- * text either extends the previously translated text or backspaces into it.
- * An edit in the middle is treated as a deliberate refinement instead.
- */
-function isContinuedEdit(source: string, previousSource: string): boolean {
-  return source.startsWith(previousSource) || previousSource.startsWith(source);
-}
-
-interface AutoFilledValue {
-  source: string;
-  written: string;
-}
-
 interface DirectionOptions<K extends TranslationKey> {
   targetLang: 'EN' | 'PL';
   vocabulary?: boolean;
@@ -44,10 +30,9 @@ interface DirectionOptions<K extends TranslationKey> {
 
 /**
  * Debounced translation of a source field into its counterpart. The counterpart
- * is written only when it is empty, or when it still holds this hook's own
- * previous output and the source is being extended rather than reworked, so a
- * translation fired mid-sentence corrects itself as typing continues while
- * anything the user wrote or settled on is left alone.
+ * is written only when it is empty or still holds this hook's own previous
+ * output, so it follows every change to the source, a wholesale replacement
+ * included, while anything the user wrote or settled on is left alone.
  */
 function useTranslateIntoEmptyField<K extends TranslationKey>({
   targetLang,
@@ -62,7 +47,8 @@ function useTranslateIntoEmptyField<K extends TranslationKey>({
   const latest = useRef({ getTargetValue, onTranslated });
   latest.current = { getTargetValue, onTranslated };
 
-  const autoFilled = useRef<Map<K, AutoFilledValue>>(new Map());
+  // The value this hook last wrote into each counterpart.
+  const autoFilled = useRef<Map<K, string>>(new Map());
   // Invalidate in-flight work on every source edit, before the next debounce fires.
   const generation = useRef(0);
   const sequences = useRef<Map<K, number>>(new Map());
@@ -78,12 +64,10 @@ function useTranslateIntoEmptyField<K extends TranslationKey>({
     };
   }, []);
 
-  const canWrite = useCallback((key: K, source: string, target: string) => {
-    if (!target) return true;
-    const previous = autoFilled.current.get(key);
-    if (!previous || previous.written !== target) return false;
-    return isContinuedEdit(source, previous.source);
-  }, []);
+  const canWrite = useCallback(
+    (key: K, target: string) => !target || autoFilled.current.get(key) === target,
+    []
+  );
 
   const scheduleTranslation = useCallback(
     (key: K, sourceText: string) => {
@@ -104,17 +88,12 @@ function useTranslateIntoEmptyField<K extends TranslationKey>({
         return next;
       });
 
+      // Emptying the source leaves an auto-filled counterpart replaceable by the next text.
       const trimmed = sourceText.trim();
-      if (!trimmed) {
-        // Emptying the source restarts the pair: whatever was auto-filled from
-        // it stays replaceable by the next thing typed.
-        const previous = autoFilled.current.get(key);
-        if (previous) autoFilled.current.set(key, { ...previous, source: '' });
-        return;
-      }
+      if (!trimmed) return;
 
       const targetBefore = (latest.current.getTargetValue(key) ?? '').trim();
-      if (!canWrite(key, trimmed, targetBefore)) return;
+      if (!canWrite(key, targetBefore)) return;
       // A pending translation may finish after blur, but must not reopen replacement.
       const windowToken = windowTokens.current.get(key) ?? 0;
 
@@ -136,7 +115,7 @@ function useTranslateIntoEmptyField<K extends TranslationKey>({
           // If the window closed mid-flight the value still lands, but it is
           // not recorded, so it is the user's from here on.
           if ((windowTokens.current.get(key) ?? 0) === windowToken) {
-            autoFilled.current.set(key, { source: trimmed, written: translated.trim() });
+            autoFilled.current.set(key, translated.trim());
           }
           latest.current.onTranslated(key, translated);
         } finally {
@@ -186,7 +165,7 @@ interface AutoTranslateOptions<K extends TranslationKey> {
 /**
  * Keeps a Polish/English field pair in sync in whichever direction is needed:
  * editing one side fills the other while that other side is empty or still
- * holds an auto-translation of what is being typed. Blurring a field settles
+ * holds this hook's own auto-translation. Blurring a field settles
  * its counterpart, and every source edit invalidates pending translation results.
  */
 export function usePolishEnglishAutoTranslate<K extends TranslationKey>({

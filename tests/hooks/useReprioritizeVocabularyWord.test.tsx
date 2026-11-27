@@ -6,7 +6,7 @@ import type { SnackbarOptions } from '../../src/contexts/SnackbarContext';
 import { fsrsCard, inDays, State } from '../helpers/fsrs';
 import { emptyStore, entry, type Store, type Stores } from './support/reviewSession';
 import { withSnackbar } from './support/providers';
-import { renderWithReviewData } from './support/reviewDataProviders';
+import { renderWithReviewData, type ReviewDataSeed } from './support/reviewDataProviders';
 
 // The providers' live custom-collection listeners are the Firestore boundary.
 vi.mock('../../src/lib/storage/customVocabulary', () => ({
@@ -26,6 +26,7 @@ vi.mock('../../src/lib/storage/saveVocabularyReviewData', () => ({ default: vi.f
 
 const QUEUED = 'Word queued for review again.';
 const DUPLICATE = 'This Polish word is already in your custom vocabulary.';
+const BUILT_IN_DUPLICATE = 'This Polish word is already in the built-in deck.';
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
@@ -40,11 +41,11 @@ const studiedStore = (...ids: string[]): Store =>
   });
 
 /** Renders the hook inside the real vocabulary review data, plus a snackbar. */
-function renderReprioritize(vocabularyStores: Stores) {
+function renderReprioritize(vocabularyStores: Stores, seed: ReviewDataSeed = {}) {
   const snackbar = withSnackbar();
   const h = renderWithReviewData(
     useReprioritizeVocabularyWord,
-    { vocabularyStores },
+    { ...seed, vocabularyStores },
     { wrapper: snackbar.wrapper }
   );
   /** The action offered by the last snackbar shown. */
@@ -98,6 +99,90 @@ describe('useReprioritizeVocabularyWord', () => {
     ]);
     expect(h.showSnackbar).toHaveBeenLastCalledWith(QUEUED, 'success');
     expect(h.result.current.canReprioritize('kot')).toBe(false);
+  });
+
+  describe('reportDuplicatePolish', () => {
+    const builtInDom = { id: 79, polish: 'dom', english: 'house' };
+    const customKot = {
+      id: 'custom_1',
+      polish: 'kot',
+      english: 'cat',
+      isCustom: true as const,
+      createdAt: 1,
+    };
+
+    test('reports a custom duplicate first, ignoring case and spacing', () => {
+      const h = renderReprioritize(
+        { 'pl-to-en': emptyStore(), 'en-to-pl': emptyStore() },
+        { systemWords: [builtInDom] }
+      );
+      let reported = false;
+      act(() => {
+        reported = h.result.current.reportDuplicatePolish([customKot], ' KOT ');
+      });
+      expect(reported).toBe(true);
+      expect(h.showSnackbar).toHaveBeenLastCalledWith(DUPLICATE, 'error', undefined);
+    });
+
+    test('refuses a built-in word, and its "Review again" re-queues the studied system word', () => {
+      const h = renderReprioritize(
+        { 'pl-to-en': studiedStore('79'), 'en-to-pl': emptyStore() },
+        { systemWords: [builtInDom] }
+      );
+      let reported = false;
+      act(() => {
+        reported = h.result.current.reportDuplicatePolish([customKot], 'Dom');
+      });
+      expect(reported).toBe(true);
+      expect(h.showSnackbar).toHaveBeenLastCalledWith(BUILT_IN_DUPLICATE, 'error', {
+        action: { label: 'Review again', onClick: expect.any(Function) },
+      });
+
+      act(() => h.action()!.onClick());
+
+      expect(h.saved()).toEqual([
+        { direction: 'pl-to-en', store: expect.objectContaining({ reviewedToday: [] }) },
+      ]);
+      expect(h.saved()[0].store.cards['79'].fsrsCard.state).toBe(State.New);
+      expect(h.showSnackbar).toHaveBeenLastCalledWith(QUEUED, 'success');
+    });
+
+    test('offers "Study next" for a built-in word never studied, which puts it first in both directions', async () => {
+      const h = renderReprioritize(
+        { 'pl-to-en': emptyStore(), 'en-to-pl': emptyStore() },
+        { systemWords: [builtInDom] }
+      );
+      act(() => {
+        h.result.current.reportDuplicatePolish([], 'dom');
+      });
+      expect(h.showSnackbar).toHaveBeenLastCalledWith(
+        BUILT_IN_DUPLICATE,
+        'error',
+        expect.objectContaining({ action: expect.objectContaining({ label: 'Study next' }) })
+      );
+
+      await act(async () => {
+        h.action()!.onClick();
+      });
+      expect(h.showSnackbar).toHaveBeenLastCalledWith(
+        'Word moved to the front of your new words.',
+        'success'
+      );
+      const saved = h.saved();
+      expect(saved.map((s) => s.direction).sort()).toEqual(['en-to-pl', 'pl-to-en']);
+      for (const { store } of saved) {
+        expect(store.cards[String(builtInDom.id)].prioritizedAt).toBe(Date.now());
+      }
+    });
+
+    test('passes words that are in neither the custom nor the built-in deck', () => {
+      const h = renderReprioritize(
+        { 'pl-to-en': emptyStore(), 'en-to-pl': emptyStore() },
+        { systemWords: [builtInDom] }
+      );
+      expect(h.result.current.reportDuplicatePolish([customKot], 'pies')).toBe(false);
+      expect(h.showSnackbar).not.toHaveBeenCalled();
+    });
   });
 
   test('throws a clear error outside ReviewDataProvider', () => {

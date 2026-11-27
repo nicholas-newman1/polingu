@@ -61,7 +61,6 @@ const OTHER_PAGES: Array<[string, string]> = [
   ['/conjugation', 'Conjugation'],
   ['/aspect-pairs', 'Aspect pairs'],
   ['/consonant-driller', 'Consonant driller'],
-  ['/stats', 'Statistics'],
   ['/audio', 'Audio'],
   ['/listen', 'Listening'],
 ];

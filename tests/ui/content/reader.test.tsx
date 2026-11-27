@@ -17,6 +17,7 @@ vi.mock('pdfjs-dist', () => import('./support/pdfjs'));
 setupUiTests();
 
 const UID = LEARNER.uid;
+const LOAD_FAILED = "Couldn't load this book. Check your connection and try again.";
 const progressPath = (bookId: string) => userPath(UID, 'data', `reader-progress-${bookId}`);
 const savedProgress = (bookId = 'b1') =>
   remote.get(progressPath(bookId)) as ReadingProgress | undefined;
@@ -201,10 +202,40 @@ describe('Reading a text book', () => {
     ).toBeInTheDocument();
   });
 
-  test('a text that cannot be downloaded shows an error', async () => {
+  test('a text that cannot be downloaded explains the failure, logging the real error', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.stubGlobal('fetch', async () => ({ ok: false, text: async () => '' }));
     renderApp('/reader/b1');
-    expect(await screen.findByText('Failed to load text content.')).toBeInTheDocument();
+    expect(await screen.findByText(LOAD_FAILED)).toBeInTheDocument();
+    expect(screen.queryByText('Failed to load text content.')).toBeNull();
+    expect(consoleError).toHaveBeenCalledWith(
+      'Failed to load book:',
+      expect.objectContaining({ message: 'Failed to load text content.' })
+    );
+  });
+
+  test('Retry loads the book again once the connection is back', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.stubGlobal('fetch', async () => {
+      throw new TypeError('Failed to fetch');
+    });
+    renderApp('/reader/b1');
+    expect(await screen.findByText(LOAD_FAILED)).toBeInTheDocument();
+    expect(screen.queryByText('Failed to fetch')).toBeNull();
+
+    vi.stubGlobal('fetch', async () => ({ ok: true, text: async () => TEXT }));
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(await screen.findByText('Izabela')).toBeInTheDocument();
+  });
+
+  test('a book that failed to load offers a way back to the library', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.stubGlobal('fetch', async () => {
+      throw new TypeError('Failed to fetch');
+    });
+    renderApp('/reader/b1');
+    fireEvent.click(await screen.findByRole('link', { name: 'Back to Library' }));
+    expect(await screen.findByText('My Library')).toBeInTheDocument();
   });
 
   test('a book that does not exist says so', async () => {
@@ -366,8 +397,10 @@ describe('Reading a PDF', () => {
   });
 
   test('a PDF whose download link cannot be fetched shows an error', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
     uploads.downloadFails = true;
     renderApp('/reader/b1');
-    expect(await screen.findByText('storage/unauthorized')).toBeInTheDocument();
+    expect(await screen.findByText(LOAD_FAILED)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
   });
 });

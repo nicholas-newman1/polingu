@@ -4,6 +4,7 @@ import {
   createSessionQueueState,
   getCurrentSessionCard,
   getRemainingCount,
+  getRemainingCountsByKind,
   getUpcomingSessionCards,
   isSessionFinished,
   sessionQueueReducer,
@@ -11,10 +12,17 @@ import {
   type SessionQueueState,
 } from '../lib/reviewSession/sessionQueue';
 
-export interface SessionQueue<S extends { reviewData: unknown }> extends SessionQueueState<S> {
+interface SessionQueueItem {
+  reviewData: unknown;
+  isNew: boolean;
+}
+
+export interface SessionQueue<S extends SessionQueueItem> extends SessionQueueState<S> {
   currentCard: S | undefined;
   isFinished: boolean;
   totalRemaining: number;
+  reviewCount: number;
+  newCount: number;
   sessionTotal: number;
   start: (cards: SessionCards<S>, options?: { isPracticeAhead?: boolean }) => void;
   rate: (reviewData: S['reviewData'], rating: Grade) => void;
@@ -24,7 +32,7 @@ export interface SessionQueue<S extends { reviewData: unknown }> extends Session
   upcoming: (count: number) => S[];
 }
 
-export function useSessionQueue<S extends { reviewData: unknown }>(): SessionQueue<S> {
+export function useSessionQueue<S extends SessionQueueItem>(): SessionQueue<S> {
   const [state, dispatch] = useReducer(
     sessionQueueReducer<S>,
     undefined,
@@ -59,6 +67,7 @@ export function useSessionQueue<S extends { reviewData: unknown }>(): SessionQue
     currentCard: getCurrentSessionCard(state),
     isFinished: isSessionFinished(state),
     totalRemaining: getRemainingCount(state),
+    ...getRemainingCountsByKind(state),
     sessionTotal: state.sessionQueue.length,
     start,
     rate,

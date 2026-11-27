@@ -1,6 +1,11 @@
 [
   {
-    "origin": ["https://polish-declension.web.app", "http://localhost:5173"],
+    "origin": [
+      "https://polish-declension.web.app",
+      "https://polish-declension.firebaseapp.com",
+      "http://localhost:5173",
+      "https://finless-demystify-unopened.ngrok-free.dev"
+    ],
     "method": ["GET", "HEAD"],
     "maxAgeSeconds": 3600
   }

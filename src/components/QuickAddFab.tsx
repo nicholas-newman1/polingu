@@ -9,9 +9,7 @@ import { useAddToVocabulary } from '../hooks/useAddToVocabulary';
 import { useAddSentence } from '../hooks/useAddSentence';
 import { useListening } from '../contexts/ListeningContext';
 import { useAudioPlayerContext } from '../contexts/AudioPlayerContext';
-import { BOTTOM_MENU_BAR_HEIGHT } from '../constants/layout';
-import { LISTENING_MINI_BAR_HEIGHT } from './ListeningMiniBar';
-import { MINI_PLAYER_HEIGHT } from './MiniPlayerBar';
+import { getQuickAddBottomOffset } from '../lib/quickAddBottomOffset';
 
 const SPRING_OUT = 'cubic-bezier(0.34, 1.56, 0.64, 1)';
 const SPRING_SOFT = 'cubic-bezier(0.34, 1.4, 0.64, 1)';
@@ -127,11 +125,11 @@ export function QuickAddFab() {
   const [open, setOpen] = useState(false);
   const fabRef = useRef<HTMLButtonElement | null>(null);
 
-  const listeningBarHeight =
-    isActive && currentItem && pathname !== '/listen/play' ? LISTENING_MINI_BAR_HEIGHT : 0;
-  const audioBarHeight =
-    pathname === '/audio' && activeAudioId && audioItem ? MINI_PLAYER_HEIGHT : 0;
-  const bottomOffset = BOTTOM_MENU_BAR_HEIGHT + Math.max(listeningBarHeight, audioBarHeight);
+  const bottomOffset = getQuickAddBottomOffset({
+    pathname,
+    listeningBarShown: Boolean(isActive && currentItem),
+    audioMiniPlayerShown: Boolean(activeAudioId && audioItem),
+  });
 
   useEffect(() => {
     if (!open) return;

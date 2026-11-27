@@ -5,16 +5,17 @@ import { useSessionQueue } from '../../src/hooks/useSessionQueue';
 
 interface Item {
   id: string;
+  isNew: boolean;
   reviewData: { version: number };
 }
 
-const item = (id: string): Item => ({ id, reviewData: { version: 0 } });
-const items = (...ids: string[]) => ids.map(item);
+const item = (id: string, isNew = false): Item => ({ id, isNew, reviewData: { version: 0 } });
+const items = (ids: string[], isNew = false) => ids.map((id) => item(id, isNew));
 
 function renderQueue(reviewIds: string[], newIds: string[] = []) {
   const hook = renderHook(() => useSessionQueue<Item>());
   act(() =>
-    hook.result.current.start({ reviewCards: items(...reviewIds), newCards: items(...newIds) })
+    hook.result.current.start({ reviewCards: items(reviewIds), newCards: items(newIds, true) })
   );
   const queue = () => hook.result.current;
   return {
@@ -45,6 +46,16 @@ describe('useSessionQueue', () => {
     });
   });
 
+  test('the review and new counts fall as cards are passed', () => {
+    const { queue, rate } = renderQueue(['R1'], ['N1', 'N2']);
+    rate(Rating.Good);
+    expect(queue()).toMatchObject({ reviewCount: 0, newCount: 2, totalRemaining: 2 });
+    rate(Rating.Again);
+    expect(queue()).toMatchObject({ reviewCount: 0, newCount: 2, totalRemaining: 2 });
+    rate(Rating.Good);
+    expect(queue()).toMatchObject({ reviewCount: 0, newCount: 1, totalRemaining: 1 });
+  });
+
   test('Again cards are retried in the order they failed, after the main queue', () => {
     const { current, rate, queue } = renderQueue(['A', 'B', 'C']);
     rate(Rating.Again);
@@ -66,7 +77,7 @@ describe('useSessionQueue', () => {
     const { queue, rate } = renderQueue(['A', 'B']);
     rate(Rating.Again, 7);
     rate(Rating.Good);
-    expect(queue().currentCard).toEqual({ id: 'A', reviewData: { version: 7 } });
+    expect(queue().currentCard).toEqual({ id: 'A', isNew: false, reviewData: { version: 7 } });
   });
 
   test('rating after the session has finished changes nothing', () => {
@@ -131,7 +142,7 @@ describe('useSessionQueue', () => {
 
     act(() => queue().reassess(({ id }) => id === 'A', { version: 9 }, true));
     expect(queue().isFinished).toBe(false);
-    expect(queue().currentCard).toEqual({ id: 'A', reviewData: { version: 9 } });
+    expect(queue().currentCard).toEqual({ id: 'A', isNew: false, reviewData: { version: 9 } });
     // Re-assessing is a correction, not another rating.
     expect(queue().stats.reviewed).toBe(2);
     rate(Rating.Good);
@@ -151,13 +162,15 @@ describe('useSessionQueue', () => {
 
     rate(Rating.Good);
     // The retry keeps its review data from the Again rating.
-    expect(queue().currentCard).toEqual({ id: 'A2', reviewData: { version: 3 } });
+    expect(queue().currentCard).toEqual({ id: 'A2', isNew: false, reviewData: { version: 3 } });
   });
 
   test('starting again replaces the cards and clears retries and stats', () => {
     const { queue, rate, current } = renderQueue(['A']);
     rate(Rating.Again);
-    act(() => queue().start({ reviewCards: [], newCards: items('X') }, { isPracticeAhead: true }));
+    act(() =>
+      queue().start({ reviewCards: [], newCards: items(['X'], true) }, { isPracticeAhead: true })
+    );
 
     expect(current()).toBe('X');
     expect(queue()).toMatchObject({

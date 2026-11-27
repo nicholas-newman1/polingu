@@ -84,10 +84,9 @@ Add your own learning material alongside the built-in content:
 - Audio is generated automatically for custom items
 - Duplicate detection lets you re-prioritize an existing card instead of adding a copy
 
-### Statistics
+### Progress
 
 - **Dashboard** — Learned, total, and due counts per module, with reorderable feature cards
-- **Stats page** — Detailed breakdown of studied, mastered, and total cards, including system vs. custom content
 
 ### Accounts & Cloud Sync
 
@@ -149,6 +148,18 @@ the number of separate files fetched through the tunnel. It has a separate cache
 uses the SWC React plugin. Normal `npm start`, `npm run build`, and `npm run preview`
 explicitly use the project's Vite 7 runtime; the explicit paths prevent the aliased
 phone runtime's CLI from taking over those commands.
+
+## Storage CORS
+
+Card audio (`polingu-audio`) and books (`polish-declension.firebasestorage.app`) are
+fetched straight from Cloud Storage, so both buckets need the origins in `cors.json`:
+the hosted app, the local dev server on port 5173 and the phone-preview tunnel. A dev
+server on any other port can't load audio or open books. After changing the file, apply
+it to both buckets:
+
+```bash
+gsutil cors set cors.json gs://polingu-audio gs://polish-declension.firebasestorage.app
+```
 
 ## Data & Audio Scripts
 

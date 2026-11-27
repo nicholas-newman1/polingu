@@ -6,6 +6,7 @@ import { BoxIconButton } from './BoxIconButton';
 import Home from '@mui/icons-material/Home';
 import { Header } from './Header';
 import { QuickAddFab } from './QuickAddFab';
+import { ScrollToTopOnNavigate } from './ScrollToTopOnNavigate';
 import { DeclensionCheatSheetDrawer } from './BottomMenu/DeclensionCheatSheetDrawer';
 import { AdjectiveDeclensionCheatSheetDrawer } from './BottomMenu/AdjectiveDeclensionCheatSheetDrawer';
 import { ConsonantsCheatSheetDrawer } from './BottomMenu/ConsonantsCheatSheetDrawer';
@@ -84,7 +85,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/audio': 'Audio',
   '/listen': 'Listening',
   '/listen/play': 'Listening',
-  '/stats': 'Statistics',
+  '/settings': 'Settings',
   '/admin/generator': 'Sentence Generator',
 };
 
@@ -150,6 +151,7 @@ function LayoutContent() {
             </HeaderRow>
 
             <ContentArea>
+              <ScrollToTopOnNavigate />
               <Outlet />
             </ContentArea>
           </MainArea>

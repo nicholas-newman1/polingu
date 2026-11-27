@@ -38,6 +38,7 @@ import { DIRECTION_ROUTES, otherDirection, toModeStats } from '../../lib/reviewS
 import { useAuthContext } from '../../hooks/useAuthContext';
 import { useOptimistic } from '../../hooks/useOptimistic';
 import { useSnackbar } from '../../hooks/useSnackbar';
+import { useConfirm } from '../../hooks/useConfirm';
 import { useReviewData } from '../../hooks/useReviewData';
 import { useProgressStats } from '../../hooks/useProgressStats';
 import { useReviewSession } from '../../hooks/useReviewSession';
@@ -53,7 +54,8 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
   const navigate = useNavigate();
   const { user, isAdmin } = useAuthContext();
   const { showSnackbar } = useSnackbar();
-  const { showDuplicateError } = useReprioritizeVocabularyWord();
+  const { confirm, confirmDialog } = useConfirm();
+  const { reportDuplicatePolish } = useReprioritizeVocabularyWord();
   const {
     loading: contextLoading,
     vocabularyReviewStores,
@@ -163,11 +165,13 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
   };
 
   const handleResetAllData = async () => {
-    if (
-      window.confirm(
-        'Are you sure? This will erase all your vocabulary progress for this direction and cannot be undone.'
-      )
-    ) {
+    const confirmed = await confirm({
+      title: 'Reset Progress',
+      message:
+        'Are you sure? This will erase all your vocabulary progress for this direction and cannot be undone.',
+      confirmLabel: 'Reset',
+    });
+    if (confirmed) {
       await clearVocabularyReviewData(currentDirection);
       session.rebuildSession();
       setShowSettings(false);
@@ -175,11 +179,7 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
   };
 
   const handleAddWord = (wordData: WordFormData) => {
-    const duplicate = findCustomWordWithSamePolish(customWords, wordData.polish);
-    if (duplicate) {
-      showDuplicateError(duplicate.id);
-      return false;
-    }
+    if (reportDuplicatePolish(customWords, wordData.polish)) return false;
     const newWord = createCustomItem(wordData);
     const newCustomWords = [...customWords, newWord];
     saveCustom(newCustomWords);
@@ -226,14 +226,19 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
     setShowAddModal(true);
   };
 
-  const deleteWord = (word: VocabularyWord): boolean => {
+  const deleteWord = async (word: VocabularyWord): Promise<boolean> => {
     if (!canModify(word)) return false;
     const isCustomWord = word.isCustom === true;
 
     const confirmMessage = isCustomWord
       ? 'Are you sure you want to delete this custom word?'
       : 'Are you sure you want to delete this system vocabulary word? This will affect all users.';
-    if (!window.confirm(confirmMessage)) return false;
+    const confirmed = await confirm({
+      title: 'Delete Word',
+      message: confirmMessage,
+      confirmLabel: 'Delete',
+    });
+    if (!confirmed) return false;
 
     if (isCustomWord) {
       saveCustom(customWords.filter((w) => w.id !== word.id));
@@ -343,7 +348,7 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
                   onNext={practice.next}
                   onGenerateSentences={getGenerateSentencesHandler(word)}
                   onEdit={() => openEditModal(word)}
-                  onDelete={() => deleteWord(word)}
+                  onDelete={() => void deleteWord(word)}
                 />
               )}
               renderHistory={(word) => (
@@ -360,8 +365,8 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
                   onReassess={session.reassess}
                   onGenerateSentences={getGenerateSentencesHandler(word)}
                   onEdit={() => openEditModal(word)}
-                  onDelete={() => {
-                    if (deleteWord(word)) goForward();
+                  onDelete={async () => {
+                    if (await deleteWord(word)) goForward();
                   }}
                 />
               )}
@@ -389,7 +394,7 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
                   onRate={session.rate}
                   onGoBack={goBack}
                   onEdit={() => openEditModal(word)}
-                  onDelete={() => deleteWord(word)}
+                  onDelete={() => void deleteWord(word)}
                   onGenerateSentences={getGenerateSentencesHandler(word)}
                 />
               )}
@@ -417,6 +422,7 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
         onClose={() => setGenerateSentencesForWord(null)}
         onSave={handleSaveGeneratedSentences}
       />
+      {confirmDialog}
     </>
   );
 }

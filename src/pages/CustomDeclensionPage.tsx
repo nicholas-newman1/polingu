@@ -6,6 +6,7 @@ import { EditDeclensionModal } from '../components/EditDeclensionModal';
 import { InlineAudioRegenerator } from '../components/AudioRegenerator';
 import { saveCustomDeclension, subscribeCustomDeclension } from '../lib/storage/customDeclension';
 import { findCustomDeclensionDuplicate } from '../lib/utils/findDuplicateCustomDeclension';
+import { foldForSearch, matchesSearch } from '../lib/utils/foldForSearch';
 import reprioritizeDeclensionCard, {
   canReprioritizeDeclensionCard,
 } from '../lib/storage/reprioritizeDeclensionCard';
@@ -16,6 +17,7 @@ import { useCustomCollection } from '../hooks/useCustomCollection';
 import { useDeclension } from '../hooks/useReviewData';
 import { useOptimistic } from '../hooks/useOptimistic';
 import { useSnackbar } from '../hooks/useSnackbar';
+import { useConfirm } from '../hooks/useConfirm';
 import {
   PageContainer,
   FiltersRow,
@@ -84,6 +86,7 @@ const NUMBERS: Number[] = ['Singular', 'Plural'];
 export function CustomDeclensionPage() {
   const { isAdmin } = useAuthContext();
   const { showSnackbar } = useSnackbar();
+  const { confirm, confirmDialog } = useConfirm();
   const { declensionReviewStore, updateDeclensionReviewStore } = useDeclension();
   const {
     items: customCardsBase,
@@ -168,10 +171,15 @@ export function CustomDeclensionPage() {
   );
 
   const handleDeleteCard = useCallback(
-    (cardId: string) => {
-      if (window.confirm('Are you sure you want to delete this card?')) deleteCard(cardId);
+    async (cardId: string) => {
+      const confirmed = await confirm({
+        title: 'Delete Card',
+        message: 'Are you sure you want to delete this card?',
+        confirmLabel: 'Delete',
+      });
+      if (confirmed) deleteCard(cardId);
     },
-    [deleteCard]
+    [confirm, deleteCard]
   );
 
   const handleOpenAddModal = useCallback(() => setShowAddModal(true), []);
@@ -233,6 +241,7 @@ export function CustomDeclensionPage() {
         card={editingCard}
         isCreating={!editingCard}
       />
+      {confirmDialog}
     </PageContainer>
   );
 }
@@ -267,14 +276,10 @@ const DeclensionTable = memo(function DeclensionTable({
 
   const { sortField, sortDirection } = sort;
   const filteredAndSortedCards = useMemo(() => {
-    const query = searchQuery.toLowerCase();
+    const query = foldForSearch(searchQuery);
     const filtered = customCards.filter(
       (card) =>
-        (!query ||
-          card.front.toLowerCase().includes(query) ||
-          card.back.toLowerCase().includes(query) ||
-          card.declined.toLowerCase().includes(query) ||
-          card.hint?.toLowerCase().includes(query)) &&
+        matchesSearch(query, card.front, card.back, card.declined, card.hint) &&
         (!caseFilter || card.case === caseFilter) &&
         (!genderFilter || card.gender === genderFilter) &&
         (!numberFilter || card.number === numberFilter)

@@ -50,9 +50,9 @@ export function useDirectionalReprioritize<Store, Id>({
   );
 
   const showDuplicateError = useCallback(
-    (duplicateId: Id) => {
+    (duplicateId: Id, message: string = duplicateMessage) => {
       showSnackbar(
-        duplicateMessage,
+        message,
         'error',
         canReprioritize(duplicateId)
           ? { action: { label: 'Review again', onClick: () => reprioritize(duplicateId) } }

@@ -13,7 +13,7 @@ import {
 import { seedCustom, word } from './support/data';
 import { remote } from './support/firestore';
 import { network } from '../../sync/support/harness';
-import { findSnackbar, querySnackbar, settle, waitForMenuToClose } from './support/ui';
+import { findDialog, findSnackbar, querySnackbar, settle, waitForMenuToClose } from './support/ui';
 
 vi.mock('firebase/firestore', () => import('./support/firestore'));
 vi.mock('firebase/functions', () => import('./support/functions'));
@@ -120,7 +120,7 @@ describe('Signing in', () => {
 });
 
 describe('Navigation', () => {
-  test('the account menu leads to the learner’s own content, statistics and settings', async () => {
+  test('the account menu leads to the learner’s own content and settings', async () => {
     const app = renderApp('/dashboard');
     const go = async (item: string, path: string) => {
       fireEvent.click(await screen.findByRole('button', { name: 'Account menu' }));
@@ -132,9 +132,25 @@ describe('Navigation', () => {
     expect(await screen.findByRole('heading', { name: 'My Vocabulary', level: 5 })).toBeVisible();
     await go('My Declensions', '/my-declensions');
     await go('My Sentences', '/my-sentences');
-    await go('Statistics', '/stats');
     await go('Settings', '/settings');
-    expect(await screen.findByRole('heading', { name: 'Settings' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Settings', level: 5 })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Settings', level: 6 })).toBeInTheDocument();
+  });
+
+  test('the account menu no longer offers a statistics page', async () => {
+    renderApp('/dashboard');
+    fireEvent.click(await screen.findByRole('button', { name: 'Account menu' }));
+    await screen.findByRole('menuitem', { name: 'Settings' });
+    expect(screen.queryByRole('menuitem', { name: 'Statistics' })).toBeNull();
+  });
+
+  test('a new page opens scrolled to the top', async () => {
+    const app = renderApp('/my-vocabulary');
+    await screen.findByRole('heading', { name: 'My Vocabulary', level: 5 });
+    vi.mocked(window.scrollTo).mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'Home' }));
+    await waitFor(() => expect(app.location()).toBe('/dashboard'));
+    expect(window.scrollTo).toHaveBeenCalledWith(0, 0);
   });
 
   test('the account menu greets the learner by first name', async () => {
@@ -172,7 +188,7 @@ describe('Navigation', () => {
     const drill = renderApp('/conjugation/recognition');
     const header = (await screen.findByRole('heading', { name: 'Recognition', level: 6 }))
       .parentElement!;
-    fireEvent.click(within(header).getByRole('button'));
+    fireEvent.click(within(header).getByRole('button', { name: 'Back' }));
     expect(await screen.findByText('Conjugation page')).toBeInTheDocument();
     expect(drill.location()).toBe('/conjugation');
   });
@@ -266,8 +282,12 @@ describe('Snackbar', () => {
     remote.fail({ op: 'deleteDoc' });
     const row = screen.getByText('kot').closest('tr')!;
     fireEvent.click(within(row).getByRole('button', { name: 'delete word' }));
+    fireEvent.click(
+      within(await findDialog('Delete Word')).getByRole('button', { name: 'Delete' })
+    );
 
     const snackbar = await findSnackbar('Failed to save. Please try again.');
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     fireEvent.click(within(snackbar).getByRole('button', { name: 'Close' }));
     await waitFor(() => expect(querySnackbar('Failed to save. Please try again.')).toBeNull());
   });

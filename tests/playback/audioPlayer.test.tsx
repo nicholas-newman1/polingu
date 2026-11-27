@@ -142,9 +142,9 @@ describe('starting a track from the library', () => {
     await tapTrack(NEWS);
     const el = media.withSource(trackUrl('t1'));
 
-    fireEvent.click(within(miniPlayer()).getByTestId('PauseIcon').closest('button')!);
+    fireEvent.click(within(miniPlayer()).getByRole('button', { name: 'Pause' }));
     expect(el.paused).toBe(true);
-    fireEvent.click(within(miniPlayer()).getByTestId('PlayArrowIcon').closest('button')!);
+    fireEvent.click(within(miniPlayer()).getByRole('button', { name: 'Play' }));
     expect(el.paused).toBe(false);
     expect(screen.getByTestId('location')).toHaveTextContent('/audio');
   });
@@ -197,11 +197,11 @@ describe('player page controls', () => {
     const el = media.withSource(trackUrl('t1'));
     expect(showsPause()).toBe(true);
 
-    fireEvent.click(playPauseButton());
+    fireEvent.click(within(controls()).getByRole('button', { name: 'Pause' }));
     expect(el.paused).toBe(true);
     expect(showsPause()).toBe(false);
 
-    fireEvent.click(playPauseButton());
+    fireEvent.click(within(controls()).getByRole('button', { name: 'Play' }));
     expect(el.paused).toBe(false);
     expect(showsPause()).toBe(true);
   });
@@ -274,13 +274,13 @@ describe('player page controls', () => {
     await openPlayerWith(NEWS);
     const el = media.withSource(trackUrl('t1'));
 
-    click('1x');
+    click('Playback speed 1x');
     fireEvent.change(within(screen.getByRole('menu')).getByRole('slider'), {
       target: { value: '1.5' },
     });
     fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' });
     expect(el.playbackRate).toBe(1.5);
-    expect(screen.getByRole('button', { name: '1.5x' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Playback speed 1.5x' })).toBeInTheDocument();
 
     media.play(2_000);
     expect(el.currentTime).toBeCloseTo(3, 5);
@@ -292,7 +292,7 @@ describe('player page controls', () => {
 
   test('the chosen speed also applies to a track that was not buffered', async () => {
     await openPlayerWith(NEWS);
-    click('1x');
+    click('Playback speed 1x');
     fireEvent.change(within(screen.getByRole('menu')).getByRole('slider'), {
       target: { value: '1.5' },
     });
@@ -303,7 +303,7 @@ describe('player page controls', () => {
     goTo('/audio/player');
 
     expect(playing()).toBe(trackUrl('t3'));
-    expect(screen.getByRole('button', { name: '1.5x' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Playback speed 1.5x' })).toBeInTheDocument();
     expect(media.onlyPlaying().playbackRate).toBe(1.5);
   });
 
@@ -792,7 +792,7 @@ describe('lock screen and headset controls', () => {
     await openPlayerWith(NEWS);
     media.play(20_000);
 
-    click('1x');
+    click('Playback speed 1x');
     fireEvent.change(within(screen.getByRole('menu')).getByRole('slider'), {
       target: { value: '2' },
     });

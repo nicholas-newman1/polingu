@@ -20,6 +20,7 @@ import { ModalFooter } from './ModalFooter';
 import { FormTextField, FormYesNoField, VerbDetailsFields } from './FormFields';
 import { useEditModalClose } from '../hooks/useEditModalClose';
 import { useOptimisticModalSave, type ModalSaveResult } from '../hooks/useOptimisticModalSave';
+import { useConfirm } from '../hooks/useConfirm';
 import { AudioRegenerator, InlineAudioRegenerator } from './AudioRegenerator';
 import type { Verb, Aspect, VerbClass, Tense, ConjugationForm } from '../types/conjugation';
 import {
@@ -113,6 +114,7 @@ export function EditVerbModal({
   verb,
   onAudioUpdated,
 }: EditVerbModalProps) {
+  const { confirm, confirmDialog } = useConfirm();
   const [editConjugations, setEditConjugations] = useState(() => cloneConjugations(verb));
   // Each edited English field's text as typed, so a comma or space can come before the
   // next translation (the parsed list drops them).
@@ -190,11 +192,14 @@ export function EditVerbModal({
     });
   };
 
-  const handleDelete = () => {
-    if (
-      onDelete &&
-      window.confirm('Delete this verb and all its conjugation forms? This affects all users.')
-    ) {
+  const handleDelete = async () => {
+    if (!onDelete) return;
+    const confirmed = await confirm({
+      title: 'Delete Verb',
+      message: 'Delete this verb and all its conjugation forms? This affects all users.',
+      confirmLabel: 'Delete',
+    });
+    if (confirmed) {
       onDelete();
       handleClose();
     }
@@ -335,6 +340,7 @@ export function EditVerbModal({
           onDelete && { label: 'Delete Verb', icon: <DeleteIcon />, onClick: handleDelete }
         }
       />
+      {confirmDialog}
     </ModalDialog>
   );
 }
