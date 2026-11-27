@@ -1,32 +1,9 @@
-import { useState, useCallback, useContext } from 'react';
+import { useContext } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import {
-  Box,
-  Drawer,
-  SwipeableDrawer,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  IconButton,
-  Skeleton,
-  Typography,
-  useMediaQuery,
-  useTheme,
-} from '@mui/material';
+import { Box } from '@mui/material';
 import { styled } from '../lib/styled';
 import { BoxIconButton } from './BoxIconButton';
-import Menu from '@mui/icons-material/Menu';
-import Close from '@mui/icons-material/Close';
 import Home from '@mui/icons-material/Home';
-import Check from '@mui/icons-material/Check';
-import AutoAwesome from '@mui/icons-material/AutoAwesome';
-import Storage from '@mui/icons-material/Storage';
-import { useReviewData } from '../hooks/useReviewData';
-import { useBackClose } from '../hooks/useBackClose';
-import type { ReviewCounts } from '../contexts/review';
-import { alpha } from '../lib/theme';
 import { Header } from './Header';
 import { QuickAddFab } from './QuickAddFab';
 import { DeclensionCheatSheetDrawer } from './BottomMenu/DeclensionCheatSheetDrawer';
@@ -38,15 +15,11 @@ import { TranslatorModal } from './BottomMenu/TranslatorModal';
 import { LimitReachedDialog } from './LimitReachedDialog';
 import { BottomMenuBar } from './BottomMenu/BottomMenuBar';
 import { useAuthContext } from '../hooks/useAuthContext';
-import { SITE_NAME } from '../constants';
-import { getOrderedDashboardItems } from '../constants/navigation';
-import { useAppSettings } from '../contexts/AppSettingsContext';
-import { SiteLogo } from './SiteLogo';
 import { PageTitleContext, PageTitleProvider } from '../contexts/PageTitleContext';
 import { AddToVocabularyProvider } from '../contexts/AddToVocabularyContext';
 import { AddSentenceProvider } from '../contexts/AddSentenceContext';
 import { ListeningMiniBar } from './ListeningMiniBar';
-import { DRAWER_WIDTH, HEADER_HEIGHT } from '../constants/layout';
+import { HEADER_HEIGHT } from '../constants/layout';
 
 const PageContainer = styled(Box)({
   minHeight: '100vh',
@@ -54,14 +27,11 @@ const PageContainer = styled(Box)({
   flexDirection: 'column',
 });
 
-const MainArea = styled(Box)(({ theme }) => ({
+const MainArea = styled(Box)({
   flex: 1,
   display: 'flex',
   flexDirection: 'column',
-  [theme.breakpoints.up('md')]: {
-    marginLeft: DRAWER_WIDTH,
-  },
-}));
+});
 
 const HeaderRow = styled(Box)(({ theme }) => ({
   display: 'flex',
@@ -75,7 +45,6 @@ const HeaderRow = styled(Box)(({ theme }) => ({
   zIndex: theme.zIndex.appBar + 1,
   backgroundColor: theme.palette.background.default,
   [theme.breakpoints.up('md')]: {
-    justifyContent: 'flex-end',
     padding: theme.spacing(0, 3),
   },
 }));
@@ -92,118 +61,6 @@ const ContentArea = styled(Box)(({ theme }) => ({
     paddingBottom: theme.spacing(16),
   },
 }));
-
-const MenuButton = styled(BoxIconButton)(({ theme }) => ({
-  [theme.breakpoints.up('md')]: {
-    display: 'none',
-  },
-}));
-
-const DrawerHeader = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  padding: theme.spacing(0, 2),
-  height: HEADER_HEIGHT,
-  borderBottom: `1px solid ${theme.palette.divider}`,
-}));
-
-const StyledNavItem = styled(ListItemButton)<{ $active?: boolean }>(({ theme, $active }) => ({
-  borderRadius: theme.spacing(1),
-  margin: theme.spacing(0.5, 1),
-  backgroundColor: $active ? theme.palette.action.selected : 'transparent',
-  '&:hover': {
-    backgroundColor: $active ? theme.palette.action.selected : theme.palette.action.hover,
-  },
-}));
-
-const ReviewBadge = styled(Box)<{ $complete?: boolean }>(({ theme, $complete }) => ({
-  minWidth: 24,
-  height: 24,
-  borderRadius: 12,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  fontSize: '0.75rem',
-  fontWeight: 600,
-  padding: '0 6px',
-  backgroundColor: $complete
-    ? alpha(theme.palette.success.main, 0.15)
-    : alpha(theme.palette.primary.main, 0.1),
-  color: $complete ? theme.palette.success.main : theme.palette.primary.main,
-}));
-
-interface NavItemProps {
-  path: string;
-  icon: React.ReactNode;
-  label: string;
-  active: boolean;
-  reviewCount?: number;
-  loading?: boolean;
-  onNavigate: (path: string) => void;
-}
-
-function NavItem({ path, icon, label, active, reviewCount, loading, onNavigate }: NavItemProps) {
-  const hasBadge = reviewCount !== undefined || loading;
-  const isComplete = reviewCount === 0;
-
-  return (
-    <ListItem disablePadding>
-      <StyledNavItem $active={active} onClick={() => onNavigate(path)}>
-        <ListItemIcon sx={{ minWidth: 40 }}>{icon}</ListItemIcon>
-        <ListItemText primary={label} slotProps={{ primary: { fontWeight: active ? 600 : 400 } }} />
-        {hasBadge &&
-          (loading ? (
-            <Skeleton variant="rounded" width={24} height={24} sx={{ borderRadius: 12 }} />
-          ) : (
-            <ReviewBadge $complete={isComplete}>
-              {isComplete ? <Check sx={{ fontSize: 16 }} /> : reviewCount}
-            </ReviewBadge>
-          ))}
-      </StyledNavItem>
-    </ListItem>
-  );
-}
-
-interface NavItemConfig {
-  path: string;
-  icon: typeof Home;
-  label: string;
-  reviewCountKey?: keyof ReviewCounts;
-  adminOnly?: boolean;
-}
-
-const DASHBOARD_NAV_ITEM: NavItemConfig = {
-  path: '/dashboard',
-  icon: Home,
-  label: 'Dashboard',
-};
-
-const ADMIN_NAV_ITEMS: NavItemConfig[] = [
-  {
-    path: '/admin/content',
-    icon: Storage,
-    label: 'Content',
-    adminOnly: true,
-  },
-  {
-    path: '/admin/generator',
-    icon: AutoAwesome,
-    label: 'Generator',
-    adminOnly: true,
-  },
-];
-
-function buildNavItems(dashboardOrder: string[] | undefined): NavItemConfig[] {
-  const ordered = getOrderedDashboardItems(dashboardOrder).map((item) => ({
-    path: item.path,
-    icon: item.icon,
-    label: item.label,
-    reviewCountKey: item.kind === 'feature' ? item.statsKey : undefined,
-  }));
-
-  return [DASHBOARD_NAV_ITEM, ...ordered, ...ADMIN_NAV_ITEMS];
-}
 
 const PAGE_TITLES: Record<string, string> = {
   '/dashboard': 'Dashboard',
@@ -231,25 +88,17 @@ const PAGE_TITLES: Record<string, string> = {
   '/admin/generator': 'Sentence Generator',
 };
 
+/**
+ * Back arrows for nested pages only; top-level pages use the Home button instead.
+ */
 const BACK_ROUTES: Record<string, string> = {
-  '/vocabulary': '/dashboard',
   '/vocabulary/recognition': '/vocabulary',
   '/vocabulary/production': '/vocabulary',
-  '/declension': '/dashboard',
-  '/sentences': '/dashboard',
   '/sentences/recognition': '/sentences',
   '/sentences/production': '/sentences',
-  '/conjugation': '/dashboard',
   '/conjugation/recognition': '/conjugation',
   '/conjugation/production': '/conjugation',
-  '/aspect-pairs': '/dashboard',
-  '/consonant-driller': '/dashboard',
-  '/library': '/dashboard',
-  '/audio': '/dashboard',
-  '/listen': '/dashboard',
   '/listen/play': '/listen',
-  '/admin/content': '/dashboard',
-  '/admin/generator': '/dashboard',
 };
 
 const BACK_ROUTE_PATTERNS: Array<{ pattern: RegExp; backPath: string }> = [
@@ -257,86 +106,16 @@ const BACK_ROUTE_PATTERNS: Array<{ pattern: RegExp; backPath: string }> = [
   { pattern: /^\/audio\//, backPath: '/audio' },
 ];
 
-function DrawerContent({
-  currentPath,
-  onNavigate,
-  onClose,
-  showCloseButton,
-  reviewCounts,
-  loading,
-  isAdmin,
-  navItems,
-}: {
-  currentPath: string;
-  onNavigate: (path: string) => void;
-  onClose: () => void;
-  showCloseButton: boolean;
-  reviewCounts: ReviewCounts;
-  loading: boolean;
-  isAdmin: boolean;
-  navItems: NavItemConfig[];
-}) {
-  const isActive = (path: string) => currentPath === path;
-  const visibleItems = navItems.filter((item) => !item.adminOnly || isAdmin);
-
-  return (
-    <>
-      <DrawerHeader>
-        <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <SiteLogo size={28} /> {SITE_NAME}
-        </Typography>
-        {showCloseButton && (
-          <IconButton onClick={onClose} size="small">
-            <Close />
-          </IconButton>
-        )}
-      </DrawerHeader>
-
-      <List sx={{ pt: 2 }}>
-        {visibleItems.map((item) => {
-          const active = isActive(item.path);
-          const reviewCount = item.reviewCountKey ? reviewCounts[item.reviewCountKey] : undefined;
-          return (
-            <NavItem
-              key={item.path}
-              path={item.path}
-              icon={<item.icon color={active ? 'primary' : 'inherit'} />}
-              label={item.label}
-              active={active}
-              reviewCount={reviewCount}
-              loading={item.reviewCountKey ? loading : undefined}
-              onNavigate={onNavigate}
-            />
-          );
-        })}
-      </List>
-    </>
-  );
-}
-
 function LayoutContent() {
-  const { user, signOut, isAdmin } = useAuthContext();
-  const { counts, loading: countsLoading } = useReviewData();
-  const { settings } = useAppSettings();
+  const { user, signOut } = useAuthContext();
   const location = useLocation();
   const navigate = useNavigate();
-  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
-  const theme = useTheme();
-  const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
   const pageTitleContext = useContext(PageTitleContext);
-  const navItems = buildNavItems(settings.dashboardOrder);
-
-  const closeMobileDrawer = useCallback(() => setMobileDrawerOpen(false), []);
-  useBackClose(mobileDrawerOpen, closeMobileDrawer);
+  const onDashboard = location.pathname === '/dashboard';
 
   const handleSignOut = async () => {
     await signOut();
     navigate('/login');
-  };
-
-  const handleNavigation = (path: string) => {
-    navigate(path);
-    setMobileDrawerOpen(false);
   };
 
   const defaultTitle = PAGE_TITLES[location.pathname];
@@ -345,67 +124,18 @@ function LayoutContent() {
     <AddToVocabularyProvider>
       <AddSentenceProvider>
         <PageContainer>
-          {isDesktop ? (
-            <Drawer
-              variant="permanent"
-              PaperProps={{
-                sx: {
-                  width: DRAWER_WIDTH,
-                  backgroundColor: 'background.default',
-                  borderRight: 1,
-                  borderColor: 'divider',
-                },
-              }}
-            >
-              <DrawerContent
-                currentPath={location.pathname}
-                onNavigate={handleNavigation}
-                onClose={() => {}}
-                showCloseButton={false}
-                reviewCounts={counts}
-                loading={countsLoading}
-                isAdmin={isAdmin}
-                navItems={navItems}
-              />
-            </Drawer>
-          ) : (
-            <SwipeableDrawer
-              anchor="left"
-              open={mobileDrawerOpen}
-              onOpen={() => setMobileDrawerOpen(true)}
-              onClose={() => setMobileDrawerOpen(false)}
-              swipeAreaWidth={20}
-              disableBackdropTransition
-              PaperProps={{
-                sx: {
-                  width: DRAWER_WIDTH,
-                  backgroundColor: 'background.default',
-                },
-              }}
-            >
-              <DrawerContent
-                currentPath={location.pathname}
-                onNavigate={handleNavigation}
-                onClose={() => setMobileDrawerOpen(false)}
-                showCloseButton={true}
-                reviewCounts={counts}
-                loading={countsLoading}
-                isAdmin={isAdmin}
-                navItems={navItems}
-              />
-            </SwipeableDrawer>
-          )}
-
           <MainArea>
             <HeaderRow>
-              <MenuButton
-                variant="outlined"
-                onClick={() => setMobileDrawerOpen(true)}
-                size="small"
-                aria-label="Open navigation menu"
-              >
-                <Menu />
-              </MenuButton>
+              {!onDashboard && (
+                <BoxIconButton
+                  variant="outlined"
+                  onClick={() => navigate('/dashboard')}
+                  size="small"
+                  aria-label="Home"
+                >
+                  <Home />
+                </BoxIconButton>
+              )}
               <Box sx={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
                 <Header
                   user={user}

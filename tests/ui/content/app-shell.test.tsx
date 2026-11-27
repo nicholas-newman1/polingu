@@ -12,7 +12,6 @@ import {
 } from './support/app';
 import { seedCustom, word } from './support/data';
 import { remote } from './support/firestore';
-import { screenSize } from './support/browser';
 import { network } from '../../sync/support/harness';
 import { findSnackbar, querySnackbar, settle, waitForMenuToClose } from './support/ui';
 
@@ -22,8 +21,6 @@ vi.mock('firebase/storage', () => import('./support/storage'));
 vi.mock('firebase/auth', () => import('./support/auth'));
 
 setupUiTests();
-
-const nav = () => within(document.querySelector('.MuiDrawer-root') as HTMLElement);
 
 describe('Signing in', () => {
   test('a spinner is shown until Firebase reports who is signed in', async () => {
@@ -147,52 +144,37 @@ describe('Navigation', () => {
     expect(screen.getByText('learner-a@example.com')).toBeInTheDocument();
   });
 
-  test('the side navigation opens each section and shows its title in the header', async () => {
+  test('the dashboard opens each section, which shows its title in the header', async () => {
     const app = renderApp('/dashboard');
     await screen.findByText('Dashboard page');
-    fireEvent.click(nav().getByText('Library'));
+    fireEvent.click(screen.getByRole('button', { name: /^Library/ }));
     expect(await screen.findByText('My Library')).toBeInTheDocument();
     expect(app.location()).toBe('/library');
     expect(screen.getByRole('heading', { name: 'Library', level: 6 })).toBeInTheDocument();
-
-    fireEvent.click(nav().getByText('Vocabulary'));
-    expect(await screen.findByText('Vocabulary page')).toBeInTheDocument();
   });
 
-  test('the back arrow on a section returns to its parent page', async () => {
-    const app = renderApp('/library');
-    await screen.findByText('My Library');
-    const header = screen.getByRole('heading', { name: 'Library', level: 6 }).parentElement!;
-    fireEvent.click(within(header).getByRole('button'));
+  test('the home button returns to the dashboard from any page, and is not shown there', async () => {
+    const app = renderApp('/my-vocabulary');
+    await screen.findByRole('heading', { name: 'My Vocabulary', level: 5 });
+    fireEvent.click(screen.getByRole('button', { name: 'Home' }));
     expect(await screen.findByText('Dashboard page')).toBeInTheDocument();
     expect(app.location()).toBe('/dashboard');
+    expect(screen.queryByRole('button', { name: 'Home' })).toBeNull();
   });
 
-  test('on a phone the menu button opens the navigation, which closes after choosing', async () => {
-    screenSize.width = 400;
-    const app = renderApp('/dashboard');
-    await screen.findByText('Dashboard page');
-    expect(screen.queryByRole('button', { name: 'Library' })).toBeNull();
+  test('top-level sections have no back arrow; nested pages go back to their parent', async () => {
+    const app = renderApp('/library');
+    await screen.findByText('My Library');
+    const libraryHeader = screen.getByRole('heading', { name: 'Library', level: 6 }).parentElement!;
+    expect(within(libraryHeader).queryByRole('button')).toBeNull();
+    app.unmount();
 
-    // jsdom applies the stylesheet's desktop-only `display: none` whatever the width, which
-    // hides the button from role queries; find it by its label instead.
-    fireEvent.click(screen.getByLabelText('Open navigation menu'));
-    fireEvent.click(await screen.findByRole('button', { name: 'Library' }));
-    expect(await screen.findByText('My Library')).toBeInTheDocument();
-    expect(app.location()).toBe('/library');
-    await waitFor(() => expect(screen.queryByRole('button', { name: 'Library' })).toBeNull());
-  });
-
-  test('review badges show how many cards are due once review data has loaded', async () => {
-    seedCustom(LEARNER.uid, 'customVocabulary', [word('w1', 'kot', 'cat')]);
-    renderApp('/dashboard');
-    await screen.findByText('Dashboard page');
-    await waitForReviewData();
-    // One new word, due once in each direction.
-    const vocabulary = nav().getByText('Vocabulary').closest('[role="button"]') as HTMLElement;
-    await waitFor(() => expect(within(vocabulary).getByText('2')).toBeInTheDocument());
-    const declension = nav().getByText('Declension').closest('[role="button"]') as HTMLElement;
-    expect(within(declension).getByTestId('CheckIcon')).toBeInTheDocument();
+    const drill = renderApp('/conjugation/recognition');
+    const header = (await screen.findByRole('heading', { name: 'Recognition', level: 6 }))
+      .parentElement!;
+    fireEvent.click(within(header).getByRole('button'));
+    expect(await screen.findByText('Conjugation page')).toBeInTheDocument();
+    expect(drill.location()).toBe('/conjugation');
   });
 });
 
@@ -201,8 +183,9 @@ describe('Admin-only pages', () => {
     const app = renderApp('/admin/content/vocabulary');
     expect(await screen.findByText('Dashboard page')).toBeInTheDocument();
     expect(app.location()).toBe('/dashboard');
-    expect(nav().queryByText('Content')).toBeNull();
-    expect(nav().queryByText('Generator')).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Admin' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Content/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Generator/ })).toBeNull();
   });
 
   test('learners opening the sentence generator are sent to the dashboard', async () => {
@@ -211,14 +194,18 @@ describe('Admin-only pages', () => {
     expect(app.location()).toBe('/dashboard');
   });
 
-  test('admins see the admin links and can open the content editor', async () => {
+  test('admins see an admin section on the dashboard that opens the admin pages', async () => {
     const app = renderApp('/dashboard', { account: ADMIN });
     await screen.findByText('Dashboard page');
-    fireEvent.click(await nav().findByText('Content'));
+    expect(await screen.findByRole('heading', { name: 'Admin' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^Content/ }));
     await waitFor(() => expect(app.location()).toBe('/admin/content/vocabulary'));
     expect(await screen.findByRole('tab', { name: /Vocabulary \(\d+\)/ })).toBeInTheDocument();
-    fireEvent.click(nav().getByText('Generator'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Home' }));
+    fireEvent.click(await screen.findByRole('button', { name: /^Generator/ }));
     expect(await screen.findByRole('tab', { name: 'Generate' })).toBeInTheDocument();
+    expect(app.location()).toBe('/admin/generator');
   });
 
   test('admin rights are not granted while offline, when they cannot be checked', async () => {
@@ -226,7 +213,7 @@ describe('Admin-only pages', () => {
     renderApp('/dashboard', { account: ADMIN });
     expect(await screen.findByText('Dashboard page')).toBeInTheDocument();
     await settle();
-    expect(nav().queryByText('Content')).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Admin' })).toBeNull();
   });
 });
 

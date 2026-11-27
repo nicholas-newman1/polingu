@@ -6,6 +6,8 @@ import CompareArrows from '@mui/icons-material/CompareArrows';
 import MusicNote from '@mui/icons-material/MusicNote';
 import MenuBook from '@mui/icons-material/MenuBook';
 import Headphones from '@mui/icons-material/Headphones';
+import Storage from '@mui/icons-material/Storage';
+import AutoAwesome from '@mui/icons-material/AutoAwesome';
 import type { ReviewCounts } from '../contexts/review';
 
 type ColorKey = 'primary' | 'info' | 'success' | 'warning' | 'secondary' | 'error';
@@ -21,9 +23,8 @@ export interface FeatureNavItem {
 }
 
 /**
- * Shared navigation items for features that appear in both
- * the sidebar navigation and dashboard cards.
- * Order here determines display order in both places.
+ * Features shown as dashboard cards with review progress.
+ * Order here is the default dashboard order.
  */
 const FEATURE_NAV_ITEMS: FeatureNavItem[] = [
   {
@@ -157,3 +158,23 @@ export function getOrderedDashboardItems(storedOrder?: string[]): DashboardNavIt
 
   return ordered;
 }
+
+/** Admin-only pages, shown in their own section at the end of the dashboard. */
+export const ADMIN_NAV_ITEMS: ExtraNavItem[] = [
+  {
+    path: '/admin/content',
+    icon: Storage,
+    label: 'Content',
+    description: 'Edit built-in content',
+    fullDescription: 'Edit the built-in vocabulary, declensions, sentences and verbs',
+    colorKey: 'secondary',
+  },
+  {
+    path: '/admin/generator',
+    icon: AutoAwesome,
+    label: 'Generator',
+    description: 'Generate & curate sentences',
+    fullDescription: 'Generate, browse and curate the built-in sentences',
+    colorKey: 'primary',
+  },
+];

@@ -9,9 +9,14 @@ import { FeatureCard } from '../components/FeatureCard';
 import { ProgressStats } from '../components/ProgressStats';
 import { ReviewCountBadge } from '../components/ReviewCountBadge';
 import { SITE_NAME } from '../constants';
-import { getOrderedDashboardItems } from '../constants/navigation';
+import {
+  ADMIN_NAV_ITEMS,
+  getOrderedDashboardItems,
+  type DashboardNavItem,
+} from '../constants/navigation';
 import { SiteLogo } from '../components/SiteLogo';
 import { useAppSettings } from '../contexts/AppSettingsContext';
+import { useAuthContext } from '../hooks/useAuthContext';
 
 const PageContainer = styled(Box)(({ theme }) => ({
   flex: 1,
@@ -52,6 +57,15 @@ const CardsGrid = styled(Box)(({ theme }) => ({
   [theme.breakpoints.up('sm')]: {
     gridTemplateColumns: 'repeat(2, 1fr)',
     gap: theme.spacing(3),
+  },
+}));
+
+const AdminSection = styled(Box)(({ theme }) => ({
+  width: '100%',
+  maxWidth: 960,
+  marginTop: theme.spacing(3),
+  [theme.breakpoints.up('sm')]: {
+    marginTop: theme.spacing(5),
   },
 }));
 
@@ -115,7 +129,78 @@ export function DashboardPage() {
   const { loading } = useReviewData();
   const progressStats = useProgressStats();
   const { settings } = useAppSettings();
+  const { isAdmin } = useAuthContext();
   const orderedItems = getOrderedDashboardItems(settings.dashboardOrder);
+
+  const renderItem = (item: DashboardNavItem) => {
+    const color = theme.palette[item.colorKey].main;
+    const stats = item.kind === 'feature' ? progressStats[item.statsKey] : undefined;
+
+    if (isMobile) {
+      return (
+        <MobileRow key={item.path} $color={color} onClick={() => navigate(item.path)}>
+          <MobileIconBox $color={color}>
+            <item.icon sx={{ fontSize: 21 }} />
+          </MobileIconBox>
+          <MobileRowContent>
+            <Typography
+              variant="subtitle1"
+              color="text.primary"
+              noWrap
+              sx={{ fontWeight: 600, fontSize: '0.975rem', lineHeight: 1.25 }}
+            >
+              {item.label}
+            </Typography>
+            {stats ? (
+              <ProgressStats
+                learned={stats.learned}
+                total={stats.total}
+                color={color}
+                layout="compact"
+                loading={loading}
+              />
+            ) : (
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                noWrap
+                component="div"
+                sx={{ fontSize: '0.78rem', lineHeight: 1.35 }}
+              >
+                {item.description}
+              </Typography>
+            )}
+          </MobileRowContent>
+          <MobileRowEnd>
+            {stats && <ReviewCountBadge count={stats.due} loading={loading} />}
+            <ChevronRight sx={{ fontSize: 18, opacity: 0.55 }} />
+          </MobileRowEnd>
+        </MobileRow>
+      );
+    }
+
+    return (
+      <FeatureCard
+        key={item.path}
+        color={color}
+        icon={<item.icon sx={{ fontSize: 28 }} />}
+        title={item.label}
+        description={item.fullDescription}
+        badge={stats && <ReviewCountBadge count={stats.due} loading={loading} />}
+        onClick={() => navigate(item.path)}
+      >
+        {stats && (
+          <ProgressStats
+            learned={stats.learned}
+            total={stats.total}
+            color={color}
+            layout="inline"
+            loading={loading}
+          />
+        )}
+      </FeatureCard>
+    );
+  };
 
   return (
     <PageContainer>
@@ -138,77 +223,23 @@ export function DashboardPage() {
         </Typography>
       </Header>
 
-      <CardsGrid>
-        {orderedItems.map((item) => {
-          const color = theme.palette[item.colorKey].main;
-          const stats = item.kind === 'feature' ? progressStats[item.statsKey] : undefined;
+      <CardsGrid>{orderedItems.map(renderItem)}</CardsGrid>
 
-          if (isMobile) {
-            return (
-              <MobileRow key={item.path} $color={color} onClick={() => navigate(item.path)}>
-                <MobileIconBox $color={color}>
-                  <item.icon sx={{ fontSize: 21 }} />
-                </MobileIconBox>
-                <MobileRowContent>
-                  <Typography
-                    variant="subtitle1"
-                    color="text.primary"
-                    noWrap
-                    sx={{ fontWeight: 600, fontSize: '0.975rem', lineHeight: 1.25 }}
-                  >
-                    {item.label}
-                  </Typography>
-                  {stats ? (
-                    <ProgressStats
-                      learned={stats.learned}
-                      total={stats.total}
-                      color={color}
-                      layout="compact"
-                      loading={loading}
-                    />
-                  ) : (
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      noWrap
-                      component="div"
-                      sx={{ fontSize: '0.78rem', lineHeight: 1.35 }}
-                    >
-                      {item.description}
-                    </Typography>
-                  )}
-                </MobileRowContent>
-                <MobileRowEnd>
-                  {stats && <ReviewCountBadge count={stats.due} loading={loading} />}
-                  <ChevronRight sx={{ fontSize: 18, opacity: 0.55 }} />
-                </MobileRowEnd>
-              </MobileRow>
-            );
-          }
-
-          return (
-            <FeatureCard
-              key={item.path}
-              color={color}
-              icon={<item.icon sx={{ fontSize: 28 }} />}
-              title={item.label}
-              description={item.fullDescription}
-              badge={stats && <ReviewCountBadge count={stats.due} loading={loading} />}
-              onClick={() => navigate(item.path)}
-            >
-              {stats && (
-                <ProgressStats
-                  learned={stats.learned}
-                  total={stats.total}
-                  color={color}
-                  layout="inline"
-                  loading={loading}
-                />
-              )}
-            </FeatureCard>
-          );
-        })}
-      </CardsGrid>
+      {isAdmin && (
+        <AdminSection>
+          <Typography
+            variant="overline"
+            color="text.secondary"
+            component="h2"
+            sx={{ mb: { xs: 1, sm: 2 } }}
+          >
+            Admin
+          </Typography>
+          <CardsGrid>
+            {ADMIN_NAV_ITEMS.map((item) => renderItem({ ...item, kind: 'extra' }))}
+          </CardsGrid>
+        </AdminSection>
+      )}
     </PageContainer>
   );
 }

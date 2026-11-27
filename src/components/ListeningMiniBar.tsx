@@ -8,7 +8,7 @@ import SkipPreviousIcon from '@mui/icons-material/SkipPrevious';
 import CloseIcon from '@mui/icons-material/Close';
 import { styled } from '../lib/styled';
 import { useListening } from '../contexts/ListeningContext';
-import { BOTTOM_MENU_BAR_HEIGHT, DRAWER_WIDTH } from '../constants/layout';
+import { BOTTOM_MENU_BAR_HEIGHT } from '../constants/layout';
 
 export const LISTENING_MINI_BAR_HEIGHT = 64;
 
@@ -26,9 +26,6 @@ const Bar = styled(Box)(({ theme }) => ({
   padding: theme.spacing(0, 1, 0, 1.5),
   zIndex: theme.zIndex.appBar + 1,
   cursor: 'pointer',
-  [theme.breakpoints.up('md')]: {
-    left: DRAWER_WIDTH,
-  },
 }));
 
 const TrackIcon = styled(Box)(({ theme }) => ({

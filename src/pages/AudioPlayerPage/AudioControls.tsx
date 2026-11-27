@@ -20,7 +20,7 @@ import FormatSizeIcon from '@mui/icons-material/FormatSize';
 import EditNoteIcon from '@mui/icons-material/EditNote';
 import CheckIcon from '@mui/icons-material/Check';
 import { styled } from '../../lib/styled';
-import { BOTTOM_MENU_BAR_HEIGHT, DRAWER_WIDTH } from '../../constants/layout';
+import { BOTTOM_MENU_BAR_HEIGHT } from '../../constants/layout';
 import type { TranscriptFontSize } from '../../types/appSettings';
 import { formatDuration } from '../../lib/utils/formatDuration';
 import { useAudioPlayerContext } from '../../contexts/AudioPlayerContext';
@@ -34,9 +34,6 @@ const ControlsBar = styled(Box)(({ theme }) => ({
   borderTop: `1px solid ${theme.palette.divider}`,
   padding: theme.spacing(0.5, 2, 1),
   zIndex: theme.zIndex.appBar + 1,
-  [theme.breakpoints.up('md')]: {
-    left: DRAWER_WIDTH,
-  },
 }));
 
 const TimeRow = styled(Box)({

@@ -1,7 +1,6 @@
 import { Box } from '@mui/material';
 import { styled } from '../../../lib/styled';
 import { alpha } from '../../../lib/theme';
-import { DRAWER_WIDTH } from '../../../constants/layout';
 
 export const ReaderNavigationBar = styled(Box)<{ $bottom: number; $gap: number }>(
   ({ theme, $bottom, $gap }) => ({
@@ -18,8 +17,5 @@ export const ReaderNavigationBar = styled(Box)<{ $bottom: number; $gap: number }
     backdropFilter: 'blur(8px)',
     borderTop: `1px solid ${theme.palette.divider}`,
     zIndex: 10,
-    [theme.breakpoints.up('md')]: {
-      left: DRAWER_WIDTH,
-    },
   })
 );

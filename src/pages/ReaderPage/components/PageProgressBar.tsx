@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Box, Tooltip } from '@mui/material';
 import { styled } from '../../../lib/styled';
-import { DRAWER_WIDTH } from '../../../constants/layout';
 
 const BOTTOM_MENU_HEIGHT = 70;
 const PROGRESS_BAR_HEIGHT = 24;
@@ -22,9 +21,6 @@ const ProgressBarContainer = styled(Box)(({ theme }) => ({
   zIndex: 10,
   userSelect: 'none',
   touchAction: 'none',
-  [theme.breakpoints.up('md')]: {
-    left: DRAWER_WIDTH,
-  },
 }));
 
 const ProgressTrack = styled(Box)(({ theme }) => ({

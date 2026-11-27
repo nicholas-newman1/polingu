@@ -6,7 +6,8 @@
  * its `virtual:pwa-register` import only resolves under the PWA build plugin, which the
  * test config does not load. Pages owned by other parts of the suite render as a plain
  * "<Name> page" marker; the conjugation drill is included only so its admin edit dialog
- * can be tested end to end.
+ * can be tested end to end, and the dashboard's real cards render under its marker so
+ * its admin section can be.
  */
 import type { ReactNode } from 'react';
 import { MemoryRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
@@ -35,6 +36,8 @@ import { ReaderPage } from '../../../../src/pages/ReaderPage';
 import { SentenceGeneratorPage } from '../../../../src/pages/SentenceGenerator';
 import { AdminContentPage } from '../../../../src/pages/AdminContentPage';
 import { ConjugationPage } from '../../../../src/pages/ConjugationPage';
+import { DashboardPage } from '../../../../src/pages/DashboardPage';
+import { useReviewData } from '../../../../src/hooks/useReviewData';
 
 function OtherPage({ name }: { name: string }) {
   return <p>{name} page</p>;
@@ -45,8 +48,13 @@ function LocationDisplay() {
   return <output data-testid="location">{pathname}</output>;
 }
 
+/** Whether the review data has loaded, for `waitForReviewData`. */
+function ReviewDataStatus() {
+  const { loading } = useReviewData();
+  return <output data-testid="review-data" data-loading={loading} />;
+}
+
 const OTHER_PAGES: Array<[string, string]> = [
-  ['/dashboard', 'Dashboard'],
   ['/declension', 'Declension'],
   ['/vocabulary', 'Vocabulary'],
   ['/sentences', 'Sentences'],
@@ -74,9 +82,19 @@ export function App({ route }: { route: string }) {
                           <ListeningProvider>
                             <MemoryRouter initialEntries={[route]}>
                               <LocationDisplay />
+                              <ReviewDataStatus />
                               <Routes>
                                 <Route path="/login" element={<SignIn />} />
                                 <Route element={<Layout />}>
+                                  <Route
+                                    path="/dashboard"
+                                    element={
+                                      <>
+                                        <OtherPage name="Dashboard" />
+                                        <DashboardPage />
+                                      </>
+                                    }
+                                  />
                                   {OTHER_PAGES.map(([path, name]) => (
                                     <Route
                                       key={path}

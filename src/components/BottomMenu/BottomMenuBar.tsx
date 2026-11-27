@@ -21,7 +21,6 @@ import LibraryBooksIcon from '@mui/icons-material/LibraryBooks';
 import { useTranslationContext } from '../../hooks/useTranslationContext';
 import { useCheatSheetContext } from '../../hooks/useCheatSheetContext';
 import { alpha } from '../../lib/theme';
-import { DRAWER_WIDTH } from '../../constants/layout';
 
 const MenuBarContainer = styled(Box)(({ theme }) => ({
   position: 'fixed',
@@ -36,7 +35,6 @@ const MenuBarContainer = styled(Box)(({ theme }) => ({
   paddingTop: theme.spacing(0.5),
   backgroundColor: theme.palette.background.paper,
   borderTop: `1px solid ${theme.palette.divider}`,
-  [theme.breakpoints.up('md')]: { left: DRAWER_WIDTH },
 }));
 
 const MenuButton = styled(ButtonBase)<{ $disabled?: boolean }>(({ theme, $disabled }) => ({

@@ -133,13 +133,10 @@ export function renderInShell(ui: ReactElement, { account = LEARNER }: RenderApp
   return render(<Shell>{ui}</Shell>);
 }
 
-/**
- * Waits until the review data has loaded, which the side navigation shows by
- * replacing its placeholder badges with counts.
- */
+/** Waits until the review data has loaded. */
 export async function waitForReviewData() {
   await waitFor(() =>
-    expect(document.querySelector('.MuiDrawer-root .MuiSkeleton-root')).toBeNull()
+    expect(screen.getByTestId('review-data')).toHaveAttribute('data-loading', 'false')
   );
 }
 

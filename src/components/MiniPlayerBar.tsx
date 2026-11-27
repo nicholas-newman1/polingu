@@ -7,7 +7,7 @@ import PauseIcon from '@mui/icons-material/Pause';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import { styled } from '../lib/styled';
 import { useAudioPlayerContext } from '../contexts/AudioPlayerContext';
-import { BOTTOM_MENU_BAR_HEIGHT, DRAWER_WIDTH } from '../constants/layout';
+import { BOTTOM_MENU_BAR_HEIGHT } from '../constants/layout';
 import { QueueDrawer } from './QueueDrawer';
 import { TrackIcon } from './audioStyles';
 import { formatDuration } from '../lib/utils/formatDuration';
@@ -28,9 +28,6 @@ const Bar = styled(Box)(({ theme }) => ({
   padding: theme.spacing(0, 1, 0, 2),
   zIndex: theme.zIndex.appBar + 1,
   cursor: 'pointer',
-  [theme.breakpoints.up('md')]: {
-    left: DRAWER_WIDTH,
-  },
 }));
 
 const TrackInfo = styled(Box)({
