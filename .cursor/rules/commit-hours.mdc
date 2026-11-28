@@ -1,5 +1,5 @@
 ---
-description: Keep author and committer timestamps outside 09:00–17:00 EST before pushing
+description: Keep author and committer timestamps outside 09:00–17:00 EST on weekdays before pushing
 alwaysApply: true
 ---
 
