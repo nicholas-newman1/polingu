@@ -1,21 +1,6 @@
 import type { ReviewSubcollectionSync } from './createReviewSubcollectionStorage';
 import { getUserId } from './helpers';
-import { declensionReviewStorage } from './declensionReviewStorage';
-import { aspectPairsReviewStorage } from './aspectPairsReviewStorage';
-import { sentenceReviewStorage } from './sentenceReviewStorage';
-import { vocabularyReviewStorage } from './vocabularyReviewStorage';
-import { conjugationReviewStorage } from './conjugationReviewStorage';
-
-const ALL_REVIEW_STORAGES: ReviewSubcollectionSync[] = [
-  declensionReviewStorage,
-  aspectPairsReviewStorage,
-  sentenceReviewStorage('pl-to-en'),
-  sentenceReviewStorage('en-to-pl'),
-  vocabularyReviewStorage('pl-to-en'),
-  vocabularyReviewStorage('en-to-pl'),
-  conjugationReviewStorage('pl-to-en'),
-  conjugationReviewStorage('en-to-pl'),
-];
+import { ALL_REVIEW_CARD_STORAGES } from './reviewDeckStorage';
 
 /**
  * A refresh reads every card document in all eight collections straight from the
@@ -31,7 +16,7 @@ async function forEachStorage(
   run: (storage: ReviewSubcollectionSync) => Promise<void>
 ): Promise<number> {
   const results = await Promise.all(
-    ALL_REVIEW_STORAGES.map(async (storage) => {
+    ALL_REVIEW_CARD_STORAGES.map(async (storage) => {
       try {
         await run(storage);
         return true;

@@ -1,12 +1,4 @@
-import {
-  createContext,
-  useState,
-  useCallback,
-  useMemo,
-  useEffect,
-  useRef,
-  type ReactNode,
-} from 'react';
+import { createContext, useCallback, useMemo, type ReactNode } from 'react';
 import type {
   Sentence,
   CustomSentence,
@@ -16,27 +8,17 @@ import type {
   TagCategory,
 } from '../../types/sentences';
 import type { TranslationDirection } from '../../types/common';
+import { DEFAULT_SENTENCE_SETTINGS } from '../../types/sentences';
 import {
-  loadSentenceTags,
   saveSentenceTags,
   DEFAULT_TAGS,
   type SentenceTagsData,
 } from '../../lib/storage/sentenceTags';
-import loadSentenceReviewData from '../../lib/storage/loadSentenceReviewData';
-import loadSentenceSettings, {
-  DEFAULT_SENTENCE_SETTINGS,
-} from '../../lib/storage/loadSentenceSettings';
-import saveSentenceReviewData from '../../lib/storage/saveSentenceReviewData';
-import saveSentenceSettings from '../../lib/storage/saveSentenceSettings';
-import { loadCustomSentences, subscribeCustomSentences } from '../../lib/storage/customSentences';
-import { useAuthContext } from '../../hooks/useAuthContext';
-import clearSentenceData from '../../lib/storage/clearSentenceData';
-import { getDefaultSentenceReviewStore } from '../../lib/storage/helpers';
+import { subscribeCustomSentences } from '../../lib/storage/customSentences';
+import { sentenceStorage } from '../../lib/storage/reviewDeckStorage';
 import { showSaveError } from '../../lib/storage/errorHandler';
-import { useSyncProps } from '../../hooks/useSyncProps';
-import { startDayInBothDirections } from '../../lib/reviewSession/sessionLists';
-import { keepDirections, useLocalChanges } from './localChanges';
-import { useToday } from './useToday';
+import { useLocalChanges } from './localChanges';
+import { useCustomItems, useDeckProgress, useLoadedState } from './deckState';
 
 export interface SentenceContextType {
   sentenceReviewStores: Record<TranslationDirection, SentenceReviewDataStore>;
@@ -87,52 +69,22 @@ export function SentenceProvider({
   initialTags = DEFAULT_TAGS,
   readAt,
 }: SentenceProviderProps) {
-  const [sentenceReviewStores, setSentenceReviewStores] = useState<
-    Record<TranslationDirection, SentenceReviewDataStore>
-  >(
-    initialReviewStores ?? {
-      'pl-to-en': getDefaultSentenceReviewStore(),
-      'en-to-pl': getDefaultSentenceReviewStore(),
-    }
-  );
-  const storesRef = useRef(sentenceReviewStores);
-  const [sentenceSettings, setSentenceSettings] = useState<SentenceSettings>(initialSettings);
-  const [customSentences, setCustomSentencesState] =
-    useState<CustomSentence[]>(initialCustomSentences);
-  const [systemSentences, setSystemSentences] = useState<Sentence[]>(initialSystemSentences);
-  const [sentenceTags, setSentenceTags] = useState<SentenceTagsData>(initialTags);
   const localChanges = useLocalChanges();
-
-  useSyncProps(
-    {
-      initialReviewStores,
-      initialSettings,
-      initialCustomSentences,
-      initialSystemSentences,
-      initialTags,
-    },
-    () => {
-      const loadedStores = initialReviewStores ?? {
-        'pl-to-en': getDefaultSentenceReviewStore(),
-        'en-to-pl': getDefaultSentenceReviewStore(),
-      };
-      const nextStores = keepDirections(loadedStores, storesRef.current, (d) =>
-        localChanges.changedSince(`reviewStore:${d}`, readAt)
-      );
-      setSentenceReviewStores(nextStores);
-      storesRef.current = nextStores;
-      setSentenceSettings((current) =>
-        keepDirections(initialSettings, current, (d) =>
-          localChanges.changedSince(`settings:${d}`, readAt)
-        )
-      );
-      if (!localChanges.changedSince('customItems', readAt)) {
-        setCustomSentencesState(initialCustomSentences);
-      }
-      setSystemSentences(initialSystemSentences);
-      setSentenceTags(initialTags);
-    }
+  const progress = useDeckProgress(
+    sentenceStorage,
+    initialReviewStores,
+    initialSettings,
+    readAt,
+    localChanges
   );
+  const [customSentences, setCustomSentences] = useCustomItems(
+    initialCustomSentences,
+    subscribeCustomSentences,
+    readAt,
+    localChanges
+  );
+  const [systemSentences, setSystemSentences] = useLoadedState(initialSystemSentences);
+  const [sentenceTags, setSentenceTags] = useLoadedState(initialTags);
 
   const sentences = useMemo<Sentence[]>(
     () => [...customSentences, ...systemSentences],
@@ -140,157 +92,75 @@ export function SentenceProvider({
   );
 
   // Callers pass back the whole list (custom + built-in); custom sentences have their own state.
-  const setSentences = useCallback((all: Sentence[]) => {
-    setSystemSentences(all.filter((sentence) => !sentence.isCustom));
-  }, []);
-
-  const today = useToday();
-  const todaysReviewStores = useMemo(
-    () => startDayInBothDirections(sentenceReviewStores, ['reviewedToday', 'newCardsToday'], today),
-    [sentenceReviewStores, today]
+  const setSentences = useCallback(
+    (all: Sentence[]) => setSystemSentences(all.filter((sentence) => !sentence.isCustom)),
+    [setSystemSentences]
   );
 
-  // Listener snapshots and page edits; a load that read the list before them must not undo them.
-  const setCustomSentences = useCallback(
-    (items: CustomSentence[]) => {
-      setCustomSentencesState(items);
-      localChanges.note('customItems');
-    },
-    [localChanges]
-  );
-
-  const { user } = useAuthContext();
-  useEffect(() => {
-    if (!user) return;
-    let active = true;
-    const unsub = subscribeCustomSentences((items) => {
-      // Dropped if the listener closed (sign-out or account switch) while it was being handled.
-      if (active) setCustomSentences(items);
-    });
-    return () => {
-      active = false;
-      unsub();
-    };
-  }, [user, setCustomSentences]);
-
-  const updateSentenceReviewStore = useCallback(
-    async (direction: TranslationDirection, store: SentenceReviewDataStore) => {
-      const prevStore = storesRef.current[direction];
-      const nextAll = { ...storesRef.current, [direction]: store };
-      storesRef.current = nextAll;
-      setSentenceReviewStores(nextAll);
-      localChanges.note(`reviewStore:${direction}`);
+  const saveTags = useCallback(
+    async (tags: SentenceTagsData) => {
+      setSentenceTags(tags);
       try {
-        await saveSentenceReviewData(prevStore, store, direction);
+        await saveSentenceTags(tags);
       } catch (e) {
         showSaveError(e);
       }
     },
-    [localChanges]
-  );
-
-  const updateSentenceSettingsFn = useCallback(
-    async (direction: TranslationDirection, settings: SentenceDirectionSettings) => {
-      setSentenceSettings((prev) => ({
-        ...prev,
-        [direction]: settings,
-      }));
-      localChanges.note(`settings:${direction}`);
-      try {
-        await saveSentenceSettings(settings, direction);
-      } catch (e) {
-        showSaveError(e);
-      }
-    },
-    [localChanges]
-  );
-
-  const clearSentenceReviewDataFn = useCallback(
-    async (direction: TranslationDirection) => {
-      try {
-        await clearSentenceData(direction);
-        const freshStore = getDefaultSentenceReviewStore();
-        const nextAll = { ...storesRef.current, [direction]: freshStore };
-        storesRef.current = nextAll;
-        setSentenceReviewStores(nextAll);
-        localChanges.note(`reviewStore:${direction}`);
-      } catch (e) {
-        showSaveError(e);
-      }
-    },
-    [localChanges]
+    [setSentenceTags]
   );
 
   const addSentenceTag = useCallback(
     async (category: TagCategory, tag: string) => {
-      const newTags = { ...sentenceTags };
-      if (!newTags[category].includes(tag)) {
-        newTags[category] = [...newTags[category], tag];
-        setSentenceTags(newTags);
-        try {
-          await saveSentenceTags(newTags);
-        } catch (e) {
-          showSaveError(e);
-        }
-      }
+      if (sentenceTags[category].includes(tag)) return;
+      await saveTags({ ...sentenceTags, [category]: [...sentenceTags[category], tag] });
     },
-    [sentenceTags]
+    [sentenceTags, saveTags]
   );
 
   const removeSentenceTag = useCallback(
     async (category: TagCategory, tag: string) => {
-      const newTags = { ...sentenceTags };
-      newTags[category] = newTags[category].filter((t) => t !== tag);
-      setSentenceTags(newTags);
-      try {
-        await saveSentenceTags(newTags);
-      } catch (e) {
-        showSaveError(e);
-      }
+      await saveTags({
+        ...sentenceTags,
+        [category]: sentenceTags[category].filter((t) => t !== tag),
+      });
     },
-    [sentenceTags]
+    [sentenceTags, saveTags]
   );
 
-  return (
-    <SentenceContext.Provider
-      value={{
-        sentenceReviewStores: todaysReviewStores,
-        sentenceSettings,
-        sentences,
-        customSentences,
-        systemSentences,
-        sentenceTags,
-        updateSentenceReviewStore,
-        updateSentenceSettings: updateSentenceSettingsFn,
-        clearSentenceReviewData: clearSentenceReviewDataFn,
-        setSentences,
-        setCustomSentences,
-        setSystemSentences,
-        addSentenceTag,
-        removeSentenceTag,
-      }}
-    >
-      {children}
-    </SentenceContext.Provider>
+  const value = useMemo<SentenceContextType>(
+    () => ({
+      sentenceReviewStores: progress.stores,
+      sentenceSettings: progress.settings,
+      sentences,
+      customSentences,
+      systemSentences,
+      sentenceTags,
+      updateSentenceReviewStore: progress.updateStore,
+      updateSentenceSettings: progress.updateSettings,
+      clearSentenceReviewData: progress.clear,
+      setSentences,
+      setCustomSentences,
+      setSystemSentences,
+      addSentenceTag,
+      removeSentenceTag,
+    }),
+    [
+      progress.stores,
+      progress.settings,
+      progress.updateStore,
+      progress.updateSettings,
+      progress.clear,
+      sentences,
+      customSentences,
+      systemSentences,
+      sentenceTags,
+      setSentences,
+      setCustomSentences,
+      setSystemSentences,
+      addSentenceTag,
+      removeSentenceTag,
+    ]
   );
-}
 
-// eslint-disable-next-line react-refresh/only-export-components
-export async function loadSentenceData() {
-  const [settings, customSentences, tags, plToEnStore, enToPlStore] = await Promise.all([
-    loadSentenceSettings(),
-    loadCustomSentences(),
-    loadSentenceTags(),
-    loadSentenceReviewData('pl-to-en'),
-    loadSentenceReviewData('en-to-pl'),
-  ]);
-  return {
-    settings,
-    customSentences,
-    tags,
-    reviewStores: {
-      'pl-to-en': plToEnStore,
-      'en-to-pl': enToPlStore,
-    },
-  };
+  return <SentenceContext.Provider value={value}>{children}</SentenceContext.Provider>;
 }

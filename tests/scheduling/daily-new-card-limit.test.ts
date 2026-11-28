@@ -1,11 +1,12 @@
 import { expect, test } from 'vitest';
-import getDeclensionSessionCards from '../../src/lib/declensionScheduler/getSessionCards';
-import getConjugationSessionCards from '../../src/lib/conjugationScheduler/getConjugationSessionCards';
 import { DEFAULT_USER_FILTERS } from '../../src/types/userFilters';
 import type { DeclensionCard, DeclensionReviewDataStore } from '../../src/types';
 import type { ConjugationReviewDataStore, Verb } from '../../src/types/conjugation';
 import { fsrsCard, State } from '../helpers/fsrs';
 import { stub, stubs } from '../helpers/stub';
+import { getSessionCards } from '../../src/lib/reviewSession/scheduler';
+import { conjugationDeck, declensionDeck } from '../../src/lib/reviewSession/reviewDecks';
+import { getDrillableFormsForVerb } from '../../src/lib/conjugationUtils';
 
 const settings = { newCardsPerDay: 5 };
 const dueCard = fsrsCard(State.Review, new Date(0));
@@ -25,15 +26,16 @@ test('declension caps new cards and keeps due reviews when the daily allowance i
   const due = Array.from({ length: 13 }, (_, cardId) => [cardId, { cardId, fsrsCard: dueCard }]);
   for (const [used, expected] of dailyCounts) {
     const newCardsToday = deck.slice(13, 13 + used).map((card) => card.id);
-    const session = getDeclensionSessionCards(
+    const session = getSessionCards(
+      declensionDeck,
       deck,
       stub<DeclensionReviewDataStore>({
         cards: Object.fromEntries(due),
         reviewedToday: newCardsToday,
         newCardsToday,
       }),
-      DEFAULT_USER_FILTERS.declension,
-      settings
+      settings,
+      DEFAULT_USER_FILTERS.declension
     );
     expect(session.reviewCards).toHaveLength(13);
     expect(session.newCards).toHaveLength(expected);
@@ -55,12 +57,17 @@ test('conjugation caps new forms and keeps due reviews when the daily allowance 
   const keys = verbs.map(({ id }) => id + ':present:1sg');
   const forms = { [keys[0]]: { formKey: keys[0], fsrsCard: dueCard } };
   for (const [used, expected] of dailyCounts) {
-    const newFormsToday = keys.slice(1, 1 + used);
-    const session = getConjugationSessionCards(
-      verbs,
-      stub<ConjugationReviewDataStore>({ forms, reviewedToday: newFormsToday, newFormsToday }),
-      DEFAULT_USER_FILTERS.conjugation,
-      settings
+    const newCardsToday = keys.slice(1, 1 + used);
+    const session = getSessionCards(
+      conjugationDeck,
+      verbs.flatMap(getDrillableFormsForVerb),
+      stub<ConjugationReviewDataStore>({
+        cards: forms,
+        reviewedToday: newCardsToday,
+        newCardsToday,
+      }),
+      settings,
+      DEFAULT_USER_FILTERS.conjugation
     );
     expect(session.reviewCards).toHaveLength(1);
     expect(session.newCards).toHaveLength(expected);

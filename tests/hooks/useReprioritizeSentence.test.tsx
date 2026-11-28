@@ -1,13 +1,15 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import { useReprioritizeSentence } from '../../src/hooks/useReprioritizeSentence';
-import saveSentenceReviewData from '../../src/lib/storage/saveSentenceReviewData';
 import type { SnackbarOptions } from '../../src/contexts/SnackbarContext';
 import type { TranslationDirection } from '../../src/types/common';
 import type { SentenceReviewDataStore } from '../../src/types/sentences';
 import { fsrsCard, inDays, State } from '../helpers/fsrs';
 import { withSnackbar } from './support/providers';
 import { renderWithReviewData } from './support/reviewDataProviders';
+import { saveReviewStore, sentenceStorage } from '../../src/lib/storage/reviewDeckStorage';
+
+const DIRECTIONS: TranslationDirection[] = ['pl-to-en', 'en-to-pl'];
 
 // The providers' live custom-collection listeners are the Firestore boundary.
 vi.mock('../../src/lib/storage/customVocabulary', () => ({
@@ -23,7 +25,10 @@ vi.mock('../../src/lib/storage/customSentences', () => ({
   subscribeCustomSentences: vi.fn(),
 }));
 // Saving the review store is the storage boundary; the provider updates its state first.
-vi.mock('../../src/lib/storage/saveSentenceReviewData', () => ({ default: vi.fn() }));
+vi.mock('../../src/lib/storage/reviewDeckStorage', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../src/lib/storage/reviewDeckStorage')>()),
+  saveReviewStore: vi.fn(),
+}));
 
 const QUEUED = 'Sentence queued for review again.';
 const DUPLICATE = 'This sentence is already in your collection.';
@@ -56,8 +61,8 @@ function renderReprioritize(sentenceStores: Record<TranslationDirection, Sentenc
     (snackbar.showSnackbar.mock.calls.at(-1)?.[2] as SnackbarOptions | undefined)?.action;
   /** Each store saved, with its direction. */
   const saved = () =>
-    vi.mocked(saveSentenceReviewData).mock.calls.map(([, store, direction]) => ({
-      direction,
+    vi.mocked(saveReviewStore).mock.calls.map(([storage, , store]) => ({
+      direction: DIRECTIONS.find((d) => sentenceStorage[d] === storage),
       store,
     }));
   return { ...h, showSnackbar: snackbar.showSnackbar, action, saved };

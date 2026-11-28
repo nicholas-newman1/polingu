@@ -5,12 +5,15 @@ import { freezeTime, network, setTime, setupSyncTests, userPath } from '../sync/
 import { getTodayString } from '../../src/lib/storage/helpers';
 import { clearUserData } from '../../src/lib/offlineDb/userSync';
 import { userDb } from '../../src/lib/offlineDb/userDb';
-import loadVocabularyReviewData from '../../src/lib/storage/loadVocabularyReviewData';
-import loadVocabularySettings from '../../src/lib/storage/loadVocabularySettings';
 import { renderReviewDataProvider } from './support/render';
 import { ALL_FEATURES } from './support/features';
 import { freshUid, ratedNow, sentence, serverIds, withWordRated, word } from './support/fixtures';
 import { contentReads, idle, seedContent, seedServerCard, seedUserDoc } from './support/server';
+import {
+  loadDeckSettings,
+  loadReviewStore,
+  vocabularyStorage,
+} from '../../src/lib/storage/reviewDeckStorage';
 
 vi.mock('firebase/firestore', () => import('../sync/support/fakeFirestore'));
 
@@ -512,10 +515,9 @@ describe('changes made while a background sync is running', () => {
     expect(remote.get(userPath(uid, 'data', 'vocabularyReviewSession-pl-en'))).toMatchObject({
       reviewedToday: ['w1'],
     });
-    expect(Object.keys((await loadVocabularyReviewData('pl-to-en')).cards).sort()).toEqual([
-      'w0',
-      'w1',
-    ]);
+    expect(
+      Object.keys((await loadReviewStore(vocabularyStorage['pl-to-en'])).cards).sort()
+    ).toEqual(['w0', 'w1']);
   });
 
   test('a review stays shown when the sync finishes', async () => {
@@ -535,7 +537,7 @@ describe('changes made while a background sync is running', () => {
     expect(h.data().vocabularySettings['pl-to-en']).toEqual({ newCardsPerDay: 33 });
     await finishSync();
 
-    expect((await loadVocabularySettings())['pl-to-en']).toEqual({ newCardsPerDay: 33 });
+    expect(await loadDeckSettings(vocabularyStorage['pl-to-en'])).toEqual({ newCardsPerDay: 33 });
   });
 
   test('a settings change stays shown when the sync finishes', async () => {
@@ -555,7 +557,7 @@ describe('changes made while a background sync is running', () => {
     await finishSync();
 
     expect(serverIds(uid, VOCAB_PL_EN)).toEqual([]);
-    expect((await loadVocabularyReviewData('pl-to-en')).cards).toEqual({});
+    expect((await loadReviewStore(vocabularyStorage['pl-to-en'])).cards).toEqual({});
   });
 
   test('a reset stays reset when the sync finishes', async () => {

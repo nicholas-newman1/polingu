@@ -1,5 +1,4 @@
-import type { Card as FSRSCard, ReviewLog } from 'ts-fsrs';
-import type { SessionChanges } from './common';
+import type { CardReviewData, ReviewDataStore } from './common';
 import type { Verb } from './conjugation';
 
 export interface AspectPairCard {
@@ -7,19 +6,16 @@ export interface AspectPairCard {
   pairVerb: Verb;
 }
 
-export interface AspectPairsCardReviewData {
+export interface AspectPairsCardReviewData extends CardReviewData {
   verbId: string;
-  fsrsCard: FSRSCard;
-  log?: ReviewLog;
 }
 
-export interface AspectPairsReviewDataStore {
-  cards: Record<string, AspectPairsCardReviewData>;
-  reviewedToday: string[];
-  newCardsToday: string[];
-  lastReviewDate: string;
-  /** When each id was added to or removed from the lists above; see sessionLists.ts. */
-  changedAt?: SessionChanges;
+export type AspectPairsReviewDataStore = ReviewDataStore<AspectPairsCardReviewData>;
+
+export interface AspectPairsSessionCard {
+  card: AspectPairCard;
+  reviewData: AspectPairsCardReviewData;
+  isNew: boolean;
 }
 
 export interface AspectPairsSettings {

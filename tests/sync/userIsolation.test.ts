@@ -10,7 +10,6 @@ import {
   syncAllPendingToFirestore,
 } from '../../src/lib/offlineDb/userDataWrapper';
 import { getCachedUser, setCachedUser } from '../../src/lib/cachedAuth';
-import { declensionReviewStorage } from '../../src/lib/storage/declensionReviewStorage';
 import { loadCustomVocabulary, saveCustomVocabulary } from '../../src/lib/storage/customVocabulary';
 import loadAppSettings from '../../src/lib/storage/loadAppSettings';
 import { DEFAULT_APP_SETTINGS } from '../../src/types/appSettings';
@@ -19,6 +18,7 @@ import { remote } from './support/fakeFirestore';
 import { network, ratedCard, setupSyncTests, signIn, userPath } from './support/harness';
 import { signOutFakeUser } from '../fakes/firebase';
 import { stub } from '../helpers/stub';
+import { declensionStorage } from '../../src/lib/storage/reviewDeckStorage';
 
 vi.mock('firebase/firestore', () => import('./support/fakeFirestore'));
 
@@ -87,7 +87,7 @@ async function learnerAWithData(): Promise<Auth> {
   const auth = renderAuth();
   await firebaseSignsIn('learner-a');
   await saveUserData('appSettings', { autoPlayAudio: true, hidePolishText: true });
-  await declensionReviewStorage.saveCardsDiff(null, {
+  await declensionStorage.all.cards.saveCardsDiff(null, {
     1: { cardId: 1, fsrsCard: ratedCard('2026-11-20T10:00:00Z') },
   });
   await saveCustomVocabulary([word('custom_a', 'kot')]);
@@ -108,7 +108,7 @@ describe('signing out and in as someone else', () => {
 
     expect(auth.result.current.user?.uid).toBe('learner-b');
     expect(await loadAppSettings()).toEqual({ ...DEFAULT_APP_SETTINGS, autoPlayAudio: false });
-    expect(await declensionReviewStorage.loadCards()).toEqual({});
+    expect(await declensionStorage.all.cards.loadCards()).toEqual({});
     expect(await loadCustomVocabulary()).toEqual([]);
   });
 
@@ -118,7 +118,7 @@ describe('signing out and in as someone else', () => {
 
     await firebaseSignsIn('learner-b');
     expect(await syncAllPendingToFirestore()).toBe(0);
-    await declensionReviewStorage.syncPendingCards();
+    await declensionStorage.all.cards.syncPendingCards();
 
     expect(remote.list(userPath('learner-b', 'data'))).toEqual({});
     expect(remote.list(userPath('learner-b', 'declensionReviewCards'))).toEqual({});
@@ -131,7 +131,7 @@ describe('signing out and in as someone else', () => {
     expect(getCachedUser()).toBeNull();
     network.goOffline();
     expect(await loadAppSettings()).toEqual(DEFAULT_APP_SETTINGS);
-    expect(await declensionReviewStorage.loadCards()).toEqual({});
+    expect(await declensionStorage.all.cards.loadCards()).toEqual({});
   });
 
   test("signing out never deletes the account's data on the server", async () => {
@@ -154,7 +154,7 @@ describe('signing out and in as someone else', () => {
     await firebaseSignsIn('learner-a');
 
     expect(await loadAppSettings()).toEqual({ autoPlayAudio: true, hidePolishText: true });
-    expect(Object.keys(await declensionReviewStorage.loadCards())).toEqual(['1']);
+    expect(Object.keys(await declensionStorage.all.cards.loadCards())).toEqual(['1']);
   });
 
   test('clearUserData empties every local table', async () => {
@@ -164,7 +164,7 @@ describe('signing out and in as someone else', () => {
 
     network.goOffline();
     expect(await loadUserData('appSettings', 'nothing cached')).toBe('nothing cached');
-    expect(await declensionReviewStorage.loadCards()).toEqual({});
+    expect(await declensionStorage.all.cards.loadCards()).toEqual({});
     expect(await loadCustomVocabulary()).toEqual([]);
   });
 

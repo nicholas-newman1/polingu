@@ -1,11 +1,13 @@
 import { beforeEach, expect, test } from 'vitest';
-import getDeclensionSessionCards from '../../src/lib/declensionScheduler/getSessionCards';
-import getDeclensionExtraCards from '../../src/lib/declensionScheduler/getExtraCards';
-import matchesDeclensionFilters from '../../src/lib/declensionScheduler/matchesFilters';
-import type { DeclensionFilters } from '../../src/lib/declensionScheduler/types';
-import type { DeclensionCard, DeclensionReviewDataStore } from '../../src/types';
+import type { DeclensionCard, DeclensionFilters, DeclensionReviewDataStore } from '../../src/types';
 import { freezeTime, graduated, learning, TODAY } from './fixtures';
 import { stub } from '../helpers/stub';
+import {
+  getExtraNewCards,
+  getPracticeAheadCards,
+  getSessionCards,
+} from '../../src/lib/reviewSession/scheduler';
+import { declensionDeck, matchesDeclensionFilters } from '../../src/lib/reviewSession/reviewDecks';
 
 beforeEach(() => freezeTime());
 
@@ -63,11 +65,12 @@ test('filters narrow the new cards but never hide a due review', () => {
     card(3, { case: 'Dative' }),
     card(4, { case: 'Genitive' }),
   ];
-  const session = getDeclensionSessionCards(
+  const session = getSessionCards(
+    declensionDeck,
     deck,
     store({ cards: { 3: reviewData(3), 4: reviewData(4) } }),
-    { ...noFilters, cases: ['Genitive'] },
-    { newCardsPerDay: 10 }
+    { newCardsPerDay: 10 },
+    { ...noFilters, cases: ['Genitive'] }
   );
 
   expect(session.newCards.map(({ card }) => card.id)).toEqual([2]);
@@ -81,15 +84,16 @@ test('new cards introduced today under another filter still use up the daily all
     card(2, { case: 'Dative' }),
     ...[3, 4, 5, 6].map((id) => card(id, { case: 'Genitive' })),
   ];
-  const session = getDeclensionSessionCards(
+  const session = getSessionCards(
+    declensionDeck,
     deck,
     store({
       cards: { 1: reviewData(1, learning(10)), 2: reviewData(2, learning(10)) },
       newCardsToday: [1, 2],
       reviewedToday: [1, 2],
     }),
-    { ...noFilters, cases: ['Genitive'] },
-    { newCardsPerDay: 3 }
+    { newCardsPerDay: 3 },
+    { ...noFilters, cases: ['Genitive'] }
   );
 
   expect(session.newCards).toHaveLength(1);
@@ -104,14 +108,14 @@ test('review early and extra new cards only offer cards matching the filters', (
     card(3, { number: 'Plural' }),
     card(4, { number: 'Singular' }),
   ];
-  const extras = getDeclensionExtraCards(
-    deck,
-    store({ cards: { 3: reviewData(3, graduated(2)), 4: reviewData(4, graduated(2)) } }),
-    { ...noFilters, number: 'Plural' }
-  );
+  const reviewStore = store({
+    cards: { 3: reviewData(3, graduated(2)), 4: reviewData(4, graduated(2)) },
+  });
+  const plural: DeclensionFilters = { ...noFilters, number: 'Plural' };
+  const ids = (cards: { card: DeclensionCard }[]) => cards.map(({ card }) => card.id);
 
-  expect(extras.getPracticeAheadCards(10).map(({ card }) => card.id)).toEqual([3]);
-  expect(extras.getExtraNewCards(10).map(({ card }) => card.id)).toEqual([1]);
+  expect(ids(getPracticeAheadCards(declensionDeck, deck, reviewStore, 10, plural))).toEqual([3]);
+  expect(ids(getExtraNewCards(declensionDeck, deck, reviewStore, 10, plural))).toEqual([1]);
 });
 
 test('custom cards take the new-card places even when listed after built-in ones', () => {
@@ -120,7 +124,7 @@ test('custom cards take the new-card places even when listed after built-in ones
     card('custom_1', { isCustom: true }),
     card('custom_2', { isCustom: true }),
   ];
-  const session = getDeclensionSessionCards(deck, store(), noFilters, { newCardsPerDay: 3 });
+  const session = getSessionCards(declensionDeck, deck, store(), { newCardsPerDay: 3 }, noFilters);
   const picked = session.newCards.map(({ card }) => card);
 
   expect(picked).toHaveLength(3);
@@ -132,7 +136,7 @@ test('custom cards take the new-card places even when listed after built-in ones
 
 test('extra new cards also put custom cards first when listed after built-in ones', () => {
   const deck = [card(1), card(2), card('custom_1', { isCustom: true })];
-  const [first, ...rest] = getDeclensionExtraCards(deck, store(), noFilters).getExtraNewCards(3);
+  const [first, ...rest] = getExtraNewCards(declensionDeck, deck, store(), 3, noFilters);
   expect(first.card.id).toBe('custom_1');
   expect(rest.map(({ card }) => card.id).sort()).toEqual([1, 2]);
 });
@@ -140,15 +144,16 @@ test('extra new cards also put custom cards first when listed after built-in one
 test('a built-in card with a numeric id matches counters stored as strings', () => {
   // Ids come back from Firestore and IndexedDB as strings for built-in cards too.
   const deck = [card(7), card(8), card(9)];
-  const session = getDeclensionSessionCards(
+  const session = getSessionCards(
+    declensionDeck,
     deck,
     store({
       cards: { 7: reviewData(7, graduated(-1)), 8: reviewData(8, learning(10)) },
       reviewedToday: ['7'],
       newCardsToday: ['8', '9'],
     }),
-    noFilters,
-    { newCardsPerDay: 10 }
+    { newCardsPerDay: 10 },
+    noFilters
   );
 
   expect(session.reviewCards.map(({ card }) => card.id)).toEqual([8]);
@@ -157,11 +162,12 @@ test('a built-in card with a numeric id matches counters stored as strings', () 
 
 test('every session card carries the review data the store holds for it', () => {
   const stored = reviewData(5, graduated(-2));
-  const session = getDeclensionSessionCards(
+  const session = getSessionCards(
+    declensionDeck,
     [card(5), card(6)],
     store({ cards: { 5: stored } }),
-    noFilters,
-    { newCardsPerDay: 10 }
+    { newCardsPerDay: 10 },
+    noFilters
   );
 
   expect(session.reviewCards).toEqual([{ card: card(5), reviewData: stored, isNew: false }]);

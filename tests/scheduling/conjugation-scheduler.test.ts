@@ -1,6 +1,4 @@
 import { beforeEach, describe, expect, test } from 'vitest';
-import getConjugationSessionCards from '../../src/lib/conjugationScheduler/getConjugationSessionCards';
-import getConjugationExtraCards from '../../src/lib/conjugationScheduler/getConjugationExtraCards';
 import {
   getAnswerDisplay,
   getAspectLabel,
@@ -20,6 +18,12 @@ import type {
 } from '../../src/types/conjugation';
 import { freezeTime, graduated, learning, TODAY } from './fixtures';
 import { stub } from '../helpers/stub';
+import {
+  getExtraNewCards,
+  getPracticeAheadCards,
+  getSessionCards,
+} from '../../src/lib/reviewSession/scheduler';
+import { conjugationDeck } from '../../src/lib/reviewSession/reviewDecks';
 
 beforeEach(() => freezeTime());
 
@@ -56,9 +60,9 @@ const verb = (id: string, overrides: Partial<Verb> = {}): Verb =>
 
 const store = (overrides: Partial<ConjugationReviewDataStore> = {}) =>
   stub<ConjugationReviewDataStore>({
-    forms: {},
+    cards: {},
     reviewedToday: [],
-    newFormsToday: [],
+    newCardsToday: [],
     lastReviewDate: TODAY,
     ...overrides,
   });
@@ -171,11 +175,12 @@ describe('filters', () => {
 
 describe('session', () => {
   test('new forms follow the deck order, verb by verb and tense by tense', () => {
-    const session = getConjugationSessionCards(
-      [verb('a'), verb('b')],
+    const session = getSessionCards(
+      conjugationDeck,
+      [verb('a'), verb('b')].flatMap(getDrillableFormsForVerb),
       store(),
-      filters({ tenses: ['present'] }),
-      { newCardsPerDay: 4 }
+      { newCardsPerDay: 4 },
+      filters({ tenses: ['present'] })
     );
     expect(keys(session.newCards)).toEqual([
       'a:present:1sg',
@@ -187,11 +192,12 @@ describe('session', () => {
 
   test('filters narrow the new forms but never hide a due review', () => {
     const due = { formKey: 'a:past:3sg_m', fsrsCard: graduated(-1) };
-    const session = getConjugationSessionCards(
-      [verb('a')],
-      store({ forms: { [due.formKey]: due } }),
-      filters({ tenses: ['imperative'] }),
-      { newCardsPerDay: 10 }
+    const session = getSessionCards(
+      conjugationDeck,
+      [verb('a')].flatMap(getDrillableFormsForVerb),
+      store({ cards: { [due.formKey]: due } }),
+      { newCardsPerDay: 10 },
+      filters({ tenses: ['imperative'] })
     );
 
     expect(keys(session.newCards)).toEqual(['a:imperative:2sg']);
@@ -201,11 +207,12 @@ describe('session', () => {
   test('forms introduced today under another filter still use up the daily allowance', () => {
     // Two present forms were introduced, then the learner switched to drilling the past.
     const introduced = ['a:present:1sg', 'a:present:3sg'];
-    const session = getConjugationSessionCards(
-      [verb('a')],
-      store({ newFormsToday: introduced, reviewedToday: introduced }),
-      filters({ tenses: ['past'] }),
-      { newCardsPerDay: 3 }
+    const session = getSessionCards(
+      conjugationDeck,
+      [verb('a')].flatMap(getDrillableFormsForVerb),
+      store({ newCardsToday: introduced, reviewedToday: introduced }),
+      { newCardsPerDay: 3 },
+      filters({ tenses: ['past'] })
     );
 
     expect(keys(session.newCards)).toEqual(['a:past:1sg_f']);
@@ -214,21 +221,23 @@ describe('session', () => {
   test('each direction counts new forms against its own allowance', () => {
     const verbs = [verb('a')];
     const introduced = ['a:present:1sg', 'a:present:3sg'];
-    const plToEn = store({ newFormsToday: introduced, reviewedToday: introduced });
+    const plToEn = store({ newCardsToday: introduced, reviewedToday: introduced });
     const enToPl = store();
     const settings = { 'pl-to-en': { newCardsPerDay: 2 }, 'en-to-pl': { newCardsPerDay: 3 } };
 
-    const recognition = getConjugationSessionCards(
-      verbs,
+    const recognition = getSessionCards(
+      conjugationDeck,
+      verbs.flatMap(getDrillableFormsForVerb),
       plToEn,
-      getDefaultFilters(),
-      settings['pl-to-en']
+      settings['pl-to-en'],
+      getDefaultFilters()
     );
-    const production = getConjugationSessionCards(
-      verbs,
+    const production = getSessionCards(
+      conjugationDeck,
+      verbs.flatMap(getDrillableFormsForVerb),
       enToPl,
-      getDefaultFilters(),
-      settings['en-to-pl']
+      settings['en-to-pl'],
+      getDefaultFilters()
     );
 
     expect(recognition.newCards).toEqual([]);
@@ -243,21 +252,25 @@ describe('extra cards', () => {
       'a:past:1sg_f': { formKey: 'a:past:1sg_f', fsrsCard: graduated(1) },
       'a:present:3sg': { formKey: 'a:present:3sg', fsrsCard: learning(10) },
     };
-    const extras = getConjugationExtraCards(
-      [verb('a')],
-      store({ forms, newFormsToday: ['a:present:3pl'] }),
-      filters({ tenses: ['present'] })
-    );
+    const drillable = getDrillableFormsForVerb(verb('a'));
+    const reviewStore = store({ cards: forms, newCardsToday: ['a:present:3pl'] });
+    const presentOnly = filters({ tenses: ['present'] });
+    const ahead = getPracticeAheadCards(conjugationDeck, drillable, reviewStore, 10, presentOnly);
 
-    expect(keys(extras.getPracticeAheadCards(10))).toEqual(['a:present:1sg']);
-    expect(extras.getPracticeAheadCards(10).every((c) => !c.isNew)).toBe(true);
+    expect(keys(ahead)).toEqual(['a:present:1sg']);
+    expect(ahead.every((c) => !c.isNew)).toBe(true);
     // 1sg and 3sg are studied and 3pl was already introduced today.
-    expect(extras.getExtraNewCards(10)).toEqual([]);
+    expect(getExtraNewCards(conjugationDeck, drillable, reviewStore, 10, presentOnly)).toEqual([]);
   });
 
   test('extra new forms are marked new so they count toward today', () => {
-    const extra = getConjugationExtraCards([verb('a')], store(), getDefaultFilters());
-    const cards = extra.getExtraNewCards(2);
+    const cards = getExtraNewCards(
+      conjugationDeck,
+      getDrillableFormsForVerb(verb('a')),
+      store(),
+      2,
+      getDefaultFilters()
+    );
     expect(keys(cards)).toEqual(['a:present:1sg', 'a:present:3sg']);
     expect(cards.every((c) => c.isNew)).toBe(true);
   });

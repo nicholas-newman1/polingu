@@ -1,4 +1,3 @@
-import type { Card as FSRSCard, ReviewLog } from 'ts-fsrs';
 import type { CustomItemBase } from './customItems';
 import type { CardAudioFields } from './audio';
 
@@ -61,23 +60,20 @@ export interface CustomVocabularyWord extends CustomItemBase {
   audioUrl?: string;
 }
 
-import type { SessionChanges, TranslationDirection } from './common';
+import type { CardReviewData, ReviewDataStore, TranslationDirection } from './common';
 
-export interface VocabularyCardReviewData {
+export interface VocabularyCardReviewData extends CardReviewData {
   wordId: VocabularyWordId;
-  fsrsCard: FSRSCard;
-  log?: ReviewLog;
   /** When the learner asked to study this word next; such unseen words come before other new words. */
   prioritizedAt?: number;
 }
 
-export interface VocabularyReviewDataStore {
-  cards: Record<string, VocabularyCardReviewData>;
-  reviewedToday: VocabularyWordId[];
-  newCardsToday: VocabularyWordId[];
-  lastReviewDate: string;
-  /** When each id was added to or removed from the lists above; see sessionLists.ts. */
-  changedAt?: SessionChanges;
+export type VocabularyReviewDataStore = ReviewDataStore<VocabularyCardReviewData, VocabularyWordId>;
+
+export interface VocabularySessionCard {
+  word: VocabularyWord;
+  reviewData: VocabularyCardReviewData;
+  isNew: boolean;
 }
 
 export interface VocabularyDirectionSettings {
@@ -85,3 +81,8 @@ export interface VocabularyDirectionSettings {
 }
 
 export type VocabularySettings = Record<TranslationDirection, VocabularyDirectionSettings>;
+
+export const DEFAULT_VOCABULARY_SETTINGS: VocabularySettings = {
+  'pl-to-en': { newCardsPerDay: 10 },
+  'en-to-pl': { newCardsPerDay: 10 },
+};

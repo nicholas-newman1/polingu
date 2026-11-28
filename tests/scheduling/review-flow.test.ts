@@ -11,10 +11,6 @@ import { beforeEach, expect, test } from 'vitest';
 import { Rating, State, type Grade } from 'ts-fsrs';
 import { useReviewSession } from '../../src/hooks/useReviewSession';
 import { recordCardReview } from '../../src/lib/reviewSession/recordReview';
-import getVocabularySessionCards from '../../src/lib/vocabularyScheduler/getVocabularySessionCards';
-import getVocabularyPracticeAheadCards from '../../src/lib/vocabularyScheduler/getVocabularyPracticeAheadCards';
-import getVocabularyExtraNewCards from '../../src/lib/vocabularyScheduler/getVocabularyExtraNewCards';
-import type { VocabularySessionCard } from '../../src/lib/vocabularyScheduler/types';
 import {
   createSessionQueueState,
   getCurrentSessionCard,
@@ -24,10 +20,20 @@ import {
   type SessionQueueState,
 } from '../../src/lib/reviewSession/sessionQueue';
 import rateCard from '../../src/lib/fsrsUtils/rateCard';
-import { getDefaultVocabularyReviewStore } from '../../src/lib/storage/helpers';
-import type { VocabularyReviewDataStore, VocabularyWord } from '../../src/types/vocabulary';
-import { DAY, freezeTime, graduated, NOW, recordWordReview } from './fixtures';
+import type {
+  VocabularyReviewDataStore,
+  VocabularySessionCard,
+  VocabularyWord,
+} from '../../src/types/vocabulary';
+import { DAY, freezeTime, graduated, NOW } from './fixtures';
 import { stubs } from '../helpers/stub';
+import {
+  getExtraNewCards,
+  getPracticeAheadCards,
+  getSessionCards,
+} from '../../src/lib/reviewSession/scheduler';
+import { vocabularyDeck } from '../../src/lib/reviewSession/reviewDecks';
+import { vocabularyStorage } from '../../src/lib/storage/reviewDeckStorage';
 
 beforeEach(() => freezeTime());
 
@@ -38,7 +44,7 @@ const words = stubs<VocabularyWord>([1, 2, 3, 4, 5].map((id) => ({ id })));
 
 function freshStore(): VocabularyReviewDataStore {
   return {
-    ...getDefaultVocabularyReviewStore(),
+    ...vocabularyStorage['pl-to-en'].emptyStore(),
     cards: { 1: { wordId: 1, fsrsCard: graduated(-1) } },
   };
 }
@@ -56,7 +62,7 @@ class Learner {
   }
 
   startSession() {
-    this.start(getVocabularySessionCards(words, this.store, settings));
+    this.start(getSessionCards(vocabularyDeck, words, this.store, settings));
   }
 
   get current() {
@@ -72,7 +78,7 @@ class Learner {
     const current = this.current!;
     const reviewData = rateCard(current.reviewData, rating);
     this.queue = sessionQueueReducer(this.queue, { type: 'rate', reviewData, rating });
-    this.store = recordWordReview(this.store, current.word.id, reviewData, {
+    this.store = recordCardReview(this.store, current.word.id, reviewData, {
       isNew: current.isNew,
       completed: rating !== Rating.Again,
     });
@@ -98,7 +104,7 @@ test('a session resumed after a reload picks up where the learner left off', () 
   learner.rate(Rating.Again); // word 2, new: still to be learned today
 
   // The app reloads and rebuilds the session from the saved store.
-  const resumed = getVocabularySessionCards(words, learner.store, settings);
+  const resumed = getSessionCards(vocabularyDeck, words, learner.store, settings);
 
   expect(ids(resumed.reviewCards)).toEqual([2]);
   expect(ids(resumed.newCards)).toEqual([3]);
@@ -113,7 +119,7 @@ test('after a finished session nothing more is offered today, retries included',
   expect(shown).toEqual([1, 2, 3, 2, 2]);
   expect(learner.store.newCardsToday).toEqual([2, 3]);
   expect(learner.store.reviewedToday.slice().sort()).toEqual([1, 2, 3]);
-  expect(getVocabularySessionCards(words, learner.store, settings)).toEqual({
+  expect(getSessionCards(vocabularyDeck, words, learner.store, settings)).toEqual({
     reviewCards: [],
     newCards: [],
   });
@@ -126,8 +132,8 @@ test('the next day brings back unfinished learning cards and a fresh new-card al
 
   // A new local day: the loader replaces the counters but keeps the cards.
   freezeTime(new Date(NOW.getTime() + DAY));
-  const tomorrow = { ...getDefaultVocabularyReviewStore(), cards: learner.store.cards };
-  const session = getVocabularySessionCards(words, tomorrow, settings);
+  const tomorrow = { ...vocabularyStorage['pl-to-en'].emptyStore(), cards: learner.store.cards };
+  const session = getSessionCards(vocabularyDeck, words, tomorrow, settings);
 
   // Words 2 and 3 were passed once and sit on a learning step.
   expect(ids(session.reviewCards).sort()).toEqual([2, 3]);
@@ -139,34 +145,37 @@ test('extra new cards after the allowance is used up are recorded as introduced'
   learner.startSession();
   learner.finish();
 
-  learner.start({ reviewCards: [], newCards: getVocabularyExtraNewCards(words, learner.store, 5) });
+  learner.start({
+    reviewCards: [],
+    newCards: getExtraNewCards(vocabularyDeck, words, learner.store, 5),
+  });
   expect(learner.finish()).toEqual([4, 5]);
 
   expect(learner.store.newCardsToday).toEqual([2, 3, 4, 5]);
-  expect(getVocabularyExtraNewCards(words, learner.store, 5)).toEqual([]);
+  expect(getExtraNewCards(vocabularyDeck, words, learner.store, 5)).toEqual([]);
 });
 
 test('each round of review early moves on to words not yet reviewed today', () => {
   const learner = new Learner({
-    ...getDefaultVocabularyReviewStore(),
+    ...vocabularyStorage['pl-to-en'].emptyStore(),
     cards: Object.fromEntries(
       [1, 2, 3, 4].map((id) => [id, { wordId: id, fsrsCard: graduated(id) }])
     ),
   });
 
   learner.start(
-    { reviewCards: getVocabularyPracticeAheadCards(words, learner.store, 2), newCards: [] },
+    { reviewCards: getPracticeAheadCards(vocabularyDeck, words, learner.store, 2), newCards: [] },
     true
   );
   expect(learner.finish()).toEqual([1, 2]);
 
   learner.start(
-    { reviewCards: getVocabularyPracticeAheadCards(words, learner.store, 2), newCards: [] },
+    { reviewCards: getPracticeAheadCards(vocabularyDeck, words, learner.store, 2), newCards: [] },
     true
   );
   expect(learner.finish()).toEqual([3, 4]);
 
-  expect(getVocabularyPracticeAheadCards(words, learner.store, 2)).toEqual([]);
+  expect(getPracticeAheadCards(vocabularyDeck, words, learner.store, 2)).toEqual([]);
 });
 
 test('a review card failed in the session stays due today until it is passed', () => {
@@ -174,7 +183,7 @@ test('a review card failed in the session stays due today until it is passed', (
   learner.startSession();
   learner.rate(Rating.Again); // word 1 lapses
 
-  const rebuilt = getVocabularySessionCards(words, learner.store, settings);
+  const rebuilt = getSessionCards(vocabularyDeck, words, learner.store, settings);
   expect(ids(rebuilt.reviewCards)).toEqual([1]);
   expect(learner.store.cards[1].fsrsCard.lapses).toBe(1);
 });
@@ -191,10 +200,10 @@ function renderVocabularyReview(initial: VocabularyReviewDataStore) {
       getId: (word: VocabularyWord) => word.id,
       getAudioUrls: () => [],
       ready: true,
-      getSessionCards: () => getVocabularySessionCards(words, store, settings),
+      getSessionCards: () => getSessionCards(vocabularyDeck, words, store, settings),
       getPracticeAheadCards: (count, current) =>
-        getVocabularyPracticeAheadCards(words, current, count),
-      getExtraNewCards: (count, current) => getVocabularyExtraNewCards(words, current, count),
+        getPracticeAheadCards(vocabularyDeck, words, current, count),
+      getExtraNewCards: (count, current) => getExtraNewCards(vocabularyDeck, words, current, count),
       reviewStore: store,
       recordReview: recordCardReview,
       saveReviewStore: async (next) => setStore(next),

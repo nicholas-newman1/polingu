@@ -1,6 +1,5 @@
 import { useOptionalUserFilters } from '../UserFiltersContext';
 import { DEFAULT_USER_FILTERS, type UserFilters } from '../../types/userFilters';
-import type { ReviewBucket } from '../../lib/fsrsUtils/getReviewBucket';
 
 /**
  * The learner's session filters, which limit the new cards a declension or
@@ -11,7 +10,3 @@ import type { ReviewBucket } from '../../lib/fsrsUtils/getReviewBucket';
 export function useSessionFilters(): UserFilters {
   return useOptionalUserFilters()?.filters ?? DEFAULT_USER_FILTERS;
 }
-
-/** A new card the session filters leave out is not due (the session would not serve it). */
-export const unlessFilteredOut = (bucket: ReviewBucket, matches: boolean): ReviewBucket =>
-  bucket === 'new' && !matches ? null : bucket;

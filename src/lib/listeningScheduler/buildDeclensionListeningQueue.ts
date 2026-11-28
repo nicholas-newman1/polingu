@@ -6,7 +6,8 @@ import type {
   Number as NounNumber,
 } from '../../types';
 import type { ListeningOrdering, ListeningQueueItem } from '../../types/listening';
-import getOrCreateDeclensionCardReviewData from '../storage/getOrCreateDeclensionCardReviewData';
+import { reviewDataFor } from '../reviewSession/scheduler';
+import { declensionDeck } from '../reviewSession/reviewDecks';
 import isFsrsCardLearned from './isFsrsCardLearned';
 import orderListeningPool from './orderListeningPool';
 
@@ -50,7 +51,7 @@ export default function buildDeclensionListeningQueue({
   const pool = orderListeningPool(
     filtered.map((card) => ({
       item: card,
-      reviewData: getOrCreateDeclensionCardReviewData(card.id, reviewStore),
+      reviewData: reviewDataFor(declensionDeck, reviewStore, card.id),
     })),
     ordering,
     limit

@@ -1,6 +1,7 @@
 import type { VocabularyWord, VocabularyReviewDataStore } from '../../types/vocabulary';
 import type { ListeningOrdering, ListeningQueueItem } from '../../types/listening';
-import getOrCreateVocabularyCardReviewData from '../storage/getOrCreateVocabularyCardReviewData';
+import { reviewDataFor } from '../reviewSession/scheduler';
+import { vocabularyDeck } from '../reviewSession/reviewDecks';
 import isFsrsCardLearned from './isFsrsCardLearned';
 import orderListeningPool from './orderListeningPool';
 
@@ -22,7 +23,7 @@ export default function buildVocabularyListeningQueue({
   const pool = orderListeningPool(
     filtered.map((word) => ({
       item: word,
-      reviewData: getOrCreateVocabularyCardReviewData(word.id, reviewStore),
+      reviewData: reviewDataFor(vocabularyDeck, reviewStore, word.id),
     })),
     ordering,
     limit

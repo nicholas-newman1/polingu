@@ -1,8 +1,6 @@
 import { describe, expect, test, vi } from 'vitest';
 import { createEmptyCard } from 'ts-fsrs';
 import { createReviewSubcollectionStorage } from '../../src/lib/storage/createReviewSubcollectionStorage';
-import { vocabularyReviewStorage } from '../../src/lib/storage/vocabularyReviewStorage';
-import { declensionReviewStorage } from '../../src/lib/storage/declensionReviewStorage';
 import type { VocabularyCardReviewData } from '../../src/types/vocabulary';
 import type { DeclensionCardReviewData } from '../../src/types';
 import { remote, Timestamp } from './support/fakeFirestore';
@@ -15,6 +13,7 @@ import {
   signIn,
   userPath,
 } from './support/harness';
+import { declensionStorage, vocabularyStorage } from '../../src/lib/storage/reviewDeckStorage';
 
 vi.mock('firebase/firestore', () => import('./support/fakeFirestore'));
 
@@ -212,8 +211,8 @@ describe('saving reviews', () => {
 
   test('the two study directions are stored in separate collections', async () => {
     signIn(UID);
-    const plEn = vocabularyReviewStorage('pl-to-en');
-    const enPl = vocabularyReviewStorage('en-to-pl');
+    const plEn = vocabularyStorage['pl-to-en'].cards;
+    const enPl = vocabularyStorage['en-to-pl'].cards;
     const word: VocabularyCardReviewData = {
       wordId: 7,
       fsrsCard: ratedCard('2026-11-20T10:00:00Z'),
@@ -423,16 +422,16 @@ describe('clearing all cards', () => {
     const many = Object.fromEntries(
       Array.from({ length: 450 }, (_, i) => [i, card(i, '2026-11-20T10:00:00Z')])
     );
-    await declensionReviewStorage.saveCardsDiff(null, many);
-    const other = vocabularyReviewStorage('pl-to-en');
+    await declensionStorage.all.cards.saveCardsDiff(null, many);
+    const other = vocabularyStorage['pl-to-en'].cards;
     await other.saveCardsDiff(null, {
       1: { wordId: 1, fsrsCard: ratedCard('2026-11-20T10:00:00Z') },
     });
 
-    await declensionReviewStorage.clearAllCards();
+    await declensionStorage.all.cards.clearAllCards();
 
     expect(remote.list(cardsPath)).toEqual({});
-    expect(await declensionReviewStorage.loadCards()).toEqual({});
+    expect(await declensionStorage.all.cards.loadCards()).toEqual({});
     expect(Object.keys(await other.loadCards())).toEqual(['1']);
     expect(Object.keys(remote.list(userPath(UID, 'vocabularyReviewCards-pl-en')))).toEqual(['1']);
   });

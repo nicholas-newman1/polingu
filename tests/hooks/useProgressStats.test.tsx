@@ -5,7 +5,6 @@ import { useProgressStats } from '../../src/hooks/useProgressStats';
 import { useReviewData, type ReviewDataContextType } from '../../src/hooks/useReviewData';
 import { UserFiltersProvider, useUserFilters } from '../../src/contexts/UserFiltersContext';
 import loadUserFilters from '../../src/lib/storage/loadUserFilters';
-import getConjugationSessionCards from '../../src/lib/conjugationScheduler/getConjugationSessionCards';
 import { DEFAULT_USER_FILTERS } from '../../src/types/userFilters';
 import type { CustomDeclensionCard, DeclensionCard } from '../../src/types';
 import type { CustomVocabularyWord, VocabularyWord } from '../../src/types/vocabulary';
@@ -27,6 +26,9 @@ import type { TranslationDirection } from '../../src/types/common';
 import { fsrsCard, inDays, State } from '../helpers/fsrs';
 import { stub } from '../helpers/stub';
 import { renderWithReviewData, type ReviewDataSeed } from './support/reviewDataProviders';
+import { getSessionCards } from '../../src/lib/reviewSession/scheduler';
+import { conjugationDeck } from '../../src/lib/reviewSession/reviewDecks';
+import { getDrillableFormsForVerb } from '../../src/lib/conjugationUtils';
 
 // The providers' live custom-collection listeners are the Firestore boundary.
 vi.mock('../../src/lib/storage/customVocabulary', () => ({
@@ -42,11 +44,10 @@ vi.mock('../../src/lib/storage/customSentences', () => ({
   subscribeCustomSentences: vi.fn(),
 }));
 // Saving a changed setting is the storage boundary; the providers update their state first.
-vi.mock('../../src/lib/storage/saveDeclensionSettings', () => ({ default: vi.fn() }));
-vi.mock('../../src/lib/storage/saveVocabularySettings', () => ({ default: vi.fn() }));
-vi.mock('../../src/lib/storage/saveSentenceSettings', () => ({ default: vi.fn() }));
-vi.mock('../../src/lib/storage/saveConjugationSettings', () => ({ default: vi.fn() }));
-vi.mock('../../src/lib/storage/saveAspectPairsSettings', () => ({ default: vi.fn() }));
+vi.mock('../../src/lib/storage/reviewDeckStorage', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../src/lib/storage/reviewDeckStorage')>()),
+  saveDeckSettings: vi.fn(),
+}));
 // The learner's saved session filters.
 vi.mock('../../src/lib/storage/loadUserFilters', () => ({ default: vi.fn() }));
 
@@ -171,14 +172,14 @@ const conjugationStore = (
   forms: Record<string, Card> = {},
   {
     reviewedToday = [],
-    newFormsToday = [],
-  }: { reviewedToday?: string[]; newFormsToday?: string[] } = {}
+    newCardsToday = [],
+  }: { reviewedToday?: string[]; newCardsToday?: string[] } = {}
 ) => ({
-  forms: Object.fromEntries(
+  cards: Object.fromEntries(
     Object.entries(forms).map(([key, card]) => [key, { formKey: key, fsrsCard: card }])
   ),
   reviewedToday,
-  newFormsToday,
+  newCardsToday,
   lastReviewDate: TODAY,
 });
 
@@ -484,7 +485,7 @@ describe('useProgressStats: conjugation', () => {
       conjugationStores: {
         'pl-to-en': conjugationStore(
           Object.fromEntries(introduced.map((key) => [key, learning()])),
-          { reviewedToday: introduced, newFormsToday: introduced }
+          { reviewedToday: introduced, newCardsToday: introduced }
         ),
       },
     });
@@ -656,11 +657,12 @@ describe('useProgressStats: learner filters', () => {
 
     /** How many cards the conjugation session in `direction` serves with these filters. */
     const sessionSize = (direction: TranslationDirection) => {
-      const { reviewCards, newCards } = getConjugationSessionCards(
-        filterVerbs,
+      const { reviewCards, newCards } = getSessionCards(
+        conjugationDeck,
+        filterVerbs.flatMap(getDrillableFormsForVerb),
         filterStores[direction],
-        conjugation,
-        filterSettings[direction]
+        filterSettings[direction],
+        conjugation
       );
       return reviewCards.length + newCards.length;
     };

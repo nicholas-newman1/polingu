@@ -1,14 +1,15 @@
 import { beforeEach, describe, expect, test } from 'vitest';
 import { Rating, type Grade } from 'ts-fsrs';
-import { recordFormReview } from '../../src/lib/reviewSession/recordReview';
+import { recordCardReview } from '../../src/lib/reviewSession/recordReview';
 import rateCard from '../../src/lib/fsrsUtils/rateCard';
-import getOrCreateVocabularyCardReviewData from '../../src/lib/storage/getOrCreateVocabularyCardReviewData';
 import type {
   VocabularyCardReviewData,
   VocabularyReviewDataStore,
 } from '../../src/types/vocabulary';
 import type { ConjugationReviewDataStore } from '../../src/types/conjugation';
-import { freezeTime, graduated, recordWordReview, TODAY } from './fixtures';
+import { freezeTime, graduated, TODAY } from './fixtures';
+import { reviewDataFor } from '../../src/lib/reviewSession/scheduler';
+import { vocabularyDeck } from '../../src/lib/reviewSession/reviewDecks';
 
 beforeEach(() => freezeTime());
 
@@ -25,12 +26,12 @@ const emptyStore = (): VocabularyReviewDataStore => ({
 });
 
 const rated = (id: number | string, store: VocabularyReviewDataStore, rating: Grade) =>
-  rateCard(getOrCreateVocabularyCardReviewData(id, store), rating);
+  rateCard(reviewDataFor(vocabularyDeck, store, id), rating);
 
 describe('recordCardReview', () => {
   test('a new card that is passed counts as introduced and as done for today', () => {
     const store = emptyStore();
-    const next = recordWordReview(store, 1, rated(1, store, Rating.Good), NEW_PASSED);
+    const next = recordCardReview(store, 1, rated(1, store, Rating.Good), NEW_PASSED);
 
     expect(next.newCardsToday).toEqual([1]);
     expect(next.reviewedToday).toEqual([1]);
@@ -39,7 +40,7 @@ describe('recordCardReview', () => {
 
   test('a new card rated Again uses up an allowance place but is not done for today', () => {
     const store = emptyStore();
-    const next = recordWordReview(store, 1, rated(1, store, Rating.Again), NEW_AGAIN);
+    const next = recordCardReview(store, 1, rated(1, store, Rating.Again), NEW_AGAIN);
 
     expect(next.newCardsToday).toEqual([1]);
     expect(next.reviewedToday).toEqual([]);
@@ -50,7 +51,7 @@ describe('recordCardReview', () => {
       ...emptyStore(),
       cards: { 2: { wordId: 2, fsrsCard: graduated(-1) } },
     };
-    const next = recordWordReview(store, 2, rated(2, store, Rating.Again), AGAIN);
+    const next = recordCardReview(store, 2, rated(2, store, Rating.Again), AGAIN);
 
     expect(next.newCardsToday).toEqual([]);
     expect(next.reviewedToday).toEqual([]);
@@ -59,10 +60,10 @@ describe('recordCardReview', () => {
 
   test('a card rated several times today is counted once in each list', () => {
     let store = emptyStore();
-    store = recordWordReview(store, 3, rated(3, store, Rating.Again), NEW_AGAIN);
-    store = recordWordReview(store, 3, rated(3, store, Rating.Again), NEW_AGAIN);
-    store = recordWordReview(store, 3, rated(3, store, Rating.Good), NEW_PASSED);
-    store = recordWordReview(store, 3, rated(3, store, Rating.Good), PASSED);
+    store = recordCardReview(store, 3, rated(3, store, Rating.Again), NEW_AGAIN);
+    store = recordCardReview(store, 3, rated(3, store, Rating.Again), NEW_AGAIN);
+    store = recordCardReview(store, 3, rated(3, store, Rating.Good), NEW_PASSED);
+    store = recordCardReview(store, 3, rated(3, store, Rating.Good), PASSED);
 
     expect(store.newCardsToday).toEqual([3]);
     expect(store.reviewedToday).toEqual([3]);
@@ -76,7 +77,7 @@ describe('recordCardReview', () => {
       newCardsToday: ['4'],
       reviewedToday: ['4'],
     };
-    const next = recordWordReview(store, 4, rated(4, store, Rating.Good), NEW_PASSED);
+    const next = recordCardReview(store, 4, rated(4, store, Rating.Good), NEW_PASSED);
 
     expect(next.newCardsToday).toEqual(['4']);
     expect(next.reviewedToday).toEqual(['4']);
@@ -93,7 +94,7 @@ describe('recordCardReview', () => {
     const snapshot = structuredClone(store);
     const reviewData = rated('custom_9', store, Rating.Easy);
 
-    const next = recordWordReview(store, 'custom_9', reviewData, NEW_PASSED);
+    const next = recordCardReview(store, 'custom_9', reviewData, NEW_PASSED);
 
     expect(store).toEqual(snapshot);
     expect(next).not.toBe(store);
@@ -104,11 +105,11 @@ describe('recordCardReview', () => {
   });
 });
 
-describe('recordFormReview', () => {
+describe('recordCardReview for conjugation forms', () => {
   const formStore = (): ConjugationReviewDataStore => ({
-    forms: {},
+    cards: {},
     reviewedToday: [],
-    newFormsToday: [],
+    newCardsToday: [],
     lastReviewDate: TODAY,
   });
   const formData = (rating: Grade) =>
@@ -116,23 +117,23 @@ describe('recordFormReview', () => {
 
   test('tracks new and done forms by their full form key', () => {
     let store = formStore();
-    store = recordFormReview(store, 'byc:present:1sg', formData(Rating.Again), NEW_AGAIN);
-    expect(store.newFormsToday).toEqual(['byc:present:1sg']);
+    store = recordCardReview(store, 'byc:present:1sg', formData(Rating.Again), NEW_AGAIN);
+    expect(store.newCardsToday).toEqual(['byc:present:1sg']);
     expect(store.reviewedToday).toEqual([]);
 
-    store = recordFormReview(store, 'byc:present:1sg', formData(Rating.Good), NEW_PASSED);
-    expect(store.newFormsToday).toEqual(['byc:present:1sg']);
+    store = recordCardReview(store, 'byc:present:1sg', formData(Rating.Good), NEW_PASSED);
+    expect(store.newCardsToday).toEqual(['byc:present:1sg']);
     expect(store.reviewedToday).toEqual(['byc:present:1sg']);
-    expect(Object.keys(store.forms)).toEqual(['byc:present:1sg']);
+    expect(Object.keys(store.cards)).toEqual(['byc:present:1sg']);
   });
 
   test('a review form rated Again stays due today and the original store is untouched', () => {
     const store = formStore();
-    const next = recordFormReview(store, 'byc:past:3sg_m', formData(Rating.Again), AGAIN);
+    const next = recordCardReview(store, 'byc:past:3sg_m', formData(Rating.Again), AGAIN);
 
     expect(next.reviewedToday).toEqual([]);
-    expect(next.newFormsToday).toEqual([]);
-    expect(next.forms['byc:past:3sg_m']).toBeDefined();
-    expect(store.forms).toEqual({});
+    expect(next.newCardsToday).toEqual([]);
+    expect(next.cards['byc:past:3sg_m']).toBeDefined();
+    expect(store.cards).toEqual({});
   });
 });

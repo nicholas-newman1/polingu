@@ -11,7 +11,8 @@
 import { deleteDoc, doc, getDoc, runTransaction, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { userDb } from './userDb';
-import { getUserId, REVIEW_SESSION_DOC_PATHS } from '../storage/helpers';
+import { getUserId } from '../storage/helpers';
+import { REVIEW_SESSION_DOC_PATHS } from '../storage/reviewDeckDocs';
 import { stripUndefinedDeep } from '../storage/firestoreUtils';
 import { mergeSessionDocs } from '../reviewSession/sessionLists';
 import {

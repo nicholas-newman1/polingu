@@ -16,13 +16,13 @@ import {
   type SentenceContextType,
   type VocabularyContextType,
 } from '../../../src/contexts/review';
-import {
-  getDefaultDeclensionReviewStore,
-  getDefaultSentenceReviewStore,
-  getDefaultVocabularyReviewStore,
-} from '../../../src/lib/storage/helpers';
 import { stub } from '../../helpers/stub';
 import { probe, srsWrites, type ReviewFixture } from './probes';
+import {
+  declensionStorage,
+  sentenceStorage,
+  vocabularyStorage,
+} from '../../../src/lib/storage/reviewDeckStorage';
 
 const recorder =
   (what: string) =>
@@ -43,15 +43,17 @@ export function ReviewDataStub({
 }) {
   const declension = stub<DeclensionContextType>({
     declensionCards: fixture.declensionCards ?? [],
-    declensionReviewStore: fixture.declensionStore ?? getDefaultDeclensionReviewStore(),
+    declensionReviewStore: fixture.declensionStore ?? declensionStorage.all.emptyStore(),
     updateDeclensionReviewStore: recorder('updateDeclensionReviewStore'),
     clearDeclensionData: recorder('clearDeclensionData'),
   });
   const vocabulary = stub<VocabularyContextType>({
     vocabularyWords: fixture.vocabularyWords ?? [],
     vocabularyReviewStores: {
-      'pl-to-en': fixture.vocabularyStores?.['pl-to-en'] ?? getDefaultVocabularyReviewStore(),
-      'en-to-pl': fixture.vocabularyStores?.['en-to-pl'] ?? getDefaultVocabularyReviewStore(),
+      'pl-to-en':
+        fixture.vocabularyStores?.['pl-to-en'] ?? vocabularyStorage['pl-to-en'].emptyStore(),
+      'en-to-pl':
+        fixture.vocabularyStores?.['en-to-pl'] ?? vocabularyStorage['pl-to-en'].emptyStore(),
     },
     updateVocabularyReviewStore: recorder('updateVocabularyReviewStore'),
     clearVocabularyReviewData: recorder('clearVocabularyReviewData'),
@@ -59,8 +61,8 @@ export function ReviewDataStub({
   const sentences = stub<SentenceContextType>({
     sentences: fixture.sentences ?? [],
     sentenceReviewStores: {
-      'pl-to-en': fixture.sentenceStores?.['pl-to-en'] ?? getDefaultSentenceReviewStore(),
-      'en-to-pl': fixture.sentenceStores?.['en-to-pl'] ?? getDefaultSentenceReviewStore(),
+      'pl-to-en': fixture.sentenceStores?.['pl-to-en'] ?? sentenceStorage['pl-to-en'].emptyStore(),
+      'en-to-pl': fixture.sentenceStores?.['en-to-pl'] ?? sentenceStorage['pl-to-en'].emptyStore(),
     },
     updateSentenceReviewStore: recorder('updateSentenceReviewStore'),
     clearSentenceReviewData: recorder('clearSentenceReviewData'),

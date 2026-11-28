@@ -30,9 +30,12 @@ import {
   updateSystemVocabularyWord,
   deleteSystemVocabularyWord,
 } from '../../lib/storage/systemVocabulary';
-import getVocabularySessionCards from '../../lib/vocabularyScheduler/getVocabularySessionCards';
-import getVocabularyPracticeAheadCards from '../../lib/vocabularyScheduler/getVocabularyPracticeAheadCards';
-import getVocabularyExtraNewCards from '../../lib/vocabularyScheduler/getVocabularyExtraNewCards';
+import {
+  getExtraNewCards,
+  getPracticeAheadCards,
+  getSessionCards,
+} from '../../lib/reviewSession/scheduler';
+import { vocabularyDeck } from '../../lib/reviewSession/reviewDecks';
 import { recordCardReview } from '../../lib/reviewSession/recordReview';
 import { DIRECTION_ROUTES, otherDirection, toModeStats } from '../../lib/reviewSession/directions';
 import { useAuthContext } from '../../hooks/useAuthContext';
@@ -102,10 +105,11 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
     getAudioUrls: (word) => [word.audioUrl],
     ready: !contextLoading,
     sessionKey: currentDirection,
-    getSessionCards: () => getVocabularySessionCards(allWords, reviewStore, directionSettings),
+    getSessionCards: () =>
+      getSessionCards(vocabularyDeck, allWords, reviewStore, directionSettings),
     getPracticeAheadCards: (count, store) =>
-      getVocabularyPracticeAheadCards(allWords, store, count),
-    getExtraNewCards: (count, store) => getVocabularyExtraNewCards(allWords, store, count),
+      getPracticeAheadCards(vocabularyDeck, allWords, store, count),
+    getExtraNewCards: (count, store) => getExtraNewCards(vocabularyDeck, allWords, store, count),
     reviewStore,
     recordReview: recordCardReview,
     saveReviewStore: (store) => updateVocabularyReviewStore(currentDirection, store),
@@ -145,7 +149,7 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
   const handleSettingsChange = async (newCardsPerDay: number) => {
     const newSettings = { ...directionSettings, newCardsPerDay };
     await updateVocabularySettings(currentDirection, newSettings);
-    session.startSession(getVocabularySessionCards(allWords, reviewStore, newSettings));
+    session.startSession(getSessionCards(vocabularyDeck, allWords, reviewStore, newSettings));
   };
 
   const handleListen = () => {
@@ -185,7 +189,12 @@ export function VocabularyPage({ mode }: VocabularyPageProps) {
     saveCustom(newCustomWords);
 
     session.startSession(
-      getVocabularySessionCards([...newCustomWords, ...systemWords], reviewStore, directionSettings)
+      getSessionCards(
+        vocabularyDeck,
+        [...newCustomWords, ...systemWords],
+        reviewStore,
+        directionSettings
+      )
     );
   };
 

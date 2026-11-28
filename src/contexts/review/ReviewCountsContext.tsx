@@ -1,50 +1,21 @@
 import { createContext, useMemo, type ReactNode, useContext } from 'react';
-import type { DeclensionCard, DeclensionReviewDataStore, DeclensionSettings } from '../../types';
-import type {
-  VocabularyWord,
-  VocabularyReviewDataStore,
-  VocabularyDirectionSettings,
-} from '../../types/vocabulary';
-import type {
-  Sentence,
-  SentenceReviewDataStore,
-  SentenceDirectionSettings,
-} from '../../types/sentences';
-import type {
-  Verb,
-  ConjugationReviewDataStore,
-  ConjugationDirectionSettings,
-  ConjugationFilters,
-} from '../../types/conjugation';
-import type { DeclensionFilters } from '../../lib/declensionScheduler/types';
-import type {
-  AspectPairCard,
-  AspectPairsReviewDataStore,
-  AspectPairsSettings,
-} from '../../types/aspectPairs';
-import getReviewBucket from '../../lib/fsrsUtils/getReviewBucket';
-import countDueCards from '../../lib/fsrsUtils/countDueCards';
-import getOrCreateDeclensionCardReviewData from '../../lib/storage/getOrCreateDeclensionCardReviewData';
-import getOrCreateVocabularyCardReviewData from '../../lib/storage/getOrCreateVocabularyCardReviewData';
-import getOrCreateSentenceCardReviewData from '../../lib/storage/getOrCreateSentenceCardReviewData';
-import getOrCreateConjugationFormReviewData from '../../lib/storage/getOrCreateConjugationFormReviewData';
-import getOrCreateAspectPairsCardReviewData from '../../lib/storage/getOrCreateAspectPairsCardReviewData';
+import { getUserId } from '../../lib/storage/helpers';
+import { getDrillableFormsForVerb } from '../../lib/conjugationUtils';
+import { countDueToday } from '../../lib/reviewSession/scheduler';
 import {
-  getUserId,
-  includesDeclensionCardId,
-  includesSentenceId,
-  includesFormKey,
-  includesVerbId,
-  includesWordId,
-} from '../../lib/storage/helpers';
-import { getDrillableFormsForVerb, matchesFilters } from '../../lib/conjugationUtils';
-import matchesDeclensionFilters from '../../lib/declensionScheduler/matchesFilters';
+  aspectPairsDeck,
+  conjugationDeck,
+  declensionDeck,
+  sentenceDeck,
+  vocabularyDeck,
+} from '../../lib/reviewSession/reviewDecks';
+import type { TranslationDirection } from '../../types/common';
 import { DeclensionContext } from './DeclensionContext';
 import { VocabularyContext } from './VocabularyContext';
 import { SentenceContext } from './SentenceContext';
 import { ConjugationContext } from './ConjugationContext';
 import { AspectPairsContext } from './AspectPairsContext';
-import { unlessFilteredOut, useSessionFilters } from './sessionFilters';
+import { useSessionFilters } from './sessionFilters';
 
 export interface ReviewCounts {
   declension: number;
@@ -62,97 +33,9 @@ export interface ReviewCountsContextType {
 // eslint-disable-next-line react-refresh/only-export-components
 export const ReviewCountsContext = createContext<ReviewCountsContextType | null>(null);
 
-function computeDeclensionDueCount(
-  cards: DeclensionCard[],
-  reviewStore: DeclensionReviewDataStore,
-  settings: DeclensionSettings,
-  filters: DeclensionFilters
-): number {
-  const { newCardsToday, reviewedToday } = reviewStore;
-  const buckets = cards.map((card) =>
-    unlessFilteredOut(
-      getReviewBucket(
-        getOrCreateDeclensionCardReviewData(card.id, reviewStore).fsrsCard,
-        includesDeclensionCardId(newCardsToday, card.id),
-        includesDeclensionCardId(reviewedToday, card.id)
-      ),
-      matchesDeclensionFilters(card, filters)
-    )
-  );
-  return countDueCards(buckets, settings.newCardsPerDay - newCardsToday.length);
-}
-
-function computeVocabularyDueCount(
-  words: VocabularyWord[],
-  reviewStore: VocabularyReviewDataStore,
-  settings: VocabularyDirectionSettings
-): number {
-  const { newCardsToday, reviewedToday } = reviewStore;
-  const buckets = words.map((word) =>
-    getReviewBucket(
-      getOrCreateVocabularyCardReviewData(word.id, reviewStore).fsrsCard,
-      includesWordId(newCardsToday, word.id),
-      includesWordId(reviewedToday, word.id)
-    )
-  );
-  return countDueCards(buckets, settings.newCardsPerDay - newCardsToday.length);
-}
-
-function computeSentenceDueCount(
-  sentences: Sentence[],
-  reviewStore: SentenceReviewDataStore,
-  settings: SentenceDirectionSettings
-): number {
-  const { newCardsToday, reviewedToday } = reviewStore;
-  const buckets = sentences
-    .filter((sentence) => settings.selectedLevels.includes(sentence.level))
-    .map((sentence) =>
-      getReviewBucket(
-        getOrCreateSentenceCardReviewData(sentence.id, reviewStore).fsrsCard,
-        includesSentenceId(newCardsToday, sentence.id),
-        includesSentenceId(reviewedToday, sentence.id)
-      )
-    );
-  return countDueCards(buckets, settings.newCardsPerDay - newCardsToday.length);
-}
-
-function computeConjugationDueCount(
-  verbs: Verb[],
-  reviewStore: ConjugationReviewDataStore,
-  settings: ConjugationDirectionSettings,
-  filters: ConjugationFilters
-): number {
-  const { newFormsToday, reviewedToday } = reviewStore;
-  const buckets = verbs
-    .flatMap(getDrillableFormsForVerb)
-    .map((form) =>
-      unlessFilteredOut(
-        getReviewBucket(
-          getOrCreateConjugationFormReviewData(form.fullFormKey, reviewStore).fsrsCard,
-          includesFormKey(newFormsToday, form.fullFormKey),
-          includesFormKey(reviewedToday, form.fullFormKey)
-        ),
-        matchesFilters(form, filters)
-      )
-    );
-  return countDueCards(buckets, settings.newCardsPerDay - newFormsToday.length);
-}
-
-function computeAspectPairsDueCount(
-  aspectPairCards: AspectPairCard[],
-  reviewStore: AspectPairsReviewDataStore,
-  settings: AspectPairsSettings
-): number {
-  const { newCardsToday, reviewedToday } = reviewStore;
-  const buckets = aspectPairCards.map(({ verb }) =>
-    getReviewBucket(
-      getOrCreateAspectPairsCardReviewData(verb.id, reviewStore).fsrsCard,
-      includesVerbId(newCardsToday, verb.id),
-      includesVerbId(reviewedToday, verb.id)
-    )
-  );
-  return countDueCards(buckets, settings.newCardsPerDay - newCardsToday.length);
-}
+const DIRECTIONS: TranslationDirection[] = ['pl-to-en', 'en-to-pl'];
+const sumDirections = (count: (direction: TranslationDirection) => number) =>
+  DIRECTIONS.reduce((sum, direction) => sum + count(direction), 0);
 
 interface ReviewCountsProviderProps {
   children: ReactNode;
@@ -180,66 +63,52 @@ export function ReviewCountsProvider({ children, loading }: ReviewCountsProvider
       return { declension: 0, vocabulary: 0, sentences: 0, conjugation: 0, aspectPairs: 0 };
     }
 
-    const declensionCount = computeDeclensionDueCount(
-      declensionCtx.declensionCards,
-      declensionCtx.declensionReviewStore,
-      declensionCtx.declensionSettings,
-      filters.declension
-    );
-
-    const plToEnCount = computeVocabularyDueCount(
-      vocabularyCtx.vocabularyWords,
-      vocabularyCtx.vocabularyReviewStores['pl-to-en'],
-      vocabularyCtx.vocabularySettings['pl-to-en']
-    );
-    const enToPlCount = computeVocabularyDueCount(
-      vocabularyCtx.vocabularyWords,
-      vocabularyCtx.vocabularyReviewStores['en-to-pl'],
-      vocabularyCtx.vocabularySettings['en-to-pl']
-    );
-
-    const sentencePlToEnCount = computeSentenceDueCount(
-      sentenceCtx.sentences,
-      sentenceCtx.sentenceReviewStores['pl-to-en'],
-      sentenceCtx.sentenceSettings['pl-to-en']
-    );
-    const sentenceEnToPlCount = computeSentenceDueCount(
-      sentenceCtx.sentences,
-      sentenceCtx.sentenceReviewStores['en-to-pl'],
-      sentenceCtx.sentenceSettings['en-to-pl']
-    );
-
-    const conjugationPlToEnCount = computeConjugationDueCount(
-      conjugationCtx.verbs,
-      conjugationCtx.conjugationReviewStores['pl-to-en'],
-      conjugationCtx.conjugationSettings['pl-to-en'],
-      filters.conjugation
-    );
-    const conjugationEnToPlCount = computeConjugationDueCount(
-      conjugationCtx.verbs,
-      conjugationCtx.conjugationReviewStores['en-to-pl'],
-      conjugationCtx.conjugationSettings['en-to-pl'],
-      filters.conjugation
-    );
-
-    const aspectPairsCount = computeAspectPairsDueCount(
-      aspectPairsCtx.aspectPairCards,
-      aspectPairsCtx.aspectPairsReviewStore,
-      aspectPairsCtx.aspectPairsSettings
-    );
+    const forms = conjugationCtx.verbs.flatMap(getDrillableFormsForVerb);
 
     return {
-      declension: declensionCount,
-      vocabulary: plToEnCount + enToPlCount,
-      sentences: sentencePlToEnCount + sentenceEnToPlCount,
-      conjugation: conjugationPlToEnCount + conjugationEnToPlCount,
-      aspectPairs: aspectPairsCount,
+      declension: countDueToday(
+        declensionDeck,
+        declensionCtx.declensionCards,
+        declensionCtx.declensionReviewStore,
+        declensionCtx.declensionSettings,
+        filters.declension
+      ),
+      vocabulary: sumDirections((d) =>
+        countDueToday(
+          vocabularyDeck,
+          vocabularyCtx.vocabularyWords,
+          vocabularyCtx.vocabularyReviewStores[d],
+          vocabularyCtx.vocabularySettings[d]
+        )
+      ),
+      sentences: sumDirections((d) => {
+        const settings = sentenceCtx.sentenceSettings[d];
+        return countDueToday(
+          sentenceDeck,
+          sentenceCtx.sentences.filter((s) => settings.selectedLevels.includes(s.level)),
+          sentenceCtx.sentenceReviewStores[d],
+          settings
+        );
+      }),
+      conjugation: sumDirections((d) =>
+        countDueToday(
+          conjugationDeck,
+          forms,
+          conjugationCtx.conjugationReviewStores[d],
+          conjugationCtx.conjugationSettings[d],
+          filters.conjugation
+        )
+      ),
+      aspectPairs: countDueToday(
+        aspectPairsDeck,
+        aspectPairsCtx.aspectPairCards,
+        aspectPairsCtx.aspectPairsReviewStore,
+        aspectPairsCtx.aspectPairsSettings
+      ),
     };
   }, [declensionCtx, vocabularyCtx, sentenceCtx, conjugationCtx, aspectPairsCtx, filters]);
 
-  return (
-    <ReviewCountsContext.Provider value={{ counts, loading }}>
-      {children}
-    </ReviewCountsContext.Provider>
-  );
+  const value = useMemo(() => ({ counts, loading }), [counts, loading]);
+
+  return <ReviewCountsContext.Provider value={value}>{children}</ReviewCountsContext.Provider>;
 }

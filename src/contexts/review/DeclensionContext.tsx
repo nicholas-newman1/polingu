@@ -1,35 +1,15 @@
-import {
-  createContext,
-  useState,
-  useCallback,
-  useMemo,
-  useEffect,
-  useRef,
-  type ReactNode,
-} from 'react';
+import { createContext, useMemo, type ReactNode } from 'react';
 import type {
   DeclensionCard,
   CustomDeclensionCard,
   DeclensionReviewDataStore,
   DeclensionSettings,
 } from '../../types';
-import loadDeclensionReviewData from '../../lib/storage/loadDeclensionReviewData';
-import loadDeclensionSettings from '../../lib/storage/loadDeclensionSettings';
-import saveDeclensionReviewData from '../../lib/storage/saveDeclensionReviewData';
-import saveDeclensionSettings from '../../lib/storage/saveDeclensionSettings';
-import {
-  loadCustomDeclension,
-  subscribeCustomDeclension,
-} from '../../lib/storage/customDeclension';
-import { useAuthContext } from '../../hooks/useAuthContext';
-import clearDeclensionData from '../../lib/storage/clearDeclensionData';
-import { getDefaultDeclensionReviewStore } from '../../lib/storage/helpers';
-import { showSaveError } from '../../lib/storage/errorHandler';
+import { subscribeCustomDeclension } from '../../lib/storage/customDeclension';
+import { declensionStorage } from '../../lib/storage/reviewDeckStorage';
 import { DEFAULT_DECLENSION_SETTINGS } from '../../constants';
-import { useSyncProps } from '../../hooks/useSyncProps';
-import { startDayIfNeeded } from '../../lib/reviewSession/sessionLists';
 import { useLocalChanges } from './localChanges';
-import { useToday } from './useToday';
+import { useCustomItems, useLoadedState, useSinglePartProgress } from './deckState';
 
 export interface DeclensionContextType {
   declensionCards: DeclensionCard[];
@@ -68,135 +48,53 @@ export function DeclensionProvider({
   initialSettings = DEFAULT_DECLENSION_SETTINGS,
   readAt,
 }: DeclensionProviderProps) {
-  const [customDeclensionCards, setCustomDeclensionCardsState] =
-    useState<CustomDeclensionCard[]>(initialCustomCards);
-  const [systemDeclensionCards, setSystemDeclensionCards] =
-    useState<DeclensionCard[]>(initialSystemCards);
-  const [declensionReviewStore, setDeclensionReviewStore] = useState<DeclensionReviewDataStore>(
-    initialReviewStore ?? getDefaultDeclensionReviewStore()
-  );
-  const storeRef = useRef(declensionReviewStore);
-  const [declensionSettings, setDeclensionSettings] = useState<DeclensionSettings>(initialSettings);
   const localChanges = useLocalChanges();
-
-  useSyncProps(
-    { initialCustomCards, initialSystemCards, initialReviewStore, initialSettings },
-    () => {
-      if (!localChanges.changedSince('customItems', readAt)) {
-        setCustomDeclensionCardsState(initialCustomCards);
-      }
-      setSystemDeclensionCards(initialSystemCards);
-      if (!localChanges.changedSince('reviewStore', readAt)) {
-        const next = initialReviewStore ?? getDefaultDeclensionReviewStore();
-        setDeclensionReviewStore(next);
-        storeRef.current = next;
-      }
-      if (!localChanges.changedSince('settings', readAt)) setDeclensionSettings(initialSettings);
-    }
+  const progress = useSinglePartProgress(
+    declensionStorage,
+    initialReviewStore,
+    initialSettings,
+    readAt,
+    localChanges
   );
-
-  const today = useToday();
-  const todaysReviewStore = useMemo(
-    () => startDayIfNeeded(declensionReviewStore, ['reviewedToday', 'newCardsToday'], today),
-    [declensionReviewStore, today]
+  const [customDeclensionCards, setCustomDeclensionCards] = useCustomItems(
+    initialCustomCards,
+    subscribeCustomDeclension,
+    readAt,
+    localChanges
   );
+  const [systemDeclensionCards, setSystemDeclensionCards] = useLoadedState(initialSystemCards);
 
   const declensionCards = useMemo<DeclensionCard[]>(
     () => [...customDeclensionCards, ...systemDeclensionCards],
     [customDeclensionCards, systemDeclensionCards]
   );
 
-  // Listener snapshots and page edits; a load that read the list before them must not undo them.
-  const setCustomDeclensionCards = useCallback(
-    (cards: CustomDeclensionCard[]) => {
-      setCustomDeclensionCardsState(cards);
-      localChanges.note('customItems');
-    },
-    [localChanges]
+  const value = useMemo<DeclensionContextType>(
+    () => ({
+      declensionCards,
+      customDeclensionCards,
+      systemDeclensionCards,
+      declensionReviewStore: progress.store,
+      declensionSettings: progress.settings,
+      updateDeclensionReviewStore: progress.updateStore,
+      updateDeclensionSettings: progress.updateSettings,
+      clearDeclensionData: progress.clear,
+      setCustomDeclensionCards,
+      setSystemDeclensionCards,
+    }),
+    [
+      declensionCards,
+      customDeclensionCards,
+      systemDeclensionCards,
+      progress.store,
+      progress.settings,
+      progress.updateStore,
+      progress.updateSettings,
+      progress.clear,
+      setCustomDeclensionCards,
+      setSystemDeclensionCards,
+    ]
   );
 
-  const { user } = useAuthContext();
-  useEffect(() => {
-    if (!user) return;
-    let active = true;
-    const unsub = subscribeCustomDeclension((items) => {
-      // Dropped if the listener closed (sign-out or account switch) while it was being handled.
-      if (active) setCustomDeclensionCards(items);
-    });
-    return () => {
-      active = false;
-      unsub();
-    };
-  }, [user, setCustomDeclensionCards]);
-
-  const updateDeclensionReviewStore = useCallback(
-    async (store: DeclensionReviewDataStore) => {
-      const prev = storeRef.current;
-      storeRef.current = store;
-      setDeclensionReviewStore(store);
-      localChanges.note('reviewStore');
-      try {
-        await saveDeclensionReviewData(prev, store);
-      } catch (e) {
-        showSaveError(e);
-      }
-    },
-    [localChanges]
-  );
-
-  const updateDeclensionSettings = useCallback(
-    async (settings: DeclensionSettings) => {
-      setDeclensionSettings(settings);
-      localChanges.note('settings');
-      try {
-        await saveDeclensionSettings(settings);
-      } catch (e) {
-        showSaveError(e);
-      }
-    },
-    [localChanges]
-  );
-
-  const clearDeclensionDataFn = useCallback(async () => {
-    try {
-      await clearDeclensionData();
-      const freshStore = getDefaultDeclensionReviewStore();
-      storeRef.current = freshStore;
-      setDeclensionReviewStore(freshStore);
-      setDeclensionSettings(DEFAULT_DECLENSION_SETTINGS);
-      localChanges.note('reviewStore');
-      localChanges.note('settings');
-    } catch (e) {
-      showSaveError(e);
-    }
-  }, [localChanges]);
-
-  return (
-    <DeclensionContext.Provider
-      value={{
-        declensionCards,
-        customDeclensionCards,
-        systemDeclensionCards,
-        declensionReviewStore: todaysReviewStore,
-        declensionSettings,
-        updateDeclensionReviewStore,
-        updateDeclensionSettings,
-        clearDeclensionData: clearDeclensionDataFn,
-        setCustomDeclensionCards,
-        setSystemDeclensionCards,
-      }}
-    >
-      {children}
-    </DeclensionContext.Provider>
-  );
-}
-
-// eslint-disable-next-line react-refresh/only-export-components
-export async function loadDeclensionData() {
-  const [settings, reviewData, customCards] = await Promise.all([
-    loadDeclensionSettings(),
-    loadDeclensionReviewData(),
-    loadCustomDeclension(),
-  ]);
-  return { settings, reviewData, customCards };
+  return <DeclensionContext.Provider value={value}>{children}</DeclensionContext.Provider>;
 }

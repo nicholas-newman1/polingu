@@ -12,9 +12,12 @@ import { ReviewControlsRow, ReviewMainContent } from '../../components/ReviewLay
 import { EditAspectPairsModal } from '../../components/EditAspectPairsModal';
 import type { AspectPairCard } from '../../types/aspectPairs';
 import type { Verb, Aspect, VerbClass } from '../../types/conjugation';
-import getAspectPairsSessionCards from '../../lib/aspectPairsScheduler/getAspectPairsSessionCards';
-import getAspectPairsPracticeAheadCards from '../../lib/aspectPairsScheduler/getAspectPairsPracticeAheadCards';
-import getAspectPairsExtraNewCards from '../../lib/aspectPairsScheduler/getAspectPairsExtraNewCards';
+import {
+  getExtraNewCards,
+  getPracticeAheadCards,
+  getSessionCards,
+} from '../../lib/reviewSession/scheduler';
+import { aspectPairsDeck } from '../../lib/reviewSession/reviewDecks';
 import { recordCardReview } from '../../lib/reviewSession/recordReview';
 import { useAuthContext } from '../../hooks/useAuthContext';
 import { useReviewData } from '../../hooks/useReviewData';
@@ -58,10 +61,11 @@ export function AspectPairsPage() {
     getId: (card) => card.verb.id,
     getAudioUrls: (card) => [card.verb.infinitiveAudioUrl, card.pairVerb.infinitiveAudioUrl],
     ready: !contextLoading && aspectPairCards.length > 0,
-    getSessionCards: () => getAspectPairsSessionCards(aspectPairCards, reviewStore, settings),
+    getSessionCards: () => getSessionCards(aspectPairsDeck, aspectPairCards, reviewStore, settings),
     getPracticeAheadCards: (count, store) =>
-      getAspectPairsPracticeAheadCards(aspectPairCards, store, count),
-    getExtraNewCards: (count, store) => getAspectPairsExtraNewCards(aspectPairCards, store, count),
+      getPracticeAheadCards(aspectPairsDeck, aspectPairCards, store, count),
+    getExtraNewCards: (count, store) =>
+      getExtraNewCards(aspectPairsDeck, aspectPairCards, store, count),
     reviewStore,
     recordReview: recordCardReview,
     saveReviewStore: updateAspectPairsReviewStore,
@@ -72,7 +76,9 @@ export function AspectPairsPage() {
   const handleSettingsChange = async (newCardsPerDay: number) => {
     const newSettings = { ...settings, newCardsPerDay };
     await updateAspectPairsSettings(newSettings);
-    session.startSession(getAspectPairsSessionCards(aspectPairCards, reviewStore, newSettings));
+    session.startSession(
+      getSessionCards(aspectPairsDeck, aspectPairCards, reviewStore, newSettings)
+    );
   };
 
   const handleResetAllData = async () => {

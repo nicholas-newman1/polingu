@@ -1,5 +1,4 @@
-import type { Card as FSRSCard, ReviewLog } from 'ts-fsrs';
-import type { SessionChanges } from './types/common';
+import type { CardReviewData, ReviewDataStore } from './types/common';
 import type { CustomItemBase } from './types/customItems';
 import type { CardAudioFields } from './types/audio';
 
@@ -47,21 +46,25 @@ export interface CustomDeclensionCard extends CustomItemBase {
   audioUrl?: string;
 }
 
-export interface DeclensionCardReviewData {
+export interface DeclensionCardReviewData extends CardReviewData {
   cardId: DeclensionCardId;
-  fsrsCard: FSRSCard;
-  log?: ReviewLog;
 }
 
 export interface DeclensionSettings {
   newCardsPerDay: number;
 }
 
-export interface DeclensionReviewDataStore {
-  cards: Record<DeclensionCardId, DeclensionCardReviewData>;
-  reviewedToday: DeclensionCardId[];
-  newCardsToday: DeclensionCardId[];
-  lastReviewDate: string;
-  /** When each id was added to or removed from the lists above; see sessionLists.ts. */
-  changedAt?: SessionChanges;
+export type DeclensionReviewDataStore = ReviewDataStore<DeclensionCardReviewData, DeclensionCardId>;
+
+/** Limits the new cards a declension session serves; an empty list means any. */
+export interface DeclensionFilters {
+  cases: Case[];
+  genders: Gender[];
+  number: Number | 'All';
+}
+
+export interface DeclensionSessionCard {
+  card: DeclensionCard;
+  reviewData: DeclensionCardReviewData;
+  isNew: boolean;
 }

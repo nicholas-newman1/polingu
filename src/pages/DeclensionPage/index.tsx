@@ -10,7 +10,14 @@ import { EmptyState } from '../../components/EmptyState';
 import { SessionStatusLine } from '../../components/SessionStatusLine';
 import { ReviewMainContent } from '../../components/ReviewLayout';
 import { EditDeclensionModal } from '../../components/EditDeclensionModal';
-import type { DeclensionCard, CustomDeclensionCard, Case, Gender, Number } from '../../types';
+import type {
+  DeclensionCard,
+  CustomDeclensionCard,
+  DeclensionFilters,
+  Case,
+  Gender,
+  Number,
+} from '../../types';
 import {
   updateDeclensionCard,
   updateDeclensionCardTranslation,
@@ -18,10 +25,12 @@ import {
 } from '../../lib/storage/systemDeclension';
 import { saveCustomDeclension } from '../../lib/storage/customDeclension';
 import { generateCustomId } from '../../types/customItems';
-import getDeclensionSessionCards from '../../lib/declensionScheduler/getSessionCards';
-import getDeclensionExtraCards from '../../lib/declensionScheduler/getExtraCards';
-import matchesDeclensionFilters from '../../lib/declensionScheduler/matchesFilters';
-import type { DeclensionFilters } from '../../lib/declensionScheduler/types';
+import {
+  getExtraNewCards,
+  getPracticeAheadCards,
+  getSessionCards,
+} from '../../lib/reviewSession/scheduler';
+import { declensionDeck, matchesDeclensionFilters } from '../../lib/reviewSession/reviewDecks';
 import { DEFAULT_USER_FILTERS } from '../../types/userFilters';
 import { recordCardReview } from '../../lib/reviewSession/recordReview';
 import { useAuthContext } from '../../hooks/useAuthContext';
@@ -94,11 +103,11 @@ export function DeclensionPage() {
     getAudioUrls: (card) => [card.audioUrl],
     ready: !contextLoading && !filtersLoading && allDeclensionCards.length > 0,
     getSessionCards: () =>
-      getDeclensionSessionCards(allDeclensionCards, reviewStore, filters, settings),
+      getSessionCards(declensionDeck, allDeclensionCards, reviewStore, settings, filters),
     getPracticeAheadCards: (count, store) =>
-      getDeclensionExtraCards(allDeclensionCards, store, filters).getPracticeAheadCards(count),
+      getPracticeAheadCards(declensionDeck, allDeclensionCards, store, count, filters),
     getExtraNewCards: (count, store) =>
-      getDeclensionExtraCards(allDeclensionCards, store, filters).getExtraNewCards(count),
+      getExtraNewCards(declensionDeck, allDeclensionCards, store, count, filters),
     reviewStore,
     recordReview: recordCardReview,
     saveReviewStore: updateDeclensionReviewStore,
@@ -109,7 +118,7 @@ export function DeclensionPage() {
   const handleFiltersChange = (newFilters: DeclensionFilters) => {
     updateDeclensionFilters(newFilters);
     session.startSession(
-      getDeclensionSessionCards(allDeclensionCards, reviewStore, newFilters, settings)
+      getSessionCards(declensionDeck, allDeclensionCards, reviewStore, settings, newFilters)
     );
     if (practice.active) {
       practice.reshuffle(allDeclensionCards.filter((c) => matchesDeclensionFilters(c, newFilters)));
@@ -120,7 +129,7 @@ export function DeclensionPage() {
     const newSettings = { ...settings, newCardsPerDay };
     await updateDeclensionSettings(newSettings);
     session.startSession(
-      getDeclensionSessionCards(allDeclensionCards, reviewStore, filters, newSettings)
+      getSessionCards(declensionDeck, allDeclensionCards, reviewStore, newSettings, filters)
     );
   };
 
@@ -171,11 +180,12 @@ export function DeclensionPage() {
       });
 
       session.startSession(
-        getDeclensionSessionCards(
+        getSessionCards(
+          declensionDeck,
           [...newCustomCards, ...systemDeclensionCards],
           reviewStore,
-          filters,
-          settings
+          settings,
+          filters
         )
       );
       return;

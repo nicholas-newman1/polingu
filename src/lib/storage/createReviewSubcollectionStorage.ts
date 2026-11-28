@@ -20,7 +20,6 @@ import {
 import { getUserId } from './helpers';
 import { stripUndefinedDeep } from './firestoreUtils';
 import type { Card as FSRSCard } from 'ts-fsrs';
-import type { TranslationDirection } from '../../types/common';
 
 /**
  * Per-card subcollection storage for review data.
@@ -404,13 +403,4 @@ export function createReviewSubcollectionStorage<TCard extends ReviewCardData>(
   }
 
   return { loadCards, saveCardsDiff, clearAllCards, refreshFromFirestore, syncPendingCards };
-}
-
-/** One storage per translation direction, for features reviewed both ways. */
-export function createDirectionalReviewStorage<TCard extends ReviewCardData>(
-  collectionNames: Record<TranslationDirection, ReviewCardCollection>
-): (direction: TranslationDirection) => ReviewSubcollectionStorage<TCard> {
-  const plToEn = createReviewSubcollectionStorage<TCard>(collectionNames['pl-to-en']);
-  const enToPl = createReviewSubcollectionStorage<TCard>(collectionNames['en-to-pl']);
-  return (direction) => (direction === 'pl-to-en' ? plToEn : enToPl);
 }

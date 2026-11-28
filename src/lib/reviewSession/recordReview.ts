@@ -1,5 +1,6 @@
 import { getTodayString } from '../storage/helpers';
-import { setInSessionList, startDayIfNeeded, type SessionChanges } from './sessionLists';
+import type { CardReviewData, ReviewDataStore, SessionId } from '../../types/common';
+import { setInSessionList, startDayIfNeeded } from './sessionLists';
 
 export interface ReviewOutcome {
   /** The card was new when rated, so it counts toward today's new-card limit. */
@@ -13,40 +14,17 @@ export interface ReviewOutcome {
   requeued?: boolean;
 }
 
-interface SessionFields {
-  lastReviewDate: string;
-  changedAt?: SessionChanges;
-}
-
-export function recordCardReview<
-  Id extends string | number,
-  R,
-  Store extends SessionFields & {
-    cards: { [key: string]: R };
-    reviewedToday: Id[];
-    newCardsToday: Id[];
-  },
->(store: Store, id: Id, reviewData: R, outcome: ReviewOutcome): Store {
+/** Records a rating in `store`: the card's new review data, and today's lists. */
+export function recordCardReview<Store extends ReviewDataStore<CardReviewData, SessionId>>(
+  store: Store,
+  id: Store['newCardsToday'][number],
+  reviewData: Store['cards'][string],
+  outcome: ReviewOutcome
+): Store {
   let next = startDayIfNeeded(store, ['reviewedToday', 'newCardsToday'], getTodayString());
   next = { ...next, cards: { ...next.cards, [id]: reviewData } };
   if (outcome.isNew) next = setInSessionList(next, 'newCardsToday', id, true);
   if (outcome.completed) next = setInSessionList(next, 'reviewedToday', id, true);
   else if (outcome.requeued) next = setInSessionList(next, 'reviewedToday', id, false);
-  return next;
-}
-
-export function recordFormReview<
-  R,
-  Store extends SessionFields & {
-    forms: { [key: string]: R };
-    reviewedToday: string[];
-    newFormsToday: string[];
-  },
->(store: Store, formKey: string, reviewData: R, outcome: ReviewOutcome): Store {
-  let next = startDayIfNeeded(store, ['reviewedToday', 'newFormsToday'], getTodayString());
-  next = { ...next, forms: { ...next.forms, [formKey]: reviewData } };
-  if (outcome.isNew) next = setInSessionList(next, 'newFormsToday', formKey, true);
-  if (outcome.completed) next = setInSessionList(next, 'reviewedToday', formKey, true);
-  else if (outcome.requeued) next = setInSessionList(next, 'reviewedToday', formKey, false);
   return next;
 }

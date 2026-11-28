@@ -7,16 +7,6 @@ import { loadListeningSettings } from '../../src/lib/storage/loadListeningSettin
 import saveListeningSettings from '../../src/lib/storage/saveListeningSettings';
 import { loadListeningHubSelections } from '../../src/lib/storage/loadListeningHubSelections';
 import saveListeningHubSelections from '../../src/lib/storage/saveListeningHubSelections';
-import loadSentenceSettings from '../../src/lib/storage/loadSentenceSettings';
-import saveSentenceSettings from '../../src/lib/storage/saveSentenceSettings';
-import loadVocabularySettings from '../../src/lib/storage/loadVocabularySettings';
-import saveVocabularySettings from '../../src/lib/storage/saveVocabularySettings';
-import loadConjugationSettings from '../../src/lib/storage/loadConjugationSettings';
-import saveConjugationSettings from '../../src/lib/storage/saveConjugationSettings';
-import loadDeclensionSettings from '../../src/lib/storage/loadDeclensionSettings';
-import saveDeclensionSettings from '../../src/lib/storage/saveDeclensionSettings';
-import loadAspectPairsSettings from '../../src/lib/storage/loadAspectPairsSettings';
-import saveAspectPairsSettings from '../../src/lib/storage/saveAspectPairsSettings';
 import { DEFAULT_APP_SETTINGS } from '../../src/types/appSettings';
 import { DEFAULT_USER_FILTERS, type UserFilters } from '../../src/types/userFilters';
 import {
@@ -26,12 +16,30 @@ import {
   type ListeningSettings,
 } from '../../src/types/listening';
 import { ALL_LEVELS } from '../../src/types/sentences';
+import type { TranslationDirection } from '../../src/types/common';
 import { userDb } from '../../src/lib/offlineDb/userDb';
 import { remote } from './support/fakeFirestore';
 import { network, setupSyncTests, signIn, userPath } from './support/harness';
 import { stub } from '../helpers/stub';
+import {
+  aspectPairsStorage,
+  conjugationStorage,
+  declensionStorage,
+  loadDeckSettings,
+  saveDeckSettings,
+  sentenceStorage,
+  vocabularyStorage,
+} from '../../src/lib/storage/reviewDeckStorage';
 
 vi.mock('firebase/firestore', () => import('./support/fakeFirestore'));
+
+/** Both directions' settings, as a reload loads them. */
+const loadBothDirections = async <Settings>(
+  parts: Record<TranslationDirection, Parameters<typeof loadDeckSettings<Settings>>[0]>
+) => ({
+  'pl-to-en': await loadDeckSettings(parts['pl-to-en']),
+  'en-to-pl': await loadDeckSettings(parts['en-to-pl']),
+});
 
 setupSyncTests();
 
@@ -61,7 +69,7 @@ describe('settings saved by an older version of the app', () => {
     signIn(UID);
     seedDoc('sentenceSettings-pl-en', { newCardsPerDay: 3 });
 
-    const settings = await loadSentenceSettings();
+    const settings = await loadBothDirections(sentenceStorage);
 
     expect(settings['pl-to-en']).toEqual({ newCardsPerDay: 3, selectedLevels: ALL_LEVELS });
     expect(settings['en-to-pl']).toEqual({ newCardsPerDay: 5, selectedLevels: ALL_LEVELS });
@@ -128,19 +136,22 @@ describe('per-direction settings', () => {
   test('each direction is saved to its own doc and loads independently', async () => {
     signIn(UID);
 
-    await saveSentenceSettings({ newCardsPerDay: 2, selectedLevels: ['A1'] }, 'en-to-pl');
-    await saveVocabularySettings({ newCardsPerDay: 25 }, 'pl-to-en');
-    await saveConjugationSettings({ newCardsPerDay: 1 }, 'en-to-pl');
+    await saveDeckSettings(sentenceStorage['en-to-pl'], {
+      newCardsPerDay: 2,
+      selectedLevels: ['A1'],
+    });
+    await saveDeckSettings(vocabularyStorage['pl-to-en'], { newCardsPerDay: 25 });
+    await saveDeckSettings(conjugationStorage['en-to-pl'], { newCardsPerDay: 1 });
 
-    expect(await loadSentenceSettings()).toEqual({
+    expect(await loadBothDirections(sentenceStorage)).toEqual({
       'pl-to-en': { newCardsPerDay: 5, selectedLevels: ALL_LEVELS },
       'en-to-pl': { newCardsPerDay: 2, selectedLevels: ['A1'] },
     });
-    expect(await loadVocabularySettings()).toEqual({
+    expect(await loadBothDirections(vocabularyStorage)).toEqual({
       'pl-to-en': { newCardsPerDay: 25 },
       'en-to-pl': { newCardsPerDay: 10 },
     });
-    expect(await loadConjugationSettings()).toEqual({
+    expect(await loadBothDirections(conjugationStorage)).toEqual({
       'pl-to-en': { newCardsPerDay: 10 },
       'en-to-pl': { newCardsPerDay: 1 },
     });
@@ -159,8 +170,8 @@ describe('every settings doc round-trips through the server', () => {
     };
     await saveAppSettings({ autoPlayAudio: true, hidePolishText: true, dashboardOrder: ['x'] });
     await saveUserFilters(filters);
-    await saveDeclensionSettings({ newCardsPerDay: 4 });
-    await saveAspectPairsSettings({ newCardsPerDay: 6 });
+    await saveDeckSettings(declensionStorage.all, { newCardsPerDay: 4 });
+    await saveDeckSettings(aspectPairsStorage.all, { newCardsPerDay: 6 });
 
     // A fresh device: nothing cached locally, everything comes from the server.
     const server = remote.list(userPath(UID, 'data'));
@@ -174,18 +185,18 @@ describe('every settings doc round-trips through the server', () => {
       dashboardOrder: ['x'],
     });
     expect(await loadUserFilters()).toEqual(filters);
-    expect(await loadDeclensionSettings()).toEqual({ newCardsPerDay: 4 });
-    expect(await loadAspectPairsSettings()).toEqual({ newCardsPerDay: 6 });
+    expect(await loadDeckSettings(declensionStorage.all)).toEqual({ newCardsPerDay: 4 });
+    expect(await loadDeckSettings(aspectPairsStorage.all)).toEqual({ newCardsPerDay: 6 });
   });
 });
 
 describe('guest', () => {
   test('gets the defaults and saving is a no-op', async () => {
     await saveAppSettings({ autoPlayAudio: true, hidePolishText: true });
-    await saveDeclensionSettings({ newCardsPerDay: 99 });
+    await saveDeckSettings(declensionStorage.all, { newCardsPerDay: 99 });
 
     expect(await loadAppSettings()).toEqual(DEFAULT_APP_SETTINGS);
-    expect(await loadDeclensionSettings()).toEqual({ newCardsPerDay: 10 });
+    expect(await loadDeckSettings(declensionStorage.all)).toEqual({ newCardsPerDay: 10 });
     expect(remote.calls).toEqual([]);
   });
 });
@@ -195,9 +206,9 @@ describe('offline', () => {
     signIn(UID);
     network.goOffline();
 
-    await saveDeclensionSettings({ newCardsPerDay: 20 });
+    await saveDeckSettings(declensionStorage.all, { newCardsPerDay: 20 });
 
-    expect(await loadDeclensionSettings()).toEqual({ newCardsPerDay: 20 });
+    expect(await loadDeckSettings(declensionStorage.all)).toEqual({ newCardsPerDay: 20 });
     expect(remote.get(userPath(UID, 'data', 'settings'))).toBeUndefined();
   });
 });

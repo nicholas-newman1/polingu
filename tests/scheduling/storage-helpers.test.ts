@@ -1,47 +1,45 @@
 import { describe, expect, test } from 'vitest';
+import { getUserId } from '../../src/lib/storage/helpers';
+import { REVIEW_SESSION_DOC_PATHS } from '../../src/lib/storage/reviewDeckDocs';
 import {
-  ASPECT_PAIRS_SESSION_DOC_PATH,
-  DECLENSION_SESSION_DOC_PATH,
-  REVIEW_SESSION_DOC_PATHS,
-  getConjugationSessionDocPath,
-  getDefaultAspectPairsReviewStore,
-  getDefaultConjugationReviewStore,
-  getDefaultDeclensionReviewStore,
-  getDefaultSentenceReviewStore,
-  getDefaultVocabularyReviewStore,
-  getSentenceSessionDocPath,
-  getUserId,
-  getVocabularySessionDocPath,
-  includesDeclensionCardId,
-  includesFormKey,
-  includesSentenceId,
-  includesVerbId,
-  includesWordId,
-} from '../../src/lib/storage/helpers';
-import type { TranslationDirection } from '../../src/types/common';
+  aspectPairsStorage,
+  conjugationStorage,
+  declensionStorage,
+  sentenceStorage,
+  vocabularyStorage,
+} from '../../src/lib/storage/reviewDeckStorage';
+import { placeItems } from '../../src/lib/reviewSession/scheduler';
+import { sentenceDeck, vocabularyDeck } from '../../src/lib/reviewSession/reviewDecks';
+import type { VocabularyReviewDataStore, VocabularyWord } from '../../src/types/vocabulary';
+import type { Sentence, SentenceReviewDataStore } from '../../src/types/sentences';
 import { signInFakeUser } from '../fakes/firebase';
+import { stub, stubs } from '../helpers/stub';
 import { freezeTime } from './fixtures';
 
-const DIRECTIONS: TranslationDirection[] = ['pl-to-en', 'en-to-pl'];
+const ALL_PARTS = [
+  ...Object.values(vocabularyStorage),
+  ...Object.values(sentenceStorage),
+  ...Object.values(conjugationStorage),
+  declensionStorage.all,
+  aspectPairsStorage.all,
+];
 
 test('every fresh review store is empty and dated with the local day', () => {
   freezeTime('2026-11-26T23:45:00-05:00'); // already the 27th in UTC
-  const counters = { reviewedToday: [], lastReviewDate: '2026-11-26' };
 
-  for (const store of [
-    getDefaultVocabularyReviewStore(),
-    getDefaultSentenceReviewStore(),
-    getDefaultDeclensionReviewStore(),
-    getDefaultAspectPairsReviewStore(),
-  ]) {
-    expect(store).toEqual({ cards: {}, newCardsToday: [], ...counters });
+  for (const part of ALL_PARTS) {
+    expect(part.emptyStore()).toEqual({
+      cards: {},
+      reviewedToday: [],
+      newCardsToday: [],
+      lastReviewDate: '2026-11-26',
+    });
   }
-  expect(getDefaultConjugationReviewStore()).toEqual({ forms: {}, newFormsToday: [], ...counters });
 });
 
 test('fresh stores never share their lists, so one direction cannot leak into another', () => {
-  const a = getDefaultVocabularyReviewStore();
-  const b = getDefaultVocabularyReviewStore();
+  const a = vocabularyStorage['pl-to-en'].emptyStore();
+  const b = vocabularyStorage['pl-to-en'].emptyStore();
   a.newCardsToday.push(1);
   a.reviewedToday.push(1);
   expect(b.newCardsToday).toEqual([]);
@@ -50,13 +48,7 @@ test('fresh stores never share their lists, so one direction cannot leak into an
 });
 
 describe('session counter documents', () => {
-  const paths = [
-    ...DIRECTIONS.map(getVocabularySessionDocPath),
-    ...DIRECTIONS.map(getSentenceSessionDocPath),
-    ...DIRECTIONS.map(getConjugationSessionDocPath),
-    ASPECT_PAIRS_SESSION_DOC_PATH,
-    DECLENSION_SESSION_DOC_PATH,
-  ];
+  const paths = ALL_PARTS.map((part) => part.sessionDocPath);
 
   test('each module and direction keeps its daily counters in its own document', () => {
     expect(new Set(paths).size).toBe(paths.length);
@@ -68,25 +60,28 @@ describe('session counter documents', () => {
 });
 
 describe('id lookups in the daily counters', () => {
-  test('word and declension ids match whether stored as numbers or strings', () => {
-    expect(includesWordId(['12'], 12)).toBe(true);
-    expect(includesWordId([12], '12')).toBe(true);
-    expect(includesWordId([12, 'custom_5'], 'custom_5')).toBe(true);
-    expect(includesWordId([12], 1)).toBe(false);
-    expect(includesWordId([], 12)).toBe(false);
-
-    expect(includesDeclensionCardId(['7'], 7)).toBe(true);
-    expect(includesDeclensionCardId([7], '7')).toBe(true);
-    expect(includesDeclensionCardId([70], 7)).toBe(false);
+  test('word ids match whether stored as numbers or strings', () => {
+    const words = stubs<VocabularyWord>([{ id: 12 }, { id: 1 }, { id: 'custom_5' }]);
+    const store = stub<VocabularyReviewDataStore>({
+      cards: {},
+      reviewedToday: [],
+      newCardsToday: ['12', 'custom_5'],
+    });
+    expect(placeItems(vocabularyDeck, words, store).map((p) => p.bucket)).toEqual([
+      null,
+      'new',
+      null,
+    ]);
   });
 
-  test('sentence ids, verb ids and form keys must match exactly', () => {
-    expect(includesSentenceId(['s1', 's10'], 's10')).toBe(true);
-    expect(includesSentenceId(['s10'], 's1')).toBe(false);
-    expect(includesVerbId(['robic'], 'robic')).toBe(true);
-    expect(includesVerbId(['zrobic'], 'robic')).toBe(false);
-    expect(includesFormKey(['robic:past:3sg_m'], 'robic:past:3sg_m')).toBe(true);
-    expect(includesFormKey(['robic:past:3sg_m'], 'robic:past:3sg_f')).toBe(false);
+  test('string ids must match exactly', () => {
+    const sentences = stubs<Sentence>([{ id: 's1' }, { id: 's10' }]);
+    const store = stub<SentenceReviewDataStore>({
+      cards: {},
+      reviewedToday: [],
+      newCardsToday: ['s10'],
+    });
+    expect(placeItems(sentenceDeck, sentences, store).map((p) => p.bucket)).toEqual(['new', null]);
   });
 });
 

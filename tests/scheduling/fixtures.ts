@@ -1,39 +1,35 @@
 /**
  * Fixtures shared by the scheduling tests. Not a test file itself.
  *
- * Every scheduler takes "a deck plus a review store" in its own shape. The
- * adapters below build those from one neutral description of each card, so the
- * behaviour all five schedulers share can be checked with the same table.
+ * Each deck's items and review store have their own shape. The adapters below
+ * build them from one neutral description of each card, so the behaviour the
+ * scheduler gives every deck can be checked with the same table.
  */
 import { vi } from 'vitest';
 import type { Card } from 'ts-fsrs';
-import getDeclensionSessionCards from '../../src/lib/declensionScheduler/getSessionCards';
-import getDeclensionExtraCards from '../../src/lib/declensionScheduler/getExtraCards';
-import getConjugationSessionCards from '../../src/lib/conjugationScheduler/getConjugationSessionCards';
-import getConjugationExtraCards from '../../src/lib/conjugationScheduler/getConjugationExtraCards';
-import getVocabularySessionCards from '../../src/lib/vocabularyScheduler/getVocabularySessionCards';
-import getVocabularyPracticeAheadCards from '../../src/lib/vocabularyScheduler/getVocabularyPracticeAheadCards';
-import getVocabularyExtraNewCards from '../../src/lib/vocabularyScheduler/getVocabularyExtraNewCards';
-import getSentenceSessionCards from '../../src/lib/sentenceScheduler/getSentenceSessionCards';
-import getSentencePracticeAheadCards from '../../src/lib/sentenceScheduler/getSentencePracticeAheadCards';
-import getSentenceExtraNewCards from '../../src/lib/sentenceScheduler/getSentenceExtraNewCards';
-import getAspectPairsSessionCards from '../../src/lib/aspectPairsScheduler/getAspectPairsSessionCards';
-import getAspectPairsPracticeAheadCards from '../../src/lib/aspectPairsScheduler/getAspectPairsPracticeAheadCards';
-import getAspectPairsExtraNewCards from '../../src/lib/aspectPairsScheduler/getAspectPairsExtraNewCards';
-import { recordCardReview, type ReviewOutcome } from '../../src/lib/reviewSession/recordReview';
 import { DEFAULT_USER_FILTERS } from '../../src/types/userFilters';
 import type { DeclensionCard, DeclensionReviewDataStore } from '../../src/types';
-import type {
-  VocabularyCardReviewData,
-  VocabularyReviewDataStore,
-  VocabularyWord,
-  VocabularyWordId,
-} from '../../src/types/vocabulary';
+import type { VocabularyReviewDataStore, VocabularyWord } from '../../src/types/vocabulary';
 import type { Sentence, SentenceReviewDataStore } from '../../src/types/sentences';
 import type { ConjugationReviewDataStore, Verb } from '../../src/types/conjugation';
 import type { AspectPairCard, AspectPairsReviewDataStore } from '../../src/types/aspectPairs';
 import { DAY, fsrsCard, inDays, State } from '../helpers/fsrs';
 import { stub } from '../helpers/stub';
+import {
+  getExtraNewCards,
+  getPracticeAheadCards,
+  getSessionCards,
+  type ReviewDeck,
+} from '../../src/lib/reviewSession/scheduler';
+import type { CardReviewData, ReviewDataStore, SessionId } from '../../src/types/common';
+import {
+  aspectPairsDeck,
+  conjugationDeck,
+  declensionDeck,
+  sentenceDeck,
+  vocabularyDeck,
+} from '../../src/lib/reviewSession/reviewDecks';
+import { getDrillableFormsForVerb } from '../../src/lib/conjugationUtils';
 
 export { State };
 
@@ -72,17 +68,6 @@ export const graduated = (dueInDays: number) => {
   });
 };
 export { DAY };
-
-/**
- * recordCardReview as the vocabulary page instantiates it. Calling the generic
- * directly with a literal id (`7`) would narrow the id type to that literal.
- */
-export const recordWordReview = (
-  store: VocabularyReviewDataStore,
-  id: VocabularyWordId,
-  reviewData: VocabularyCardReviewData,
-  outcome: ReviewOutcome
-): VocabularyReviewDataStore => recordCardReview(store, id, reviewData, outcome);
 
 /** One card in a deck, described independently of the module it belongs to. */
 export interface Item {
@@ -137,7 +122,7 @@ export const vocabularyStore = (items: Item[]) =>
       ...counters(items),
     })
   );
-export const vocabularyDeck = (items: Item[]) =>
+const vocabularyItems = (items: Item[]) =>
   deepFreeze(items.map((i) => stub<VocabularyWord>({ id: i.id, isCustom: i.custom })));
 
 export const sentenceStore = (items: Item[]) =>
@@ -147,7 +132,7 @@ export const sentenceStore = (items: Item[]) =>
       ...counters(items),
     })
   );
-export const sentenceDeck = (items: Item[]) =>
+const sentenceItems = (items: Item[]) =>
   deepFreeze(items.map((i) => stub<Sentence>({ id: i.id, isCustom: i.custom, level: 'A1' })));
 
 export const declensionStore = (items: Item[]) =>
@@ -157,7 +142,7 @@ export const declensionStore = (items: Item[]) =>
       ...counters(items),
     })
   );
-export const declensionDeck = (items: Item[]) =>
+const declensionItems = (items: Item[]) =>
   deepFreeze(
     items.map((i) =>
       stub<DeclensionCard>({
@@ -177,7 +162,7 @@ export const aspectPairsStore = (items: Item[]) =>
       ...counters(items),
     })
   );
-export const aspectPairsDeck = (items: Item[]) =>
+const aspectPairsItems = (items: Item[]) =>
   deepFreeze(
     items.map((i) =>
       stub<AspectPairCard>({
@@ -193,18 +178,18 @@ export const conjugationStore = (items: Item[]) => {
   const { reviewedToday, newCardsToday, lastReviewDate } = counters(items);
   return deepFreeze(
     stub<ConjugationReviewDataStore>({
-      forms: Object.fromEntries(
+      cards: Object.fromEntries(
         items.flatMap((i) =>
           i.card ? [[formKey(i.id), { formKey: formKey(i.id), fsrsCard: i.card }]] : []
         )
       ),
       reviewedToday: reviewedToday.map(formKey),
-      newFormsToday: newCardsToday.map(formKey),
+      newCardsToday: newCardsToday.map(formKey),
       lastReviewDate,
     })
   );
 };
-export const conjugationDeck = (items: Item[]) =>
+const conjugationVerbs = (items: Item[]) =>
   deepFreeze(
     items.map((i) =>
       stub<Verb>({
@@ -220,126 +205,76 @@ export const conjugationDeck = (items: Item[]) =>
     )
   );
 
-const split = <T>(result: { reviewCards: T[]; newCards: T[] }, id: (card: T) => string) => ({
-  review: result.reviewCards.map(id),
-  new: result.newCards.map(id),
-});
+/** One deck's adapter: its items, store and filters built from `Item`s, and each card's id. */
+function moduleAdapter<DeckItem, R extends CardReviewData, Id extends SessionId, Card, Filters>(
+  name: string,
+  hasCustomCards: boolean,
+  deck: ReviewDeck<DeckItem, R, Id, Card, Filters>,
+  build: { items(items: Item[]): DeckItem[]; store(items: Item[]): ReviewDataStore<R, Id> },
+  idOf: (card: Card) => string,
+  filters?: Filters
+): ModuleAdapter {
+  return {
+    name,
+    hasCustomCards,
+    session: (items, newCardsPerDay) => {
+      const session = getSessionCards(
+        deck,
+        build.items(items),
+        build.store(items),
+        { newCardsPerDay },
+        filters
+      );
+      return { review: session.reviewCards.map(idOf), new: session.newCards.map(idOf) };
+    },
+    practiceAhead: (items, count) =>
+      getPracticeAheadCards(deck, build.items(items), build.store(items), count, filters).map(idOf),
+    extraNew: (items, count) =>
+      getExtraNewCards(deck, build.items(items), build.store(items), count, filters).map(idOf),
+  };
+}
 
 export const MODULES: ModuleAdapter[] = [
-  {
-    name: 'vocabulary',
-    hasCustomCards: true,
-    session: (items, newCardsPerDay) =>
-      split(
-        getVocabularySessionCards(vocabularyDeck(items), vocabularyStore(items), {
-          newCardsPerDay,
-        }),
-        (c) => String(c.word.id)
-      ),
-    practiceAhead: (items, count) =>
-      getVocabularyPracticeAheadCards(vocabularyDeck(items), vocabularyStore(items), count).map(
-        (c) => String(c.word.id)
-      ),
-    extraNew: (items, count) =>
-      getVocabularyExtraNewCards(vocabularyDeck(items), vocabularyStore(items), count).map((c) =>
-        String(c.word.id)
-      ),
-  },
-  {
-    name: 'sentences',
-    hasCustomCards: true,
-    session: (items, newCardsPerDay) =>
-      split(
-        getSentenceSessionCards(sentenceDeck(items), sentenceStore(items), {
-          newCardsPerDay,
-          selectedLevels: ['A1'],
-        }),
-        (c) => c.sentence.id
-      ),
-    practiceAhead: (items, count) =>
-      getSentencePracticeAheadCards(sentenceDeck(items), sentenceStore(items), count).map(
-        (c) => c.sentence.id
-      ),
-    extraNew: (items, count) =>
-      getSentenceExtraNewCards(sentenceDeck(items), sentenceStore(items), count).map(
-        (c) => c.sentence.id
-      ),
-  },
-  {
-    name: 'declension',
-    hasCustomCards: true,
-    session: (items, newCardsPerDay) =>
-      split(
-        getDeclensionSessionCards(
-          declensionDeck(items),
-          declensionStore(items),
-          DEFAULT_USER_FILTERS.declension,
-          { newCardsPerDay }
-        ),
-        (c) => String(c.card.id)
-      ),
-    practiceAhead: (items, count) =>
-      getDeclensionExtraCards(declensionDeck(items), declensionStore(items), {
-        ...DEFAULT_USER_FILTERS.declension,
-      })
-        .getPracticeAheadCards(count)
-        .map((c) => String(c.card.id)),
-    extraNew: (items, count) =>
-      getDeclensionExtraCards(declensionDeck(items), declensionStore(items), {
-        ...DEFAULT_USER_FILTERS.declension,
-      })
-        .getExtraNewCards(count)
-        .map((c) => String(c.card.id)),
-  },
-  {
-    name: 'conjugation',
-    hasCustomCards: false,
-    session: (items, newCardsPerDay) =>
-      split(
-        getConjugationSessionCards(
-          conjugationDeck(items),
-          conjugationStore(items),
-          DEFAULT_USER_FILTERS.conjugation,
-          { newCardsPerDay }
-        ),
-        (c) => c.form.verb.id
-      ),
-    practiceAhead: (items, count) =>
-      getConjugationExtraCards(
-        conjugationDeck(items),
-        conjugationStore(items),
-        DEFAULT_USER_FILTERS.conjugation
-      )
-        .getPracticeAheadCards(count)
-        .map((c) => c.form.verb.id),
-    extraNew: (items, count) =>
-      getConjugationExtraCards(
-        conjugationDeck(items),
-        conjugationStore(items),
-        DEFAULT_USER_FILTERS.conjugation
-      )
-        .getExtraNewCards(count)
-        .map((c) => c.form.verb.id),
-  },
-  {
-    name: 'aspect pairs',
-    hasCustomCards: false,
-    session: (items, newCardsPerDay) =>
-      split(
-        getAspectPairsSessionCards(aspectPairsDeck(items), aspectPairsStore(items), {
-          newCardsPerDay,
-        }),
-        (c) => c.card.verb.id
-      ),
-    practiceAhead: (items, count) =>
-      getAspectPairsPracticeAheadCards(aspectPairsDeck(items), aspectPairsStore(items), count).map(
-        (c) => c.card.verb.id
-      ),
-    extraNew: (items, count) =>
-      getAspectPairsExtraNewCards(aspectPairsDeck(items), aspectPairsStore(items), count).map(
-        (c) => c.card.verb.id
-      ),
-  },
+  moduleAdapter(
+    'vocabulary',
+    true,
+    vocabularyDeck,
+    { items: vocabularyItems, store: vocabularyStore },
+    (c) => String(c.word.id)
+  ),
+  moduleAdapter(
+    'sentences',
+    true,
+    sentenceDeck,
+    { items: sentenceItems, store: sentenceStore },
+    (c) => c.sentence.id
+  ),
+  moduleAdapter(
+    'declension',
+    true,
+    declensionDeck,
+    { items: declensionItems, store: declensionStore },
+    (c) => String(c.card.id),
+    DEFAULT_USER_FILTERS.declension
+  ),
+  moduleAdapter(
+    'conjugation',
+    false,
+    conjugationDeck,
+    {
+      items: (items) => conjugationVerbs(items).flatMap(getDrillableFormsForVerb),
+      store: conjugationStore,
+    },
+    (c) => c.form.verb.id,
+    DEFAULT_USER_FILTERS.conjugation
+  ),
+  moduleAdapter(
+    'aspect pairs',
+    false,
+    aspectPairsDeck,
+    { items: aspectPairsItems, store: aspectPairsStore },
+    (c) => c.card.verb.id
+  ),
 ];
 
 /** Whether every custom id comes before every built-in id in `order`. */

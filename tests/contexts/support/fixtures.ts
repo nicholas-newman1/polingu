@@ -10,12 +10,7 @@ import type {
   Gender,
   Number,
 } from '../../../src/types';
-import type {
-  VocabularyCardReviewData,
-  VocabularyReviewDataStore,
-  VocabularyWord,
-  VocabularyWordId,
-} from '../../../src/types/vocabulary';
+import type { VocabularyReviewDataStore, VocabularyWord } from '../../../src/types/vocabulary';
 import type { CEFRLevel, Sentence, SentenceReviewDataStore } from '../../../src/types/sentences';
 import type {
   ConjugationForm,
@@ -172,19 +167,19 @@ export const aspectPairsStore = (
 
 export const conjugationStore = (
   forms: Record<string, Card> = {},
-  lists: { reviewedToday?: string[]; newFormsToday?: string[] } = {}
+  lists: { reviewedToday?: string[]; newCardsToday?: string[] } = {}
 ): ConjugationReviewDataStore => ({
-  forms: Object.fromEntries(
+  cards: Object.fromEntries(
     Object.entries(forms).map(([key, fsrs]) => [key, { formKey: key, fsrsCard: fsrs }])
   ),
   reviewedToday: lists.reviewedToday ?? [],
-  newFormsToday: lists.newFormsToday ?? [],
+  newCardsToday: lists.newCardsToday ?? [],
   lastReviewDate: getTodayString(),
 });
 
 /** `store` with `wordId` rated Good as a new word, the way a review session records it. */
 export const withWordRated = (store: VocabularyReviewDataStore, wordId: string) =>
-  recordCardReview<VocabularyWordId, VocabularyCardReviewData, VocabularyReviewDataStore>(
+  recordCardReview(
     store,
     wordId,
     { wordId, fsrsCard: ratedNow() },

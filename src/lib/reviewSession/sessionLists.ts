@@ -1,5 +1,5 @@
 /**
- * The per-day session lists (reviewedToday, newCardsToday, newFormsToday) are
+ * The per-day session lists (reviewedToday, newCardsToday) are
  * shared by every device the learner studies on, so their saves are merged with
  * the server's copy rather than overwriting it.
  *
@@ -10,11 +10,7 @@
  * fall back to the old union.
  */
 
-import type { SessionChanges, TranslationDirection } from '../../types/common';
-
-export type { SessionChanges };
-
-type SessionId = string | number;
+import type { SessionChanges, SessionId } from '../../types/common';
 
 interface SessionDoc {
   lastReviewDate: string;
@@ -77,16 +73,19 @@ export function startDayIfNeeded<Store extends SessionDoc>(
   return fresh;
 }
 
-/** startDayIfNeeded for both directions' stores, returning `stores` itself when neither changes. */
-export function startDayInBothDirections<Store extends SessionDoc>(
-  stores: Record<TranslationDirection, Store>,
+/** startDayIfNeeded for each of a deck's stores, returning `stores` itself when none changes. */
+export function startDayInEachStore<K extends string, Store extends SessionDoc>(
+  stores: Record<K, Store>,
   lists: ListKey<Store>[],
   today: string
-): Record<TranslationDirection, Store> {
-  const plToEn = startDayIfNeeded(stores['pl-to-en'], lists, today);
-  const enToPl = startDayIfNeeded(stores['en-to-pl'], lists, today);
-  if (plToEn === stores['pl-to-en'] && enToPl === stores['en-to-pl']) return stores;
-  return { 'pl-to-en': plToEn, 'en-to-pl': enToPl };
+): Record<K, Store> {
+  let changed = false;
+  const next = { ...stores };
+  for (const key of Object.keys(stores) as K[]) {
+    next[key] = startDayIfNeeded(stores[key], lists, today);
+    if (next[key] !== stores[key]) changed = true;
+  }
+  return changed ? next : stores;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

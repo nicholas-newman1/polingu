@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import type { TranslationDirection } from '../../types/common';
 
 /**
  * A load (on start-up, or a background sync) reads every store from the device,
@@ -34,17 +33,15 @@ export function useLocalChanges(): LocalChanges {
   return changes;
 }
 
-/** `loaded`, except that each direction for which `keepCurrent` is true keeps `current`. */
-export function keepDirections<T>(
-  loaded: Record<TranslationDirection, T>,
-  current: Record<TranslationDirection, T>,
-  keepCurrent: (direction: TranslationDirection) => boolean
-): Record<TranslationDirection, T> {
-  const keepPlToEn = keepCurrent('pl-to-en');
-  const keepEnToPl = keepCurrent('en-to-pl');
-  if (!keepPlToEn && !keepEnToPl) return loaded;
-  return {
-    'pl-to-en': keepPlToEn ? current['pl-to-en'] : loaded['pl-to-en'],
-    'en-to-pl': keepEnToPl ? current['en-to-pl'] : loaded['en-to-pl'],
-  };
+/** `loaded`, except that each key for which `keepCurrent` is true keeps `current`. */
+export function keepCurrentWhere<K extends string, T>(
+  loaded: Record<K, T>,
+  current: Record<K, T>,
+  keepCurrent: (key: K) => boolean
+): Record<K, T> {
+  const kept = (Object.keys(loaded) as K[]).filter(keepCurrent);
+  if (kept.length === 0) return loaded;
+  const next = { ...loaded };
+  for (const key of kept) next[key] = current[key];
+  return next;
 }

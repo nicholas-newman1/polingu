@@ -1,5 +1,4 @@
-import type { Card as FSRSCard, ReviewLog } from 'ts-fsrs';
-import type { SessionChanges, TranslationDirection } from './common';
+import type { CardReviewData, ReviewDataStore, TranslationDirection } from './common';
 import type { CustomItemBase } from './customItems';
 import type { CardAudioFields } from './audio';
 
@@ -36,19 +35,16 @@ export interface CustomSentence extends CustomItemBase {
   sourceExampleId?: string;
 }
 
-export interface SentenceCardReviewData {
+export interface SentenceCardReviewData extends CardReviewData {
   sentenceId: string;
-  fsrsCard: FSRSCard;
-  log?: ReviewLog;
 }
 
-export interface SentenceReviewDataStore {
-  cards: Record<string, SentenceCardReviewData>;
-  reviewedToday: string[];
-  newCardsToday: string[];
-  lastReviewDate: string;
-  /** When each id was added to or removed from the lists above; see sessionLists.ts. */
-  changedAt?: SessionChanges;
+export type SentenceReviewDataStore = ReviewDataStore<SentenceCardReviewData>;
+
+export interface SentenceSessionCard {
+  sentence: Sentence;
+  reviewData: SentenceCardReviewData;
+  isNew: boolean;
 }
 
 export const ALL_LEVELS: CEFRLevel[] = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
@@ -59,3 +55,8 @@ export interface SentenceDirectionSettings {
 }
 
 export type SentenceSettings = Record<TranslationDirection, SentenceDirectionSettings>;
+
+export const DEFAULT_SENTENCE_SETTINGS: SentenceSettings = {
+  'pl-to-en': { newCardsPerDay: 5, selectedLevels: [...ALL_LEVELS] },
+  'en-to-pl': { newCardsPerDay: 5, selectedLevels: [...ALL_LEVELS] },
+};

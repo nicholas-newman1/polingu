@@ -1,6 +1,7 @@
 import type { Sentence, CEFRLevel, SentenceReviewDataStore } from '../../types/sentences';
 import type { ListeningOrdering, ListeningQueueItem } from '../../types/listening';
-import getOrCreateSentenceCardReviewData from '../storage/getOrCreateSentenceCardReviewData';
+import { reviewDataFor } from '../reviewSession/scheduler';
+import { sentenceDeck } from '../reviewSession/reviewDecks';
 import isFsrsCardLearned from './isFsrsCardLearned';
 import orderListeningPool from './orderListeningPool';
 
@@ -28,7 +29,7 @@ export default function buildSentenceListeningQueue({
   const pool = orderListeningPool(
     filtered.map((sentence) => ({
       item: sentence,
-      reviewData: getOrCreateSentenceCardReviewData(sentence.id, reviewStore),
+      reviewData: reviewDataFor(sentenceDeck, reviewStore, sentence.id),
     })),
     ordering,
     limit

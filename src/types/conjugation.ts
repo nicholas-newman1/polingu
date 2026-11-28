@@ -1,5 +1,4 @@
-import type { Card as FSRSCard, ReviewLog } from 'ts-fsrs';
-import type { SessionChanges, TranslationDirection } from './common';
+import type { CardReviewData, ReviewDataStore, TranslationDirection } from './common';
 import type { CardAudioFields } from './audio';
 
 export type Aspect = 'Imperfective' | 'Perfective';
@@ -80,19 +79,17 @@ export interface Verb extends CardAudioFields {
 
 export type ConjugationFormKey = string;
 
-export interface ConjugationFormReviewData {
+export interface ConjugationFormReviewData extends CardReviewData {
   formKey: ConjugationFormKey;
-  fsrsCard: FSRSCard;
-  log?: ReviewLog;
 }
 
-export interface ConjugationReviewDataStore {
-  forms: Record<ConjugationFormKey, ConjugationFormReviewData>;
-  reviewedToday: ConjugationFormKey[];
-  newFormsToday: ConjugationFormKey[];
-  lastReviewDate: string;
-  /** When each id was added to or removed from the lists above; see sessionLists.ts. */
-  changedAt?: SessionChanges;
+/** Keyed by form key. The saved session doc names `newCardsToday` `newFormsToday`. */
+export type ConjugationReviewDataStore = ReviewDataStore<ConjugationFormReviewData>;
+
+export interface ConjugationSessionCard {
+  form: DrillableForm;
+  reviewData: ConjugationFormReviewData;
+  isNew: boolean;
 }
 
 export interface ConjugationDirectionSettings {

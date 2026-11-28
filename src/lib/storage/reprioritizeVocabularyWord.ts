@@ -2,7 +2,8 @@ import type { VocabularyReviewDataStore, VocabularyWordId } from '../../types/vo
 import type { TranslationDirection } from '../../types/common';
 import forgetCard from '../fsrsUtils/forgetCard';
 import { removeFromDayLists } from '../reviewSession/sessionLists';
-import getOrCreateVocabularyCardReviewData from './getOrCreateVocabularyCardReviewData';
+import { reviewDataFor } from '../reviewSession/scheduler';
+import { vocabularyDeck } from '../reviewSession/reviewDecks';
 
 export function canReprioritizeVocabularyWord(
   stores: Record<TranslationDirection, VocabularyReviewDataStore>,
@@ -48,7 +49,7 @@ export function prioritizeNewVocabularyWord(
   now: Date = new Date()
 ): VocabularyReviewDataStore {
   const key = String(wordId);
-  const entry = getOrCreateVocabularyCardReviewData(wordId, store);
+  const entry = reviewDataFor(vocabularyDeck, store, wordId);
   if (entry.fsrsCard.state !== 0) {
     return store;
   }

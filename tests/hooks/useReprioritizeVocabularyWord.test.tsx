@@ -1,12 +1,13 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import { useReprioritizeVocabularyWord } from '../../src/hooks/useReprioritizeVocabularyWord';
-import saveVocabularyReviewData from '../../src/lib/storage/saveVocabularyReviewData';
 import type { SnackbarOptions } from '../../src/contexts/SnackbarContext';
 import { fsrsCard, inDays, State } from '../helpers/fsrs';
 import { emptyStore, entry, type Store, type Stores } from './support/reviewSession';
 import { withSnackbar } from './support/providers';
 import { renderWithReviewData, type ReviewDataSeed } from './support/reviewDataProviders';
+import { saveReviewStore, vocabularyStorage } from '../../src/lib/storage/reviewDeckStorage';
+import type { TranslationDirection } from '../../src/types/common';
 
 // The providers' live custom-collection listeners are the Firestore boundary.
 vi.mock('../../src/lib/storage/customVocabulary', () => ({
@@ -22,8 +23,12 @@ vi.mock('../../src/lib/storage/customSentences', () => ({
   subscribeCustomSentences: vi.fn(),
 }));
 // Saving the review store is the storage boundary; the provider updates its state first.
-vi.mock('../../src/lib/storage/saveVocabularyReviewData', () => ({ default: vi.fn() }));
+vi.mock('../../src/lib/storage/reviewDeckStorage', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../src/lib/storage/reviewDeckStorage')>()),
+  saveReviewStore: vi.fn(),
+}));
 
+const DIRECTIONS: TranslationDirection[] = ['pl-to-en', 'en-to-pl'];
 const QUEUED = 'Word queued for review again.';
 const DUPLICATE = 'This Polish word is already in your custom vocabulary.';
 const BUILT_IN_DUPLICATE = 'This Polish word is already in the built-in deck.';
@@ -53,9 +58,9 @@ function renderReprioritize(vocabularyStores: Stores, seed: ReviewDataSeed = {})
     (snackbar.showSnackbar.mock.calls.at(-1)?.[2] as SnackbarOptions | undefined)?.action;
   /** Each store saved, with its direction. */
   const saved = () =>
-    vi.mocked(saveVocabularyReviewData).mock.calls.map(([, store, direction]) => ({
-      direction,
-      store,
+    vi.mocked(saveReviewStore).mock.calls.map(([storage, , store]) => ({
+      direction: DIRECTIONS.find((d) => vocabularyStorage[d] === storage),
+      store: store as Store,
     }));
   return { ...h, showSnackbar: snackbar.showSnackbar, action, saved };
 }

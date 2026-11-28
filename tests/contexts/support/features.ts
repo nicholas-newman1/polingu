@@ -6,12 +6,7 @@
  */
 import type { Card } from 'ts-fsrs';
 import type { TranslationDirection } from '../../../src/types/common';
-import type {
-  DeclensionCardId,
-  DeclensionCardReviewData,
-  DeclensionReviewDataStore,
-  DeclensionSettings,
-} from '../../../src/types';
+import type { DeclensionReviewDataStore, DeclensionSettings } from '../../../src/types';
 import type {
   VocabularyDirectionSettings,
   VocabularyReviewDataStore,
@@ -29,12 +24,15 @@ import type {
   AspectPairsSettings,
 } from '../../../src/types/aspectPairs';
 import type { ReviewDataContextType } from '../../../src/hooks/useReviewData';
-import { recordCardReview, recordFormReview } from '../../../src/lib/reviewSession/recordReview';
-import loadVocabularySettings from '../../../src/lib/storage/loadVocabularySettings';
-import loadSentenceSettings from '../../../src/lib/storage/loadSentenceSettings';
-import loadConjugationSettings from '../../../src/lib/storage/loadConjugationSettings';
-import loadDeclensionSettings from '../../../src/lib/storage/loadDeclensionSettings';
-import loadAspectPairsSettings from '../../../src/lib/storage/loadAspectPairsSettings';
+import { recordCardReview } from '../../../src/lib/reviewSession/recordReview';
+import {
+  aspectPairsStorage,
+  conjugationStorage,
+  declensionStorage,
+  loadDeckSettings,
+  sentenceStorage,
+  vocabularyStorage,
+} from '../../../src/lib/storage/reviewDeckStorage';
 import type { InitialData } from './render';
 import {
   aspectPairsStore,
@@ -59,7 +57,7 @@ export interface Feature<Store = unknown, Settings = unknown> {
   collection(direction: Direction): string;
   sessionDoc(direction: Direction): string;
   settingsDoc(direction: Direction): string;
-  /** Name of the list counting today's new cards. */
+  /** Name of the saved session doc's list counting today's new cards (`newCardsToday` in memory). */
   newList: 'newCardsToday' | 'newFormsToday';
   initial(cards: CardsByDirection): InitialData;
   shownStore(data: Data, direction: Direction): Store;
@@ -115,7 +113,7 @@ export const vocabulary = define<VocabularyReviewDataStore, VocabularyDirectionS
   shownSettings: (data, d) => data.vocabularySettings[d],
   updateSettings: (data, d, settings) => data.updateVocabularySettings(d, settings),
   changedSettings: { newCardsPerDay: 25 },
-  loadSettings: async (d) => (await loadVocabularySettings())[d],
+  loadSettings: (d) => loadDeckSettings(vocabularyStorage[d]),
 });
 
 export const sentences = define<SentenceReviewDataStore, SentenceDirectionSettings>({
@@ -138,7 +136,7 @@ export const sentences = define<SentenceReviewDataStore, SentenceDirectionSettin
   shownSettings: (data, d) => data.sentenceSettings[d],
   updateSettings: (data, d, settings) => data.updateSentenceSettings(d, settings),
   changedSettings: { newCardsPerDay: 25, selectedLevels: ['B1'] },
-  loadSettings: async (d) => (await loadSentenceSettings())[d],
+  loadSettings: (d) => loadDeckSettings(sentenceStorage[d]),
 });
 
 export const conjugation = define<ConjugationReviewDataStore, ConjugationDirectionSettings>({
@@ -151,17 +149,17 @@ export const conjugation = define<ConjugationReviewDataStore, ConjugationDirecti
   newList: 'newFormsToday',
   initial: (cards) => ({ conjugation: { initialReviewStores: both(conjugationStore, cards) } }),
   shownStore: (data, d) => data.conjugationReviewStores[d],
-  cardIds: (store) => Object.keys(store.forms).sort(),
-  newIds: (store) => store.newFormsToday,
+  cardIds: (store) => Object.keys(store.cards).sort(),
+  newIds: (store) => store.newCardsToday,
   rate: (store, id) =>
-    recordFormReview(store, id, { formKey: id, fsrsCard: ratedNow() }, NEW_AND_DONE),
-  without: (store, id) => ({ ...store, forms: omit(store.forms, id) }),
+    recordCardReview(store, id, { formKey: id, fsrsCard: ratedNow() }, NEW_AND_DONE),
+  without: (store, id) => ({ ...store, cards: omit(store.cards, id) }),
   update: (data, d, store) => data.updateConjugationReviewStore(d, store),
   clear: (data, d) => data.clearConjugationReviewData(d),
   shownSettings: (data, d) => data.conjugationSettings[d],
   updateSettings: (data, d, settings) => data.updateConjugationSettings(d, settings),
   changedSettings: { newCardsPerDay: 25 },
-  loadSettings: async (d) => (await loadConjugationSettings())[d],
+  loadSettings: (d) => loadDeckSettings(conjugationStorage[d]),
 });
 
 export const declension = define<DeclensionReviewDataStore, DeclensionSettings>({
@@ -179,19 +177,14 @@ export const declension = define<DeclensionReviewDataStore, DeclensionSettings>(
   cardIds: (store) => Object.keys(store.cards).sort(),
   newIds: (store) => store.newCardsToday.map(String),
   rate: (store, id) =>
-    recordCardReview<DeclensionCardId, DeclensionCardReviewData, DeclensionReviewDataStore>(
-      store,
-      id,
-      { cardId: id, fsrsCard: ratedNow() },
-      NEW_AND_DONE
-    ),
+    recordCardReview(store, id, { cardId: id, fsrsCard: ratedNow() }, NEW_AND_DONE),
   without: (store, id) => ({ ...store, cards: omit(store.cards, id) }),
   update: (data, _d, store) => data.updateDeclensionReviewStore(store),
   clear: (data) => data.clearDeclensionData(),
   shownSettings: (data) => data.declensionSettings,
   updateSettings: (data, _d, settings) => data.updateDeclensionSettings(settings),
   changedSettings: { newCardsPerDay: 25 },
-  loadSettings: () => loadDeclensionSettings(),
+  loadSettings: () => loadDeckSettings(declensionStorage.all),
 });
 
 export const aspectPairs = define<AspectPairsReviewDataStore, AspectPairsSettings>({
@@ -216,7 +209,7 @@ export const aspectPairs = define<AspectPairsReviewDataStore, AspectPairsSetting
   shownSettings: (data) => data.aspectPairsSettings,
   updateSettings: (data, _d, settings) => data.updateAspectPairsSettings(settings),
   changedSettings: { newCardsPerDay: 25 },
-  loadSettings: () => loadAspectPairsSettings(),
+  loadSettings: () => loadDeckSettings(aspectPairsStorage.all),
 });
 
 export const ALL_FEATURES = [vocabulary, sentences, conjugation, declension, aspectPairs];

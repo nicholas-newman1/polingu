@@ -10,9 +10,6 @@ import { act, renderHook } from '@testing-library/react';
 import { vi } from 'vitest';
 import type { Grade } from 'ts-fsrs';
 import { useReviewSession } from '../../../src/hooks/useReviewSession';
-import getVocabularySessionCards from '../../../src/lib/vocabularyScheduler/getVocabularySessionCards';
-import getVocabularyPracticeAheadCards from '../../../src/lib/vocabularyScheduler/getVocabularyPracticeAheadCards';
-import getVocabularyExtraNewCards from '../../../src/lib/vocabularyScheduler/getVocabularyExtraNewCards';
 import { recordCardReview } from '../../../src/lib/reviewSession/recordReview';
 import type { TranslationDirection } from '../../../src/types/common';
 import type {
@@ -21,6 +18,12 @@ import type {
   VocabularyWord,
 } from '../../../src/types/vocabulary';
 import { stubs } from '../../helpers/stub';
+import {
+  getExtraNewCards,
+  getPracticeAheadCards,
+  getSessionCards,
+} from '../../../src/lib/reviewSession/scheduler';
+import { vocabularyDeck } from '../../../src/lib/reviewSession/reviewDecks';
 
 export type Store = VocabularyReviewDataStore;
 export type Stores = Record<TranslationDirection, Store>;
@@ -89,10 +92,10 @@ export function renderReviewSession({
       getAudioUrls: (word) => [word.audioUrl],
       ready,
       sessionKey: direction,
-      getSessionCards: () => getVocabularySessionCards(words, store, { newCardsPerDay }),
+      getSessionCards: () => getSessionCards(vocabularyDeck, words, store, { newCardsPerDay }),
       getPracticeAheadCards: (count, current) =>
-        getVocabularyPracticeAheadCards(words, current, count),
-      getExtraNewCards: (count, current) => getVocabularyExtraNewCards(words, current, count),
+        getPracticeAheadCards(vocabularyDeck, words, current, count),
+      getExtraNewCards: (count, current) => getExtraNewCards(vocabularyDeck, words, current, count),
       reviewStore: store,
       recordReview: recordCardReview,
       saveReviewStore: async (next) => {

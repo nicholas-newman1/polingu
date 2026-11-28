@@ -20,9 +20,13 @@ import type {
   VerbClass,
 } from '../../types/conjugation';
 import type { TranslationDirection } from '../../types/common';
-import getConjugationSessionCards from '../../lib/conjugationScheduler/getConjugationSessionCards';
-import getConjugationExtraCards from '../../lib/conjugationScheduler/getConjugationExtraCards';
-import { recordFormReview } from '../../lib/reviewSession/recordReview';
+import {
+  getExtraNewCards,
+  getPracticeAheadCards,
+  getSessionCards,
+} from '../../lib/reviewSession/scheduler';
+import { conjugationDeck } from '../../lib/reviewSession/reviewDecks';
+import { recordCardReview } from '../../lib/reviewSession/recordReview';
 import { DIRECTION_ROUTES, otherDirection, toModeStats } from '../../lib/reviewSession/directions';
 import { useAuthContext } from '../../hooks/useAuthContext';
 import { useReviewData } from '../../hooks/useReviewData';
@@ -69,6 +73,7 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
   const [verbs, applyOptimisticVerbs] = useOptimistic(contextVerbs, {
     onError: () => showSnackbar('Failed to save. Please try again.', 'error'),
   });
+  const forms = useMemo(() => verbs.flatMap(getDrillableFormsForVerb), [verbs]);
 
   const { filters: userFilters, filtersLoading, updateConjugationFilters } = useUserFilters();
   const filters = userFilters.conjugation;
@@ -88,13 +93,13 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
     ready: !contextLoading && !filtersLoading && verbs.length > 0,
     sessionKey: currentDirection,
     getSessionCards: () =>
-      getConjugationSessionCards(verbs, reviewStore, filters, directionSettings),
+      getSessionCards(conjugationDeck, forms, reviewStore, directionSettings, filters),
     getPracticeAheadCards: (count, store) =>
-      getConjugationExtraCards(verbs, store, filters).getPracticeAheadCards(count),
+      getPracticeAheadCards(conjugationDeck, forms, store, count, filters),
     getExtraNewCards: (count, store) =>
-      getConjugationExtraCards(verbs, store, filters).getExtraNewCards(count),
+      getExtraNewCards(conjugationDeck, forms, store, count, filters),
     reviewStore,
-    recordReview: recordFormReview,
+    recordReview: recordCardReview,
     saveReviewStore: (store) => updateConjugationReviewStore(currentDirection, store),
   });
   const { practice, history } = session;
@@ -122,7 +127,9 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
   const handleSettingsChange = async (newCardsPerDay: number) => {
     const newSettings = { ...directionSettings, newCardsPerDay };
     await updateConjugationSettings(currentDirection, newSettings);
-    session.startSession(getConjugationSessionCards(verbs, reviewStore, filters, newSettings));
+    session.startSession(
+      getSessionCards(conjugationDeck, forms, reviewStore, newSettings, filters)
+    );
   };
 
   const handleResetAllData = async () => {
@@ -145,7 +152,7 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
       practice.reshuffle(getFilteredForms(verbs, newFilters));
     } else {
       session.startSession(
-        getConjugationSessionCards(verbs, reviewStore, newFilters, directionSettings)
+        getSessionCards(conjugationDeck, forms, reviewStore, directionSettings, newFilters)
       );
     }
   };

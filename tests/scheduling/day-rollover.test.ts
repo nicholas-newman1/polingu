@@ -5,20 +5,23 @@
  */
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { Rating } from 'ts-fsrs';
-import loadVocabularyReviewData from '../../src/lib/storage/loadVocabularyReviewData';
-import saveVocabularyReviewData from '../../src/lib/storage/saveVocabularyReviewData';
-import loadConjugationReviewData from '../../src/lib/storage/loadConjugationReviewData';
-import saveConjugationReviewData from '../../src/lib/storage/saveConjugationReviewData';
-import { getDefaultVocabularyReviewStore, getTodayString } from '../../src/lib/storage/helpers';
+import { getTodayString } from '../../src/lib/storage/helpers';
 import { userDb } from '../../src/lib/offlineDb/userDb';
-import getVocabularySessionCards from '../../src/lib/vocabularyScheduler/getVocabularySessionCards';
-import getOrCreateVocabularyCardReviewData from '../../src/lib/storage/getOrCreateVocabularyCardReviewData';
 import rateCard from '../../src/lib/fsrsUtils/rateCard';
 import type { VocabularyReviewDataStore, VocabularyWord } from '../../src/types/vocabulary';
 import type { ConjugationReviewDataStore } from '../../src/types/conjugation';
 import { signInFakeUser } from '../fakes/firebase';
-import { freezeTime, graduated, learning, recordWordReview } from './fixtures';
+import { freezeTime, graduated, learning } from './fixtures';
+import { recordCardReview } from '../../src/lib/reviewSession/recordReview';
 import { stubs } from '../helpers/stub';
+import {
+  conjugationStorage,
+  loadReviewStore,
+  saveReviewStore,
+  vocabularyStorage,
+} from '../../src/lib/storage/reviewDeckStorage';
+import { getSessionCards, reviewDataFor } from '../../src/lib/reviewSession/scheduler';
+import { vocabularyDeck } from '../../src/lib/reviewSession/reviewDecks';
 
 beforeEach(async () => {
   signInFakeUser();
@@ -30,7 +33,7 @@ beforeEach(async () => {
 /** A store dated by the frozen clock: word 1 overdue, 2 learning, 3 studied for the first time. */
 function studiedStore(): VocabularyReviewDataStore {
   return {
-    ...getDefaultVocabularyReviewStore(),
+    ...vocabularyStorage['pl-to-en'].emptyStore(),
     cards: {
       1: { wordId: 1, fsrsCard: graduated(-1) },
       2: { wordId: 2, fsrsCard: learning(10) },
@@ -44,13 +47,13 @@ function studiedStore(): VocabularyReviewDataStore {
 async function saveAt(when: string, store?: VocabularyReviewDataStore) {
   freezeTime(when);
   const saved = store ?? studiedStore();
-  await saveVocabularyReviewData(null, saved, 'pl-to-en');
+  await saveReviewStore(vocabularyStorage['pl-to-en'], null, saved);
   return saved;
 }
 
 async function loadAt(when: string, direction: 'pl-to-en' | 'en-to-pl' = 'pl-to-en') {
   freezeTime(when);
-  return loadVocabularyReviewData(direction);
+  return loadReviewStore(vocabularyStorage[direction]);
 }
 
 describe('the local calendar day', () => {
@@ -92,7 +95,7 @@ describe('reloading review data', () => {
     const loaded = await loadAt('2026-11-27T07:00:00-05:00');
     const words = stubs<VocabularyWord>([1, 2, 3, 4, 5].map((id) => ({ id })));
 
-    const session = getVocabularySessionCards(words, loaded, { newCardsPerDay: 1 });
+    const session = getSessionCards(vocabularyDeck, words, loaded, { newCardsPerDay: 1 });
 
     expect(session.reviewCards.map((c) => c.word.id)).toEqual([1, 2, 3]);
     expect(session.newCards.map((c) => c.word.id)).toEqual([4]);
@@ -139,36 +142,36 @@ describe('reloading review data', () => {
     freezeTime('2026-11-26T22:00:00-05:00');
     const formKey = 'robic:present:1sg';
     const store: ConjugationReviewDataStore = {
-      forms: { [formKey]: { formKey, fsrsCard: learning(10) } },
-      newFormsToday: [formKey],
+      cards: { [formKey]: { formKey, fsrsCard: learning(10) } },
+      newCardsToday: [formKey],
       reviewedToday: [formKey],
       lastReviewDate: getTodayString(),
     };
-    await saveConjugationReviewData(null, store, 'en-to-pl');
+    await saveReviewStore(conjugationStorage['en-to-pl'], null, store);
 
     freezeTime('2026-11-26T23:30:00-05:00');
-    expect(await loadConjugationReviewData('en-to-pl')).toEqual(store);
-    expect((await loadConjugationReviewData('pl-to-en')).forms).toEqual({});
+    expect(await loadReviewStore(conjugationStorage['en-to-pl'])).toEqual(store);
+    expect((await loadReviewStore(conjugationStorage['pl-to-en'])).cards).toEqual({});
 
     freezeTime('2026-11-27T00:30:00-05:00');
-    const nextDay = await loadConjugationReviewData('en-to-pl');
-    expect(nextDay.forms).toEqual(store.forms);
-    expect(nextDay.newFormsToday).toEqual([]);
+    const nextDay = await loadReviewStore(conjugationStorage['en-to-pl']);
+    expect(nextDay.cards).toEqual(store.cards);
+    expect(nextDay.newCardsToday).toEqual([]);
     expect(nextDay.reviewedToday).toEqual([]);
   });
 });
 
 test('a new word first studied just after midnight counts toward that day', async () => {
   freezeTime('2026-11-26T23:50:00-05:00');
-  const loadedLastNight = await loadVocabularyReviewData('pl-to-en');
+  const loadedLastNight = await loadReviewStore(vocabularyStorage['pl-to-en']);
 
   freezeTime('2026-11-27T00:05:00-05:00');
-  const reviewData = rateCard(getOrCreateVocabularyCardReviewData(7, loadedLastNight), Rating.Good);
-  const afterReview = recordWordReview(loadedLastNight, 7, reviewData, {
+  const reviewData = rateCard(reviewDataFor(vocabularyDeck, loadedLastNight, 7), Rating.Good);
+  const afterReview = recordCardReview(loadedLastNight, 7, reviewData, {
     isNew: true,
     completed: true,
   });
-  await saveVocabularyReviewData(loadedLastNight, afterReview, 'pl-to-en');
+  await saveReviewStore(vocabularyStorage['pl-to-en'], loadedLastNight, afterReview);
 
   const reloaded = await loadAt('2026-11-27T08:00:00-05:00');
   expect(reloaded.newCardsToday).toEqual([7]);

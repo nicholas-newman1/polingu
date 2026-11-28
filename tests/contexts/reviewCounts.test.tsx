@@ -6,14 +6,9 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { act } from '@testing-library/react';
 import { freezeTime, setTime, setupSyncTests } from '../sync/support/harness';
-import getVocabularySessionCards from '../../src/lib/vocabularyScheduler/getVocabularySessionCards';
-import getSentenceSessionCards from '../../src/lib/sentenceScheduler/getSentenceSessionCards';
-import getDeclensionSessionCards from '../../src/lib/declensionScheduler/getSessionCards';
-import getConjugationSessionCards from '../../src/lib/conjugationScheduler/getConjugationSessionCards';
-import getAspectPairsSessionCards from '../../src/lib/aspectPairsScheduler/getAspectPairsSessionCards';
 import { startDayIfNeeded } from '../../src/lib/reviewSession/sessionLists';
 import { getTodayString } from '../../src/lib/storage/helpers';
-import type { DeclensionFilters } from '../../src/lib/declensionScheduler/types';
+import type { DeclensionFilters } from '../../src/types';
 import type { ConjugationFilters } from '../../src/types/conjugation';
 import { DEFAULT_USER_FILTERS, type UserFilters } from '../../src/types/userFilters';
 import { renderReviewProviders, type InitialData } from './support/render';
@@ -36,6 +31,15 @@ import {
   word,
 } from './support/fixtures';
 import { idle, seedUserDoc } from './support/server';
+import { getSessionCards } from '../../src/lib/reviewSession/scheduler';
+import {
+  aspectPairsDeck,
+  conjugationDeck,
+  declensionDeck,
+  sentenceDeck,
+  vocabularyDeck,
+} from '../../src/lib/reviewSession/reviewDecks';
+import { getDrillableFormsForVerb } from '../../src/lib/conjugationUtils';
 
 vi.mock('firebase/firestore', () => import('../sync/support/fakeFirestore'));
 
@@ -107,7 +111,8 @@ describe('review counts', () => {
       (sum, direction) =>
         sum +
         sessionSize(
-          getVocabularySessionCards(
+          getSessionCards(
+            vocabularyDeck,
             words,
             scenario.initialReviewStores![direction],
             scenario.initialSettings![direction]
@@ -159,7 +164,8 @@ describe('review counts', () => {
     // The sentences page builds each session from the sentences at the selected levels.
     const session = (direction: 'pl-to-en' | 'en-to-pl') => {
       const settings = scenario.initialSettings![direction];
-      return getSentenceSessionCards(
+      return getSessionCards(
+        sentenceDeck,
         sentences.filter((s) => settings.selectedLevels.includes(s.level)),
         scenario.initialReviewStores![direction],
         settings
@@ -178,7 +184,7 @@ describe('review counts', () => {
         initialReviewStores: {
           'pl-to-en': conjugationStore(
             { [formKey('robić', '1sg')]: dueCard(), [formKey('robić', '3sg')]: notDueCard() },
-            { newFormsToday: [formKey('robić', '3sg')] }
+            { newCardsToday: [formKey('robić', '3sg')] }
           ),
           'en-to-pl': conjugationStore(),
         },
@@ -226,9 +232,14 @@ describe('review counts', () => {
     expect(counts().aspectPairs).toBe(2);
     expect(counts().aspectPairs).toBe(
       sessionSize(
-        getAspectPairsSessionCards(h.data().aspectPairCards, h.data().aspectPairsReviewStore, {
-          newCardsPerDay: 5,
-        })
+        getSessionCards(
+          aspectPairsDeck,
+          h.data().aspectPairCards,
+          h.data().aspectPairsReviewStore,
+          {
+            newCardsPerDay: 5,
+          }
+        )
       )
     );
   });
@@ -415,7 +426,7 @@ describe('counts and the learner’s session filters', () => {
       },
       /** What the declension page would serve with these filters. */
       session: (filters: DeclensionFilters) =>
-        sessionSize(getDeclensionSessionCards(cards, store, filters, settings)),
+        sessionSize(getSessionCards(declensionDeck, cards, store, settings, filters)),
     };
   };
   const GENITIVE_ONLY: DeclensionFilters = { cases: ['Genitive'], genders: [], number: 'All' };
@@ -436,7 +447,16 @@ describe('counts and the learner’s session filters', () => {
       session: (filters: ConjugationFilters) =>
         (['pl-to-en', 'en-to-pl'] as const).reduce(
           (sum, d) =>
-            sum + sessionSize(getConjugationSessionCards(verbs, stores[d], filters, settings[d])),
+            sum +
+            sessionSize(
+              getSessionCards(
+                conjugationDeck,
+                verbs.flatMap(getDrillableFormsForVerb),
+                stores[d],
+                settings[d],
+                filters
+              )
+            ),
           0
         ),
     };

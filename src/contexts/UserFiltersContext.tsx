@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
 import type { UserFilters } from '../types/userFilters';
 import type { ConjugationFilters } from '../types/conjugation';
-import type { DeclensionFilters } from '../lib/declensionScheduler/types';
+import type { DeclensionFilters } from '../types';
 import { DEFAULT_USER_FILTERS } from '../types/userFilters';
 import loadUserFilters from '../lib/storage/loadUserFilters';
 import saveUserFilters from '../lib/storage/saveUserFilters';

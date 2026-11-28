@@ -19,9 +19,12 @@ import { EditSentenceModal } from '../../components/EditSentenceModal';
 import type { Sentence, CustomSentence, CEFRLevel } from '../../types/sentences';
 import { ALL_LEVELS } from '../../types/sentences';
 import type { TranslationDirection } from '../../types/common';
-import getSentenceSessionCards from '../../lib/sentenceScheduler/getSentenceSessionCards';
-import getSentencePracticeAheadCards from '../../lib/sentenceScheduler/getSentencePracticeAheadCards';
-import getSentenceExtraNewCards from '../../lib/sentenceScheduler/getSentenceExtraNewCards';
+import {
+  getExtraNewCards,
+  getPracticeAheadCards,
+  getSessionCards,
+} from '../../lib/reviewSession/scheduler';
+import { sentenceDeck } from '../../lib/reviewSession/reviewDecks';
 import { recordCardReview } from '../../lib/reviewSession/recordReview';
 import { DIRECTION_ROUTES, otherDirection } from '../../lib/reviewSession/directions';
 import toggleInArray from '../../lib/utils/toggleInArray';
@@ -98,10 +101,11 @@ export function SentencesPage({ mode }: SentencesPageProps) {
     ready: !contextLoading,
     sessionKey: currentDirection,
     getSessionCards: () =>
-      getSentenceSessionCards(filteredSentences, reviewStore, directionSettings),
+      getSessionCards(sentenceDeck, filteredSentences, reviewStore, directionSettings),
     getPracticeAheadCards: (count, store) =>
-      getSentencePracticeAheadCards(filteredSentences, store, count),
-    getExtraNewCards: (count, store) => getSentenceExtraNewCards(filteredSentences, store, count),
+      getPracticeAheadCards(sentenceDeck, filteredSentences, store, count),
+    getExtraNewCards: (count, store) =>
+      getExtraNewCards(sentenceDeck, filteredSentences, store, count),
     reviewStore,
     recordReview: recordCardReview,
     saveReviewStore: (store) => updateSentenceReviewStore(currentDirection, store),
@@ -122,7 +126,8 @@ export function SentencesPage({ mode }: SentencesPageProps) {
     const newSettings = { ...directionSettings, newCardsPerDay };
     await updateSentenceSettings(currentDirection, newSettings);
     session.startSession(
-      getSentenceSessionCards(
+      getSessionCards(
+        sentenceDeck,
         filterByLevels(contextSentences, newSettings.selectedLevels),
         reviewStore,
         newSettings
@@ -138,7 +143,7 @@ export function SentencesPage({ mode }: SentencesPageProps) {
     if (practice.active) {
       practice.reshuffle(filtered);
     } else {
-      session.startSession(getSentenceSessionCards(filtered, reviewStore, newSettings));
+      session.startSession(getSessionCards(sentenceDeck, filtered, reviewStore, newSettings));
     }
   };
 
@@ -219,7 +224,8 @@ export function SentencesPage({ mode }: SentencesPageProps) {
 
     const merged = [...newCustomSentences, ...contextSystemSentences];
     session.startSession(
-      getSentenceSessionCards(
+      getSessionCards(
+        sentenceDeck,
         filterByLevels(merged, directionSettings.selectedLevels),
         reviewStore,
         directionSettings

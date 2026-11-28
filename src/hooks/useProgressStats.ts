@@ -1,27 +1,21 @@
 import { useMemo } from 'react';
 import { State, type Card as FSRSCard } from 'ts-fsrs';
 import { useReviewData, type ReviewDataContextType } from './useReviewData';
-import getOrCreateDeclensionCardReviewData from '../lib/storage/getOrCreateDeclensionCardReviewData';
-import getOrCreateVocabularyCardReviewData from '../lib/storage/getOrCreateVocabularyCardReviewData';
-import getOrCreateSentenceCardReviewData from '../lib/storage/getOrCreateSentenceCardReviewData';
-import getOrCreateConjugationFormReviewData from '../lib/storage/getOrCreateConjugationFormReviewData';
-import getOrCreateAspectPairsCardReviewData from '../lib/storage/getOrCreateAspectPairsCardReviewData';
-import getReviewBucket, { type ReviewBucket } from '../lib/fsrsUtils/getReviewBucket';
-import {
-  includesDeclensionCardId,
-  includesSentenceId,
-  includesFormKey,
-  includesVerbId,
-  includesWordId,
-} from '../lib/storage/helpers';
-import type { TranslationDirection } from '../types/common';
+import type { CardReviewData, TranslationDirection } from '../types/common';
 import type { CEFRLevel } from '../types/sentences';
 import { ALL_LEVELS } from '../types/sentences';
-import { getDrillableFormsForVerb, matchesFilters } from '../lib/conjugationUtils';
-import matchesDeclensionFilters from '../lib/declensionScheduler/matchesFilters';
+import { getDrillableFormsForVerb } from '../lib/conjugationUtils';
+import { placeItems, type PlacedItem } from '../lib/reviewSession/scheduler';
+import {
+  aspectPairsDeck,
+  conjugationDeck,
+  declensionDeck,
+  sentenceDeck,
+  vocabularyDeck,
+} from '../lib/reviewSession/reviewDecks';
 import type { DrillableForm } from '../types/conjugation';
 import type { UserFilters } from '../types/userFilters';
-import { unlessFilteredOut, useSessionFilters } from '../contexts/review/sessionFilters';
+import { useSessionFilters } from '../contexts/review/sessionFilters';
 
 export interface ProgressStats {
   total: number;
@@ -65,20 +59,19 @@ type Data = { filters: UserFilters } & Pick<
   | 'aspectPairsSettings'
 >;
 
-interface TrackedCard {
-  fsrsCard: FSRSCard;
-  bucket: ReviewBucket;
-}
-
 interface FlaggedCard {
   fsrsCard: FSRSCard;
   due: boolean;
 }
 
 /** Marks cards due for today, letting new cards in (in order) until the daily allowance runs out. */
-function flagDue(cards: TrackedCard[], remainingNew: number): FlaggedCard[] {
-  let newSlots = remainingNew;
-  return cards.map(({ fsrsCard, bucket }) => {
+function flagDue(
+  placed: PlacedItem<unknown, CardReviewData>[],
+  store: { newCardsToday: unknown[] },
+  settings: { newCardsPerDay: number }
+): FlaggedCard[] {
+  let newSlots = settings.newCardsPerDay - store.newCardsToday.length;
+  return placed.map(({ reviewData: { fsrsCard }, bucket }) => {
     if (bucket === 'new' && newSlots > 0) {
       newSlots--;
       return { fsrsCard, due: true };
@@ -119,53 +112,24 @@ function mapDirections<T>(
 
 function flagDeclension(data: Data): FlaggedCard[] {
   const store = data.declensionReviewStore;
-  const tracked = data.declensionCards.map((card) => {
-    const { fsrsCard } = getOrCreateDeclensionCardReviewData(card.id, store);
-    const bucket = unlessFilteredOut(
-      getReviewBucket(
-        fsrsCard,
-        includesDeclensionCardId(store.newCardsToday, card.id),
-        includesDeclensionCardId(store.reviewedToday, card.id)
-      ),
-      matchesDeclensionFilters(card, data.filters.declension)
-    );
-    return { fsrsCard, bucket };
-  });
-  return flagDue(tracked, data.declensionSettings.newCardsPerDay - store.newCardsToday.length);
+  const placed = placeItems(declensionDeck, data.declensionCards, store, data.filters.declension);
+  return flagDue(placed, store, data.declensionSettings);
 }
 
 function flagVocabulary(data: Data, direction: TranslationDirection): FlaggedCard[] {
   const store = data.vocabularyReviewStores[direction];
-  const tracked = data.vocabularyWords.map((word) => {
-    const { fsrsCard } = getOrCreateVocabularyCardReviewData(word.id, store);
-    const bucket = getReviewBucket(
-      fsrsCard,
-      includesWordId(store.newCardsToday, word.id),
-      includesWordId(store.reviewedToday, word.id)
-    );
-    return { fsrsCard, bucket };
-  });
-  return flagDue(
-    tracked,
-    data.vocabularySettings[direction].newCardsPerDay - store.newCardsToday.length
-  );
+  const placed = placeItems(vocabularyDeck, data.vocabularyWords, store);
+  return flagDue(placed, store, data.vocabularySettings[direction]);
 }
 
+/** Every sentence is counted, but only those at the selected levels can be due. */
 function flagSentences(data: Data, direction: TranslationDirection): FlaggedCard[] {
   const store = data.sentenceReviewStores[direction];
   const settings = data.sentenceSettings[direction];
-  const tracked = data.sentences.map((sentence) => {
-    const { fsrsCard } = getOrCreateSentenceCardReviewData(sentence.id, store);
-    const bucket = settings.selectedLevels.includes(sentence.level)
-      ? getReviewBucket(
-          fsrsCard,
-          includesSentenceId(store.newCardsToday, sentence.id),
-          includesSentenceId(store.reviewedToday, sentence.id)
-        )
-      : null;
-    return { fsrsCard, bucket };
-  });
-  return flagDue(tracked, settings.newCardsPerDay - store.newCardsToday.length);
+  const placed = placeItems(sentenceDeck, data.sentences, store).map((p) =>
+    settings.selectedLevels.includes(p.item.level) ? p : { ...p, bucket: null }
+  );
+  return flagDue(placed, store, settings);
 }
 
 function summarizeSentencesByLevel(data: Data, flagged: FlaggedCard[]): TranslationDirectionStats {
@@ -182,37 +146,14 @@ function flagConjugation(
   forms: DrillableForm[]
 ): FlaggedCard[] {
   const store = data.conjugationReviewStores[direction];
-  const tracked = forms.map((form) => {
-    const key = form.fullFormKey;
-    const { fsrsCard } = getOrCreateConjugationFormReviewData(key, store);
-    const bucket = unlessFilteredOut(
-      getReviewBucket(
-        fsrsCard,
-        includesFormKey(store.newFormsToday, key),
-        includesFormKey(store.reviewedToday, key)
-      ),
-      matchesFilters(form, data.filters.conjugation)
-    );
-    return { fsrsCard, bucket };
-  });
-  return flagDue(
-    tracked,
-    data.conjugationSettings[direction].newCardsPerDay - store.newFormsToday.length
-  );
+  const placed = placeItems(conjugationDeck, forms, store, data.filters.conjugation);
+  return flagDue(placed, store, data.conjugationSettings[direction]);
 }
 
 function flagAspectPairs(data: Data): FlaggedCard[] {
   const store = data.aspectPairsReviewStore;
-  const tracked = data.aspectPairCards.map(({ verb }) => {
-    const { fsrsCard } = getOrCreateAspectPairsCardReviewData(verb.id, store);
-    const bucket = getReviewBucket(
-      fsrsCard,
-      includesVerbId(store.newCardsToday, verb.id),
-      includesVerbId(store.reviewedToday, verb.id)
-    );
-    return { fsrsCard, bucket };
-  });
-  return flagDue(tracked, data.aspectPairsSettings.newCardsPerDay - store.newCardsToday.length);
+  const placed = placeItems(aspectPairsDeck, data.aspectPairCards, store);
+  return flagDue(placed, store, data.aspectPairsSettings);
 }
 
 function computeAllStats(data: Data): AllProgressStats {

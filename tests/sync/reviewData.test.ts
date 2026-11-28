@@ -1,18 +1,6 @@
 import { describe, expect, test, vi } from 'vitest';
 import { State } from 'ts-fsrs';
-import loadDeclensionReviewData from '../../src/lib/storage/loadDeclensionReviewData';
-import saveDeclensionReviewData from '../../src/lib/storage/saveDeclensionReviewData';
-import loadVocabularyReviewData from '../../src/lib/storage/loadVocabularyReviewData';
-import saveVocabularyReviewData from '../../src/lib/storage/saveVocabularyReviewData';
-import loadSentenceReviewData from '../../src/lib/storage/loadSentenceReviewData';
-import saveSentenceReviewData from '../../src/lib/storage/saveSentenceReviewData';
-import loadConjugationReviewData from '../../src/lib/storage/loadConjugationReviewData';
-import saveConjugationReviewData from '../../src/lib/storage/saveConjugationReviewData';
-import loadAspectPairsReviewData from '../../src/lib/storage/loadAspectPairsReviewData';
-import saveAspectPairsReviewData from '../../src/lib/storage/saveAspectPairsReviewData';
-import getOrCreateVocabularyCardReviewData from '../../src/lib/storage/getOrCreateVocabularyCardReviewData';
 import reprioritizeVocabularyWord from '../../src/lib/storage/reprioritizeVocabularyWord';
-import getVocabularySessionCards from '../../src/lib/vocabularyScheduler/getVocabularySessionCards';
 import { getTodayString } from '../../src/lib/storage/helpers';
 import { syncAllPendingToFirestore } from '../../src/lib/offlineDb/userDataWrapper';
 import {
@@ -32,6 +20,17 @@ import {
   userPath,
 } from './support/harness';
 import { stubs } from '../helpers/stub';
+import {
+  aspectPairsStorage,
+  conjugationStorage,
+  declensionStorage,
+  loadReviewStore,
+  saveReviewStore,
+  sentenceStorage,
+  vocabularyStorage,
+} from '../../src/lib/storage/reviewDeckStorage';
+import { getSessionCards, reviewDataFor } from '../../src/lib/reviewSession/scheduler';
+import { vocabularyDeck } from '../../src/lib/reviewSession/reviewDecks';
 
 vi.mock('firebase/firestore', () => import('./support/fakeFirestore'));
 
@@ -72,18 +71,14 @@ const vocabulary = (direction: TranslationDirection): Feature => ({
   cardCollection: `vocabularyReviewCards-${direction === 'pl-to-en' ? 'pl-en' : 'en-pl'}`,
   sessionDoc: `vocabularyReviewSession-${direction === 'pl-to-en' ? 'pl-en' : 'en-pl'}`,
   save: (ids, date) =>
-    saveVocabularyReviewData(
-      null,
-      {
-        cards: Object.fromEntries(ids.map((id) => [id, { wordId: id, fsrsCard: rated() }])),
-        reviewedToday: ids,
-        newCardsToday: ids,
-        lastReviewDate: date,
-      },
-      direction
-    ),
+    saveReviewStore(vocabularyStorage[direction], null, {
+      cards: Object.fromEntries(ids.map((id) => [id, { wordId: id, fsrsCard: rated() }])),
+      reviewedToday: ids,
+      newCardsToday: ids,
+      lastReviewDate: date,
+    }),
   load: async () => {
-    const s = await loadVocabularyReviewData(direction);
+    const s = await loadReviewStore(vocabularyStorage[direction]);
     return snapshot(s.cards, s.reviewedToday, s.newCardsToday, s.lastReviewDate);
   },
 });
@@ -93,18 +88,14 @@ const sentences = (direction: TranslationDirection): Feature => ({
   cardCollection: `sentenceReviewCards-${direction === 'pl-to-en' ? 'pl-en' : 'en-pl'}`,
   sessionDoc: `sentenceReviewSession-${direction === 'pl-to-en' ? 'pl-en' : 'en-pl'}`,
   save: (ids, date) =>
-    saveSentenceReviewData(
-      null,
-      {
-        cards: Object.fromEntries(ids.map((id) => [id, { sentenceId: id, fsrsCard: rated() }])),
-        reviewedToday: ids,
-        newCardsToday: ids,
-        lastReviewDate: date,
-      },
-      direction
-    ),
+    saveReviewStore(sentenceStorage[direction], null, {
+      cards: Object.fromEntries(ids.map((id) => [id, { sentenceId: id, fsrsCard: rated() }])),
+      reviewedToday: ids,
+      newCardsToday: ids,
+      lastReviewDate: date,
+    }),
   load: async () => {
-    const s = await loadSentenceReviewData(direction);
+    const s = await loadReviewStore(sentenceStorage[direction]);
     return snapshot(s.cards, s.reviewedToday, s.newCardsToday, s.lastReviewDate);
   },
 });
@@ -114,19 +105,15 @@ const conjugation = (direction: TranslationDirection): Feature => ({
   cardCollection: `conjugationReviewForms-${direction === 'pl-to-en' ? 'pl-en' : 'en-pl'}`,
   sessionDoc: `conjugationReviewSession-${direction === 'pl-to-en' ? 'pl-en' : 'en-pl'}`,
   save: (ids, date) =>
-    saveConjugationReviewData(
-      null,
-      {
-        forms: Object.fromEntries(ids.map((id) => [id, { formKey: id, fsrsCard: rated() }])),
-        reviewedToday: ids,
-        newFormsToday: ids,
-        lastReviewDate: date,
-      },
-      direction
-    ),
+    saveReviewStore(conjugationStorage[direction], null, {
+      cards: Object.fromEntries(ids.map((id) => [id, { formKey: id, fsrsCard: rated() }])),
+      reviewedToday: ids,
+      newCardsToday: ids,
+      lastReviewDate: date,
+    }),
   load: async () => {
-    const s = await loadConjugationReviewData(direction);
-    return snapshot(s.forms, s.reviewedToday, s.newFormsToday, s.lastReviewDate);
+    const s = await loadReviewStore(conjugationStorage[direction]);
+    return snapshot(s.cards, s.reviewedToday, s.newCardsToday, s.lastReviewDate);
   },
 });
 
@@ -136,14 +123,14 @@ const FEATURES: Feature[] = [
     cardCollection: 'declensionReviewCards',
     sessionDoc: 'declensionReviewSession',
     save: (ids, date) =>
-      saveDeclensionReviewData(null, {
+      saveReviewStore(declensionStorage.all, null, {
         cards: Object.fromEntries(ids.map((id) => [id, { cardId: id, fsrsCard: rated() }])),
         reviewedToday: ids,
         newCardsToday: ids,
         lastReviewDate: date,
       }),
     load: async () => {
-      const s = await loadDeclensionReviewData();
+      const s = await loadReviewStore(declensionStorage.all);
       return snapshot(s.cards, s.reviewedToday, s.newCardsToday, s.lastReviewDate);
     },
   },
@@ -152,14 +139,14 @@ const FEATURES: Feature[] = [
     cardCollection: 'aspectPairsReviewCards',
     sessionDoc: 'aspectPairsReviewSession',
     save: (ids, date) =>
-      saveAspectPairsReviewData(null, {
+      saveReviewStore(aspectPairsStorage.all, null, {
         cards: Object.fromEntries(ids.map((id) => [id, { verbId: id, fsrsCard: rated() }])),
         reviewedToday: ids,
         newCardsToday: ids,
         lastReviewDate: date,
       }),
     load: async () => {
-      const s = await loadAspectPairsReviewData();
+      const s = await loadReviewStore(aspectPairsStorage.all);
       return snapshot(s.cards, s.reviewedToday, s.newCardsToday, s.lastReviewDate);
     },
   },
@@ -308,21 +295,17 @@ describe('numeric word ids', () => {
     freezeTime('2026-11-26T10:00:00-05:00');
     signIn();
     const fsrsCard = ratedCard('2026-11-26T10:00:00-05:00');
-    await saveVocabularyReviewData(
-      null,
-      {
-        cards: { 5: { wordId: 5, fsrsCard } },
-        reviewedToday: [5],
-        newCardsToday: [5],
-        lastReviewDate: '2026-11-26',
-      },
-      'pl-to-en'
-    );
+    await saveReviewStore(vocabularyStorage['pl-to-en'], null, {
+      cards: { 5: { wordId: 5, fsrsCard } },
+      reviewedToday: [5],
+      newCardsToday: [5],
+      lastReviewDate: '2026-11-26',
+    });
 
-    const loaded = await loadVocabularyReviewData('pl-to-en');
+    const loaded = await loadReviewStore(vocabularyStorage['pl-to-en']);
 
-    expect(getOrCreateVocabularyCardReviewData(5, loaded).fsrsCard.state).toBe(State.Learning);
-    expect(getOrCreateVocabularyCardReviewData(5, loaded).fsrsCard.last_review).toEqual(
+    expect(reviewDataFor(vocabularyDeck, loaded, 5).fsrsCard.state).toBe(State.Learning);
+    expect(reviewDataFor(vocabularyDeck, loaded, 5).fsrsCard.last_review).toEqual(
       fsrsCard.last_review
     );
   });
@@ -338,15 +321,15 @@ describe('"Review again" (reprioritize) on a word introduced today', () => {
       newCardsToday: [5],
       lastReviewDate: '2026-11-26',
     };
-    await saveVocabularyReviewData(null, studied, 'pl-to-en');
+    await saveReviewStore(vocabularyStorage['pl-to-en'], null, studied);
 
     const requeued = reprioritizeVocabularyWord(studied, 5);
     expect(requeued.newCardsToday).toEqual([]);
-    await saveVocabularyReviewData(studied, requeued, 'pl-to-en');
+    await saveReviewStore(vocabularyStorage['pl-to-en'], studied, requeued);
 
-    const reloaded = await loadVocabularyReviewData('pl-to-en');
+    const reloaded = await loadReviewStore(vocabularyStorage['pl-to-en']);
     const words = stubs<VocabularyWord>([{ id: 5 }]);
-    const session = getVocabularySessionCards(words, reloaded, { newCardsPerDay: 10 });
+    const session = getSessionCards(vocabularyDeck, words, reloaded, { newCardsPerDay: 10 });
     expect(session.newCards.map(({ word }) => word.id)).toEqual([5]);
   });
 });

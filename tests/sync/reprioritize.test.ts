@@ -10,24 +10,23 @@ import reprioritizeSentence, {
 import reprioritizeDeclensionCard, {
   canReprioritizeDeclensionCard,
 } from '../../src/lib/storage/reprioritizeDeclensionCard';
-import getOrCreateVocabularyCardReviewData from '../../src/lib/storage/getOrCreateVocabularyCardReviewData';
-import getOrCreateSentenceCardReviewData from '../../src/lib/storage/getOrCreateSentenceCardReviewData';
-import getOrCreateDeclensionCardReviewData from '../../src/lib/storage/getOrCreateDeclensionCardReviewData';
-import getOrCreateConjugationFormReviewData from '../../src/lib/storage/getOrCreateConjugationFormReviewData';
-import getOrCreateAspectPairsCardReviewData from '../../src/lib/storage/getOrCreateAspectPairsCardReviewData';
-import {
-  getDefaultVocabularyReviewStore,
-  getTodayString,
-  includesDeclensionCardId,
-  includesWordId,
-} from '../../src/lib/storage/helpers';
-import type { VocabularyReviewDataStore } from '../../src/types/vocabulary';
+import { getTodayString } from '../../src/lib/storage/helpers';
+import type { VocabularyReviewDataStore, VocabularyWord } from '../../src/types/vocabulary';
 import type { SentenceReviewDataStore } from '../../src/types/sentences';
 import type { DeclensionReviewDataStore } from '../../src/types';
 import type { ConjugationReviewDataStore } from '../../src/types/conjugation';
 import type { AspectPairsReviewDataStore } from '../../src/types/aspectPairs';
-import { stub } from '../helpers/stub';
+import { stub, stubs } from '../helpers/stub';
 import { freezeTime, ratedCard } from './support/harness';
+import { vocabularyStorage } from '../../src/lib/storage/reviewDeckStorage';
+import { placeItems, reviewDataFor } from '../../src/lib/reviewSession/scheduler';
+import {
+  aspectPairsDeck,
+  conjugationDeck,
+  declensionDeck,
+  sentenceDeck,
+  vocabularyDeck,
+} from '../../src/lib/reviewSession/reviewDecks';
 
 const NOW = new Date('2026-11-26T15:00:00Z');
 const RATED = '2026-11-20T10:00:00Z';
@@ -111,7 +110,7 @@ describe('"Review again" puts a studied card back in the new queue', () => {
   });
 
   test('vocabulary: offered when either direction has studied the word', () => {
-    const empty = getDefaultVocabularyReviewStore();
+    const empty = vocabularyStorage['pl-to-en'].emptyStore();
 
     expect(canReprioritizeVocabularyWord({ 'pl-to-en': empty, 'en-to-pl': vocabStore() }, 5)).toBe(
       true
@@ -168,39 +167,44 @@ describe('getOrCreate*ReviewData', () => {
     const saved = { fsrsCard: ratedCard(RATED) };
     const cases = [
       () => [
-        getOrCreateVocabularyCardReviewData(
-          5,
-          stub<VocabularyReviewDataStore>({ cards: { '5': { wordId: 5, ...saved } } })
+        reviewDataFor(
+          vocabularyDeck,
+          stub<VocabularyReviewDataStore>({ cards: { '5': { wordId: 5, ...saved } } }),
+          5
         ),
-        getOrCreateVocabularyCardReviewData(6, stub<VocabularyReviewDataStore>({ cards: {} })),
+        reviewDataFor(vocabularyDeck, stub<VocabularyReviewDataStore>({ cards: {} }), 6),
       ],
       () => [
-        getOrCreateSentenceCardReviewData(
-          's',
-          stub<SentenceReviewDataStore>({ cards: { s: { sentenceId: 's', ...saved } } })
+        reviewDataFor(
+          sentenceDeck,
+          stub<SentenceReviewDataStore>({ cards: { s: { sentenceId: 's', ...saved } } }),
+          's'
         ),
-        getOrCreateSentenceCardReviewData('t', stub<SentenceReviewDataStore>({ cards: {} })),
+        reviewDataFor(sentenceDeck, stub<SentenceReviewDataStore>({ cards: {} }), 't'),
       ],
       () => [
-        getOrCreateDeclensionCardReviewData(
-          3,
-          stub<DeclensionReviewDataStore>({ cards: { 3: { cardId: 3, ...saved } } })
+        reviewDataFor(
+          declensionDeck,
+          stub<DeclensionReviewDataStore>({ cards: { 3: { cardId: 3, ...saved } } }),
+          3
         ),
-        getOrCreateDeclensionCardReviewData(4, stub<DeclensionReviewDataStore>({ cards: {} })),
+        reviewDataFor(declensionDeck, stub<DeclensionReviewDataStore>({ cards: {} }), 4),
       ],
       () => [
-        getOrCreateConjugationFormReviewData(
-          'f',
-          stub<ConjugationReviewDataStore>({ forms: { f: { formKey: 'f', ...saved } } })
+        reviewDataFor(
+          conjugationDeck,
+          stub<ConjugationReviewDataStore>({ cards: { f: { formKey: 'f', ...saved } } }),
+          'f'
         ),
-        getOrCreateConjugationFormReviewData('g', stub<ConjugationReviewDataStore>({ forms: {} })),
+        reviewDataFor(conjugationDeck, stub<ConjugationReviewDataStore>({ cards: {} }), 'g'),
       ],
       () => [
-        getOrCreateAspectPairsCardReviewData(
-          'v',
-          stub<AspectPairsReviewDataStore>({ cards: { v: { verbId: 'v', ...saved } } })
+        reviewDataFor(
+          aspectPairsDeck,
+          stub<AspectPairsReviewDataStore>({ cards: { v: { verbId: 'v', ...saved } } }),
+          'v'
         ),
-        getOrCreateAspectPairsCardReviewData('w', stub<AspectPairsReviewDataStore>({ cards: {} })),
+        reviewDataFor(aspectPairsDeck, stub<AspectPairsReviewDataStore>({ cards: {} }), 'w'),
       ],
     ];
 
@@ -211,10 +215,10 @@ describe('getOrCreate*ReviewData', () => {
       expect(created.fsrsCard.reps).toBe(0);
     }
     expect(
-      getOrCreateVocabularyCardReviewData(6, stub<VocabularyReviewDataStore>({ cards: {} }))
+      reviewDataFor(vocabularyDeck, stub<VocabularyReviewDataStore>({ cards: {} }), 6)
     ).toMatchObject({ wordId: 6 });
     expect(
-      getOrCreateConjugationFormReviewData('g', stub<ConjugationReviewDataStore>({ forms: {} }))
+      reviewDataFor(conjugationDeck, stub<ConjugationReviewDataStore>({ cards: {} }), 'g')
     ).toMatchObject({ formKey: 'g' });
   });
 });
@@ -228,10 +232,14 @@ describe('helpers', () => {
     expect(getTodayString()).toBe('2026-01-01');
   });
 
-  test('id lookups match numeric and string forms of the same id', () => {
-    expect(includesWordId([5, 'custom_1'], '5')).toBe(true);
-    expect(includesWordId(['5'], 5)).toBe(true);
-    expect(includesWordId([50], 5)).toBe(false);
-    expect(includesDeclensionCardId(['3'], 3)).toBe(true);
+  test('session lists match numeric and string forms of the same id', () => {
+    const words = stubs<VocabularyWord>([{ id: 5 }, { id: 50 }, { id: 'custom_1' }]);
+    const store = stub<VocabularyReviewDataStore>({
+      cards: {},
+      reviewedToday: [],
+      newCardsToday: ['5', 'custom_1'],
+    });
+    const buckets = placeItems(vocabularyDeck, words, store).map((p) => p.bucket);
+    expect(buckets).toEqual([null, 'new', null]);
   });
 });

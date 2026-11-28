@@ -29,11 +29,6 @@ import { ReviewCountsProvider } from '../../../src/contexts/review/ReviewCountsC
 import { subscribeCustomVocabulary } from '../../../src/lib/storage/customVocabulary';
 import { subscribeCustomDeclension } from '../../../src/lib/storage/customDeclension';
 import { subscribeCustomSentences } from '../../../src/lib/storage/customSentences';
-import {
-  getDefaultConjugationReviewStore,
-  getDefaultSentenceReviewStore,
-  getDefaultVocabularyReviewStore,
-} from '../../../src/lib/storage/helpers';
 import type {
   CustomDeclensionCard,
   DeclensionCard,
@@ -64,6 +59,11 @@ import type {
 } from '../../../src/types/aspectPairs';
 import { signInFakeUser, signOutFakeUser } from '../../fakes/firebase';
 import { withAuth } from './providers';
+import {
+  conjugationStorage,
+  sentenceStorage,
+  vocabularyStorage,
+} from '../../../src/lib/storage/reviewDeckStorage';
 
 type ByDirection<T> = Partial<Record<TranslationDirection, T>>;
 
@@ -99,9 +99,15 @@ const bothDirections = <T,>(given: ByDirection<T> | undefined, fallback: () => T
 function toProviderProps(seed: ReviewDataSeed) {
   return {
     ...seed,
-    vocabularyStores: bothDirections(seed.vocabularyStores, getDefaultVocabularyReviewStore),
-    sentenceStores: bothDirections(seed.sentenceStores, getDefaultSentenceReviewStore),
-    conjugationStores: bothDirections(seed.conjugationStores, getDefaultConjugationReviewStore),
+    vocabularyStores: bothDirections(
+      seed.vocabularyStores,
+      vocabularyStorage['pl-to-en'].emptyStore
+    ),
+    sentenceStores: bothDirections(seed.sentenceStores, sentenceStorage['pl-to-en'].emptyStore),
+    conjugationStores: bothDirections(
+      seed.conjugationStores,
+      conjugationStorage['pl-to-en'].emptyStore
+    ),
   };
 }
 

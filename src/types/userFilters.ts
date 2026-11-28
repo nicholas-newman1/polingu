@@ -1,5 +1,5 @@
 import type { ConjugationFilters } from './conjugation';
-import type { DeclensionFilters } from '../lib/declensionScheduler/types';
+import type { DeclensionFilters } from '../types';
 
 export interface UserFilters {
   conjugation: ConjugationFilters;

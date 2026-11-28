@@ -135,9 +135,7 @@ describe.each(MODULES)('$name scheduler', (module) => {
   });
 });
 
-// Conjugation's review early also offers cards that are already due (it checks
-// only the Review state), unlike the other modules, so it is left out here.
-describe.each(MODULES.filter((m) => m.name !== 'conjugation'))('$name review early', (module) => {
+describe.each(MODULES)('$name review early', (module) => {
   test('does not offer a card that is already due, which belongs in the normal session', () => {
     const items: Item[] = [
       { id: 'overdue', card: graduated(-2) },
@@ -195,14 +193,12 @@ describe.each(MODULES.filter((m) => m.hasCustomCards))('$name custom cards', (mo
     expect(customFirst(session.new, items)).toBe(true);
   });
 
-  test('when the allowance is tight and custom cards are listed first, as the contexts list them, they win the places', () => {
-    // Vocabulary and sentences pick new cards in deck order, so this relies on the review
-    // contexts listing custom cards first. Declension does not (see declension-scheduler).
+  test('when the allowance is tight, custom cards win the places whatever order the deck is in', () => {
     const items: Item[] = [
-      { id: 'custom-1', custom: true },
-      { id: 'custom-2', custom: true },
       { id: 'system-1' },
+      { id: 'custom-1', custom: true },
       { id: 'system-2' },
+      { id: 'custom-2', custom: true },
       { id: 'system-3' },
     ];
     const session = module.session(items, 3);
@@ -210,12 +206,12 @@ describe.each(MODULES.filter((m) => m.hasCustomCards))('$name custom cards', (mo
     expect(session.new.slice(0, 2).sort()).toEqual(['custom-1', 'custom-2']);
   });
 
-  test('extra new cards keep custom cards first when the deck lists them first, as the contexts do', () => {
+  test('extra new cards put custom cards first whatever order the deck is in', () => {
     const items: Item[] = [
-      { id: 'custom-1', custom: true },
-      { id: 'custom-2', custom: true },
       { id: 'system-1' },
+      { id: 'custom-1', custom: true },
       { id: 'system-2' },
+      { id: 'custom-2', custom: true },
     ];
     const extra = module.extraNew(items, 3);
     expect(extra).toHaveLength(3);
@@ -223,9 +219,7 @@ describe.each(MODULES.filter((m) => m.hasCustomCards))('$name custom cards', (mo
   });
 });
 
-// Vocabulary's extra new words keep the deck order as given (no custom/built-in split), so
-// it only puts custom words first because the vocabulary context lists them first.
-describe.each(MODULES.filter((m) => ['sentences', 'declension'].includes(m.name)))(
+describe.each(MODULES.filter((m) => m.hasCustomCards))(
   '$name extra new cards with custom cards',
   (module) => {
     test('list custom cards before built-in ones whatever order the deck is in', () => {
@@ -261,8 +255,7 @@ describe.each(MODULES)('$name scheduler and the learner’s data', (module) => {
   });
 });
 
-// Vocabulary's review early sorts custom and built-in words together by due date.
-describe.each(MODULES.filter((m) => ['sentences', 'declension'].includes(m.name)))(
+describe.each(MODULES.filter((m) => m.hasCustomCards))(
   '$name review early with custom cards',
   (module) => {
     test('offers custom cards before built-in ones, each group soonest-due first', () => {

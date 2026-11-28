@@ -1,11 +1,11 @@
 import { expect, test } from 'vitest';
-import getVocabularyPracticeAheadCards from '../../src/lib/vocabularyScheduler/getVocabularyPracticeAheadCards';
-import getDeclensionExtraCards from '../../src/lib/declensionScheduler/getExtraCards';
 import { DEFAULT_USER_FILTERS } from '../../src/types/userFilters';
 import type { DeclensionCard, DeclensionReviewDataStore } from '../../src/types';
 import type { VocabularyReviewDataStore, VocabularyWord } from '../../src/types/vocabulary';
 import { fsrsCard, inDays, State } from '../helpers/fsrs';
 import { stub, stubs } from '../helpers/stub';
+import { getPracticeAheadCards } from '../../src/lib/reviewSession/scheduler';
+import { declensionDeck, vocabularyDeck } from '../../src/lib/reviewSession/reviewDecks';
 
 // Ids 0-6 cover each case; only 4 and 5 are eligible, and 5 is due sooner.
 const cases = [
@@ -29,25 +29,27 @@ const vocabularyStore = () =>
   });
 
 test('vocabulary review early only offers graduated, not-due cards not reviewed today', () => {
-  const picked = getVocabularyPracticeAheadCards(words, vocabularyStore(), 10);
+  const picked = getPracticeAheadCards(vocabularyDeck, words, vocabularyStore(), 10);
   expect(picked.map(({ word }) => word.id)).toEqual([5, 4]);
 });
 
 test('declension review early only offers graduated, not-due cards not reviewed today', () => {
   const deck = stubs<DeclensionCard>(cases.map(([id]) => ({ id, isCustom: false })));
   const cards = Object.fromEntries(cases.map(([id, card]) => [id, { cardId: id, fsrsCard: card }]));
-  const { getPracticeAheadCards } = getDeclensionExtraCards(
+  const picked = getPracticeAheadCards(
+    declensionDeck,
     deck,
     stub<DeclensionReviewDataStore>({ cards, reviewedToday, newCardsToday: [] }),
+    10,
     DEFAULT_USER_FILTERS.declension
   );
-  expect(getPracticeAheadCards(10).map(({ card }) => card.id)).toEqual([5, 4]);
+  expect(picked.map(({ card }) => card.id)).toEqual([5, 4]);
 });
 
 test('a card reviewed early is not offered again in the next round', () => {
   const store = vocabularyStore();
-  const [first] = getVocabularyPracticeAheadCards(words, store, 1);
+  const [first] = getPracticeAheadCards(vocabularyDeck, words, store, 1);
   store.reviewedToday.push(first.word.id);
-  const [second] = getVocabularyPracticeAheadCards(words, store, 1);
+  const [second] = getPracticeAheadCards(vocabularyDeck, words, store, 1);
   expect(second.word.id).not.toBe(first.word.id);
 });

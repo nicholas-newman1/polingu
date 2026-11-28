@@ -1,25 +1,20 @@
 import { describe, expect, test, vi } from 'vitest';
-import clearDeclensionData from '../../src/lib/storage/clearDeclensionData';
-import clearVocabularyData from '../../src/lib/storage/clearVocabularyData';
-import clearSentenceData from '../../src/lib/storage/clearSentenceData';
-import clearConjugationData from '../../src/lib/storage/clearConjugationData';
-import clearAspectPairsData from '../../src/lib/storage/clearAspectPairsData';
-import saveDeclensionReviewData from '../../src/lib/storage/saveDeclensionReviewData';
-import loadDeclensionReviewData from '../../src/lib/storage/loadDeclensionReviewData';
-import saveDeclensionSettings from '../../src/lib/storage/saveDeclensionSettings';
-import loadDeclensionSettings from '../../src/lib/storage/loadDeclensionSettings';
-import saveVocabularyReviewData from '../../src/lib/storage/saveVocabularyReviewData';
-import loadVocabularyReviewData from '../../src/lib/storage/loadVocabularyReviewData';
-import saveConjugationSettings from '../../src/lib/storage/saveConjugationSettings';
-import saveConjugationReviewData from '../../src/lib/storage/saveConjugationReviewData';
-import saveSentenceReviewData from '../../src/lib/storage/saveSentenceReviewData';
-import saveAspectPairsReviewData from '../../src/lib/storage/saveAspectPairsReviewData';
-import saveAspectPairsSettings from '../../src/lib/storage/saveAspectPairsSettings';
-import loadAspectPairsReviewData from '../../src/lib/storage/loadAspectPairsReviewData';
 import { refreshAllUserDataFromFirestore } from '../../src/lib/offlineDb/userDataWrapper';
 import type { TranslationDirection } from '../../src/types/common';
 import { remote } from './support/fakeFirestore';
 import { freezeTime, ratedCard, setupSyncTests, signIn, userPath } from './support/harness';
+import {
+  aspectPairsStorage,
+  clearDeckProgress,
+  conjugationStorage,
+  declensionStorage,
+  loadDeckSettings,
+  loadReviewStore,
+  saveDeckSettings,
+  saveReviewStore,
+  sentenceStorage,
+  vocabularyStorage,
+} from '../../src/lib/storage/reviewDeckStorage';
 
 vi.mock('firebase/firestore', () => import('./support/fakeFirestore'));
 
@@ -34,36 +29,32 @@ const cardsOnServer = (name: string) => Object.keys(remote.list(userPath(UID, na
 const reloadApp = () => refreshAllUserDataFromFirestore();
 
 async function studyDeclension() {
-  await saveDeclensionReviewData(null, {
+  await saveReviewStore(declensionStorage.all, null, {
     cards: { 1: { cardId: 1, fsrsCard: ratedCard(new Date()) } },
     reviewedToday: [1],
     newCardsToday: [1],
     lastReviewDate: TODAY,
   });
-  await saveDeclensionSettings({ newCardsPerDay: 25 });
+  await saveDeckSettings(declensionStorage.all, { newCardsPerDay: 25 });
 }
 
 async function studyVocabulary(direction: TranslationDirection) {
-  await saveVocabularyReviewData(
-    null,
-    {
-      cards: { 7: { wordId: 7, fsrsCard: ratedCard(new Date()) } },
-      reviewedToday: [7],
-      newCardsToday: [7],
-      lastReviewDate: TODAY,
-    },
-    direction
-  );
+  await saveReviewStore(vocabularyStorage[direction], null, {
+    cards: { 7: { wordId: 7, fsrsCard: ratedCard(new Date()) } },
+    reviewedToday: [7],
+    newCardsToday: [7],
+    lastReviewDate: TODAY,
+  });
 }
 
 async function studyAspectPairs() {
-  await saveAspectPairsReviewData(null, {
+  await saveReviewStore(aspectPairsStorage.all, null, {
     cards: { v: { verbId: 'v', fsrsCard: ratedCard(new Date()) } },
     reviewedToday: ['v'],
     newCardsToday: ['v'],
     lastReviewDate: TODAY,
   });
-  await saveAspectPairsSettings({ newCardsPerDay: 3 });
+  await saveDeckSettings(aspectPairsStorage.all, { newCardsPerDay: 3 });
 }
 
 describe('resetting declension progress', () => {
@@ -72,12 +63,12 @@ describe('resetting declension progress', () => {
     signIn(UID);
     await studyDeclension();
 
-    await clearDeclensionData();
+    await clearDeckProgress(declensionStorage.all);
 
     expect(cardsOnServer('declensionReviewCards')).toEqual([]);
     expect(data('declensionReviewSession')).toBeUndefined();
     expect(data('settings')).toBeUndefined();
-    expect((await loadDeclensionReviewData()).cards).toEqual({});
+    expect((await loadReviewStore(declensionStorage.all)).cards).toEqual({});
   });
 
   test('leaves other features alone', async () => {
@@ -86,10 +77,10 @@ describe('resetting declension progress', () => {
     await studyDeclension();
     await studyAspectPairs();
 
-    await clearDeclensionData();
+    await clearDeckProgress(declensionStorage.all);
 
     expect(cardsOnServer('aspectPairsReviewCards')).toEqual(['v']);
-    expect(Object.keys((await loadAspectPairsReviewData()).cards)).toEqual(['v']);
+    expect(Object.keys((await loadReviewStore(aspectPairsStorage.all)).cards)).toEqual(['v']);
     expect(data('aspectPairsSettings')).toEqual({ newCardsPerDay: 3 });
   });
 
@@ -98,10 +89,10 @@ describe('resetting declension progress', () => {
     signIn(UID);
     await studyDeclension();
 
-    await clearDeclensionData();
+    await clearDeckProgress(declensionStorage.all);
     await reloadApp();
 
-    expect(await loadDeclensionSettings()).toEqual({ newCardsPerDay: 10 });
+    expect(await loadDeckSettings(declensionStorage.all)).toEqual({ newCardsPerDay: 10 });
   });
 
   test("today's counters are empty after the app is reloaded the same day", async () => {
@@ -109,10 +100,10 @@ describe('resetting declension progress', () => {
     signIn(UID);
     await studyDeclension();
 
-    await clearDeclensionData();
+    await clearDeckProgress(declensionStorage.all);
     await reloadApp();
 
-    expect(await loadDeclensionReviewData()).toMatchObject({
+    expect(await loadReviewStore(declensionStorage.all)).toMatchObject({
       reviewedToday: [],
       newCardsToday: [],
     });
@@ -124,7 +115,7 @@ describe('resetting declension progress', () => {
     await studyDeclension();
     remote.fail({ op: 'batch.commit' });
 
-    await expect(clearDeclensionData()).rejects.toThrow();
+    await expect(clearDeckProgress(declensionStorage.all)).rejects.toThrow();
   });
 });
 
@@ -135,14 +126,16 @@ describe('resetting a feature studied in two directions', () => {
     await studyVocabulary('pl-to-en');
     await studyVocabulary('en-to-pl');
 
-    await clearVocabularyData('pl-to-en');
+    await clearDeckProgress(vocabularyStorage['pl-to-en']);
 
     expect(cardsOnServer('vocabularyReviewCards-pl-en')).toEqual([]);
     expect(data('vocabularyReviewSession-pl-en')).toBeUndefined();
     expect(cardsOnServer('vocabularyReviewCards-en-pl')).toEqual(['7']);
     expect(data('vocabularyReviewSession-en-pl')).toMatchObject({ reviewedToday: [7] });
-    expect(Object.keys((await loadVocabularyReviewData('en-to-pl')).cards)).toEqual(['7']);
-    expect((await loadVocabularyReviewData('pl-to-en')).cards).toEqual({});
+    expect(Object.keys((await loadReviewStore(vocabularyStorage['en-to-pl'])).cards)).toEqual([
+      '7',
+    ]);
+    expect((await loadReviewStore(vocabularyStorage['pl-to-en'])).cards).toEqual({});
   });
 
   test("vocabulary: today's counters are empty after a reset and a reload", async () => {
@@ -150,10 +143,10 @@ describe('resetting a feature studied in two directions', () => {
     signIn(UID);
     await studyVocabulary('pl-to-en');
 
-    await clearVocabularyData('pl-to-en');
+    await clearDeckProgress(vocabularyStorage['pl-to-en']);
     await reloadApp();
 
-    expect(await loadVocabularyReviewData('pl-to-en')).toMatchObject({
+    expect(await loadReviewStore(vocabularyStorage['pl-to-en'])).toMatchObject({
       cards: {},
       reviewedToday: [],
       newCardsToday: [],
@@ -164,19 +157,15 @@ describe('resetting a feature studied in two directions', () => {
     freezeTime('2026-11-26T10:00:00-05:00');
     signIn(UID);
     for (const direction of ['pl-to-en', 'en-to-pl'] as const) {
-      await saveSentenceReviewData(
-        null,
-        {
-          cards: { s: { sentenceId: 's', fsrsCard: ratedCard(new Date()) } },
-          reviewedToday: ['s'],
-          newCardsToday: ['s'],
-          lastReviewDate: TODAY,
-        },
-        direction
-      );
+      await saveReviewStore(sentenceStorage[direction], null, {
+        cards: { s: { sentenceId: 's', fsrsCard: ratedCard(new Date()) } },
+        reviewedToday: ['s'],
+        newCardsToday: ['s'],
+        lastReviewDate: TODAY,
+      });
     }
 
-    await clearSentenceData('en-to-pl');
+    await clearDeckProgress(sentenceStorage['en-to-pl']);
 
     expect(cardsOnServer('sentenceReviewCards-en-pl')).toEqual([]);
     expect(cardsOnServer('sentenceReviewCards-pl-en')).toEqual(['s']);
@@ -188,22 +177,18 @@ describe('resetting a feature studied in two directions', () => {
     freezeTime('2026-11-26T10:00:00-05:00');
     signIn(UID);
     for (const direction of ['pl-to-en', 'en-to-pl'] as const) {
-      await saveConjugationReviewData(
-        null,
-        {
-          forms: {
-            'robic:present:1sg': { formKey: 'robic:present:1sg', fsrsCard: ratedCard(new Date()) },
-          },
-          reviewedToday: ['robic:present:1sg'],
-          newFormsToday: ['robic:present:1sg'],
-          lastReviewDate: TODAY,
+      await saveReviewStore(conjugationStorage[direction], null, {
+        cards: {
+          'robic:present:1sg': { formKey: 'robic:present:1sg', fsrsCard: ratedCard(new Date()) },
         },
-        direction
-      );
-      await saveConjugationSettings({ newCardsPerDay: 3 }, direction);
+        reviewedToday: ['robic:present:1sg'],
+        newCardsToday: ['robic:present:1sg'],
+        lastReviewDate: TODAY,
+      });
+      await saveDeckSettings(conjugationStorage[direction], { newCardsPerDay: 3 });
     }
 
-    await clearConjugationData('pl-to-en');
+    await clearDeckProgress(conjugationStorage['pl-to-en']);
 
     expect(cardsOnServer('conjugationReviewForms-pl-en')).toEqual([]);
     expect(data('conjugationReviewSession-pl-en')).toBeUndefined();
@@ -216,7 +201,7 @@ describe('resetting a feature studied in two directions', () => {
     signIn(UID);
     remote.fail({ op: 'deleteDoc' });
 
-    await expect(clearConjugationData('pl-to-en')).rejects.toThrow();
+    await expect(clearDeckProgress(conjugationStorage['pl-to-en'])).rejects.toThrow();
   });
 });
 
@@ -226,22 +211,22 @@ describe('resetting aspect pairs', () => {
     signIn(UID);
     await studyAspectPairs();
 
-    await clearAspectPairsData();
+    await clearDeckProgress(aspectPairsStorage.all);
 
     expect(cardsOnServer('aspectPairsReviewCards')).toEqual([]);
     expect(data('aspectPairsReviewSession')).toBeUndefined();
     expect(data('aspectPairsSettings')).toBeUndefined();
-    expect((await loadAspectPairsReviewData()).cards).toEqual({});
+    expect((await loadReviewStore(aspectPairsStorage.all)).cards).toEqual({});
   });
 });
 
 describe('guest', () => {
   test('every reset is a no-op that never reaches the server', async () => {
-    await clearDeclensionData();
-    await clearVocabularyData('pl-to-en');
-    await clearSentenceData('pl-to-en');
-    await clearConjugationData('pl-to-en');
-    await clearAspectPairsData();
+    await clearDeckProgress(declensionStorage.all);
+    await clearDeckProgress(vocabularyStorage['pl-to-en']);
+    await clearDeckProgress(sentenceStorage['pl-to-en']);
+    await clearDeckProgress(conjugationStorage['pl-to-en']);
+    await clearDeckProgress(aspectPairsStorage.all);
 
     expect(remote.calls).toEqual([]);
   });

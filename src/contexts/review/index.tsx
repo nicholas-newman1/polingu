@@ -20,16 +20,27 @@ import {
   syncAllPendingToFirestore,
   cleanupLegacyReviewUserDataRows,
 } from '../../lib/offlineDb/userDataWrapper';
-import { refreshSentenceTagsFromFirestore } from '../../lib/storage/sentenceTags';
+import { loadSentenceTags, refreshSentenceTagsFromFirestore } from '../../lib/storage/sentenceTags';
 import {
   refreshAllReviewCardsFromFirestore,
   syncAllPendingReviewCards,
 } from '../../lib/storage/reviewStorageRegistry';
-import { DeclensionProvider, DeclensionContext, loadDeclensionData } from './DeclensionContext';
-import { VocabularyProvider, VocabularyContext, loadVocabularyData } from './VocabularyContext';
-import { SentenceProvider, SentenceContext, loadSentenceData } from './SentenceContext';
-import { ConjugationProvider, ConjugationContext, loadConjugationData } from './ConjugationContext';
-import { AspectPairsProvider, AspectPairsContext, loadAspectPairsData } from './AspectPairsContext';
+import {
+  aspectPairsStorage,
+  conjugationStorage,
+  declensionStorage,
+  loadDeckProgress,
+  sentenceStorage,
+  vocabularyStorage,
+} from '../../lib/storage/reviewDeckStorage';
+import { loadCustomDeclension } from '../../lib/storage/customDeclension';
+import { loadCustomVocabulary } from '../../lib/storage/customVocabulary';
+import { loadCustomSentences } from '../../lib/storage/customSentences';
+import { DeclensionProvider, DeclensionContext } from './DeclensionContext';
+import { VocabularyProvider, VocabularyContext } from './VocabularyContext';
+import { SentenceProvider, SentenceContext } from './SentenceContext';
+import { ConjugationProvider, ConjugationContext } from './ConjugationContext';
+import { AspectPairsProvider, AspectPairsContext } from './AspectPairsContext';
 import { ReviewCountsProvider, ReviewCountsContext } from './ReviewCountsContext';
 import { latestLocalChange } from './localChanges';
 
@@ -53,14 +64,43 @@ export interface ReviewDataProviderProps {
   children: ReactNode;
 }
 
-type Section<T extends () => Promise<unknown>> = Partial<Awaited<ReturnType<T>>>;
+/** The signed-in learner's own data. */
+async function loadLearnerData() {
+  const [
+    declension,
+    vocabulary,
+    sentences,
+    conjugation,
+    aspectPairs,
+    customDeclensionCards,
+    customWords,
+    customSentences,
+    sentenceTags,
+  ] = await Promise.all([
+    loadDeckProgress(declensionStorage),
+    loadDeckProgress(vocabularyStorage),
+    loadDeckProgress(sentenceStorage),
+    loadDeckProgress(conjugationStorage),
+    loadDeckProgress(aspectPairsStorage),
+    loadCustomDeclension(),
+    loadCustomVocabulary(),
+    loadCustomSentences(),
+    loadSentenceTags(),
+  ]);
+  return {
+    declension,
+    vocabulary,
+    sentences,
+    conjugation,
+    aspectPairs,
+    customDeclensionCards,
+    customWords,
+    customSentences,
+    sentenceTags,
+  };
+}
 
-interface LoadedData {
-  declensionData: Section<typeof loadDeclensionData>;
-  vocabularyData: Section<typeof loadVocabularyData>;
-  sentenceData: Section<typeof loadSentenceData>;
-  conjugationData: Section<typeof loadConjugationData>;
-  aspectPairsData: Section<typeof loadAspectPairsData>;
+type LoadedData = Partial<Awaited<ReturnType<typeof loadLearnerData>>> & {
   systemDeclensionCards?: DeclensionCard[];
   systemWords?: VocabularyWord[];
   systemSentences?: Sentence[];
@@ -71,40 +111,19 @@ interface LoadedData {
    * live listener delivered while a slow load was still reading.
    */
   readAt?: number;
-}
-
-/** Signed-out users only get system content, so the user-data sections stay empty. */
-const EMPTY_DATA: LoadedData = {
-  declensionData: {},
-  vocabularyData: {},
-  sentenceData: {},
-  conjugationData: {},
-  aspectPairsData: {},
 };
 
+/** Signed-out users only get system content, so the learner's sections stay empty. */
+const EMPTY_DATA: LoadedData = {};
+
 async function fetchAllData(): Promise<LoadedData> {
-  const loadUserData = getUserId()
-    ? Promise.all([
-        loadDeclensionData(),
-        loadVocabularyData(),
-        loadSentenceData(),
-        loadConjugationData(),
-        loadAspectPairsData(),
-      ])
-    : null;
-  const [userData, content] = await Promise.all([loadUserData, loadContentData()]);
-  const [declensionData, vocabularyData, sentenceData, conjugationData, aspectPairsData] =
-    userData ?? [];
+  const [learnerData, content] = await Promise.all([
+    getUserId() ? loadLearnerData() : null,
+    loadContentData(),
+  ]);
 
   return {
-    ...EMPTY_DATA,
-    ...(userData && {
-      declensionData,
-      vocabularyData,
-      sentenceData,
-      conjugationData,
-      aspectPairsData,
-    }),
+    ...learnerData,
     systemDeclensionCards: content.declensionCards,
     systemWords: content.vocabulary,
     systemSentences: content.sentences,
@@ -211,36 +230,36 @@ export function ReviewDataProvider({ children }: ReviewDataProviderProps) {
 
   return (
     <DeclensionProvider
-      initialCustomCards={d.declensionData.customCards}
+      initialCustomCards={d.customDeclensionCards}
       initialSystemCards={d.systemDeclensionCards}
-      initialReviewStore={d.declensionData.reviewData}
-      initialSettings={d.declensionData.settings}
+      initialReviewStore={d.declension?.stores.all}
+      initialSettings={d.declension?.settings.all}
       readAt={d.readAt}
     >
       <VocabularyProvider
-        initialCustomWords={d.vocabularyData.customWords}
+        initialCustomWords={d.customWords}
         initialSystemWords={d.systemWords}
-        initialReviewStores={d.vocabularyData.reviewStores}
-        initialSettings={d.vocabularyData.settings}
+        initialReviewStores={d.vocabulary?.stores}
+        initialSettings={d.vocabulary?.settings}
         readAt={d.readAt}
       >
         <SentenceProvider
-          initialCustomSentences={d.sentenceData.customSentences}
+          initialCustomSentences={d.customSentences}
           initialSystemSentences={d.systemSentences}
-          initialReviewStores={d.sentenceData.reviewStores}
-          initialSettings={d.sentenceData.settings}
-          initialTags={d.sentenceData.tags}
+          initialReviewStores={d.sentences?.stores}
+          initialSettings={d.sentences?.settings}
+          initialTags={d.sentenceTags}
           readAt={d.readAt}
         >
           <ConjugationProvider
             initialVerbs={d.verbs}
-            initialReviewStores={d.conjugationData.reviewStores}
-            initialSettings={d.conjugationData.settings}
+            initialReviewStores={d.conjugation?.stores}
+            initialSettings={d.conjugation?.settings}
             readAt={d.readAt}
           >
             <AspectPairsFromConjugationVerbs
-              initialReviewStore={d.aspectPairsData.reviewData}
-              initialSettings={d.aspectPairsData.settings}
+              initialReviewStore={d.aspectPairs?.stores.all}
+              initialSettings={d.aspectPairs?.settings.all}
               readAt={d.readAt}
             >
               <ReviewCountsProvider loading={loading}>
