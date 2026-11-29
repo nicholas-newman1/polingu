@@ -21,7 +21,7 @@ export function recordCardReview<Store extends ReviewDataStore<CardReviewData, S
   reviewData: Store['cards'][string],
   outcome: ReviewOutcome
 ): Store {
-  let next = startDayIfNeeded(store, ['reviewedToday', 'newCardsToday'], getTodayString());
+  let next = startDayIfNeeded(store, getTodayString());
   next = { ...next, cards: { ...next.cards, [id]: reviewData } };
   if (outcome.isNew) next = setInSessionList(next, 'newCardsToday', id, true);
   if (outcome.completed) next = setInSessionList(next, 'reviewedToday', id, true);

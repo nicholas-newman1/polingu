@@ -1,6 +1,6 @@
 import { describe, expect, test, vi } from 'vitest';
 import { uploadBook, uploadText } from '../../src/lib/reader';
-import type { UploadProgress } from '../../src/types/reader';
+import type { UploadProgress } from '../../src/lib/media/storageFiles';
 import { remote } from './support/fakeFirestore';
 import { bucket, StorageError } from './support/fakeStorage';
 import {
@@ -88,10 +88,10 @@ describe('uploading a PDF book', () => {
 
     await expect(result).resolves.toBe(bookId);
     expect(progress).toEqual([
-      { status: 'uploading', uploadPercent: 25, bookId },
-      { status: 'uploading', uploadPercent: 100, bookId },
-      { status: 'processing', bookId },
-      { status: 'ready', bookId },
+      { status: 'uploading', uploadPercent: 25 },
+      { status: 'uploading', uploadPercent: 100 },
+      { status: 'processing' },
+      { status: 'ready' },
     ]);
     expect(remote.listenerCount).toBe(0);
     expect(vi.getTimerCount()).toBe(0);
@@ -105,7 +105,7 @@ describe('uploading a PDF book', () => {
     remote.seed(bookPath, { id: bookId, status: 'error', error: 'PDF is encrypted.' });
 
     await expect(result).rejects.toThrow('PDF is encrypted.');
-    expect(progress.at(-1)).toEqual({ status: 'error', error: 'PDF is encrypted.', bookId });
+    expect(progress.at(-1)).toEqual({ status: 'error', error: 'PDF is encrypted.' });
     expect(remote.listenerCount).toBe(0);
   });
 
@@ -137,13 +137,13 @@ describe('uploading a PDF book', () => {
 
   test('a failed upload is reported and rejects with the storage error', async () => {
     signIn(UID);
-    const { upload, result, bookId, progress } = track((p) => uploadBook(pdf(), p));
+    const { upload, result, progress } = track((p) => uploadBook(pdf(), p));
     const error = new StorageError('storage/unauthorized', 'Storage limit reached.');
 
     upload.fail(error);
 
     await expect(result).rejects.toBe(error);
-    expect(progress).toEqual([{ status: 'error', error: 'Storage limit reached.', bookId }]);
+    expect(progress).toEqual([{ status: 'error', error: 'Storage limit reached.' }]);
     expect(remote.listenerCount).toBe(0);
   });
 });

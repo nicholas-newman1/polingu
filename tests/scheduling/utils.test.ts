@@ -3,14 +3,11 @@ import capitalize from '../../src/lib/utils/capitalize';
 import { countWords } from '../../src/lib/utils/countWords';
 import { findCustomDeclensionDuplicate } from '../../src/lib/utils/findDuplicateCustomDeclension';
 import { findCustomSentenceWithSamePolish } from '../../src/lib/utils/findDuplicateCustomSentence';
-import { findCustomWordWithSamePolish } from '../../src/lib/utils/findDuplicateCustomVocabularyPolish';
+import { findWordWithSamePolish } from '../../src/lib/utils/findDuplicateCustomVocabularyPolish';
 import { formatDuration } from '../../src/lib/utils/formatDuration';
 import getFirstName from '../../src/lib/utils/getFirstName';
-import {
-  normalizeCustomVocabularyFields,
-  normalizeCustomVocabularyWord,
-  type CustomVocabularyWordInput,
-} from '../../src/lib/utils/normalizeCustomVocabularyFields';
+import { normalizeCustomVocabularyFields } from '../../src/lib/utils/normalizeCustomVocabularyFields';
+import { withNextSentenceIds } from '../../src/lib/sentences/sentenceIds';
 import { normalizeVocabularyPrefill } from '../../src/lib/utils/normalizeVocabularyPrefill';
 import shuffleArray, { balancedShuffle } from '../../src/lib/utils/shuffleArray';
 import toggleInArray from '../../src/lib/utils/toggleInArray';
@@ -68,10 +65,10 @@ describe('duplicate custom cards', () => {
 
   test('a word with the same Polish, ignoring case, spacing and punctuation, is a duplicate', () => {
     const words = [stub<CustomVocabularyWord>({ id: 'w1', polish: 'dzień dobry' })];
-    expect(findCustomWordWithSamePolish(words, 'Dzień dobry!')?.id).toBe('w1');
-    expect(findCustomWordWithSamePolish(words, 'dzien dobry')).toBeUndefined();
-    expect(findCustomWordWithSamePolish(words, 'dzień dobry', 'w1')).toBeUndefined();
-    expect(findCustomWordWithSamePolish(words, '?!')).toBeUndefined();
+    expect(findWordWithSamePolish(words, 'Dzień dobry!')?.id).toBe('w1');
+    expect(findWordWithSamePolish(words, 'dzien dobry')).toBeUndefined();
+    expect(findWordWithSamePolish(words, 'dzień dobry', 'w1')).toBeUndefined();
+    expect(findWordWithSamePolish(words, '?!')).toBeUndefined();
   });
 });
 
@@ -85,7 +82,7 @@ describe('normalising custom vocabulary', () => {
   });
 
   test('saved words are trimmed and lower-cased, other fields untouched', () => {
-    const input: CustomVocabularyWordInput = {
+    const input = {
       polish: '  Dom ',
       english: 'House ',
       notes: 'Keep Me',
@@ -105,13 +102,27 @@ describe('normalising custom vocabulary', () => {
       polish: 'KOT',
       english: ' Cat',
     });
-    expect(normalizeCustomVocabularyWord(word)).toEqual({
+    expect(normalizeCustomVocabularyFields(word)).toEqual({
       id: 'custom_1',
       isCustom: true,
       createdAt: 5,
       polish: 'kot',
       english: 'cat',
     });
+  });
+});
+
+describe('ids for new built-in sentences', () => {
+  test('follow the highest number per level, not alphabetical order', () => {
+    const existing = ['a1_2', 'a1_10', 'a1_9', 'b2_1', 'custom_123', 'c1_x'].map((id) => ({ id }));
+    const added = withNextSentenceIds(existing, [
+      { level: 'A1' as const },
+      { level: 'B2' as const },
+      { level: 'A1' as const },
+      { level: 'C2' as const },
+    ]);
+
+    expect(added.map((s) => s.id)).toEqual(['a1_011', 'b2_002', 'a1_012', 'c2_001']);
   });
 });
 

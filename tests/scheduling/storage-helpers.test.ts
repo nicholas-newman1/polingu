@@ -1,10 +1,11 @@
 import { describe, expect, test } from 'vitest';
-import { getUserId } from '../../src/lib/storage/helpers';
+import { getCurrentUserId } from '../../src/lib/cachedAuth';
 import { REVIEW_SESSION_DOC_PATHS } from '../../src/lib/storage/reviewDeckDocs';
 import {
   aspectPairsStorage,
   conjugationStorage,
   declensionStorage,
+  emptyReviewStore,
   sentenceStorage,
   vocabularyStorage,
 } from '../../src/lib/storage/reviewDeckStorage';
@@ -24,22 +25,20 @@ const ALL_PARTS = [
   aspectPairsStorage.all,
 ];
 
-test('every fresh review store is empty and dated with the local day', () => {
+test('a fresh review store is empty and dated with the local day', () => {
   freezeTime('2026-11-26T23:45:00-05:00'); // already the 27th in UTC
 
-  for (const part of ALL_PARTS) {
-    expect(part.emptyStore()).toEqual({
-      cards: {},
-      reviewedToday: [],
-      newCardsToday: [],
-      lastReviewDate: '2026-11-26',
-    });
-  }
+  expect(emptyReviewStore()).toEqual({
+    cards: {},
+    reviewedToday: [],
+    newCardsToday: [],
+    lastReviewDate: '2026-11-26',
+  });
 });
 
 test('fresh stores never share their lists, so one direction cannot leak into another', () => {
-  const a = vocabularyStorage['pl-to-en'].emptyStore();
-  const b = vocabularyStorage['pl-to-en'].emptyStore();
+  const a = emptyReviewStore();
+  const b = emptyReviewStore();
   a.newCardsToday.push(1);
   a.reviewedToday.push(1);
   expect(b.newCardsToday).toEqual([]);
@@ -85,10 +84,10 @@ describe('id lookups in the daily counters', () => {
   });
 });
 
-describe('getUserId', () => {
+describe('getCurrentUserId', () => {
   test('is the signed-in user', () => {
     signInFakeUser('learner-1');
-    expect(getUserId()).toBe('learner-1');
+    expect(getCurrentUserId()).toBe('learner-1');
   });
 
   test('falls back to the last signed-in user while offline', () => {
@@ -96,10 +95,10 @@ describe('getUserId', () => {
       'polingu_cached_user',
       JSON.stringify({ uid: 'cached-learner', email: null })
     );
-    expect(getUserId()).toBe('cached-learner');
+    expect(getCurrentUserId()).toBe('cached-learner');
   });
 
   test('is null when nobody has signed in', () => {
-    expect(getUserId()).toBeNull();
+    expect(getCurrentUserId()).toBeNull();
   });
 });

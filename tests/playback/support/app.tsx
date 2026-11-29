@@ -29,7 +29,6 @@ import { AudioPlayerPage } from '../../../src/pages/AudioPlayerPage';
 import { ListeningHubPage } from '../../../src/pages/ListeningHubPage';
 import { ListeningPlayerPage } from '../../../src/pages/ListeningPlayerPage';
 import { ListeningMiniBar } from '../../../src/components/ListeningMiniBar';
-import { setGlobalErrorHandler } from '../../../src/lib/storage/errorHandler';
 import { userDb } from '../../../src/lib/offlineDb/userDb';
 import type { AudioItem, AudioQueue, SystemAudioItem } from '../../../src/types/audio';
 import { signInFakeUser } from '../../fakes/firebase';
@@ -153,7 +152,6 @@ export function goTo(path: string) {
 const appTheme = createAppTheme('light');
 
 export const snackbar = vi.fn<SnackbarContextType['showSnackbar']>();
-export const saveErrors = vi.fn<(message: string) => void>();
 
 interface RenderOptions {
   route?: string;
@@ -274,8 +272,6 @@ export function setupApp() {
     callables.reset();
     snackbar.mockReset();
     srsWrites.mockReset();
-    saveErrors.mockReset();
-    setGlobalErrorHandler(saveErrors);
     await userDb.userData.clear();
     await clearAudioBlobCache();
     // Downloads of track blobs for the offline cache fail unless a test says otherwise.
@@ -290,7 +286,6 @@ export function setupApp() {
     // databases; otherwise a late write leaks into the next test.
     cleanup();
     await settle();
-    setGlobalErrorHandler(null);
     probe.player = null;
     probe.listening = null;
     probe.navigate = null;

@@ -7,7 +7,7 @@ import {
 } from '../../src/lib/listeningScheduler';
 import orderListeningPool from '../../src/lib/listeningScheduler/orderListeningPool';
 import type { ListeningOrdering } from '../../src/types/listening';
-import type { DeclensionCard, DeclensionReviewDataStore } from '../../src/types';
+import type { DeclensionCard, DeclensionFilters, DeclensionReviewDataStore } from '../../src/types';
 import type { Sentence, SentenceReviewDataStore } from '../../src/types/sentences';
 import type { VocabularyReviewDataStore, VocabularyWord } from '../../src/types/vocabulary';
 import { freezeTime, graduated, learning, relearning, TODAY } from './fixtures';
@@ -36,8 +36,8 @@ const pool = () => [
   entry('graduated-in-9d', graduated(9)),
 ];
 
-const order = (ordering: ListeningOrdering, entries = pool(), limit?: number) =>
-  orderListeningPool(entries, ordering, limit).map((e) => e.item.id);
+const order = (ordering: ListeningOrdering, entries = pool()) =>
+  orderListeningPool(entries, ordering).map((e) => e.item.id);
 
 describe('listening order', () => {
   test('"due" plays only started cards that are due, most overdue first', () => {
@@ -84,12 +84,6 @@ describe('listening order', () => {
       'system-middle',
       'system-oldest',
     ]);
-  });
-
-  test('a limit keeps the first cards of the chosen order', () => {
-    expect(order('due', pool(), 2)).toEqual(['overdue-3d', 'relearning-overdue']);
-    expect(order('random', pool(), 3)).toHaveLength(3);
-    expect(order('random', pool(), 0)).toEqual([]);
   });
 
   test('ordering does not reorder the caller’s list', () => {
@@ -193,12 +187,6 @@ describe('sentence listening queue', () => {
       expect(queue).toHaveLength(3);
     }
   });
-
-  test('a limit caps the queue', () => {
-    expect(
-      buildSentenceListeningQueue({ sentences, reviewStore: store, ordering: 'random', limit: 2 })
-    ).toHaveLength(2);
-  });
 });
 
 describe('declension listening queue', () => {
@@ -227,18 +215,20 @@ describe('declension listening queue', () => {
       newCardsToday: [],
       lastReviewDate: TODAY,
     });
-  const ids = (filters?: Parameters<typeof buildDeclensionListeningQueue>[0]['filters']) =>
-    buildDeclensionListeningQueue({ cards, reviewStore: store(), ordering: 'random', filters })
+  const noFilters: DeclensionFilters = { cases: [], genders: [], number: 'All' };
+  const ids = (filters?: Partial<DeclensionFilters>) =>
+    buildDeclensionListeningQueue({
+      cards,
+      reviewStore: store(),
+      ordering: 'random',
+      filters: filters && { ...noFilters, ...filters },
+    })
       .map((i) => i.id)
       .sort();
 
   test('queues cards with audio that match the filters', () => {
     expect(ids()).toEqual(['declension:1', 'declension:2', 'declension:3']);
-    expect(ids({ cases: [], genders: [], number: 'All' })).toEqual([
-      'declension:1',
-      'declension:2',
-      'declension:3',
-    ]);
+    expect(ids(noFilters)).toEqual(['declension:1', 'declension:2', 'declension:3']);
     expect(ids({ cases: ['Genitive'] })).toEqual(['declension:1', 'declension:3']);
     expect(ids({ genders: ['Masculine'] })).toEqual(['declension:3']);
     expect(ids({ number: 'Singular' })).toEqual(['declension:1', 'declension:2']);

@@ -33,7 +33,10 @@ export const SentencesTab = memo(function SentencesTab() {
   const { systemSentences, setSystemSentences } = useSentences();
   const [editingSentence, setEditingSentence] = useState<Sentence | null>(null);
   const { confirm, confirmDialog } = useConfirm();
-  const { deleteItem, patchItem } = useAdminItems<Sentence, Partial<Omit<Sentence, 'id'>>>({
+  const { deleteItem, patchItem, mirrorItem } = useAdminItems<
+    Sentence,
+    Partial<Omit<Sentence, 'id'>>
+  >({
     items: systemSentences,
     setItems: setSystemSentences,
     update: (sentence, patch) => updateSentence(sentence.id, patch),
@@ -68,9 +71,7 @@ export const SentencesTab = memo(function SentencesTab() {
         onClose={() => setEditingSentence(null)}
         onSave={(data) => patchItem(editingSentence, data)}
         sentence={editingSentence}
-        onAudioUpdated={(audioUrl) =>
-          patchItem(editingSentence, { audioUrl }, { error: 'Failed to update audio' })
-        }
+        onAudioUpdated={(audioUrl) => mirrorItem(editingSentence, { audioUrl })}
       />
       {confirmDialog}
     </>

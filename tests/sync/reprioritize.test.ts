@@ -1,15 +1,9 @@
 import { describe, expect, test } from 'vitest';
 import { createEmptyCard, State } from 'ts-fsrs';
 import reprioritizeVocabularyWord, {
-  canReprioritizeVocabularyWord,
   prioritizeNewVocabularyWord,
 } from '../../src/lib/storage/reprioritizeVocabularyWord';
-import reprioritizeSentence, {
-  canReprioritizeSentence,
-} from '../../src/lib/storage/reprioritizeSentence';
-import reprioritizeDeclensionCard, {
-  canReprioritizeDeclensionCard,
-} from '../../src/lib/storage/reprioritizeDeclensionCard';
+import { canReprioritize, reprioritizeCard } from '../../src/lib/storage/reprioritizeCard';
 import { getTodayString } from '../../src/lib/storage/helpers';
 import type { VocabularyReviewDataStore, VocabularyWord } from '../../src/types/vocabulary';
 import type { SentenceReviewDataStore } from '../../src/types/sentences';
@@ -18,7 +12,7 @@ import type { ConjugationReviewDataStore } from '../../src/types/conjugation';
 import type { AspectPairsReviewDataStore } from '../../src/types/aspectPairs';
 import { stub, stubs } from '../helpers/stub';
 import { freezeTime, ratedCard } from './support/harness';
-import { vocabularyStorage } from '../../src/lib/storage/reviewDeckStorage';
+import { emptyReviewStore } from '../../src/lib/storage/reviewDeckStorage';
 import { placeItems, reviewDataFor } from '../../src/lib/reviewSession/scheduler';
 import {
   aspectPairsDeck,
@@ -110,18 +104,14 @@ describe('"Review again" puts a studied card back in the new queue', () => {
   });
 
   test('vocabulary: offered when either direction has studied the word', () => {
-    const empty = vocabularyStorage['pl-to-en'].emptyStore();
+    const empty = emptyReviewStore();
 
-    expect(canReprioritizeVocabularyWord({ 'pl-to-en': empty, 'en-to-pl': vocabStore() }, 5)).toBe(
-      true
+    expect(canReprioritize({ 'pl-to-en': empty, 'en-to-pl': vocabStore() }, 5)).toBe(true);
+    expect(canReprioritize({ 'pl-to-en': vocabStore(), 'en-to-pl': empty }, '5')).toBe(true);
+    expect(canReprioritize({ 'pl-to-en': vocabStore(), 'en-to-pl': empty }, 'custom_1')).toBe(
+      false
     );
-    expect(
-      canReprioritizeVocabularyWord({ 'pl-to-en': vocabStore(), 'en-to-pl': empty }, '5')
-    ).toBe(true);
-    expect(
-      canReprioritizeVocabularyWord({ 'pl-to-en': vocabStore(), 'en-to-pl': empty }, 'custom_1')
-    ).toBe(false);
-    expect(canReprioritizeVocabularyWord({ 'pl-to-en': empty, 'en-to-pl': empty }, 5)).toBe(false);
+    expect(canReprioritize({ 'pl-to-en': empty, 'en-to-pl': empty }, 5)).toBe(false);
   });
 
   test('sentences: same rules, ids compared as strings', () => {
@@ -133,14 +123,14 @@ describe('"Review again" puts a studied card back in the new queue', () => {
     };
     const empty = { ...store, cards: {}, reviewedToday: [], newCardsToday: [] };
 
-    const next = reprioritizeSentence(store, 's1', NOW);
+    const next = reprioritizeCard(store, 's1', NOW);
 
     expect(next.cards.s1.fsrsCard.state).toBe(State.New);
     expect(next.reviewedToday).toEqual(['s2']);
     expect(next.newCardsToday).toEqual([]);
-    expect(reprioritizeSentence(store, 'nope', NOW)).toBe(store);
-    expect(canReprioritizeSentence({ 'pl-to-en': empty, 'en-to-pl': store }, 's1')).toBe(true);
-    expect(canReprioritizeSentence({ 'pl-to-en': empty, 'en-to-pl': empty }, 's1')).toBe(false);
+    expect(reprioritizeCard(store, 'nope', NOW)).toBe(store);
+    expect(canReprioritize({ 'pl-to-en': empty, 'en-to-pl': store }, 's1')).toBe(true);
+    expect(canReprioritize({ 'pl-to-en': empty, 'en-to-pl': empty }, 's1')).toBe(false);
   });
 
   test('declension: numeric and string ids for the same card are treated alike', () => {
@@ -151,14 +141,14 @@ describe('"Review again" puts a studied card back in the new queue', () => {
       lastReviewDate: '2026-11-26',
     };
 
-    const next = reprioritizeDeclensionCard(store, 3, NOW);
+    const next = reprioritizeCard(store, 3, NOW);
 
     expect(next.cards[3].fsrsCard.state).toBe(State.New);
     expect(next.reviewedToday).toEqual([4]);
     expect(next.newCardsToday).toEqual([]);
-    expect(canReprioritizeDeclensionCard(store, 3)).toBe(true);
-    expect(canReprioritizeDeclensionCard(next, 3)).toBe(false);
-    expect(reprioritizeDeclensionCard(next, 3, NOW)).toBe(next);
+    expect(canReprioritize({ all: store }, 3)).toBe(true);
+    expect(canReprioritize({ all: next }, 3)).toBe(false);
+    expect(reprioritizeCard(next, 3, NOW)).toBe(next);
   });
 });
 

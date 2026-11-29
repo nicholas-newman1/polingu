@@ -1,4 +1,4 @@
-import { useState, useCallback, memo } from 'react';
+import { useState, useCallback } from 'react';
 import { TextField, Box, Button, Typography, Chip, CircularProgress, Stack } from '@mui/material';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import AddIcon from '@mui/icons-material/Add';
@@ -6,14 +6,16 @@ import type { CEFRLevel } from '../../types/sentences';
 import { ALL_LEVELS } from '../../types/sentences';
 import { discoverCurriculum, type CurriculumSuggestion } from '../../lib/generateSentences';
 import { Section, ChipGroup, SuggestionCard } from './shared';
-import type { CurriculumTabProps } from './types';
+import { useSentences } from '../../hooks/useReviewData';
+import { useSnackbar } from '../../contexts/SnackbarContext';
 
-export const CurriculumTab = memo(function CurriculumTab({
-  sentenceTags,
-  addSentenceTag,
-  showSnackbar,
-  onGenerateFromSuggestion,
-}: CurriculumTabProps) {
+interface CurriculumTabProps {
+  onGenerateFromSuggestion: (level: CEFRLevel, tag: string) => void;
+}
+
+export function CurriculumTab({ onGenerateFromSuggestion }: CurriculumTabProps) {
+  const { tags: sentenceTags, addTag: addSentenceTag } = useSentences();
+  const { showSnackbar } = useSnackbar();
   const [discoveryMode, setDiscoveryMode] = useState<
     'grammar' | 'topics' | 'polish-specific' | 'freeform'
   >('grammar');
@@ -195,4 +197,4 @@ export const CurriculumTab = memo(function CurriculumTab({
       )}
     </Stack>
   );
-});
+}

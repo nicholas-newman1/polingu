@@ -1,10 +1,9 @@
 import { beforeEach, describe, expect, test } from 'vitest';
-import { createEmptyCard, Rating, type Card, type ReviewLog } from 'ts-fsrs';
+import { createEmptyCard, Rating, type Card } from 'ts-fsrs';
 import formatInterval from '../../src/lib/fsrsUtils/formatInterval';
 import getNextIntervals from '../../src/lib/fsrsUtils/getNextIntervals';
 import rateCard from '../../src/lib/fsrsUtils/rateCard';
 import forgetCard from '../../src/lib/fsrsUtils/forgetCard';
-import countDueCards from '../../src/lib/fsrsUtils/countDueCards';
 import isDue from '../../src/lib/fsrsUtils/isDue';
 import getReviewBucket from '../../src/lib/fsrsUtils/getReviewBucket';
 import { DAY, freezeTime, graduated, inMinutes, learning, NOW, State } from './fixtures';
@@ -80,8 +79,8 @@ describe('getNextIntervals', () => {
 });
 
 describe('rateCard', () => {
-  test('returns new review data with the card and log, keeping the other fields', () => {
-    const before: { wordId: string; note: string; fsrsCard: Card; log?: ReviewLog } = {
+  test('returns new review data with the rated card, keeping the other fields', () => {
+    const before: { wordId: string; note: string; fsrsCard: Card } = {
       wordId: 'custom_1',
       note: 'kept',
       fsrsCard: createEmptyCard(NOW),
@@ -92,7 +91,7 @@ describe('rateCard', () => {
     expect(after.note).toBe('kept');
     expect(after.fsrsCard.state).toBe(State.Learning);
     expect(after.fsrsCard.due).toEqual(inMinutes(10));
-    expect(after.log?.rating).toBe(Rating.Good);
+    expect(after).not.toHaveProperty('log');
     expect(before.fsrsCard.state).toBe(State.New);
   });
 
@@ -119,6 +118,7 @@ describe('forgetCard', () => {
     expect(forgotten.fsrsCard.state).toBe(State.New);
     expect(forgotten.fsrsCard.due).toEqual(NOW);
     expect(getReviewBucket(forgotten.fsrsCard, false, false)).toBe('new');
+    expect(forgotten).not.toHaveProperty('log');
     expect(studied.fsrsCard.state).toBe(State.Review);
   });
 });
@@ -139,23 +139,5 @@ describe('isDue', () => {
   test('a due date stored as a string is compared as a date', () => {
     expect(isDue(withStringDue(dueIn(0), new Date(NOW.getTime() - DAY)))).toBe(true);
     expect(isDue(withStringDue(dueIn(0), new Date(NOW.getTime() + DAY)))).toBe(false);
-  });
-});
-
-describe('countDueCards', () => {
-  test('counts every due review and only as many new cards as today allows', () => {
-    const buckets = ['review', 'new', 'review', null, 'new', 'new'] as const;
-    expect(countDueCards([...buckets], 10)).toBe(5);
-    expect(countDueCards([...buckets], 2)).toBe(4);
-    expect(countDueCards([...buckets], 0)).toBe(2);
-  });
-
-  test('an allowance already overspent counts no new cards rather than subtracting', () => {
-    expect(countDueCards(['review', 'new', 'new'], -4)).toBe(1);
-  });
-
-  test('nothing due counts as zero', () => {
-    expect(countDueCards([], 5)).toBe(0);
-    expect(countDueCards([null, null], 5)).toBe(0);
   });
 });

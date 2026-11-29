@@ -1,39 +1,14 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, IconButton, Slider, Typography } from '@mui/material';
+import { IconButton, Slider, Typography } from '@mui/material';
 import HeadphonesIcon from '@mui/icons-material/Headphones';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import PauseIcon from '@mui/icons-material/Pause';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
-import { styled } from '../lib/styled';
 import { useAudioPlayerContext } from '../contexts/AudioPlayerContext';
-import { BOTTOM_MENU_BAR_HEIGHT } from '../constants/layout';
 import { QueueDrawer } from './QueueDrawer';
-import { TrackIcon } from './audioStyles';
+import { MiniBar, MiniBarTrackInfo, TrackIcon } from './audioStyles';
 import { formatDuration } from '../lib/utils/formatDuration';
-
-export const MINI_PLAYER_HEIGHT = 64;
-
-const Bar = styled(Box)(({ theme }) => ({
-  position: 'fixed',
-  bottom: BOTTOM_MENU_BAR_HEIGHT,
-  left: 0,
-  right: 0,
-  height: MINI_PLAYER_HEIGHT,
-  backgroundColor: theme.palette.background.paper,
-  borderTop: `1px solid ${theme.palette.divider}`,
-  display: 'flex',
-  alignItems: 'center',
-  gap: theme.spacing(1.5),
-  padding: theme.spacing(0, 1, 0, 2),
-  zIndex: theme.zIndex.appBar + 1,
-  cursor: 'pointer',
-}));
-
-const TrackInfo = styled(Box)({
-  flex: 1,
-  minWidth: 0,
-});
 
 export function MiniPlayerBar() {
   const navigate = useNavigate();
@@ -45,18 +20,18 @@ export function MiniPlayerBar() {
 
   return (
     <>
-      <Bar onClick={() => navigate('/audio/player')}>
+      <MiniBar onClick={() => navigate('/audio/player')}>
         <TrackIcon>
           <HeadphonesIcon sx={{ fontSize: 18 }} />
         </TrackIcon>
-        <TrackInfo>
+        <MiniBarTrackInfo>
           <Typography variant="body2" fontWeight={700} noWrap>
             {audioItem.title}
           </Typography>
           <Typography variant="caption" color="text.secondary">
             {formatDuration(currentTime)} / {formatDuration(duration)}
           </Typography>
-        </TrackInfo>
+        </MiniBarTrackInfo>
         <Slider
           value={currentTime}
           max={duration || 1}
@@ -92,7 +67,7 @@ export function MiniPlayerBar() {
         >
           <MoreVertIcon fontSize="small" />
         </IconButton>
-      </Bar>
+      </MiniBar>
       <QueueDrawer open={queueOpen} onClose={() => setQueueOpen(false)} />
     </>
   );

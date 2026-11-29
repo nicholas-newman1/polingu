@@ -1,25 +1,21 @@
-import { useState, useMemo, useCallback, useRef, memo } from 'react';
+import { useState, useMemo, useCallback, useRef } from 'react';
 import { TextField, Box, Button, Typography, Chip, Stack, IconButton } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import type { Timestamp } from 'firebase/firestore';
 import type { CEFRLevel, Sentence } from '../../types/sentences';
 import { ALL_LEVELS } from '../../types/sentences';
 import { deleteSentence } from '../../lib/storage/systemSentences';
-import { loadCustomSentences, saveCustomSentences } from '../../lib/storage/customSentences';
+import { customSentenceStorage } from '../../lib/storage/customSentences';
 import { ChipGroup } from './shared';
-import { computeCoverageStats, formatCreatedAt } from './utils';
+import { computeCoverageStats, createdAtMillis, formatCreatedAt } from './utils';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useConfirm } from '../../hooks/useConfirm';
-import type { BrowseTabProps } from './types';
+import { useSentences } from '../../hooks/useReviewData';
+import { useSnackbar } from '../../contexts/SnackbarContext';
 
-export const BrowseTab = memo(function BrowseTab({
-  sentences,
-  setSentences,
-  setCustomSentences,
-  sentenceTags,
-  showSnackbar,
-}: BrowseTabProps) {
+export function BrowseTab() {
+  const { sentences, setSentences, setCustomSentences, tags: sentenceTags } = useSentences();
+  const { showSnackbar } = useSnackbar();
   const [browseLevel, setBrowseLevel] = useState<CEFRLevel | ''>('');
   const [browseTag, setBrowseTag] = useState('');
   const [browseSearch, setBrowseSearch] = useState('');
@@ -53,31 +49,24 @@ export const BrowseTab = memo(function BrowseTab({
         (s) => s.polish.toLowerCase().includes(search) || s.english.toLowerCase().includes(search)
       );
     }
+    // Sentences with no recorded creation time are left out of a date range.
     if (browseDateFrom) {
       const fromTime = new Date(browseDateFrom).getTime();
       result = result.filter((s) => {
-        if (!s.createdAt || typeof (s.createdAt as Timestamp).toMillis !== 'function') return false;
-        return (s.createdAt as Timestamp).toMillis() >= fromTime;
+        const created = createdAtMillis(s.createdAt);
+        return created !== null && created >= fromTime;
       });
     }
     if (browseDateTo) {
       const toTime = new Date(browseDateTo).getTime();
       result = result.filter((s) => {
-        if (!s.createdAt || typeof (s.createdAt as Timestamp).toMillis !== 'function') return false;
-        return (s.createdAt as Timestamp).toMillis() <= toTime;
+        const created = createdAtMillis(s.createdAt);
+        return created !== null && created <= toTime;
       });
     }
-    return [...result].sort((a, b) => {
-      const aTime =
-        a.createdAt && typeof (a.createdAt as Timestamp).toMillis === 'function'
-          ? (a.createdAt as Timestamp).toMillis()
-          : 0;
-      const bTime =
-        b.createdAt && typeof (b.createdAt as Timestamp).toMillis === 'function'
-          ? (b.createdAt as Timestamp).toMillis()
-          : 0;
-      return bTime - aTime;
-    });
+    return [...result].sort(
+      (a, b) => (createdAtMillis(b.createdAt) ?? 0) - (createdAtMillis(a.createdAt) ?? 0)
+    );
   }, [levelFilteredSentences, browseTag, debouncedSearch, browseDateFrom, browseDateTo]);
 
   const virtualizer = useVirtualizer({
@@ -99,9 +88,8 @@ export const BrowseTab = memo(function BrowseTab({
       try {
         if (sentence.isCustom) {
           // The admin's own sentences live in their custom collection, not the built-in one.
-          const remaining = (await loadCustomSentences()).filter((s) => s.id !== sentence.id);
-          await saveCustomSentences(remaining);
-          setCustomSentences(remaining);
+          await customSentenceStorage.delete(sentence.id);
+          setCustomSentences((current) => current.filter((s) => s.id !== sentence.id));
         } else {
           await deleteSentence(sentence.id);
           setSentences(sentences.filter((s) => s.id !== sentence.id));
@@ -285,4 +273,4 @@ export const BrowseTab = memo(function BrowseTab({
       {confirmDialog}
     </Stack>
   );
-});
+}

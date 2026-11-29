@@ -2,9 +2,8 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { act, waitFor } from '@testing-library/react';
 import type { Card } from 'ts-fsrs';
 import { useProgressStats } from '../../src/hooks/useProgressStats';
-import { useReviewData, type ReviewDataContextType } from '../../src/hooks/useReviewData';
 import { UserFiltersProvider, useUserFilters } from '../../src/contexts/UserFiltersContext';
-import loadUserFilters from '../../src/lib/storage/loadUserFilters';
+import { userFiltersDoc } from '../../src/lib/storage/userDocs';
 import { DEFAULT_USER_FILTERS } from '../../src/types/userFilters';
 import type { CustomDeclensionCard, DeclensionCard } from '../../src/types';
 import type { CustomVocabularyWord, VocabularyWord } from '../../src/types/vocabulary';
@@ -25,10 +24,22 @@ import {
 import type { TranslationDirection } from '../../src/types/common';
 import { fsrsCard, inDays, State } from '../helpers/fsrs';
 import { stub } from '../helpers/stub';
-import { renderWithReviewData, type ReviewDataSeed } from './support/reviewDataProviders';
+import {
+  renderWithReviewData,
+  useAllReviewData,
+  type ReviewData,
+  type ReviewDataSeed,
+} from './support/reviewDataProviders';
 import { getSessionCards } from '../../src/lib/reviewSession/scheduler';
-import { conjugationDeck } from '../../src/lib/reviewSession/reviewDecks';
+import {
+  aspectPairsDeck,
+  conjugationDeck,
+  declensionDeck,
+  sentenceDeck,
+  vocabularyDeck,
+} from '../../src/lib/reviewSession/reviewDecks';
 import { getDrillableFormsForVerb } from '../../src/lib/conjugationUtils';
+import type { DeclensionFilters } from '../../src/types';
 
 // The providers' live custom-collection listeners are the Firestore boundary.
 vi.mock('../../src/lib/storage/customVocabulary', () => ({
@@ -49,7 +60,10 @@ vi.mock('../../src/lib/storage/reviewDeckStorage', async (importOriginal) => ({
   saveDeckSettings: vi.fn(),
 }));
 // The learner's saved session filters.
-vi.mock('../../src/lib/storage/loadUserFilters', () => ({ default: vi.fn() }));
+vi.mock('../../src/lib/storage/userDocs', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/lib/storage/userDocs')>();
+  return { ...actual, userFiltersDoc: { ...actual.userFiltersDoc, load: vi.fn() } };
+});
 
 const TODAY = '2026-03-10';
 
@@ -206,7 +220,7 @@ const sentenceSettings = (
 /** Renders the stats alongside the review data the stats page reads next to them. */
 function renderStats(seed: ReviewDataSeed) {
   const h = renderWithReviewData(
-    () => ({ stats: useProgressStats(), data: useReviewData() }),
+    () => ({ stats: useProgressStats(), data: useAllReviewData() }),
     seed
   );
   return { ...h, stats: () => h.result.current.stats, data: () => h.result.current.data };
@@ -232,8 +246,8 @@ describe('useProgressStats: vocabulary', () => {
     expect(h.stats().vocabularyByDirection['pl-to-en'].total).toBe(5);
     expect(h.stats().vocabularyByDirection['en-to-pl'].total).toBe(5);
     // The stats page shows "3 system + 2 custom" under the total.
-    expect(h.data().systemWords).toHaveLength(3);
-    expect(h.data().customWords).toHaveLength(2);
+    expect(h.data().vocabulary.systemWords).toHaveLength(3);
+    expect(h.data().vocabulary.customWords).toHaveLength(2);
   });
 
   test("words with no review data are unlearned, and due only up to each direction's daily allowance", () => {
@@ -349,7 +363,7 @@ describe('useProgressStats: vocabulary', () => {
     h.emitCustomWords([customWord('custom_new')]);
 
     expect(h.stats().vocabulary).toEqual(stats(3, 0, 0, 6));
-    expect(h.data().customWords).toHaveLength(1);
+    expect(h.data().vocabulary.customWords).toHaveLength(1);
   });
 
   test('the numbers follow fresh review data when a sync replaces the stores', () => {
@@ -529,10 +543,18 @@ describe('useProgressStats: aspect pairs', () => {
   });
 });
 
-describe('useProgressStats: agreement with the review counts', () => {
-  test('every due number matches the review count shown in the navigation', () => {
+describe('useProgressStats: agreement with the sessions', () => {
+  const sessionSize = (session: { reviewCards: unknown[]; newCards: unknown[] }) =>
+    session.reviewCards.length + session.newCards.length;
+  const bothDirections = (size: (direction: TranslationDirection) => number) =>
+    size('pl-to-en') + size('en-to-pl');
+
+  // A due number promises the learner a session of that size, so it is checked against
+  // what each deck's page would actually serve.
+  test("every deck's due number is the size of today's sessions", () => {
     const h = renderStats({
       systemDeclensionCards: [declensionCard(1), declensionCard(2), declensionCard(3)],
+      customDeclensionCards: [customDeclensionCard('custom_d')],
       declensionSettings: { newCardsPerDay: 1 },
       declensionStore: declensionStore({ 1: overdue() }),
       systemWords: words(1, 2, 3, 4),
@@ -552,15 +574,64 @@ describe('useProgressStats: agreement with the review counts', () => {
       },
       aspectPairsStore: aspectPairsStore({ robic: overdue() }),
     });
+    const { declension, vocabulary, sentences, conjugation, aspectPairs } = h.data();
+    const forms = conjugation.verbs.flatMap(getDrillableFormsForVerb);
 
-    const expected = {
+    const sessions = {
+      declension: sessionSize(
+        getSessionCards(
+          declensionDeck,
+          declension.cards,
+          declension.progress.stores.all,
+          declension.progress.settings.all
+        )
+      ),
+      vocabulary: bothDirections((d) =>
+        sessionSize(
+          getSessionCards(
+            vocabularyDeck,
+            vocabulary.words,
+            vocabulary.progress.stores[d],
+            vocabulary.progress.settings[d]
+          )
+        )
+      ),
+      // The sentences page builds each session from the sentences at the selected levels.
+      sentences: bothDirections((d) => {
+        const settings = sentences.progress.settings[d];
+        const atLevels = sentences.sentences.filter((s) =>
+          settings.selectedLevels.includes(s.level)
+        );
+        return sessionSize(
+          getSessionCards(sentenceDeck, atLevels, sentences.progress.stores[d], settings)
+        );
+      }),
+      conjugation: bothDirections((d) =>
+        sessionSize(
+          getSessionCards(
+            conjugationDeck,
+            forms,
+            conjugation.progress.stores[d],
+            conjugation.progress.settings[d]
+          )
+        )
+      ),
+      aspectPairs: sessionSize(
+        getSessionCards(
+          aspectPairsDeck,
+          aspectPairs.cards,
+          aspectPairs.progress.stores.all,
+          aspectPairs.progress.settings.all
+        )
+      ),
+    };
+    expect(sessions).toEqual({
       declension: 2, // card 1 overdue + one new
       vocabulary: 4, // pl-to-en: 1 overdue + 2 new; en-to-pl: 3 learning, no new allowed
       sentences: 4, // pl-to-en: one B2 new; en-to-pl: a overdue + b and c new
       conjugation: 5, // pl-to-en: four new forms; en-to-pl: one overdue form
       aspectPairs: 1,
-    };
-    expect(h.data().counts).toEqual(expected);
+    });
     const s = h.stats();
     expect({
       declension: s.declension.due,
@@ -568,28 +639,45 @@ describe('useProgressStats: agreement with the review counts', () => {
       sentences: s.sentences.due,
       conjugation: s.conjugation.due,
       aspectPairs: s.aspectPairs.due,
-    }).toEqual(expected);
+    }).toEqual(sessions);
+  });
+
+  test('a saved rating lowers the due number at once', async () => {
+    const h = renderStats({
+      systemWords: words('w1', 'w2', 'w3'),
+      vocabularySettings: perDay(10, 0),
+    });
+    expect(h.stats().vocabulary.due).toBe(3);
+
+    const { progress } = h.data().vocabulary;
+    const rated = vocabularyStore(
+      { w1: learning() },
+      { reviewedToday: ['w1'], newCardsToday: ['w1'] }
+    );
+    await act(() => progress.updateStore('pl-to-en', rated));
+
+    expect(h.stats().vocabulary.due).toBe(2);
   });
 });
 
 describe('useProgressStats: settings changes', () => {
   // Each case changes one section's allowance on its own, so a section whose settings
   // were left out of the hook's memo would keep showing the old number.
-  test.each<[string, (d: ReviewDataContextType) => Promise<void>, (s: Stats) => number]>([
+  test.each<[string, (d: ReviewData) => Promise<void>, (s: Stats) => number]>([
     [
       'declension',
-      (d) => d.updateDeclensionSettings({ newCardsPerDay: 2 }),
+      (d) => d.declension.progress.updateSettings('all', { newCardsPerDay: 2 }),
       (s) => s.declension.due,
     ],
     [
       'vocabulary',
-      (d) => d.updateVocabularySettings('pl-to-en', { newCardsPerDay: 2 }),
+      (d) => d.vocabulary.progress.updateSettings('pl-to-en', { newCardsPerDay: 2 }),
       (s) => s.vocabularyByDirection['pl-to-en'].due,
     ],
     [
       'sentences',
       (d) =>
-        d.updateSentenceSettings('en-to-pl', {
+        d.sentences.progress.updateSettings('en-to-pl', {
           newCardsPerDay: 2,
           selectedLevels: [...ALL_LEVELS],
         }),
@@ -597,12 +685,12 @@ describe('useProgressStats: settings changes', () => {
     ],
     [
       'conjugation',
-      (d) => d.updateConjugationSettings('en-to-pl', { newCardsPerDay: 2 }),
+      (d) => d.conjugation.progress.updateSettings('en-to-pl', { newCardsPerDay: 2 }),
       (s) => s.conjugationByDirection['en-to-pl'].due,
     ],
     [
       'aspect pairs',
-      (d) => d.updateAspectPairsSettings({ newCardsPerDay: 2 }),
+      (d) => d.aspectPairs.progress.updateSettings('all', { newCardsPerDay: 2 }),
       (s) => s.aspectPairs.due,
     ],
   ])('%s: raising the daily allowance shows the extra new cards at once', async (_, raise, due) => {
@@ -642,7 +730,7 @@ describe('useProgressStats: learner filters', () => {
       'en-to-pl': conjugationStore({ [formKey('robic', '1sg')]: overdue() }),
     };
     const filterSettings = perDay(10);
-    vi.mocked(loadUserFilters).mockResolvedValue({ ...DEFAULT_USER_FILTERS, conjugation });
+    vi.mocked(userFiltersDoc.load).mockResolvedValue({ ...DEFAULT_USER_FILTERS, conjugation });
     const h = renderWithReviewData(
       () => ({ stats: useProgressStats(), filters: useUserFilters() }),
       {
@@ -686,6 +774,36 @@ describe('useProgressStats: learner filters', () => {
 
     expect(h.due('en-to-pl')).toBe(h.sessionSize('en-to-pl'));
   });
+
+  test('with a case filter, the declension due number matches what the session serves', async () => {
+    const cards = [
+      stub<DeclensionCard>({ id: 1, case: 'Genitive' }),
+      stub<DeclensionCard>({ id: 2, case: 'Dative' }),
+      stub<DeclensionCard>({ id: 3, case: 'Locative' }),
+      stub<DeclensionCard>({ id: 4, case: 'Dative' }),
+    ];
+    const store = declensionStore({ 4: overdue() });
+    const settings = { newCardsPerDay: 10 };
+    const declension: DeclensionFilters = { cases: ['Genitive'], genders: [], number: 'All' };
+    vi.mocked(userFiltersDoc.load).mockResolvedValue({ ...DEFAULT_USER_FILTERS, declension });
+    const h = renderWithReviewData(
+      () => ({ stats: useProgressStats(), filters: useUserFilters() }),
+      { systemDeclensionCards: cards, declensionStore: store, declensionSettings: settings },
+      { wrapper: UserFiltersProvider }
+    );
+    await waitFor(() => expect(h.result.current.filters.filtersLoading).toBe(false));
+
+    const { reviewCards, newCards } = getSessionCards(
+      declensionDeck,
+      cards,
+      store,
+      settings,
+      declension
+    );
+    // Card 4 is due whatever the filters say; card 1 is the only new Genitive card.
+    expect(reviewCards.length + newCards.length).toBe(2);
+    expect(h.result.current.stats.declension.due).toBe(2);
+  });
 });
 
 describe('useProgressStats: day boundaries', () => {
@@ -725,12 +843,10 @@ describe('useProgressStats: day boundaries', () => {
   test("before midnight, the day's lists hide the cards already done and the new card used", () => {
     const h = renderLateEvening();
     expect(h.stats().vocabularyByDirection['pl-to-en'].due).toBe(0);
-    expect(h.data().counts.vocabulary).toBe(0);
 
     h.later(0.25);
 
     expect(h.stats().vocabularyByDirection['pl-to-en'].due).toBe(0);
-    expect(h.data().counts.vocabulary).toBe(0);
   });
 
   test("after midnight, yesterday's lists no longer hide the cards due today", () => {
@@ -741,11 +857,12 @@ describe('useProgressStats: day boundaries', () => {
     expect(h.stats().vocabularyByDirection['pl-to-en'].due).toBe(3);
   });
 
-  test('after midnight, the navigation count includes the cards due today', () => {
+  test('with the page left open and nothing else happening, the numbers start a new day at midnight', () => {
     const h = renderLateEvening();
+    expect(h.stats().vocabularyByDirection['pl-to-en'].due).toBe(0);
 
-    h.later(8.5);
+    act(() => vi.advanceTimersByTime(8.5 * HOUR));
 
-    expect(h.data().counts.vocabulary).toBe(3);
+    expect(h.stats().vocabularyByDirection['pl-to-en'].due).toBe(3);
   });
 });

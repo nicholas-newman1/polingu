@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { useSnackbar } from '../../hooks/useSnackbar';
+import { useSnackbar } from '../../contexts/SnackbarContext';
 
 interface UseAdminItemsOptions<T extends { id: unknown }, TPatch> {
   items: T[];
@@ -34,26 +34,28 @@ export function useAdminItems<T extends { id: unknown }, TPatch extends Partial<
     [items, setItems, remove, label, lowerLabel, showSnackbar]
   );
 
+  /** Applies a change the server has already stored to the local list only. */
+  const mirrorItem = useCallback(
+    (item: T | null, patch: Partial<T>) => {
+      if (!item) return;
+      setItems(items.map((other) => (other.id === item.id ? { ...other, ...patch } : other)));
+    },
+    [items, setItems]
+  );
+
   const patchItem = useCallback(
-    async (
-      item: T | null,
-      patch: TPatch,
-      messages: { success?: string; error: string } = {
-        success: `${label} updated`,
-        error: `Failed to update ${lowerLabel}`,
-      }
-    ) => {
+    async (item: T | null, patch: TPatch) => {
       if (!item) return;
       try {
         await update(item, patch);
-        setItems(items.map((other) => (other.id === item.id ? { ...other, ...patch } : other)));
-        if (messages.success) showSnackbar(messages.success, 'success');
+        mirrorItem(item, patch);
+        showSnackbar(`${label} updated`, 'success');
       } catch {
-        showSnackbar(messages.error, 'error');
+        showSnackbar(`Failed to update ${lowerLabel}`, 'error');
       }
     },
-    [items, setItems, update, label, lowerLabel, showSnackbar]
+    [update, mirrorItem, label, lowerLabel, showSnackbar]
   );
 
-  return { deleteItem, patchItem };
+  return { deleteItem, patchItem, mirrorItem };
 }

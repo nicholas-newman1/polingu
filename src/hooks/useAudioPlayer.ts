@@ -63,8 +63,7 @@ export function useAudioPlayer({
 
     stopAudio();
 
-    const playableUrl = resolvePlayableAudioUrl(audioUrl) ?? audioUrl;
-    const audio = new Audio(playableUrl);
+    const audio = new Audio(resolvePlayableAudioUrl(audioUrl));
     audioRef.current = audio;
     setIsPlaying(true);
 

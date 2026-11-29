@@ -1,5 +1,6 @@
 import { onCall, HttpsError } from 'firebase-functions/https';
-import { createOpenAI } from '../shared/openai.js';
+import { createConfiguredOpenAI } from '../shared/openai.js';
+import { requestDeepL, requireDeepLKey } from '../shared/deepl.js';
 import { deeplApiKey, openaiApiKey } from '../shared/secrets.js';
 import { CEFRLevel, requestCEFRLevel } from '../shared/cefr.js';
 
@@ -31,42 +32,13 @@ export const processSentence = onCall<ProcessSentenceRequest, Promise<ProcessSen
       throw new HttpsError('invalid-argument', 'Source language must be EN or PL.');
     }
 
-    const deeplKey = deeplApiKey.value();
-    const openaiKey = openaiApiKey.value();
+    // Both services are checked before either is used, so a missing key costs no translation.
+    const deeplKey = requireDeepLKey();
+    const openai = await createConfiguredOpenAI();
 
-    if (!deeplKey || !openaiKey) {
-      throw new HttpsError('failed-precondition', 'Services not configured.');
-    }
-
-    const targetLang = sourceLang === 'EN' ? 'PL' : 'EN';
-    const translateResponse = await fetch('https://api-free.deepl.com/v2/translate', {
-      method: 'POST',
-      headers: {
-        Authorization: `DeepL-Auth-Key ${deeplKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        text: [text],
-        source_lang: sourceLang,
-        target_lang: targetLang,
-      }),
-    });
-
-    if (!translateResponse.ok) {
-      throw new HttpsError('internal', 'Translation failed.');
-    }
-
-    const translateData = await translateResponse.json();
-    const translatedText = translateData.translations?.[0]?.text;
-
-    if (!translatedText) {
-      throw new HttpsError('internal', 'No translation returned.');
-    }
-
+    const translatedText = await requestDeepL(deeplKey, text, sourceLang === 'EN' ? 'PL' : 'EN');
     const polish = sourceLang === 'PL' ? text : translatedText;
     const english = sourceLang === 'EN' ? text : translatedText;
-
-    const openai = await createOpenAI(openaiKey);
 
     const level: CEFRLevel = (await requestCEFRLevel(openai, polish)) ?? 'B1';
 

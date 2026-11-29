@@ -37,7 +37,7 @@ import { SentenceGeneratorPage } from '../../../../src/pages/SentenceGenerator';
 import { AdminContentPage } from '../../../../src/pages/AdminContentPage';
 import { ConjugationPage } from '../../../../src/pages/ConjugationPage';
 import { DashboardPage } from '../../../../src/pages/DashboardPage';
-import { useReviewData } from '../../../../src/hooks/useReviewData';
+import { useReviewDataLoading } from '../../../../src/hooks/useReviewData';
 
 function OtherPage({ name }: { name: string }) {
   return <p>{name} page</p>;
@@ -50,7 +50,7 @@ function LocationDisplay() {
 
 /** Whether the review data has loaded, for `waitForReviewData`. */
 function ReviewDataStatus() {
-  const { loading } = useReviewData();
+  const loading = useReviewDataLoading();
   return <output data-testid="review-data" data-loading={loading} />;
 }
 

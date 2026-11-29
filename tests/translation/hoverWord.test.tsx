@@ -1,21 +1,20 @@
 /**
- * Desktop hover translations on flashcard sentences, and TranslatableWord used on
- * its own outside a tappable sentence. Only the Cloud Function is faked.
+ * Desktop hover translations on flashcard sentences, and the hover-or-click tooltip
+ * behaviour behind them. Only the Cloud Function is faked.
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { act, fireEvent, renderHook, screen, within } from '@testing-library/react';
 import { renderTappableText } from '../../src/lib/renderTappableText';
-import { TranslatableWord } from '../../src/components/TranslatableWord';
 import { useTooltipInteraction } from '../../src/components/shared';
 import { resetCallables } from './support/fakeFunctions';
 import {
   dailyLimitError,
   fakeTranslateServer,
   minuteLimitError,
-  RESET_TIME,
+  resetTimeIn,
   type FakeTranslateServer,
 } from './support/translateServer';
-import { renderInApp, settle, stubClipboard, tap } from './support/app';
+import { limitDialog, renderInApp, settle, stubClipboard, tap } from './support/app';
 
 vi.mock('firebase/functions', () => import('./support/fakeFunctions'));
 
@@ -136,15 +135,14 @@ describe('hovering a word in a sentence', () => {
     expect(tooltip()).toHaveTextContent('Too many requests');
   });
 
-  test('reaching the daily limit reports when the limit resets', async () => {
-    server.failWith(dailyLimitError());
-    const onDailyLimitReached = vi.fn();
-    renderInApp(sentence(SENTENCE, { onDailyLimitReached }));
+  test('reaching the daily limit says when the limit resets', async () => {
+    server.failWith(dailyLimitError(resetTimeIn(150)));
+    renderInApp(sentence(SENTENCE));
 
     fireEvent.mouseEnter(word('Kot'));
     await settle();
 
-    expect(onDailyLimitReached).toHaveBeenCalledWith(RESET_TIME);
+    expect(limitDialog()).toHaveTextContent('Your limit will reset in 2 hours 30 minutes');
   });
 
   test('"Add to vocabulary" in the hover tooltip hands over the word and its translation', async () => {
@@ -229,57 +227,8 @@ describe('hovering a word in a sentence', () => {
   });
 });
 
-describe('a TranslatableWord on its own (outside a tappable sentence)', () => {
-  test('tapping it shows its translation, which stays open until the learner presses elsewhere', async () => {
-    renderInApp(
-      <p>
-        <TranslatableWord word="Kot," sentenceContext="Kot, pies." />
-      </p>
-    );
-    const kot = screen.getByText('Kot,');
-
-    fireEvent.click(kot);
-    await settle();
-    expect(tooltip()).toHaveTextContent('cat');
-    expect(server.requests()).toEqual([{ text: 'kot', targetLang: 'EN', context: 'Kot, pies.' }]);
-
-    fireEvent.mouseLeave(kot);
-    await settle();
-    expect(tooltip()).toHaveTextContent('cat');
-
-    fireEvent.mouseDown(within(tooltip()).getByText('cat'));
-    await settle();
-    expect(tooltip()).toHaveTextContent('cat');
-
-    fireEvent.mouseDown(document.body);
-    await settle();
-    expect(tooltips()).toHaveLength(0);
-  });
-
-  test('tapping it again unpins it, so it closes once the pointer leaves', async () => {
-    renderInApp(
-      <p>
-        <TranslatableWord word="Kot" />
-      </p>
-    );
-    const kot = screen.getByText('Kot');
-
-    fireEvent.click(kot);
-    await settle();
-    fireEvent.click(kot);
-    await settle();
-    expect(tooltip()).toHaveTextContent('cat');
-
-    fireEvent.mouseLeave(kot);
-    await settle();
-    expect(tooltips()).toHaveLength(0);
-    expect(server.texts()).toEqual(['kot']);
-  });
-});
-
 describe('useTooltipInteraction', () => {
   test('a click toggles the tooltip open on the clicked element, and an outside press closes it', () => {
-    const onClose = vi.fn();
     const anchor = document.createElement('span');
     const popper = document.createElement('div');
     document.body.append(anchor, popper);
@@ -287,7 +236,7 @@ describe('useTooltipInteraction', () => {
       anchor.remove();
       popper.remove();
     });
-    const { result } = renderHook(() => useTooltipInteraction({ onClose }));
+    const { result } = renderHook(() => useTooltipInteraction());
     result.current.popperRef.current = popper;
 
     act(() => result.current.handleClick({ currentTarget: anchor } as never));
@@ -297,11 +246,9 @@ describe('useTooltipInteraction', () => {
     fireEvent.mouseDown(popper);
     fireEvent.mouseDown(anchor);
     expect(result.current.open).toBe(true);
-    expect(onClose).not.toHaveBeenCalled();
 
     fireEvent.mouseDown(document.body);
     expect(result.current.open).toBe(false);
-    expect(onClose).toHaveBeenCalledTimes(1);
 
     act(() => result.current.handleClick({ currentTarget: anchor } as never));
     act(() => result.current.handleClick({ currentTarget: anchor } as never));
@@ -313,7 +260,7 @@ describe('useTooltipInteraction', () => {
     const { result } = renderHook(() => useTooltipInteraction());
 
     act(() => result.current.handleMouseEnter({ currentTarget: anchor } as never));
-    act(() => result.current.setIsClicked(true));
+    act(() => result.current.handleClick({ currentTarget: anchor } as never));
     expect(result.current.open).toBe(true);
 
     act(() => result.current.close());

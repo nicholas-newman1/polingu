@@ -1,5 +1,6 @@
 import { FieldValue } from 'firebase-admin/firestore';
 import { db } from './firebase.js';
+import { isAdmin } from './auth.js';
 import { AudioType, synthesizeAndUploadAudio } from './audioTypes.js';
 
 export type CardAudioStatus = 'generating' | 'ready' | 'error';
@@ -31,24 +32,10 @@ export async function handlePerCardWrite(
   userId: string,
   cardId: string,
   before: CustomCardItem | undefined,
-  after: CustomCardItem | undefined,
+  after: CustomCardItem,
   afterRef: FirebaseFirestore.DocumentReference
 ): Promise<void> {
-  if (!after) return;
-
-  const { getAuth } = await import('firebase-admin/auth');
-  let isAdmin = false;
-  try {
-    const user = await getAuth().getUser(userId);
-    isAdmin = !!user.customClaims?.admin;
-  } catch (error) {
-    console.warn(
-      `onCustomCardWrite: Auth check failed for ${collectionName}/${cardId} (user ${userId}):`,
-      error
-    );
-    return;
-  }
-  if (!isAdmin) return;
+  if (!(await isAdmin(userId))) return;
 
   const config = PER_CARD_CONFIGS[collectionName];
   const beforeText = before ? config.getText(before).trim() : '';

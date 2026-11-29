@@ -2,15 +2,17 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Box, Typography, CircularProgress } from '@mui/material';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
 import { styled } from '../../lib/styled';
-import { useSnackbar } from '../../hooks/useSnackbar';
-import { useAuthContext } from '../../hooks/useAuthContext';
+import { useSnackbar } from '../../contexts/SnackbarContext';
+import { useAuthContext } from '../../contexts/AuthContext';
 import {
   getCachedBooks,
   subscribeToBooksUpdates,
   getStorageUsage,
   getReadingProgress,
 } from '../../lib/reader';
-import type { Book, ReadingProgress, UploadProgress } from '../../types/reader';
+import { subscribeCachedThenLive } from '../../lib/media/cachedCollection';
+import type { Book, ReadingProgress } from '../../types/reader';
+import type { UploadProgress } from '../../lib/media/storageFiles';
 import { AddBookDialog } from './components/AddBookDialog';
 import { EditBookDialog } from './components/EditBookDialog';
 import { DeleteBookDialog } from './components/DeleteBookDialog';
@@ -104,21 +106,10 @@ function Library({ userId }: { userId: string | null }) {
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
-    let subscribed = false;
 
-    getCachedBooks().then((cached) => {
-      if (!cancelled && !subscribed) {
-        setBooks(cached);
-        setLoading(false);
-      }
-    });
-
-    const unsubscribe = subscribeToBooksUpdates((updatedBooks: Book[]) => {
-      if (!cancelled) {
-        subscribed = true;
-        setBooks(updatedBooks);
-        setLoading(false);
-      }
+    const unsubscribe = subscribeCachedThenLive(getCachedBooks, subscribeToBooksUpdates, (next) => {
+      setBooks(next);
+      setLoading(false);
     });
 
     getStorageUsage()

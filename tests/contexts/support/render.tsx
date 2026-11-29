@@ -16,12 +16,10 @@ import { VocabularyProvider } from '../../../src/contexts/review/VocabularyConte
 import { SentenceProvider } from '../../../src/contexts/review/SentenceContext';
 import { ConjugationProvider } from '../../../src/contexts/review/ConjugationContext';
 import { AspectPairsProvider } from '../../../src/contexts/review/AspectPairsContext';
-import { ReviewCountsProvider } from '../../../src/contexts/review/ReviewCountsContext';
-import { UserFiltersProvider, useUserFilters } from '../../../src/contexts/UserFiltersContext';
-import { useReviewData } from '../../../src/hooks/useReviewData';
-import type { UserFilters } from '../../../src/types/userFilters';
+import { ReviewDataLoadingContext } from '../../../src/contexts/review/ReviewDataLoadingContext';
 import { signOutFakeUser } from '../../fakes/firebase';
 import { withAuth } from '../../hooks/support/providers';
+import { useAllReviewData } from '../../hooks/support/reviewDataProviders';
 import { signIn } from '../../sync/support/harness';
 
 type Props<C> = C extends (props: infer P) => unknown ? Omit<P, 'children'> : never;
@@ -33,12 +31,11 @@ export interface InitialData {
   sentences?: Props<typeof SentenceProvider>;
   conjugation?: Props<typeof ConjugationProvider>;
   aspectPairs?: Props<typeof AspectPairsProvider>;
-  loading?: boolean;
 }
 
 /** Every snackbar message shown while the test ran, oldest first. */
 function useReviewDataProbe(shown: string[]) {
-  const data = useReviewData();
+  const data = useAllReviewData();
   const snackbar = useContext(SnackbarContext)?.snackbar ?? null;
   useEffect(() => {
     if (snackbar) shown.push(snackbar.message);
@@ -66,7 +63,7 @@ function renderWithTree(uid: string | null, tree: (children: ReactNode) => React
 
   return {
     ...hook,
-    /** The value of useReviewData() as of the last render. */
+    /** Every review context's value as of the last render (useAllReviewData). */
     data: () => hook.result.current,
     /** Snackbar messages shown so far. */
     errors: () => [...shown],
@@ -88,52 +85,27 @@ export function renderReviewDataProvider(uid: string | null) {
 }
 
 /**
- * The five review providers and the counts provider, nested as ReviewDataProvider
+ * The five review providers and the loading flag, nested as ReviewDataProvider
  * nests them, started from `initial` instead of a load. Only `provide` replaces
  * the props objects, so no other re-render looks like new data arriving.
- *
- * With `userFilters`, the app's UserFiltersProvider (which loads the learner's
- * saved session filters) wraps them all, so any provider could read the filters.
  */
-export function renderReviewProviders(
-  uid: string | null,
-  initial: InitialData = {},
-  options: { userFilters?: boolean } = {}
-) {
+export function renderReviewProviders(uid: string | null, initial: InitialData = {}) {
   let current = initial;
-  const filtersRef: { current: UserFilters | null } = { current: null };
-  /** Records the learner's filters as UserFiltersProvider holds them (null while loading). */
-  function FiltersSpy({ children }: { children: ReactNode }) {
-    const { filters, filtersLoading } = useUserFilters();
-    useEffect(() => {
-      filtersRef.current = filtersLoading ? null : filters;
-    }, [filters, filtersLoading]);
-    return children;
-  }
-  const providers = (children: ReactNode) => (
+  const rendered = renderWithTree(uid, (children) => (
     <DeclensionProvider {...current.declension}>
       <VocabularyProvider {...current.vocabulary}>
         <SentenceProvider {...current.sentences}>
           <ConjugationProvider {...current.conjugation}>
             <AspectPairsProvider {...current.aspectPairs}>
-              <ReviewCountsProvider loading={current.loading ?? false}>
+              <ReviewDataLoadingContext.Provider value={false}>
                 {children}
-              </ReviewCountsProvider>
+              </ReviewDataLoadingContext.Provider>
             </AspectPairsProvider>
           </ConjugationProvider>
         </SentenceProvider>
       </VocabularyProvider>
     </DeclensionProvider>
-  );
-  const rendered = renderWithTree(uid, (children) =>
-    options.userFilters ? (
-      <UserFiltersProvider>
-        <FiltersSpy>{providers(children)}</FiltersSpy>
-      </UserFiltersProvider>
-    ) : (
-      providers(children)
-    )
-  );
+  ));
   return {
     ...rendered,
     /** Hands the providers new data, as ReviewDataProvider does after a load or sync. */
@@ -141,8 +113,6 @@ export function renderReviewProviders(
       current = next;
       rendered.rerender();
     },
-    /** The learner's filters once UserFiltersProvider has loaded them (with `userFilters`). */
-    filters: () => filtersRef.current,
   };
 }
 

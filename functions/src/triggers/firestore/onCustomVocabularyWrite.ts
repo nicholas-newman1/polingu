@@ -12,7 +12,7 @@ export const onCustomVocabularyWrite = onDocumentWritten(
       userId,
       cardId,
       event.data?.before?.data() as CustomCardItem | undefined,
-      after.data() as CustomCardItem | undefined,
+      after.data() as CustomCardItem,
       after.ref
     );
   }

@@ -1,6 +1,4 @@
-import { createContext, useCallback, useMemo, type ReactNode } from 'react';
-import { collection, getDocs } from 'firebase/firestore';
-import { db } from '../../lib/firebase';
+import { createContext, useMemo, type Dispatch, type ReactNode, type SetStateAction } from 'react';
 import type {
   VocabularyWord,
   VocabularyReviewDataStore,
@@ -10,35 +8,25 @@ import type {
 } from '../../types/vocabulary';
 import type { TranslationDirection } from '../../types/common';
 import { DEFAULT_VOCABULARY_SETTINGS } from '../../types/vocabulary';
-import {
-  loadCustomVocabulary,
-  subscribeCustomVocabulary,
-} from '../../lib/storage/customVocabulary';
+import { subscribeCustomVocabulary } from '../../lib/storage/customVocabulary';
 import { vocabularyStorage } from '../../lib/storage/reviewDeckStorage';
 import { useLocalChanges } from './localChanges';
-import { useCustomItems, useDeckProgress, useLoadedState } from './deckState';
+import { useCustomItems, useDeckProgress, useLoadedState, type DeckProgress } from './deckState';
 
 export interface VocabularyContextType {
-  vocabularyReviewStores: Record<TranslationDirection, VocabularyReviewDataStore>;
-  vocabularySettings: VocabularySettings;
-  vocabularyWords: VocabularyWord[];
+  progress: DeckProgress<
+    TranslationDirection,
+    VocabularyReviewDataStore,
+    VocabularyDirectionSettings
+  >;
+  /** The learner's words first, then the built-in ones. */
+  words: VocabularyWord[];
   customWords: CustomVocabularyWord[];
   systemWords: VocabularyWord[];
-  updateVocabularyReviewStore: (
-    direction: TranslationDirection,
-    store: VocabularyReviewDataStore
-  ) => Promise<void>;
-  updateVocabularySettings: (
-    direction: TranslationDirection,
-    settings: VocabularyDirectionSettings
-  ) => Promise<void>;
-  clearVocabularyReviewData: (direction: TranslationDirection) => Promise<void>;
-  refreshVocabularyWords: () => Promise<void>;
-  setCustomWords: (words: CustomVocabularyWord[]) => void;
+  setCustomWords: Dispatch<SetStateAction<CustomVocabularyWord[]>>;
   setSystemWords: (words: VocabularyWord[]) => void;
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
 export const VocabularyContext = createContext<VocabularyContextType | null>(null);
 
 interface VocabularyProviderProps {
@@ -78,47 +66,11 @@ export function VocabularyProvider({
   );
   const [systemWords, setSystemWords] = useLoadedState(initialSystemWords);
 
-  const vocabularyWords = useMemo<VocabularyWord[]>(
-    () => [...customWords, ...systemWords],
-    [customWords, systemWords]
-  );
-
-  const refreshVocabularyWords = useCallback(async () => {
-    const [loadedCustomWords, vocabularySnapshot] = await Promise.all([
-      loadCustomVocabulary(),
-      getDocs(collection(db, 'vocabulary')),
-    ]);
-    setCustomWords(loadedCustomWords);
-    setSystemWords(vocabularySnapshot.docs.map((doc) => doc.data() as VocabularyWord));
-  }, [setCustomWords, setSystemWords]);
+  const words = useMemo(() => [...customWords, ...systemWords], [customWords, systemWords]);
 
   const value = useMemo<VocabularyContextType>(
-    () => ({
-      vocabularyReviewStores: progress.stores,
-      vocabularySettings: progress.settings,
-      vocabularyWords,
-      customWords,
-      systemWords,
-      updateVocabularyReviewStore: progress.updateStore,
-      updateVocabularySettings: progress.updateSettings,
-      clearVocabularyReviewData: progress.clear,
-      refreshVocabularyWords,
-      setCustomWords,
-      setSystemWords,
-    }),
-    [
-      progress.stores,
-      progress.settings,
-      progress.updateStore,
-      progress.updateSettings,
-      progress.clear,
-      vocabularyWords,
-      customWords,
-      systemWords,
-      refreshVocabularyWords,
-      setCustomWords,
-      setSystemWords,
-    ]
+    () => ({ progress, words, customWords, systemWords, setCustomWords, setSystemWords }),
+    [progress, words, customWords, systemWords, setCustomWords, setSystemWords]
   );
 
   return <VocabularyContext.Provider value={value}>{children}</VocabularyContext.Provider>;

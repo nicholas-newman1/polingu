@@ -47,10 +47,3 @@ export interface ReadingProgress {
   textAnchorIndex?: number;
   textBookmarks?: number[];
 }
-
-export interface UploadProgress {
-  status: 'uploading' | 'processing' | 'ready' | 'error';
-  uploadPercent?: number;
-  error?: string;
-  bookId?: string;
-}

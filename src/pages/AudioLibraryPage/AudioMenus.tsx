@@ -9,7 +9,7 @@ import PlaylistPlayIcon from '@mui/icons-material/PlaylistPlay';
 import TextFieldsIcon from '@mui/icons-material/TextFields';
 import FileUploadIcon from '@mui/icons-material/FileUpload';
 import { useAudioPlayerContext } from '../../contexts/AudioPlayerContext';
-import { useSnackbar } from '../../hooks/useSnackbar';
+import { useSnackbar } from '../../contexts/SnackbarContext';
 import type { MergedItem } from './types';
 
 function MenuOption({

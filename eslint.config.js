@@ -29,4 +29,11 @@ export default defineConfig([
       'prettier/prettier': 'error',
     },
   },
+  {
+    // Each context file exports its provider together with the hook that reads it.
+    files: ['src/contexts/**/*.{ts,tsx}'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
 ]);

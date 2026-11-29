@@ -1,5 +1,5 @@
 import { Box, CircularProgress } from '@mui/material';
-import { useAuthContext } from '../hooks/useAuthContext';
+import { useAuthContext } from '../contexts/AuthContext';
 
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const { loading } = useAuthContext();

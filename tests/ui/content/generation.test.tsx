@@ -237,6 +237,33 @@ describe('Suggest Example Sentences dialog', () => {
     expect(callables.callsTo('translate')).toEqual([]);
   });
 
+  test('English typed by hand is kept when the Polish is edited again', async () => {
+    exampleService([EXAMPLES[0]]);
+    callables.set('translate', () => ({
+      translatedText: 'machine',
+      charsUsedToday: 1,
+      resetTime: '',
+    }));
+    const { onSave } = renderSuggest();
+    const dialog = await findDialog('Suggest Example Sentences');
+    await within(dialog).findByText('Kot śpi.');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Accept Selected (1)' }));
+
+    const english = within(dialog).getByDisplayValue('The cat sleeps.');
+    type(english, 'The cat is asleep.');
+    type(within(dialog).getByDisplayValue('Kot śpi.'), 'Kot śpi smacznie.');
+    await settle(700);
+    expect(english).toHaveValue('The cat is asleep.');
+    expect(callables.callsTo('translate')).toEqual([]);
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
+    await waitFor(() =>
+      expect(onSave).toHaveBeenCalledWith([
+        { id: expect.any(String), polish: 'Kot śpi smacznie.', english: 'The cat is asleep.' },
+      ])
+    );
+  });
+
   test('a removed example is not saved, and Skip closes without saving', async () => {
     exampleService([EXAMPLES[0]]);
     const { onSave, onClose } = renderSuggest();

@@ -7,7 +7,7 @@ import {
   AspectPairsContext,
   ConjugationContext,
   DeclensionContext,
-  ReviewCountsContext,
+  ReviewDataLoadingContext,
   SentenceContext,
   VocabularyContext,
   type AspectPairsContextType,
@@ -18,17 +18,20 @@ import {
 } from '../../../src/contexts/review';
 import { stub } from '../../helpers/stub';
 import { probe, srsWrites, type ReviewFixture } from './probes';
-import {
-  declensionStorage,
-  sentenceStorage,
-  vocabularyStorage,
-} from '../../../src/lib/storage/reviewDeckStorage';
+import { emptyReviewStore } from '../../../src/lib/storage/reviewDeckStorage';
 
 const recorder =
   (what: string) =>
   async (...args: unknown[]) => {
     srsWrites(what, ...args);
   };
+
+/** A deck's progress changes, each reported to `srsWrites` as `${deck}.${change}`. */
+const progressRecorders = (deck: string) => ({
+  updateStore: recorder(`${deck}.updateStore`),
+  updateSettings: recorder(`${deck}.updateSettings`),
+  clear: recorder(`${deck}.clear`),
+});
 
 /**
  * The review data contexts with fixed content. Every function that could change
@@ -42,50 +45,47 @@ export function ReviewDataStub({
   children: ReactNode;
 }) {
   const declension = stub<DeclensionContextType>({
-    declensionCards: fixture.declensionCards ?? [],
-    declensionReviewStore: fixture.declensionStore ?? declensionStorage.all.emptyStore(),
-    updateDeclensionReviewStore: recorder('updateDeclensionReviewStore'),
-    clearDeclensionData: recorder('clearDeclensionData'),
+    cards: fixture.declensionCards ?? [],
+    progress: stub<DeclensionContextType['progress']>({
+      stores: { all: fixture.declensionStore ?? emptyReviewStore() },
+      ...progressRecorders('declension'),
+    }),
   });
   const vocabulary = stub<VocabularyContextType>({
-    vocabularyWords: fixture.vocabularyWords ?? [],
-    vocabularyReviewStores: {
-      'pl-to-en':
-        fixture.vocabularyStores?.['pl-to-en'] ?? vocabularyStorage['pl-to-en'].emptyStore(),
-      'en-to-pl':
-        fixture.vocabularyStores?.['en-to-pl'] ?? vocabularyStorage['pl-to-en'].emptyStore(),
-    },
-    updateVocabularyReviewStore: recorder('updateVocabularyReviewStore'),
-    clearVocabularyReviewData: recorder('clearVocabularyReviewData'),
+    words: fixture.vocabularyWords ?? [],
+    progress: stub<VocabularyContextType['progress']>({
+      stores: {
+        'pl-to-en': fixture.vocabularyStores?.['pl-to-en'] ?? emptyReviewStore(),
+        'en-to-pl': fixture.vocabularyStores?.['en-to-pl'] ?? emptyReviewStore(),
+      },
+      ...progressRecorders('vocabulary'),
+    }),
   });
   const sentences = stub<SentenceContextType>({
     sentences: fixture.sentences ?? [],
-    sentenceReviewStores: {
-      'pl-to-en': fixture.sentenceStores?.['pl-to-en'] ?? sentenceStorage['pl-to-en'].emptyStore(),
-      'en-to-pl': fixture.sentenceStores?.['en-to-pl'] ?? sentenceStorage['pl-to-en'].emptyStore(),
-    },
-    updateSentenceReviewStore: recorder('updateSentenceReviewStore'),
-    clearSentenceReviewData: recorder('clearSentenceReviewData'),
+    progress: stub<SentenceContextType['progress']>({
+      stores: {
+        'pl-to-en': fixture.sentenceStores?.['pl-to-en'] ?? emptyReviewStore(),
+        'en-to-pl': fixture.sentenceStores?.['en-to-pl'] ?? emptyReviewStore(),
+      },
+      ...progressRecorders('sentences'),
+    }),
   });
   const conjugation = stub<ConjugationContextType>({
-    updateConjugationReviewStore: recorder('updateConjugationReviewStore'),
-    clearConjugationReviewData: recorder('clearConjugationReviewData'),
+    progress: stub<ConjugationContextType['progress']>(progressRecorders('conjugation')),
   });
   const aspectPairs = stub<AspectPairsContextType>({
-    updateAspectPairsReviewStore: recorder('updateAspectPairsReviewStore'),
-    clearAspectPairsData: recorder('clearAspectPairsData'),
+    progress: stub<AspectPairsContextType['progress']>(progressRecorders('aspectPairs')),
   });
-  const counts = {
-    loading: false,
-    counts: { declension: 0, vocabulary: 0, sentences: 0, conjugation: 0, aspectPairs: 0 },
-  };
   return (
     <DeclensionContext.Provider value={declension}>
       <VocabularyContext.Provider value={vocabulary}>
         <SentenceContext.Provider value={sentences}>
           <ConjugationContext.Provider value={conjugation}>
             <AspectPairsContext.Provider value={aspectPairs}>
-              <ReviewCountsContext.Provider value={counts}>{children}</ReviewCountsContext.Provider>
+              <ReviewDataLoadingContext.Provider value={false}>
+                {children}
+              </ReviewDataLoadingContext.Provider>
             </AspectPairsContext.Provider>
           </ConjugationContext.Provider>
         </SentenceContext.Provider>

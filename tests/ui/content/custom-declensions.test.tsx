@@ -1,6 +1,6 @@
 import { describe, expect, test, vi } from 'vitest';
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
-import { renderApp, setupUiTests, LEARNER } from './support/app';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { quiesce, renderApp, setupUiTests, LEARNER } from './support/app';
 import {
   daysAfterBase,
   declensionCard,
@@ -10,6 +10,7 @@ import {
   userPath,
 } from './support/data';
 import { remote } from './support/firestore';
+import { freezeTime } from '../../sync/support/harness';
 import {
   choose,
   columnValues,
@@ -220,6 +221,49 @@ describe('My Declensions', () => {
         fsrsCard: { state: 0 },
       })
     );
+  });
+
+  test('"Review again" on the duplicate warning keeps reviews that synced in after it was shown', async () => {
+    seedCustom(UID, 'customDeclension', [
+      declensionCard('d1', KOTA.front, 'kota'),
+      declensionCard('d2', 'Widzę ___.', 'psa', {
+        case: 'Accusative',
+        createdAt: daysAfterBase(1),
+      }),
+    ]);
+    seedReviewedDeclensionCard(UID, 'd1');
+    await openPage();
+    await within(rowWith(KOTA.front)).findByRole('button', { name: 'review card again' });
+    await act(quiesce);
+    const dialog = await openCreateDialog();
+    await fillCard(dialog, KOTA);
+    await choose('Case', 'Genitive', dialog);
+    await choose('Gender', 'Masculine', dialog);
+    await press(within(dialog).getByRole('button', { name: 'Create Card' }));
+    const snackbar = await findSnackbar(DUPLICATE);
+
+    // Studied on another device, d2 arrives with the sync that runs on coming back to the
+    // app a few minutes later (review cards are re-read at most once a minute).
+    seedReviewedDeclensionCard(UID, 'd2');
+    freezeTime(new Date(Date.now() + 5 * 60_000));
+    act(() => {
+      window.dispatchEvent(new Event('focus'));
+    });
+    await within(rowWith('Widzę ___.')).findByRole('button', {
+      name: 'review card again',
+      hidden: true,
+    });
+    fireEvent.click(within(snackbar).getByRole('button', { name: 'Review again', hidden: true }));
+
+    await waitFor(() =>
+      expect(remote.get(userPath(UID, 'declensionReviewCards', 'd1'))).toMatchObject({
+        fsrsCard: { state: 0 },
+      })
+    );
+    await act(quiesce);
+    expect(remote.get(userPath(UID, 'declensionReviewCards', 'd2'))).toMatchObject({
+      cardId: 'd2',
+    });
   });
 
   test('"review card again" in the table requeues a studied card', async () => {

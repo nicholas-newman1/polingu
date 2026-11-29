@@ -6,9 +6,9 @@ import {
   saveSentenceTags,
 } from '../../src/lib/storage/sentenceTags';
 import {
+  assignNewSentenceIds,
   createSentence,
   deleteSentence,
-  getNextSentenceIds,
   updateSentence,
   updateSentenceTranslation,
 } from '../../src/lib/storage/systemSentences';
@@ -84,14 +84,17 @@ describe('admin edits to built-in content', () => {
     remote.seed('vocabulary/1', { id: 1, polish: 'kot', english: 'cat', notes: 'old' });
     remote.seed('verbs/robic', { id: 'robic', infinitive: 'robić', aspectPair: 'zrobic' });
     remote.seed('declensionCards/3', { id: 3, front: 'f', hint: 'old' });
+    remote.seed('sentences/a1_1', { id: 'a1_1', polish: 'x', english: 'y', audioUrl: 'old' });
 
     await updateSystemVocabularyWord(1, { english: 'a cat', notes: undefined });
     await updateVerb('robic', { aspectPair: undefined });
     await updateDeclensionCard(3, { hint: undefined, front: 'g' });
+    await updateSentence('a1_1', { english: 'z', audioUrl: undefined });
 
     expect(remote.get('vocabulary/1')).toEqual({ id: 1, polish: 'kot', english: 'a cat' });
     expect(remote.get('verbs/robic')).toEqual({ id: 'robic', infinitive: 'robić' });
     expect(remote.get('declensionCards/3')).toEqual({ id: 3, front: 'g' });
+    expect(remote.get('sentences/a1_1')).toEqual({ id: 'a1_1', polish: 'x', english: 'z' });
   });
 
   test('a word translation is added without touching the other translations', async () => {
@@ -128,6 +131,20 @@ describe('admin edits to built-in content', () => {
     expect(stored.createdAt.toMillis()).toBe(Date.parse('2026-11-26T10:00:00-05:00'));
   });
 
+  test('new sentence ids continue from the server list, including sentences added elsewhere', async () => {
+    remote.seed('sentences/b1_009', { id: 'b1_009' });
+    remote.seed('sentences/b1_010', { id: 'b1_010' });
+    remote.seed('sentences/a1_002', { id: 'a1_002' });
+
+    const assigned = await assignNewSentenceIds([
+      { polish: 'Idę.', english: 'I go.', level: 'B1' as const },
+      { polish: 'Jem.', english: 'I eat.', level: 'B1' as const },
+      { polish: 'Śpię.', english: 'I sleep.', level: 'C1' as const },
+    ]);
+
+    expect(assigned.map((s) => s.id)).toEqual(['b1_011', 'b1_012', 'c1_001']);
+  });
+
   test('updating and deleting a built-in sentence', async () => {
     remote.seed('sentences/a1_1', { id: 'a1_1', polish: 'x', english: 'y' });
     remote.seed('sentences/a1_2', { id: 'a1_2', polish: 'x', english: 'y' });
@@ -145,18 +162,5 @@ describe('admin edits to built-in content', () => {
     expect(remote.list('vocabulary')).toEqual({});
     expect(remote.list('verbs')).toEqual({});
     expect(remote.list('declensionCards')).toEqual({});
-  });
-
-  test('the next sentence id per level follows the highest number, not alphabetical order', async () => {
-    for (const id of ['a1_2', 'a1_10', 'a1_9', 'b2_1', 'custom_123', 'c1_x']) {
-      remote.seed(`sentences/${id}`, { id });
-    }
-
-    expect(await getNextSentenceIds(['A1', 'B2', 'C1', 'C2'])).toEqual({
-      A1: 11,
-      B2: 2,
-      C1: 1,
-      C2: 1,
-    });
   });
 });

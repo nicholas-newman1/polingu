@@ -11,7 +11,7 @@
 import { deleteDoc, doc, getDoc, runTransaction, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { userDb } from './userDb';
-import { getUserId } from '../storage/helpers';
+import { getCurrentUserId } from '../cachedAuth';
 import { REVIEW_SESSION_DOC_PATHS } from '../storage/reviewDeckDocs';
 import { stripUndefinedDeep } from '../storage/firestoreUtils';
 import { mergeSessionDocs } from '../reviewSession/sessionLists';
@@ -99,18 +99,14 @@ async function pushRow(userId: string, key: string, written: WrittenRow & { dele
  *    before we move on. If offline or if the write fails, the record stays
  *    flagged pendingSync=1 and will be retried by syncAllPendingToFirestore.
  */
-export async function saveUserData<T>(
-  docPath: string,
-  data: T,
-  serialize?: (data: T) => unknown
-): Promise<void> {
-  const userId = getUserId();
+export async function saveUserData<T>(docPath: string, data: T): Promise<void> {
+  const userId = getCurrentUserId();
   if (!userId) return;
 
   const record = {
     key: docPath,
     // Firestore rejects undefined values, so they never go into the cache either.
-    data: stripUndefinedDeep(serialize ? serialize(data) : data),
+    data: stripUndefinedDeep(data),
     lastModified: Date.now(),
     pendingSync: 1,
   };
@@ -132,7 +128,7 @@ export async function saveUserData<T>(
  * default value meanwhile rather than the deleted data.
  */
 export async function deleteUserData(docPath: string): Promise<void> {
-  const userId = getUserId();
+  const userId = getCurrentUserId();
   if (!userId) return;
 
   const record = { key: docPath, data: null, lastModified: Date.now(), pendingSync: 1, deleted: 1 };
@@ -157,7 +153,7 @@ export async function loadUserData<T>(
   defaultValue: T,
   deserialize?: (data: unknown) => T
 ): Promise<T> {
-  const userId = getUserId();
+  const userId = getCurrentUserId();
   if (!userId) return defaultValue;
 
   const localRecord = await userDb.userData.get(docPath);
@@ -191,7 +187,7 @@ export async function loadUserData<T>(
  * Call this in the background after an initial cache-first load.
  */
 export async function refreshAllUserDataFromFirestore(): Promise<void> {
-  const userId = getUserId();
+  const userId = getCurrentUserId();
   if (!userId || !navigator.onLine) return;
 
   const allRecords = await userDb.userData.toArray();
@@ -229,7 +225,7 @@ export async function refreshAllUserDataFromFirestore(): Promise<void> {
  * Call this when coming back online. Returns how many changes were synced.
  */
 export async function syncAllPendingToFirestore(): Promise<number> {
-  const userId = getUserId();
+  const userId = getCurrentUserId();
   if (!userId) return 0;
 
   const pending = (await userDb.userData.where('pendingSync').equals(1).toArray()).filter(

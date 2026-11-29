@@ -2,7 +2,6 @@ import { onCall, HttpsError } from 'firebase-functions/https';
 import { getFunctions } from 'firebase-admin/functions';
 import { db } from '../shared/firebase.js';
 import { assertNotKilled } from '../shared/killSwitch.js';
-import { isAdmin } from '../shared/auth.js';
 import { MAX_TEXT_CHARS_USER, reserveUserAudioSlot } from '../shared/userAudio.js';
 import { PROCESS_USER_TEXT_AUDIO_QUEUE } from '../shared/queueNames.js';
 
@@ -19,8 +18,9 @@ export const createUserAudio = onCall<CreateUserAudioRequest, Promise<{ id: stri
 
     const userId = request.auth.uid;
     const { title, text } = request.data;
+    const userIsAdmin = !!request.auth.token.admin;
 
-    if (!request.auth.token.admin) {
+    if (!userIsAdmin) {
       await assertNotKilled('audio');
     }
 
@@ -33,8 +33,6 @@ export const createUserAudio = onCall<CreateUserAudioRequest, Promise<{ id: stri
         `Valid text required (max ${MAX_TEXT_CHARS_USER} chars).`
       );
     }
-
-    const userIsAdmin = await isAdmin(userId);
 
     const audioRef = db.collection('users').doc(userId).collection('audioItems').doc();
     const audioId = audioRef.id;

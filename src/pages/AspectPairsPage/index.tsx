@@ -3,29 +3,28 @@ import { CircularProgress } from '@mui/material';
 import { PracticeModeButton } from '../../components/PracticeModeButton';
 import { SettingsButton } from '../../components/SettingsButton';
 import { AspectPairsFlashcard } from './components/AspectPairsFlashcard';
-import { FinishedState } from '../../components/FinishedState';
 import { ReviewStage } from '../../components/ReviewStage';
 import { EmptyState } from '../../components/EmptyState';
 import { SettingsPanel } from '../../components/SettingsPanel';
-import { SessionStatusLine } from '../../components/SessionStatusLine';
 import { ReviewControlsRow, ReviewMainContent } from '../../components/ReviewLayout';
 import { EditAspectPairsModal } from '../../components/EditAspectPairsModal';
 import type { AspectPairCard } from '../../types/aspectPairs';
 import type { Verb, Aspect, VerbClass } from '../../types/conjugation';
-import {
-  getExtraNewCards,
-  getPracticeAheadCards,
-  getSessionCards,
-} from '../../lib/reviewSession/scheduler';
 import { aspectPairsDeck } from '../../lib/reviewSession/reviewDecks';
-import { recordCardReview } from '../../lib/reviewSession/recordReview';
-import { useAuthContext } from '../../hooks/useAuthContext';
-import { useReviewData } from '../../hooks/useReviewData';
-import { useOptimistic } from '../../hooks/useOptimistic';
-import { useSnackbar } from '../../hooks/useSnackbar';
+import { useAuthContext } from '../../contexts/AuthContext';
+import { useAspectPairs, useConjugation, useReviewDataLoading } from '../../hooks/useReviewData';
+import { useSaveError } from '../../hooks/useSaveError';
 import { useConfirm } from '../../hooks/useConfirm';
-import { useReviewSession } from '../../hooks/useReviewSession';
+import { useDeckReview } from '../../hooks/useDeckReview';
 import { updateVerb } from '../../lib/storage/systemVerbs';
+import { writeBuiltIn } from '../../lib/storage/writeBuiltIn';
+
+interface VerbUpdates {
+  infinitive: string;
+  infinitiveEn: string;
+  aspect: Aspect;
+  verbClass: VerbClass;
+}
 
 const replaceVerbs =
   (...updated: Verb[]) =>
@@ -34,70 +33,25 @@ const replaceVerbs =
 
 export function AspectPairsPage() {
   const { user, isAdmin } = useAuthContext();
-  const { showSnackbar } = useSnackbar();
+  const showSaveError = useSaveError();
   const { confirm, confirmDialog } = useConfirm();
-  const {
-    loading: contextLoading,
-    aspectPairCards,
-    aspectPairsReviewStore: reviewStore,
-    aspectPairsSettings: settings,
-    updateAspectPairsReviewStore,
-    updateAspectPairsSettings,
-    clearAspectPairsData,
-    verbs: contextVerbs,
-    setVerbs: setContextVerbs,
-  } = useReviewData();
+  const loading = useReviewDataLoading();
+  const { progress, cards } = useAspectPairs();
+  const { verbs, setVerbs } = useConjugation();
 
-  const [verbs, applyOptimisticVerbs] = useOptimistic(contextVerbs, {
-    onError: () => showSnackbar('Failed to save. Please try again.', 'error'),
-  });
-
-  const [showSettings, setShowSettings] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
   const [editingCard, setEditingCard] = useState<AspectPairCard | null>(null);
 
-  const session = useReviewSession({
-    cardKey: 'card',
-    getId: (card) => card.verb.id,
+  const review = useDeckReview(progress, 'all', {
+    deck: aspectPairsDeck,
+    items: cards,
+    ready: !loading && cards.length > 0,
     getAudioUrls: (card) => [card.verb.infinitiveAudioUrl, card.pairVerb.infinitiveAudioUrl],
-    ready: !contextLoading && aspectPairCards.length > 0,
-    getSessionCards: () => getSessionCards(aspectPairsDeck, aspectPairCards, reviewStore, settings),
-    getPracticeAheadCards: (count, store) =>
-      getPracticeAheadCards(aspectPairsDeck, aspectPairCards, store, count),
-    getExtraNewCards: (count, store) =>
-      getExtraNewCards(aspectPairsDeck, aspectPairCards, store, count),
-    reviewStore,
-    recordReview: recordCardReview,
-    saveReviewStore: updateAspectPairsReviewStore,
+    confirm,
+    resetMessage:
+      'Are you sure? This will erase all your aspect pairs progress and cannot be undone.',
   });
-  const { practice, history } = session;
-  const { canGoBack, goBack, goForward } = history;
-
-  const handleSettingsChange = async (newCardsPerDay: number) => {
-    const newSettings = { ...settings, newCardsPerDay };
-    await updateAspectPairsSettings(newSettings);
-    session.startSession(
-      getSessionCards(aspectPairsDeck, aspectPairCards, reviewStore, newSettings)
-    );
-  };
-
-  const handleResetAllData = async () => {
-    const confirmed = await confirm({
-      title: 'Reset Progress',
-      message: 'Are you sure? This will erase all your aspect pairs progress and cannot be undone.',
-      confirmLabel: 'Reset',
-    });
-    if (confirmed) {
-      await clearAspectPairsData();
-      session.rebuildSession();
-      setShowSettings(false);
-    }
-  };
-
-  const openEditModal = (card: AspectPairCard) => {
-    setEditingCard(card);
-    setShowEditModal(true);
-  };
+  const { session } = review;
+  const { practice } = session;
 
   const updateVerbsInCards = (updatedVerb1: Verb, updatedVerb2: Verb) => {
     const ids = [updatedVerb1.id, updatedVerb2.id];
@@ -108,20 +62,7 @@ export function AspectPairsPage() {
     );
   };
 
-  const handleSaveCard = (
-    verb1Updates: {
-      infinitive: string;
-      infinitiveEn: string;
-      aspect: Aspect;
-      verbClass: VerbClass;
-    },
-    verb2Updates: {
-      infinitive: string;
-      infinitiveEn: string;
-      aspect: Aspect;
-      verbClass: VerbClass;
-    }
-  ) => {
+  const handleSaveCard = (verb1Updates: VerbUpdates, verb2Updates: VerbUpdates) => {
     if (!editingCard) return;
 
     const verb1 = editingCard.verb;
@@ -131,63 +72,49 @@ export function AspectPairsPage() {
     const updatedVerb1: Verb = { ...verb1, ...verb1Updates };
     const updatedVerb2: Verb = isBiaspectual ? updatedVerb1 : { ...verb2, ...verb2Updates };
 
-    const newVerbs = verbs.map(replaceVerbs(updatedVerb1, updatedVerb2));
-
     updateVerbsInCards(updatedVerb1, updatedVerb2);
-
-    applyOptimisticVerbs(newVerbs, async () => {
-      await updateVerb(verb1.id, verb1Updates);
-      if (!isBiaspectual) {
-        await updateVerb(verb2.id, verb2Updates);
+    return writeBuiltIn(
+      verbs,
+      setVerbs,
+      verbs.map(replaceVerbs(updatedVerb1, updatedVerb2)),
+      async () => {
+        await updateVerb(verb1.id, verb1Updates);
+        if (!isBiaspectual) {
+          await updateVerb(verb2.id, verb2Updates);
+        }
       }
-      setContextVerbs(newVerbs);
-    });
+    );
   };
 
-  const unlinkPair = async (
-    card: AspectPairCard,
-    { skipConfirm = false }: { skipConfirm?: boolean } = {}
-  ): Promise<boolean> => {
+  const removePair = (card: AspectPairCard) => {
     const verb1 = card.verb;
     const verb2 = card.pairVerb;
-
-    if (verb1.id === verb2.id) return false; // Can't unlink biaspectual
-
-    if (
-      !skipConfirm &&
-      !(await confirm({
-        title: 'Unlink Pair',
-        message: 'Are you sure you want to unlink this aspect pair? This will affect all users.',
-        confirmLabel: 'Unlink',
-      }))
-    ) {
-      return false;
-    }
-
-    const updatedVerb1: Verb = { ...verb1, aspectPair: undefined };
-    const updatedVerb2: Verb = { ...verb2, aspectPair: undefined };
-
-    const newVerbs = verbs.map(replaceVerbs(updatedVerb1, updatedVerb2));
 
     session.removeCards(
       (c) =>
         (c.verb.id === verb1.id && c.pairVerb.id === verb2.id) ||
         (c.verb.id === verb2.id && c.pairVerb.id === verb1.id)
     );
-
-    applyOptimisticVerbs(newVerbs, async () => {
+    const unlinked = verbs.map(
+      replaceVerbs({ ...verb1, aspectPair: undefined }, { ...verb2, aspectPair: undefined })
+    );
+    void writeBuiltIn(verbs, setVerbs, unlinked, async () => {
       await updateVerb(verb1.id, { aspectPair: undefined });
       await updateVerb(verb2.id, { aspectPair: undefined });
-      setContextVerbs(newVerbs);
-    });
-    return true;
+    }).catch(showSaveError);
   };
 
-  const handleUnlinkPair = () => {
-    if (!editingCard) return;
-    void unlinkPair(editingCard, { skipConfirm: true });
-    setShowEditModal(false);
-    setEditingCard(null);
+  const unlinkPair = async (card: AspectPairCard): Promise<boolean> => {
+    // A biaspectual verb is its own pair, with no partner to unlink.
+    if (card.verb.id === card.pairVerb.id) return false;
+    const confirmed = await confirm({
+      title: 'Unlink Pair',
+      message: 'Are you sure you want to unlink this aspect pair? This will affect all users.',
+      confirmLabel: 'Unlink',
+    });
+    if (!confirmed) return false;
+    removePair(card);
+    return true;
   };
 
   const handleAudioUpdated = (which: 'verb' | 'pairVerb', audioUrl: string) => {
@@ -202,9 +129,9 @@ export function AspectPairsPage() {
     }
   };
 
-  const isLoading = contextLoading || !session.isBuilt;
+  const isLoading = loading || !session.isBuilt;
 
-  if (!contextLoading && aspectPairCards.length === 0) {
+  if (!loading && cards.length === 0) {
     return (
       <ReviewMainContent>
         <EmptyState message="No aspect pairs available. Verbs need aspectPair data to drill." />
@@ -217,23 +144,21 @@ export function AspectPairsPage() {
       <ReviewControlsRow direction="row" alignItems="center">
         <PracticeModeButton
           active={practice.active}
-          onClick={() => practice.toggle(aspectPairCards)}
+          onClick={session.togglePractice}
           disabled={isLoading}
         />
 
         <SettingsButton
-          active={showSettings}
-          onClick={() => setShowSettings(!showSettings)}
+          active={review.showSettings}
+          onClick={review.toggleSettings}
           disabled={isLoading}
         />
       </ReviewControlsRow>
 
-      {showSettings && !practice.active && (
+      {review.showSettings && !practice.active && (
         <SettingsPanel
-          newCardsPerDay={settings.newCardsPerDay}
+          {...review.settingsPanel}
           user={user}
-          onSettingsChange={handleSettingsChange}
-          onResetAllData={handleResetAllData}
           resetButtonLabel="Reset Aspect Pairs Progress"
         />
       )}
@@ -242,70 +167,40 @@ export function AspectPairsPage() {
         {isLoading ? (
           <CircularProgress sx={{ color: 'text.disabled' }} />
         ) : (
-          <>
-            <SessionStatusLine session={session} unitLabel="pairs" />
-
-            <ReviewStage
-              session={session}
-              practiceEmptyMessage="No aspect pairs available"
-              renderPractice={(card) => (
-                <AspectPairsFlashcard
-                  key={`practice-${card.verb.id}-${practice.index}`}
-                  card={card}
-                  practiceMode
-                  canEdit={isAdmin}
-                  onNext={practice.next}
-                  onEdit={() => openEditModal(card)}
-                  onUnlink={() => void unlinkPair(card)}
-                />
-              )}
-              renderHistory={(card) => (
-                <AspectPairsFlashcard
-                  key={`history-${card.verb.id}`}
-                  card={card}
-                  isViewingHistory
-                  canGoBack={canGoBack}
-                  canEdit={isAdmin}
-                  reassessIntervals={session.reassessIntervals}
-                  onGoBack={goBack}
-                  onContinue={goForward}
-                  onReassess={session.reassess}
-                  onEdit={() => openEditModal(card)}
-                  onUnlink={async () => {
-                    if (await unlinkPair(card)) goForward();
-                  }}
-                />
-              )}
-              renderFinished={() => (
-                <FinishedState currentFeature="aspectPairs" {...session.finishedStateProps} />
-              )}
-              renderCurrent={({ card }) => (
-                <AspectPairsFlashcard
-                  key={`${card.verb.id}-${session.ratingCounter}`}
-                  card={card}
-                  intervals={session.intervals}
-                  remainingCount={session.totalRemaining}
-                  canGoBack={canGoBack}
-                  canEdit={isAdmin}
-                  onRate={session.rate}
-                  onGoBack={goBack}
-                  onEdit={() => openEditModal(card)}
-                  onUnlink={() => void unlinkPair(card)}
-                />
-              )}
-            />
-          </>
+          <ReviewStage
+            session={session}
+            feature="aspectPairs"
+            unitLabel="pairs"
+            practiceEmptyMessage="No aspect pairs available"
+            renderCard={(card, controls) => (
+              <AspectPairsFlashcard
+                {...controls}
+                card={card}
+                canEdit={isAdmin}
+                onEdit={() => setEditingCard(card)}
+                onUnlink={async () => {
+                  if (await unlinkPair(card)) controls.onContinue?.();
+                }}
+              />
+            )}
+          />
         )}
       </ReviewMainContent>
 
       <EditAspectPairsModal
-        open={showEditModal}
-        onClose={() => {
-          setShowEditModal(false);
-          setEditingCard(null);
-        }}
+        open={editingCard !== null}
+        onClose={() => setEditingCard(null)}
         onSave={handleSaveCard}
-        onUnlink={isAdmin ? handleUnlinkPair : undefined}
+        onUnlink={
+          isAdmin
+            ? () => {
+                if (!editingCard) return;
+                // The modal offers unlinking only for a pair of two verbs.
+                removePair(editingCard);
+                setEditingCard(null);
+              }
+            : undefined
+        }
         card={editingCard}
         onVerb1AudioUpdated={(audioUrl) => handleAudioUpdated('verb', audioUrl)}
         onVerb2AudioUpdated={(audioUrl) => handleAudioUpdated('pairVerb', audioUrl)}

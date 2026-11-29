@@ -7,7 +7,6 @@ import { HidePolishButton } from '../../../components/HidePolishButton';
 import { HiddenPolishPlaceholder } from '../../../components/HiddenPolishPlaceholder';
 import type { DeclensionCard } from '../../../types';
 import { renderTappableText } from '../../../lib/renderTappableText';
-import { useTranslationContext } from '../../../hooks/useTranslationContext';
 import { useAudioPlayer } from '../../../hooks/useAudioPlayer';
 import { useAppSettings } from '../../../contexts/AppSettingsContext';
 import { FlashcardMetaChip, FlashcardHint } from '../../../components/flashcardStyles';
@@ -54,7 +53,6 @@ export function DeclensionFlashcard({
   ...shellProps
 }: DeclensionFlashcardProps) {
   const [revealed, setRevealed] = useState(isViewingHistory);
-  const { handleDailyLimitReached } = useTranslationContext();
   const { settings } = useAppSettings();
   const hidePolish = settings.hidePolishText;
 
@@ -71,11 +69,10 @@ export function DeclensionFlashcard({
     () => ({
       translations: card.translations,
       declensionCardId,
-      onDailyLimitReached: handleDailyLimitReached,
       onUpdateTranslation,
       sentenceContext: card.back,
     }),
-    [handleDailyLimitReached, card.back, card.translations, declensionCardId, onUpdateTranslation]
+    [card.back, card.translations, declensionCardId, onUpdateTranslation]
   );
 
   const header = card.isCustom ? <CustomLabel>Custom</CustomLabel> : undefined;

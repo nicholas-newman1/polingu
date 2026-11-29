@@ -1,10 +1,9 @@
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { Box, Tabs, Tab } from '@mui/material';
 import { styled } from '../../lib/styled';
-import { useReviewData } from '../../hooks/useReviewData';
-import { useSnackbar } from '../../hooks/useSnackbar';
-import { useAuthContext } from '../../hooks/useAuthContext';
+import { useSentences } from '../../hooks/useReviewData';
+import { useAuthContext } from '../../contexts/AuthContext';
 import type { CEFRLevel } from '../../types/sentences';
 import { GenerateTab } from './GenerateTab';
 import { BrowseTab } from './BrowseTab';
@@ -19,23 +18,17 @@ const PageContainer = styled(Box)(() => ({
 
 export function SentenceGeneratorPage() {
   const { isAdmin } = useAuthContext();
-  const { sentences, setSentences, setCustomSentences, sentenceTags, addSentenceTag } =
-    useReviewData();
-  const { showSnackbar } = useSnackbar();
+  const { sentences } = useSentences();
 
   const [tabIndex, setTabIndex] = useState(0);
   const [pendingGenerate, setPendingGenerate] = useState<{ level: CEFRLevel; tag: string } | null>(
     null
   );
 
-  const handleTabChange = useCallback((_: React.SyntheticEvent, value: number) => {
-    setTabIndex(value);
-  }, []);
-
-  const handleGenerateFromSuggestion = useCallback((level: CEFRLevel, tag: string) => {
+  const handleGenerateFromSuggestion = (level: CEFRLevel, tag: string) => {
     setPendingGenerate({ level, tag });
     setTabIndex(0);
-  }, []);
+  };
 
   if (!isAdmin) {
     return <Navigate to="/dashboard" replace />;
@@ -45,7 +38,7 @@ export function SentenceGeneratorPage() {
     <PageContainer>
       <Tabs
         value={tabIndex}
-        onChange={handleTabChange}
+        onChange={(_, value: number) => setTabIndex(value)}
         sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}
       >
         <Tab label="Generate" />
@@ -54,54 +47,20 @@ export function SentenceGeneratorPage() {
         <Tab label="Add Custom" />
       </Tabs>
 
-      {tabIndex === 0 && (
-        <Box sx={{ pt: 3 }}>
+      <Box sx={{ pt: 3 }}>
+        {tabIndex === 0 && (
           <GenerateTab
             key={pendingGenerate ? `${pendingGenerate.level}-${pendingGenerate.tag}` : 'default'}
             initialLevel={pendingGenerate?.level}
             initialTag={pendingGenerate?.tag}
-            sentences={sentences}
-            setSentences={setSentences}
-            sentenceTags={sentenceTags}
-            addSentenceTag={addSentenceTag}
-            showSnackbar={showSnackbar}
           />
-        </Box>
-      )}
-
-      {tabIndex === 1 && (
-        <Box sx={{ pt: 3 }}>
-          <BrowseTab
-            sentences={sentences}
-            setSentences={setSentences}
-            setCustomSentences={setCustomSentences}
-            sentenceTags={sentenceTags}
-            showSnackbar={showSnackbar}
-          />
-        </Box>
-      )}
-
-      {tabIndex === 2 && (
-        <Box sx={{ pt: 3 }}>
-          <CurriculumTab
-            sentenceTags={sentenceTags}
-            addSentenceTag={addSentenceTag}
-            showSnackbar={showSnackbar}
-            onGenerateFromSuggestion={handleGenerateFromSuggestion}
-          />
-        </Box>
-      )}
-
-      {tabIndex === 3 && (
-        <Box sx={{ pt: 3 }}>
-          <AddCustomTab
-            sentences={sentences}
-            setSentences={setSentences}
-            sentenceTags={sentenceTags}
-            showSnackbar={showSnackbar}
-          />
-        </Box>
-      )}
+        )}
+        {tabIndex === 1 && <BrowseTab />}
+        {tabIndex === 2 && (
+          <CurriculumTab onGenerateFromSuggestion={handleGenerateFromSuggestion} />
+        )}
+        {tabIndex === 3 && <AddCustomTab />}
+      </Box>
     </PageContainer>
   );
 }

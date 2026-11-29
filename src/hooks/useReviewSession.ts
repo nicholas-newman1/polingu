@@ -1,8 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Rating, type Card as FSRSCard, type Grade } from 'ts-fsrs';
+import { Rating, type Grade } from 'ts-fsrs';
 import rateCard from '../lib/fsrsUtils/rateCard';
 import type { SessionCards } from '../lib/reviewSession/sessionQueue';
-import type { ReviewOutcome } from '../lib/reviewSession/recordReview';
+import { recordCardReview } from '../lib/reviewSession/recordReview';
+import {
+  getExtraNewCards,
+  getPracticeAheadCards,
+  getSessionCards,
+  itemsMatching,
+  type ReviewDeck,
+} from '../lib/reviewSession/scheduler';
+import type { CardReviewData, ReviewDataStore, SessionId } from '../types/common';
 import type { RatingIntervals } from '../components/RatingButtons';
 import { useCardHistory } from './useCardHistory';
 import { usePracticeDeck } from './usePracticeDeck';
@@ -93,57 +101,50 @@ function useDeferredReviewSave<Store>(
   return { scheduleSave, flush };
 }
 
-interface ReviewableSessionCard {
-  reviewData: { fsrsCard: FSRSCard };
+export interface ReviewableSessionCard {
+  reviewData: CardReviewData;
   isNew: boolean;
 }
 
 export interface UseReviewSessionOptions<
   S extends ReviewableSessionCard,
-  K extends keyof S & string,
-  Id,
-  Store,
+  K extends keyof S,
+  Id extends SessionId,
+  Filters,
 > {
-  /** Property of the session card holding the card itself (e.g. `'word'`). */
-  cardKey: K;
-  getId: (card: S[K]) => Id;
-  getAudioUrls: (card: S[K]) => Array<string | null | undefined>;
-
+  deck: ReviewDeck<S[K], S['reviewData'], Id, S, Filters, K>;
+  /** The deck's items, which the session, its extra rounds and the practice deck draw on. */
+  items: readonly S[K][];
+  store: ReviewDataStore<S['reviewData'], Id>;
+  settings: { newCardsPerDay: number };
+  /** The learner's filters, for a deck that has them. */
+  filters?: Filters;
+  save: (store: ReviewDataStore<S['reviewData'], Id>) => Promise<void>;
+  getAudioUrls: (item: S[K]) => Array<string | null | undefined>;
   /** The session is built once this is true, and rebuilt whenever `sessionKey` changes. */
   ready: boolean;
   sessionKey?: string;
-  getSessionCards: () => SessionCards<S>;
-  /** Picks from `store`, which includes ratings not yet saved back to the parent. */
-  getPracticeAheadCards: (count: number, store: Store) => S[];
-  /** Picks from `store`, which includes ratings not yet saved back to the parent. */
-  getExtraNewCards: (count: number, store: Store) => S[];
-
-  reviewStore: Store;
-  recordReview: (
-    store: Store,
-    id: Id,
-    reviewData: S['reviewData'],
-    outcome: ReviewOutcome
-  ) => Store;
-  saveReviewStore: (store: Store) => Promise<void>;
 }
 
 export function useReviewSession<
   S extends ReviewableSessionCard,
-  K extends keyof S & string,
-  Id,
-  Store,
->(options: UseReviewSessionOptions<S, K, Id, Store>) {
+  K extends keyof S,
+  Id extends SessionId,
+  Filters,
+>(options: UseReviewSessionOptions<S, K, Id, Filters>) {
+  type Item = S[K];
   const {
-    cardKey,
-    getId,
+    deck,
+    items,
+    store: reviewStore,
+    settings,
+    filters,
+    save,
     getAudioUrls,
     ready,
     sessionKey = '',
-    reviewStore,
-    recordReview,
-    saveReviewStore,
   } = options;
+  const itemOf = (card: S): Item => card[deck.cardKey];
 
   const latestOptions = useRef(options);
   useEffect(() => {
@@ -151,11 +152,11 @@ export function useReviewSession<
   });
 
   const queue = useSessionQueue<S>();
-  const practice = usePracticeDeck<S[K]>();
-  const history = useCardHistory<S[K], S['reviewData']>();
+  const practice = usePracticeDeck<Item>();
+  const history = useCardHistory<Item, S['reviewData']>();
   const { scheduleSave, flush: flushPendingSave } = useDeferredReviewSave(
     reviewStore,
-    saveReviewStore,
+    save,
     sessionKey
   );
   const { start } = queue;
@@ -179,34 +180,52 @@ export function useReviewSession<
     const buildKey = `${sessionKey}:${rebuildRequest}`;
     if (!ready || builtForRef.current === buildKey) return;
     builtForRef.current = buildKey;
-    queueMicrotask(() => startSession(latestOptions.current.getSessionCards()));
+    queueMicrotask(() => {
+      const latest = latestOptions.current;
+      startSession(
+        getSessionCards(latest.deck, latest.items, latest.store, latest.settings, latest.filters)
+      );
+    });
   }, [ready, sessionKey, rebuildRequest, startSession]);
 
-  /** Rebuilds from `getSessionCards` after the next render, so it sees freshly saved data. */
-  const rebuildSession = useCallback(() => {
+  /**
+   * Starts the session over now, saving buffered ratings first so it leaves those cards
+   * out. Pass filters the caller has just changed, which this render's options lack.
+   */
+  const restart = (nextFilters = filters) =>
+    startSession(getSessionCards(deck, items, flushPendingSave(), settings, nextFilters));
+
+  /** Starts the session over after the next render, so it sees data the caller has just changed. */
+  const restartAfterRender = () => {
     flushPendingSave();
     setRebuildRequest((n) => n + 1);
-  }, [flushPendingSave]);
+  };
 
   const startPracticeAhead = () => {
     const store = flushPendingSave();
     start(
-      { reviewCards: options.getPracticeAheadCards(practiceAheadCount, store), newCards: [] },
+      {
+        reviewCards: getPracticeAheadCards(deck, items, store, practiceAheadCount, filters),
+        newCards: [],
+      },
       { isPracticeAhead: true }
     );
   };
 
   const startExtraNewCards = () => {
     const store = flushPendingSave();
-    start({ reviewCards: [], newCards: options.getExtraNewCards(extraNewCardsCount, store) });
+    start({
+      reviewCards: [],
+      newCards: getExtraNewCards(deck, items, store, extraNewCardsCount, filters),
+    });
   };
 
   const { currentCard } = queue;
 
   const rate = (rating: Grade) => {
     if (!currentCard) return;
-    const card = currentCard[cardKey];
-    const cardId = getId(card);
+    const card = itemOf(currentCard);
+    const cardId = deck.idOf(card);
     const isNew = currentCard.isNew;
     addToHistory(card, currentCard.reviewData);
 
@@ -215,7 +234,7 @@ export function useReviewSession<
     queue.rate(reviewData, rating);
 
     scheduleSave((baseStore) =>
-      recordReview(baseStore, cardId, reviewData, {
+      recordCardReview(baseStore, cardId, reviewData, {
         isNew,
         completed: !again,
       })
@@ -225,14 +244,14 @@ export function useReviewSession<
   const reassess = (rating: Grade) => {
     if (!historyCard || !historyMeta) return;
     const reviewData = rateCard(historyMeta, rating);
-    const id = getId(historyCard);
+    const id = deck.idOf(historyCard);
     const again = rating === Rating.Again;
-    queue.reassess((item) => getId(item[cardKey]) === id, reviewData, again);
+    queue.reassess((item) => deck.idOf(itemOf(item)) === id, reviewData, again);
     goForward();
     // The queue now holds the card for a retry (Again) or has let it go, so
     // today's reviewed list has to say the same.
     scheduleSave((baseStore) =>
-      recordReview(baseStore, id, reviewData, {
+      recordCardReview(baseStore, id, reviewData, {
         isNew: false,
         completed: !again,
         requeued: again,
@@ -241,16 +260,16 @@ export function useReviewSession<
   };
 
   /** Applies an edit to the card wherever it appears: session, practice deck and history. */
-  const updateCards = (predicate: (card: S[K]) => boolean, updater: (card: S[K]) => S[K]) => {
+  const updateCards = (predicate: (card: Item) => boolean, updater: (card: Item) => Item) => {
     queue.update((item) =>
-      predicate(item[cardKey]) ? ({ ...item, [cardKey]: updater(item[cardKey]) } as S) : item
+      predicate(itemOf(item)) ? ({ ...item, [deck.cardKey]: updater(itemOf(item)) } as S) : item
     );
     practice.update(predicate, updater);
     updateInHistory(predicate, updater);
   };
 
-  const removeCards = (predicate: (card: S[K]) => boolean) => {
-    queue.remove((item) => predicate(item[cardKey]));
+  const removeCards = (predicate: (card: Item) => boolean) => {
+    queue.remove((item) => predicate(itemOf(item)));
     practice.remove(predicate);
   };
 
@@ -259,11 +278,13 @@ export function useReviewSession<
 
   const upcomingCards = practice.active
     ? practice.upcoming(UPCOMING_PREFETCH_COUNT)
-    : queue.upcoming(UPCOMING_PREFETCH_COUNT).map((item) => item[cardKey]);
+    : queue.upcoming(UPCOMING_PREFETCH_COUNT).map(itemOf);
   usePrefetchAudio(upcomingCards.flatMap(getAudioUrls));
 
   return {
+    idOf: deck.idOf,
     currentCard,
+    currentItem: currentCard && itemOf(currentCard),
     isFinished: queue.isFinished,
     isBuilt: queue.isBuilt,
     totalRemaining: queue.totalRemaining,
@@ -272,8 +293,8 @@ export function useReviewSession<
     newCount: queue.newCount,
     isPracticeAhead: queue.isPracticeAhead,
     ratingCounter: queue.ratingCounter,
-    startSession,
-    rebuildSession,
+    restart,
+    restartAfterRender,
     rate,
     reassess,
     intervals,
@@ -281,6 +302,8 @@ export function useReviewSession<
     updateCards,
     removeCards,
     practice,
+    /** Enters practice mode with the items that pass the filters, or leaves it. */
+    togglePractice: () => practice.toggle(itemsMatching(deck, items, filters)),
     history,
     finishedStateProps: {
       sessionStats: queue.stats,

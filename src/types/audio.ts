@@ -38,13 +38,6 @@ export interface SystemAudioItem {
   createdAt: number;
 }
 
-export interface AudioUploadProgress {
-  status: 'uploading' | 'processing' | 'ready' | 'error';
-  uploadPercent?: number;
-  error?: string;
-  audioId?: string;
-}
-
 export interface AudioQueue {
   currentTrackId: string | null;
   userQueue: string[];

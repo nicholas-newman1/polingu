@@ -11,7 +11,7 @@ import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { styled } from '../../../lib/styled';
 import { TranslatableWord } from '../../../components/TranslatableWord';
 import { TranslatableText } from '../../../components/TranslatableText';
-import { useTranslatableTextActions } from '../../../hooks/useTranslatableTextActions';
+import { useTranslatableTextActions } from '../../../contexts/TranslatableTextContext';
 import { PageProgressBar } from './PageProgressBar';
 import { ReaderNavigationBar } from './ReaderNavigationBar';
 
@@ -68,7 +68,6 @@ interface TextItem {
 
 interface WordPosition {
   word: string;
-  displayWord: string;
   left: number;
   top: number;
   width: number;
@@ -91,17 +90,10 @@ interface PdfWordBoxProps {
   pageKey: number;
 }
 
-const pdfNoopSubscribe = () => () => {};
-const pdfReturnFalse = () => false;
-
 function PdfWordBox({ item, index, pageKey }: PdfWordBoxProps) {
-  const actions = useTranslatableTextActions();
-  const subscribe = actions?.subscribeSelection ?? pdfNoopSubscribe;
-  const getSnapshot = useCallback(
-    () => (actions ? actions.isIndexSelected(index) : false),
-    [actions, index]
-  );
-  const isSelected = useSyncExternalStore(subscribe, getSnapshot, pdfReturnFalse);
+  const { subscribeSelection, isIndexSelected } = useTranslatableTextActions();
+  const getSnapshot = useCallback(() => isIndexSelected(index), [isIndexSelected, index]);
+  const isSelected = useSyncExternalStore(subscribeSelection, getSnapshot);
 
   return (
     <Box
@@ -296,7 +288,6 @@ export function PdfViewer({
         const combinedWord = hyphenatedPairs.get(i);
         wordPositions.push({
           word: combinedWord || raw.word,
-          displayWord: raw.word,
           left: raw.left,
           top: raw.top,
           width: raw.width,

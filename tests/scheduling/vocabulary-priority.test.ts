@@ -8,7 +8,7 @@ import type {
 } from '../../src/types/vocabulary';
 import { stubs } from '../helpers/stub';
 import { freezeTime, NOW } from './fixtures';
-import { vocabularyStorage } from '../../src/lib/storage/reviewDeckStorage';
+import { emptyReviewStore } from '../../src/lib/storage/reviewDeckStorage';
 import { getExtraNewCards, getSessionCards } from '../../src/lib/reviewSession/scheduler';
 import { vocabularyDeck } from '../../src/lib/reviewSession/reviewDecks';
 
@@ -33,19 +33,14 @@ const prioritized = (store: VocabularyReviewDataStore, wordId: number, at: numbe
 
 describe('words asked to be studied next', () => {
   test('without any, custom words come first, then built-in words in deck order', () => {
-    const { newCards } = getSessionCards(
-      vocabularyDeck,
-      words,
-      vocabularyStorage['pl-to-en'].emptyStore(),
-      {
-        newCardsPerDay: 4,
-      }
-    );
+    const { newCards } = getSessionCards(vocabularyDeck, words, emptyReviewStore(), {
+      newCardsPerDay: 4,
+    });
     expect(ids(newCards)).toEqual(['custom_a', 'custom_b', 1, 2]);
   });
 
   test('are introduced before every other new word, most recent request first', () => {
-    let store = vocabularyStorage['pl-to-en'].emptyStore();
+    let store: VocabularyReviewDataStore = emptyReviewStore();
     store = prioritized(store, 5, NOW.getTime() - 1000);
     store = prioritized(store, 4, NOW.getTime());
 
@@ -54,14 +49,14 @@ describe('words asked to be studied next', () => {
   });
 
   test('still count toward the daily new-word limit', () => {
-    const store = prioritizeNewVocabularyWord(vocabularyStorage['pl-to-en'].emptyStore(), 5, NOW);
+    const store = prioritizeNewVocabularyWord(emptyReviewStore(), 5, NOW);
 
     const { newCards } = getSessionCards(vocabularyDeck, words, store, { newCardsPerDay: 1 });
     expect(ids(newCards)).toEqual([5]);
   });
 
   test('are also first when learning extra words', () => {
-    const store = prioritizeNewVocabularyWord(vocabularyStorage['pl-to-en'].emptyStore(), 3, NOW);
+    const store = prioritizeNewVocabularyWord(emptyReviewStore(), 3, NOW);
 
     expect(ids(getExtraNewCards(vocabularyDeck, words, store, 2))).toEqual([3, 'custom_a']);
   });

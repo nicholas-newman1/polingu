@@ -16,7 +16,7 @@ import {
   updateSystemAudio,
   updateUserAudio,
 } from '../../lib/audio';
-import { useSnackbar } from '../../hooks/useSnackbar';
+import { useSnackbar } from '../../contexts/SnackbarContext';
 import type { MergedItem } from './types';
 
 const MAX_USER_TEXT_CHARS = 2000;

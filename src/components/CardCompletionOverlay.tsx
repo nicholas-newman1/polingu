@@ -137,14 +137,11 @@ function OutcomeIcon({ outcome }: { outcome: CardCompletionOutcome }) {
 }
 
 interface CardCompletionOverlayProps {
-  outcome: CardCompletionOutcome | null;
+  outcome: CardCompletionOutcome;
 }
 
 export function CardCompletionOverlay({ outcome }: CardCompletionOverlayProps) {
   const theme = useTheme();
-
-  if (!outcome) return null;
-
   const colors = getOutcomeColors(theme, outcome);
   const sparks = SPARKS_BY_OUTCOME[outcome];
   const primaryColor = colors[0];

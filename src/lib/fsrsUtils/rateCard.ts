@@ -1,4 +1,4 @@
-import type { Card as FSRSCard, RecordLogItem, Grade } from 'ts-fsrs';
+import type { Card as FSRSCard, Grade } from 'ts-fsrs';
 import f from './fsrsInstance';
 
 export default function rateCard<T extends { fsrsCard: FSRSCard }>(
@@ -6,11 +6,5 @@ export default function rateCard<T extends { fsrsCard: FSRSCard }>(
   rating: Grade,
   now: Date = new Date()
 ): T {
-  const result = f.repeat(reviewData.fsrsCard, now);
-  const item: RecordLogItem = result[rating];
-  return {
-    ...reviewData,
-    fsrsCard: item.card,
-    log: item.log,
-  };
+  return { ...reviewData, fsrsCard: f.repeat(reviewData.fsrsCard, now)[rating].card };
 }

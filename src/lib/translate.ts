@@ -15,7 +15,7 @@ interface TranslateRequest extends TranslationOptions {
   targetLang: 'EN' | 'PL';
 }
 
-interface TranslateResponse {
+export interface TranslationResult {
   translatedText: string;
   charsUsedToday: number;
   resetTime: string;
@@ -64,12 +64,6 @@ export function handleTooltipTranslationError(err: unknown, handlers: TooltipErr
   }
 }
 
-export interface TranslationResult {
-  translatedText: string;
-  charsUsedToday: number;
-  resetTime: string;
-}
-
 /**
  * The key word and phrase translations are cached under. Must match cleanTextForCacheKey
  * in functions/src/shared/rateLimits.ts, which stores translations on sentences and
@@ -110,7 +104,7 @@ function fitContext(context: string | undefined, text: string): string | undefin
   return context.slice(start, start + MAX_CONTEXT_LENGTH);
 }
 
-const translateFn = httpsCallable<TranslateRequest, TranslateResponse>(functions, 'translate');
+const translateFn = httpsCallable<TranslateRequest, TranslationResult>(functions, 'translate');
 
 export async function translate(
   text: string,
@@ -147,10 +141,6 @@ export async function translate(
     }
 
     if (firebaseError.code === 'functions/resource-exhausted') {
-      if (firebaseError.message?.startsWith('RATE_LIMIT_DAILY:')) {
-        const resetTime = firebaseError.message.substring('RATE_LIMIT_DAILY:'.length);
-        throw new RateLimitDailyError(resetTime);
-      }
       throw new RateLimitMinuteError();
     }
 

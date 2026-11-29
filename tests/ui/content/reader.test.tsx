@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
-import { renderApp, setupUiTests, uploads, LEARNER } from './support/app';
+import { callables, renderApp, setupUiTests, uploads, LEARNER } from './support/app';
 import { book, seedBooks, seedReadingProgress, userPath } from './support/data';
 import { remote } from './support/firestore';
 import { intersect } from './support/browser';
@@ -34,6 +34,25 @@ async function leaveReader(title: string) {
   const header = screen.getByRole('heading', { name: title, level: 6 }).parentElement!;
   fireEvent.click(within(header).getAllByRole('button')[0]);
   await screen.findByText('My Library');
+}
+
+/** The translate function refuses every word: today's translations are used up. */
+function useUpTranslations() {
+  // Resets in 2 hours 30 minutes (and a few seconds, so the minutes are stable).
+  const resetTime = new Date(Date.now() + 150 * 60_000 + 10_000).toISOString();
+  callables.set('translate', () => {
+    throw Object.assign(new Error(`RATE_LIMIT_DAILY:${resetTime}`), {
+      code: 'functions/resource-exhausted',
+    });
+  });
+}
+
+async function expectLimitDialog() {
+  const dialog = await screen.findByRole('dialog', {
+    name: "You've hit your translation limit for the day",
+  });
+  expect(dialog).toHaveTextContent('Your limit will reset in 2 hours 30 minutes');
+  expect(screen.queryByRole('tooltip')).toBeNull();
 }
 
 describe('Reading a text book', () => {
@@ -181,6 +200,12 @@ describe('Reading a text book', () => {
     expect(localStorage.getItem('polingu_transcriptFontSize')).toBe('small');
     expect(control('Smaller text')).toBeDisabled();
     expect(control('Larger text')).toBeEnabled();
+  });
+
+  test('tapping a word once the day’s translations are used up says when they reset', async () => {
+    useUpTranslations();
+    fireEvent.click(await openBook());
+    await expectLimitDialog();
   });
 
   test('a book opened once can be read again offline', async () => {
@@ -388,6 +413,14 @@ describe('Reading a PDF', () => {
     }
     // A word hyphenated across two lines is offered whole on both halves.
     expect(screen.getAllByText('niedojrzały.')).toHaveLength(2);
+  });
+
+  test('tapping a word once the day’s translations are used up says when they reset', async () => {
+    pdfFile.text[1] = ['Mama zawsze mówiła'];
+    useUpTranslations();
+    await openPdf();
+    fireEvent.click(await screen.findByText('Mama'));
+    await expectLimitDialog();
   });
 
   test('a PDF that cannot be opened shows an error', async () => {

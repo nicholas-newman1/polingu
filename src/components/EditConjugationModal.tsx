@@ -15,20 +15,14 @@ import { styled } from '../lib/styled';
 import { ModalDialog, ModalHeader, ModalContent } from './modalStyles';
 import { ModalFooter } from './ModalFooter';
 import { FormTextField, FormYesNoField, VerbDetailsFields } from './FormFields';
-import { useEditModalClose } from '../hooks/useEditModalClose';
-import { useOptimisticModalSave, type ModalSaveResult } from '../hooks/useOptimisticModalSave';
-import { useAuthContext } from '../hooks/useAuthContext';
+import { VERB_FIELD_NAMES } from './verbFieldNames';
+import { useEditModal } from '../hooks/useEditModal';
+import { type ModalSaveResult } from '../hooks/useOptimisticModalSave';
+import { useAuthContext } from '../contexts/AuthContext';
 import { useConfirm } from '../hooks/useConfirm';
 import { AudioRegenerator } from './AudioRegenerator';
 import type { DrillableForm, ConjugationForm, Aspect, VerbClass } from '../types/conjugation';
 import { TENSE_LABELS } from '../types/conjugation';
-
-const VERB_FIELD_NAMES = {
-  infinitive: 'infinitive',
-  infinitiveEn: 'infinitiveEn',
-  aspect: 'aspect',
-  verbClass: 'verbClass',
-} as const;
 
 const SectionLabel = styled(Typography)(({ theme }) => ({
   fontWeight: 500,
@@ -113,14 +107,13 @@ export function EditConjugationModal({
 
   const plText = useWatch({ control, name: 'pl' });
 
-  const { pendingAudioUrl, handleClose, handleAudioSaved } = useEditModalClose({
+  const { handleClose, handleAudioSaved, save } = useEditModal({
     open,
     onClose,
-    resetForm: () => reset(getDefaultValues(null)),
+    onSave,
     onAudioUpdated,
+    reset: () => reset(getDefaultValues(null)),
   });
-
-  const save = useOptimisticModalSave({ onSave, onClose: handleClose });
 
   const onSubmit = (data: FormData) => {
     const verbUpdates = {
@@ -201,8 +194,8 @@ export function EditConjugationModal({
               text={plText}
               type="conjugation"
               id={form.verb.id}
-              subPath={`${form.verb.id}_${form.tense}_${form.formKey}`}
-              currentAudioUrl={pendingAudioUrl || form.form.audioUrl}
+              conjugationForm={{ tense: form.tense, formKey: form.formKey }}
+              currentAudioUrl={form.form.audioUrl}
               onAudioSaved={handleAudioSaved}
               label="Form Audio"
             />

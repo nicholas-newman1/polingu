@@ -6,6 +6,7 @@ import GraphicEqIcon from '@mui/icons-material/GraphicEq';
 import { styled } from '../lib/styled';
 import { alpha } from '../lib/theme';
 import { generateAudioPreview, saveAudio, type AudioType } from '../lib/audioGeneration';
+import type { Tense } from '../types/conjugation';
 
 const AudioSection = styled(Box)(({ theme }) => ({
   display: 'flex',
@@ -26,14 +27,24 @@ const CurrentAudioSection = styled(Box)(({ theme }) => ({
   backgroundColor: alpha(theme.palette.text.primary, 0.04),
 }));
 
+/** Which of a verb's forms `conjugation` audio is for; the verb is the `id`. */
+interface ConjugationFormRef {
+  tense: Tense;
+  formKey: string;
+}
+
 interface AudioRegenerationOptions {
   text: string;
   type: AudioType;
   id: string;
-  subPath?: string;
+  conjugationForm?: ConjugationFormRef;
   currentAudioUrl?: string;
   onAudioSaved: (audioUrl: string) => void;
 }
+
+/** Must match conjugationSubPath in functions/src/shared/audioTypes.ts. */
+const conjugationSubPath = (verbId: string, { tense, formKey }: ConjugationFormRef) =>
+  `${verbId}_${tense}_${formKey}`;
 
 function stopAudio(ref: React.MutableRefObject<HTMLAudioElement | null>) {
   ref.current?.pause();
@@ -44,10 +55,11 @@ function useAudioRegeneration({
   text,
   type,
   id,
-  subPath,
+  conjugationForm,
   currentAudioUrl,
   onAudioSaved,
 }: AudioRegenerationOptions) {
+  const subPath = conjugationForm && conjugationSubPath(id, conjugationForm);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isPlayingCurrent, setIsPlayingCurrent] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -130,8 +142,8 @@ interface AudioRegeneratorProps {
   type: AudioType;
   /** The ID for storage (e.g., sentence ID, card ID) */
   id: string;
-  /** Optional sub-path for conjugation forms */
-  subPath?: string;
+  /** For conjugation audio, the form of verb `id` it is for */
+  conjugationForm?: ConjugationFormRef;
   /** Current audio URL (if any) */
   currentAudioUrl?: string;
   /** Callback when audio is saved */
@@ -144,7 +156,7 @@ export function AudioRegenerator({
   text,
   type,
   id,
-  subPath,
+  conjugationForm,
   currentAudioUrl,
   onAudioSaved,
   label = 'Audio',
@@ -153,7 +165,7 @@ export function AudioRegenerator({
     text,
     type,
     id,
-    subPath,
+    conjugationForm,
     currentAudioUrl,
     onAudioSaved,
   });
@@ -217,7 +229,7 @@ export function InlineAudioRegenerator({
   text,
   type,
   id,
-  subPath,
+  conjugationForm,
   currentAudioUrl,
   onAudioSaved,
 }: InlineAudioRegeneratorProps) {
@@ -225,7 +237,7 @@ export function InlineAudioRegenerator({
     text,
     type,
     id,
-    subPath,
+    conjugationForm,
     currentAudioUrl,
     onAudioSaved,
   });

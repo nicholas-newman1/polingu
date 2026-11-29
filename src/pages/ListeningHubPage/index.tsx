@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Alert,
@@ -14,9 +14,14 @@ import {
 } from '@mui/material';
 import HeadphonesIcon from '@mui/icons-material/Headphones';
 import { styled } from '../../lib/styled';
-import { useReviewData } from '../../hooks/useReviewData';
+import {
+  useDeclension,
+  useReviewDataLoading,
+  useSentences,
+  useVocabulary,
+} from '../../hooks/useReviewData';
 import { useListening } from '../../contexts/ListeningContext';
-import { useAuthContext } from '../../hooks/useAuthContext';
+import { useUserDoc } from '../../hooks/useUserDoc';
 import { ListeningSettingsPanel } from '../../components/ListeningSettingsPanel';
 import { ToggleLevelChip } from '../../components/LevelChip';
 import type { TranslationDirection } from '../../types/common';
@@ -25,7 +30,6 @@ import type {
   ListeningHubSelections,
   ListeningOrdering,
 } from '../../types/listening';
-import { DEFAULT_LISTENING_HUB_SELECTIONS } from '../../types/listening';
 import type { CEFRLevel } from '../../types/sentences';
 import { ALL_LEVELS } from '../../types/sentences';
 import {
@@ -33,8 +37,7 @@ import {
   buildVocabularyListeningQueue,
   buildDeclensionListeningQueue,
 } from '../../lib/listeningScheduler';
-import { loadListeningHubSelections } from '../../lib/storage/loadListeningHubSelections';
-import saveListeningHubSelections from '../../lib/storage/saveListeningHubSelections';
+import { listeningHubSelectionsDoc } from '../../lib/storage/userDocs';
 import { alpha } from '../../lib/theme';
 
 const PageContainer = styled(Box)(({ theme }) => ({
@@ -86,54 +89,33 @@ const FEATURE_LABELS: Record<ListeningFeature, string> = {
 
 export function ListeningHubPage() {
   const navigate = useNavigate();
+  const loading = useReviewDataLoading();
   const {
-    loading,
     sentences,
-    sentenceReviewStores,
-    vocabularyWords,
-    vocabularyReviewStores,
-    declensionCards,
-    declensionReviewStore,
-  } = useReviewData();
+    progress: { stores: sentenceReviewStores },
+  } = useSentences();
+  const {
+    words: vocabularyWords,
+    progress: { stores: vocabularyReviewStores },
+  } = useVocabulary();
+  const {
+    cards: declensionCards,
+    progress: {
+      stores: { all: declensionReviewStore },
+    },
+  } = useDeclension();
 
   const { settings, settingsLoading, updateSettings, start } = useListening();
-  const { user } = useAuthContext();
-
-  const [hubSelections, setHubSelections] = useState<ListeningHubSelections>(
-    DEFAULT_LISTENING_HUB_SELECTIONS
-  );
-  const [hubSelectionsLoaded, setHubSelectionsLoaded] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    if (user) {
-      loadListeningHubSelections().then((loaded) => {
-        if (!cancelled) {
-          setHubSelections(loaded);
-          setHubSelectionsLoaded(true);
-        }
-      });
-    } else {
-      queueMicrotask(() => {
-        if (!cancelled) {
-          setHubSelections(DEFAULT_LISTENING_HUB_SELECTIONS);
-          setHubSelectionsLoaded(true);
-        }
-      });
-    }
-    return () => {
-      cancelled = true;
-    };
-  }, [user]);
+  const {
+    value: hubSelections,
+    loading: hubSelectionsLoading,
+    update: saveHubSelections,
+  } = useUserDoc(listeningHubSelectionsDoc);
 
   const { feature, direction, selectedLevels } = hubSelections;
 
   const persistSelections = (updates: Partial<ListeningHubSelections>) => {
-    setHubSelections((prev) => {
-      const next = { ...prev, ...updates };
-      void saveListeningHubSelections(next);
-      return next;
-    });
+    void saveHubSelections({ ...hubSelections, ...updates });
   };
 
   const toggleLevel = (level: CEFRLevel) => {
@@ -155,32 +137,32 @@ export function ListeningHubPage() {
     persistSelections({ direction: e.target.value as TranslationDirection });
   };
 
-  const previewCount = useMemo(() => {
-    if (loading || settingsLoading || !hubSelectionsLoaded) return 0;
+  const queue = useMemo(() => {
+    if (loading || settingsLoading || hubSelectionsLoading) return [];
     if (feature === 'sentences') {
       return buildSentenceListeningQueue({
         sentences,
         reviewStore: sentenceReviewStores[direction],
         ordering: settings.ordering,
         levels: selectedLevels,
-      }).length;
+      });
     }
     if (feature === 'vocabulary') {
       return buildVocabularyListeningQueue({
         words: vocabularyWords,
         reviewStore: vocabularyReviewStores[direction],
         ordering: settings.ordering,
-      }).length;
+      });
     }
     return buildDeclensionListeningQueue({
       cards: declensionCards,
       reviewStore: declensionReviewStore,
       ordering: settings.ordering,
-    }).length;
+    });
   }, [
     loading,
     settingsLoading,
-    hubSelectionsLoaded,
+    hubSelectionsLoading,
     feature,
     direction,
     selectedLevels,
@@ -193,39 +175,15 @@ export function ListeningHubPage() {
     declensionReviewStore,
   ]);
 
+  const previewCount = queue.length;
+
   const handleStart = () => {
-    if (previewCount === 0) return;
-    let queue;
-    let subtitle = '';
-    if (feature === 'sentences') {
-      queue = buildSentenceListeningQueue({
-        sentences,
-        reviewStore: sentenceReviewStores[direction],
-        ordering: settings.ordering,
-        levels: selectedLevels,
-      });
-      subtitle = `${ORDERING_LABELS[settings.ordering]}`;
-    } else if (feature === 'vocabulary') {
-      queue = buildVocabularyListeningQueue({
-        words: vocabularyWords,
-        reviewStore: vocabularyReviewStores[direction],
-        ordering: settings.ordering,
-      });
-      subtitle = `${ORDERING_LABELS[settings.ordering]}`;
-    } else {
-      queue = buildDeclensionListeningQueue({
-        cards: declensionCards,
-        reviewStore: declensionReviewStore,
-        ordering: settings.ordering,
-      });
-      subtitle = `${ORDERING_LABELS[settings.ordering]}`;
-    }
     if (queue.length === 0) return;
     start(queue, {
       meta: {
         feature,
         title: FEATURE_LABELS[feature],
-        subtitle,
+        subtitle: ORDERING_LABELS[settings.ordering],
       },
     });
     navigate('/listen/play');
@@ -334,7 +292,7 @@ export function ListeningHubPage() {
         }}
       />
 
-      {previewCount === 0 && !loading && !settingsLoading && hubSelectionsLoaded ? (
+      {previewCount === 0 && !loading && !settingsLoading && !hubSelectionsLoading ? (
         <Alert severity="info" data-qa="empty-preview">
           No cards with audio match the current selection.
         </Alert>
@@ -348,7 +306,7 @@ export function ListeningHubPage() {
         variant="contained"
         fullWidth
         onClick={handleStart}
-        disabled={loading || settingsLoading || !hubSelectionsLoaded || previewCount === 0}
+        disabled={loading || settingsLoading || hubSelectionsLoading || previewCount === 0}
         data-qa="start-listening"
       >
         Start listening

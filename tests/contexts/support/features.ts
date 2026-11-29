@@ -23,7 +23,7 @@ import type {
   AspectPairsReviewDataStore,
   AspectPairsSettings,
 } from '../../../src/types/aspectPairs';
-import type { ReviewDataContextType } from '../../../src/hooks/useReviewData';
+import type { ReviewData } from '../../hooks/support/reviewDataProviders';
 import { recordCardReview } from '../../../src/lib/reviewSession/recordReview';
 import {
   aspectPairsStorage,
@@ -44,7 +44,7 @@ import {
   withWordRated,
 } from './fixtures';
 
-type Data = ReviewDataContextType;
+type Data = ReviewData;
 type Direction = TranslationDirection;
 export type CardsByDirection = Partial<Record<Direction, Record<string, Card>>>;
 
@@ -103,15 +103,15 @@ export const vocabulary = define<VocabularyReviewDataStore, VocabularyDirectionS
   settingsDoc: (d) => `vocabularySettings-${suffix(d)}`,
   newList: 'newCardsToday',
   initial: (cards) => ({ vocabulary: { initialReviewStores: both(vocabularyStore, cards) } }),
-  shownStore: (data, d) => data.vocabularyReviewStores[d],
+  shownStore: (data, d) => data.vocabulary.progress.stores[d],
   cardIds: (store) => Object.keys(store.cards).sort(),
   newIds: (store) => store.newCardsToday.map(String),
   rate: withWordRated,
   without: (store, id) => ({ ...store, cards: omit(store.cards, id) }),
-  update: (data, d, store) => data.updateVocabularyReviewStore(d, store),
-  clear: (data, d) => data.clearVocabularyReviewData(d),
-  shownSettings: (data, d) => data.vocabularySettings[d],
-  updateSettings: (data, d, settings) => data.updateVocabularySettings(d, settings),
+  update: (data, d, store) => data.vocabulary.progress.updateStore(d, store),
+  clear: (data, d) => data.vocabulary.progress.clear(d),
+  shownSettings: (data, d) => data.vocabulary.progress.settings[d],
+  updateSettings: (data, d, settings) => data.vocabulary.progress.updateSettings(d, settings),
   changedSettings: { newCardsPerDay: 25 },
   loadSettings: (d) => loadDeckSettings(vocabularyStorage[d]),
 });
@@ -125,16 +125,16 @@ export const sentences = define<SentenceReviewDataStore, SentenceDirectionSettin
   settingsDoc: (d) => `sentenceSettings-${suffix(d)}`,
   newList: 'newCardsToday',
   initial: (cards) => ({ sentences: { initialReviewStores: both(sentenceStore, cards) } }),
-  shownStore: (data, d) => data.sentenceReviewStores[d],
+  shownStore: (data, d) => data.sentences.progress.stores[d],
   cardIds: (store) => Object.keys(store.cards).sort(),
   newIds: (store) => store.newCardsToday,
   rate: (store, id) =>
     recordCardReview(store, id, { sentenceId: id, fsrsCard: ratedNow() }, NEW_AND_DONE),
   without: (store, id) => ({ ...store, cards: omit(store.cards, id) }),
-  update: (data, d, store) => data.updateSentenceReviewStore(d, store),
-  clear: (data, d) => data.clearSentenceReviewData(d),
-  shownSettings: (data, d) => data.sentenceSettings[d],
-  updateSettings: (data, d, settings) => data.updateSentenceSettings(d, settings),
+  update: (data, d, store) => data.sentences.progress.updateStore(d, store),
+  clear: (data, d) => data.sentences.progress.clear(d),
+  shownSettings: (data, d) => data.sentences.progress.settings[d],
+  updateSettings: (data, d, settings) => data.sentences.progress.updateSettings(d, settings),
   changedSettings: { newCardsPerDay: 25, selectedLevels: ['B1'] },
   loadSettings: (d) => loadDeckSettings(sentenceStorage[d]),
 });
@@ -148,16 +148,16 @@ export const conjugation = define<ConjugationReviewDataStore, ConjugationDirecti
   settingsDoc: (d) => `conjugationSettings-${suffix(d)}`,
   newList: 'newFormsToday',
   initial: (cards) => ({ conjugation: { initialReviewStores: both(conjugationStore, cards) } }),
-  shownStore: (data, d) => data.conjugationReviewStores[d],
+  shownStore: (data, d) => data.conjugation.progress.stores[d],
   cardIds: (store) => Object.keys(store.cards).sort(),
   newIds: (store) => store.newCardsToday,
   rate: (store, id) =>
     recordCardReview(store, id, { formKey: id, fsrsCard: ratedNow() }, NEW_AND_DONE),
   without: (store, id) => ({ ...store, cards: omit(store.cards, id) }),
-  update: (data, d, store) => data.updateConjugationReviewStore(d, store),
-  clear: (data, d) => data.clearConjugationReviewData(d),
-  shownSettings: (data, d) => data.conjugationSettings[d],
-  updateSettings: (data, d, settings) => data.updateConjugationSettings(d, settings),
+  update: (data, d, store) => data.conjugation.progress.updateStore(d, store),
+  clear: (data, d) => data.conjugation.progress.clear(d),
+  shownSettings: (data, d) => data.conjugation.progress.settings[d],
+  updateSettings: (data, d, settings) => data.conjugation.progress.updateSettings(d, settings),
   changedSettings: { newCardsPerDay: 25 },
   loadSettings: (d) => loadDeckSettings(conjugationStorage[d]),
 });
@@ -173,16 +173,16 @@ export const declension = define<DeclensionReviewDataStore, DeclensionSettings>(
   initial: (cards) => ({
     declension: { initialReviewStore: declensionStore(cards['pl-to-en']) },
   }),
-  shownStore: (data) => data.declensionReviewStore,
+  shownStore: (data) => data.declension.progress.stores.all,
   cardIds: (store) => Object.keys(store.cards).sort(),
   newIds: (store) => store.newCardsToday.map(String),
   rate: (store, id) =>
     recordCardReview(store, id, { cardId: id, fsrsCard: ratedNow() }, NEW_AND_DONE),
   without: (store, id) => ({ ...store, cards: omit(store.cards, id) }),
-  update: (data, _d, store) => data.updateDeclensionReviewStore(store),
-  clear: (data) => data.clearDeclensionData(),
-  shownSettings: (data) => data.declensionSettings,
-  updateSettings: (data, _d, settings) => data.updateDeclensionSettings(settings),
+  update: (data, _d, store) => data.declension.progress.updateStore('all', store),
+  clear: (data) => data.declension.progress.clear('all'),
+  shownSettings: (data) => data.declension.progress.settings.all,
+  updateSettings: (data, _d, settings) => data.declension.progress.updateSettings('all', settings),
   changedSettings: { newCardsPerDay: 25 },
   loadSettings: () => loadDeckSettings(declensionStorage.all),
 });
@@ -198,16 +198,16 @@ export const aspectPairs = define<AspectPairsReviewDataStore, AspectPairsSetting
   initial: (cards) => ({
     aspectPairs: { initialReviewStore: aspectPairsStore(cards['pl-to-en']) },
   }),
-  shownStore: (data) => data.aspectPairsReviewStore,
+  shownStore: (data) => data.aspectPairs.progress.stores.all,
   cardIds: (store) => Object.keys(store.cards).sort(),
   newIds: (store) => store.newCardsToday,
   rate: (store, id) =>
     recordCardReview(store, id, { verbId: id, fsrsCard: ratedNow() }, NEW_AND_DONE),
   without: (store, id) => ({ ...store, cards: omit(store.cards, id) }),
-  update: (data, _d, store) => data.updateAspectPairsReviewStore(store),
-  clear: (data) => data.clearAspectPairsData(),
-  shownSettings: (data) => data.aspectPairsSettings,
-  updateSettings: (data, _d, settings) => data.updateAspectPairsSettings(settings),
+  update: (data, _d, store) => data.aspectPairs.progress.updateStore('all', store),
+  clear: (data) => data.aspectPairs.progress.clear('all'),
+  shownSettings: (data) => data.aspectPairs.progress.settings.all,
+  updateSettings: (data, _d, settings) => data.aspectPairs.progress.updateSettings('all', settings),
   changedSettings: { newCardsPerDay: 25 },
   loadSettings: () => loadDeckSettings(aspectPairsStorage.all),
 });

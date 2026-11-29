@@ -12,7 +12,7 @@ import { userDb, type CustomCardCollection, type CustomCardRecord } from '../off
 import { markSyncedIfUnchanged, removeIfUnchanged } from '../offlineDb/pendingWrites';
 import { stripUndefined, undefinedToDeleteField } from './firestoreUtils';
 import type { CustomItemBase } from '../../types/customItems';
-import { getUserId } from './helpers';
+import { getCurrentUserId } from '../cachedAuth';
 
 /**
  * Per-card subcollection storage.
@@ -25,7 +25,6 @@ import { getUserId } from './helpers';
  *   - load():                 Fast cache read from IndexedDB.
  *   - subscribe(cb):          Firestore onSnapshot listener; updates IndexedDB and invokes cb on every snapshot.
  *   - add/update/delete:      Single-card writes; optimistically update IndexedDB, then sync to Firestore.
- *   - save(items):            Compat shim — diffs items[] against current cache and issues per-card ops.
  *
  * Writes made offline stay flagged pendingSync=1 and are replayed by
  * syncPendingCustomCards, which runs with the other pending-data syncs. A write the
@@ -37,7 +36,6 @@ export interface CollectionStorage<T extends CustomItemBase> {
   add(item: T): Promise<void>;
   update(id: string, updates: Partial<T>): Promise<void>;
   delete(id: string): Promise<void>;
-  save(items: T[]): Promise<void>;
 }
 
 function compoundKey(collectionName: CustomCardCollection, cardId: string): string {
@@ -110,7 +108,7 @@ async function restoreIfUnchanged(
  * Returns how many changes reached the server.
  */
 export async function syncPendingCustomCards(): Promise<number> {
-  const userId = getUserId();
+  const userId = getCurrentUserId();
   if (!userId || !navigator.onLine) return 0;
 
   const rows = await userDb.customCards.where('pendingSync').equals(1).toArray();
@@ -140,15 +138,17 @@ async function removeCacheItem(
   await userDb.customCards.delete(compoundKey(collectionName, cardId));
 }
 
+/** `normalize` is applied to every item as it is written, here and on the server. */
 export function createCustomCollectionStorage<T extends CustomItemBase>(
-  collectionName: CustomCardCollection
+  collectionName: CustomCardCollection,
+  normalize: (item: T) => T = (item) => item
 ): CollectionStorage<T> {
   async function load(): Promise<T[]> {
     return readCachedItems<T>(collectionName);
   }
 
   function subscribe(onChange: (items: T[]) => void): Unsubscribe {
-    const userId = getUserId();
+    const userId = getCurrentUserId();
     if (!userId) {
       return () => {};
     }
@@ -200,11 +200,11 @@ export function createCustomCollectionStorage<T extends CustomItemBase>(
   }
 
   async function add(item: T): Promise<void> {
-    const cleaned = stripUndefined(item);
+    const cleaned = stripUndefined(normalize(item));
     const previous = await userDb.customCards.get(compoundKey(collectionName, item.id));
     const record = await writeCacheItem(collectionName, cleaned, 1);
 
-    const userId = getUserId();
+    const userId = getCurrentUserId();
     if (!userId || !navigator.onLine) return;
 
     try {
@@ -222,16 +222,20 @@ export function createCustomCollectionStorage<T extends CustomItemBase>(
   async function update(id: string, updates: Partial<T>): Promise<void> {
     const existing = await userDb.customCards.get(compoundKey(collectionName, id));
     if (!existing) return;
-    const merged = { ...(existing.data as T), ...updates } as T;
+    const merged = normalize({ ...(existing.data as T), ...updates });
     const cleaned = stripUndefined(merged);
     const record = await writeCacheItem(collectionName, cleaned, 1);
 
-    const userId = getUserId();
+    const userId = getCurrentUserId();
     if (!userId || !navigator.onLine) return;
 
+    // Only the given fields go to the server, normalized as they were cached.
+    const changes = Object.fromEntries(
+      Object.keys(updates).map((key) => [key, merged[key as keyof T]])
+    );
     try {
       const ref = doc(db, 'users', userId, collectionName, id);
-      await updateDoc(ref, undefinedToDeleteField(updates as Record<string, unknown>));
+      await updateDoc(ref, undefinedToDeleteField(changes));
       await markSyncedIfUnchanged(userDb.customCards, record.compoundKey, record);
     } catch (e) {
       console.error(`Failed to update ${collectionName}/${id}:`, e);
@@ -241,7 +245,7 @@ export function createCustomCollectionStorage<T extends CustomItemBase>(
   }
 
   async function remove(id: string): Promise<void> {
-    const userId = getUserId();
+    const userId = getCurrentUserId();
     if (!userId) {
       await removeCacheItem(collectionName, id);
       return;
@@ -263,36 +267,5 @@ export function createCustomCollectionStorage<T extends CustomItemBase>(
     }
   }
 
-  async function save(items: T[]): Promise<void> {
-    const existing = await readCachedItems<T>(collectionName);
-    const existingById = new Map(existing.map((i) => [i.id, i]));
-    const nextById = new Map(items.map((i) => [i.id, i]));
-
-    const ops: Array<Promise<void>> = [];
-
-    for (const item of items) {
-      const prev = existingById.get(item.id);
-      if (!prev) {
-        ops.push(add(item));
-      } else if (JSON.stringify(prev) !== JSON.stringify(stripUndefined(item))) {
-        // Fields the edit dropped are sent as undefined so they are removed.
-        const removed = Object.fromEntries(
-          Object.keys(prev)
-            .filter((key) => !(key in item))
-            .map((key) => [key, undefined])
-        );
-        ops.push(update(item.id, { ...removed, ...item }));
-      }
-    }
-
-    for (const prev of existing) {
-      if (!nextById.has(prev.id)) {
-        ops.push(remove(prev.id));
-      }
-    }
-
-    await Promise.all(ops);
-  }
-
-  return { load, subscribe, add, update, delete: remove, save };
+  return { load, subscribe, add, update, delete: remove };
 }

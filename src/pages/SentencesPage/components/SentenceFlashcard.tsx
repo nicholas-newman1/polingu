@@ -17,7 +17,6 @@ interface SentenceFlashcardProps extends ReviewFlashcardProps {
   direction: TranslationDirection;
   canEdit?: boolean;
   onDelete?: () => void;
-  onDailyLimitReached?: (resetTime: string) => void;
   onUpdateTranslation?: (word: string, translation: string) => void;
 }
 
@@ -62,7 +61,6 @@ export function SentenceFlashcard({
   isViewingHistory = false,
   canEdit = false,
   onDelete,
-  onDailyLimitReached,
   onUpdateTranslation,
   ...shellProps
 }: SentenceFlashcardProps) {
@@ -85,11 +83,10 @@ export function SentenceFlashcard({
     () => ({
       translations: sentence.translations,
       sentenceId: sentence.id,
-      onDailyLimitReached,
       onUpdateTranslation,
       sentenceContext: sentence.polish,
     }),
-    [sentence.translations, sentence.id, sentence.polish, onDailyLimitReached, onUpdateTranslation]
+    [sentence.translations, sentence.id, sentence.polish, onUpdateTranslation]
   );
 
   const questionContent =

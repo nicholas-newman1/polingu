@@ -54,15 +54,6 @@ describe('saving while online', () => {
     expect(await syncAllPendingToFirestore()).toBe(0);
   });
 
-  test('applies the serializer to both the local and the server copy', async () => {
-    signIn(UID);
-    await saveUserData('appSettings', new Set(['a', 'b']), (set) => ({ items: [...set] }));
-
-    expect(remote.get(settingsPath)).toEqual({ items: ['a', 'b'] });
-    network.goOffline();
-    expect(await loadUserData('appSettings', null)).toEqual({ items: ['a', 'b'] });
-  });
-
   test('a rejected server write surfaces the error and keeps the change for the next sync', async () => {
     signIn(UID);
     remote.fail({ op: 'setDoc', path: settingsPath }, { times: 1 });

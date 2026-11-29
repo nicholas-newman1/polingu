@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, type RefObject } from 'react';
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import { cacheAudioBlob, getAudioDownloadUrl, getCachedAudioBlob } from '../../lib/audio';
+import { createObjectUrlLru } from '../../lib/audio/objectUrlLru';
 
 const MAX_BLOB_URL_ENTRIES = 20;
 
@@ -9,45 +10,20 @@ const MAX_BLOB_URL_ENTRIES = 20;
  * Blob URLs are LRU-evicted, except the one currently playing (`activeUrlRef`).
  */
 export function useAudioUrlResolver(activeUrlRef: RefObject<string | null>) {
-  const blobUrlCacheRef = useRef<Map<string, string>>(new Map());
+  const [blobUrls] = useState(() => createObjectUrlLru(MAX_BLOB_URL_ENTRIES));
   const signedUrlCacheRef = useRef<Map<string, string>>(new Map());
 
-  const rememberBlobUrl = useCallback(
-    (audioId: string, url: string) => {
-      const cache = blobUrlCacheRef.current;
-      cache.delete(audioId);
-      cache.set(audioId, url);
-      while (cache.size > MAX_BLOB_URL_ENTRIES) {
-        const oldestKey = cache.keys().next().value;
-        if (!oldestKey) return;
-        const oldUrl = cache.get(oldestKey);
-        cache.delete(oldestKey);
-        if (oldUrl && oldUrl !== activeUrlRef.current) URL.revokeObjectURL(oldUrl);
-      }
-    },
-    [activeUrlRef]
-  );
-
-  useEffect(() => {
-    const cache = blobUrlCacheRef.current;
-    return () => {
-      for (const url of cache.values()) URL.revokeObjectURL(url);
-      cache.clear();
-    };
-  }, []);
+  useEffect(() => () => blobUrls.clear(), [blobUrls]);
 
   return useCallback(
     async (audioId: string, storagePath: string): Promise<string> => {
-      const existingBlobUrl = blobUrlCacheRef.current.get(audioId);
-      if (existingBlobUrl) {
-        rememberBlobUrl(audioId, existingBlobUrl);
-        return existingBlobUrl;
-      }
+      const existingBlobUrl = blobUrls.get(audioId);
+      if (existingBlobUrl) return existingBlobUrl;
 
       const cachedBlob = await getCachedAudioBlob(audioId);
       if (cachedBlob) {
         const blobUrl = URL.createObjectURL(cachedBlob);
-        rememberBlobUrl(audioId, blobUrl);
+        blobUrls.set(audioId, blobUrl, activeUrlRef.current);
         return blobUrl;
       }
 
@@ -62,6 +38,6 @@ export function useAudioUrlResolver(activeUrlRef: RefObject<string | null>) {
 
       return signedUrl;
     },
-    [rememberBlobUrl]
+    [blobUrls, activeUrlRef]
   );
 }

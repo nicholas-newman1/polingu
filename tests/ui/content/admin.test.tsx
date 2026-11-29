@@ -132,6 +132,25 @@ describe('Built-in content editor', () => {
     expect(within(listRow('kot')).getByText(/tomcat/)).toBeInTheDocument();
   });
 
+  test('a built-in word’s regenerated audio plays from the list without being saved twice', async () => {
+    callables.set('generateAudioPreview', () => ({ audioBase64: 'AAAA' }));
+    callables.set('saveAudio', () => ({ audioUrl: 'https://audio.test/kot.mp3' }));
+    await openContent();
+    await screen.findByText('kot');
+    expect(within(listRow('kot')).queryByTestId('VolumeUpIcon')).toBeNull();
+    fireEvent.click(screen.getByText('kot'));
+    const dialog = await findDialog('Edit Word');
+    fireEvent.click(await within(dialog).findByRole('button', { name: 'Generate Audio' }));
+
+    await waitForDialogsToClose();
+    expect(await within(listRow('kot')).findByTestId('VolumeUpIcon')).toBeInTheDocument();
+    expect(callables.callsTo('saveAudio')).toEqual([
+      { audioBase64: 'AAAA', type: 'vocabulary', id: '1' },
+    ]);
+    // saveAudio already stored the URL on the word.
+    expect(remote.callsTo('updateDoc', 'setDoc')).not.toContain('updateDoc vocabulary/1');
+  });
+
   test('deleting a built-in word asks first and removes it', async () => {
     await openContent();
     await screen.findByText('kot');

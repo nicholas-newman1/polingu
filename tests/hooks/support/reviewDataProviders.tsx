@@ -1,7 +1,7 @@
 /**
  * Renders a hook inside the real review-data providers (Declension, Vocabulary, Sentence,
- * Conjugation, AspectPairs, ReviewCounts), seeded the way ReviewDataProvider seeds them
- * once loading finishes. Only the loading itself (IndexedDB, Firestore) is skipped.
+ * Conjugation, AspectPairs, and the loading flag), seeded the way ReviewDataProvider seeds
+ * them once loading finishes. Only the loading itself (IndexedDB, Firestore) is skipped.
  *
  * The providers open live custom-collection listeners for a signed-in user, so a test
  * file using this must mock those storage modules (the listeners are the boundary):
@@ -25,7 +25,16 @@ import { VocabularyProvider } from '../../../src/contexts/review/VocabularyConte
 import { SentenceProvider } from '../../../src/contexts/review/SentenceContext';
 import { ConjugationProvider } from '../../../src/contexts/review/ConjugationContext';
 import { AspectPairsProvider } from '../../../src/contexts/review/AspectPairsContext';
-import { ReviewCountsProvider } from '../../../src/contexts/review/ReviewCountsContext';
+import { ReviewDataLoadingContext } from '../../../src/contexts/review/ReviewDataLoadingContext';
+import { SnackbarProvider } from '../../../src/contexts/SnackbarContext';
+import {
+  useAspectPairs,
+  useConjugation,
+  useDeclension,
+  useReviewDataLoading,
+  useSentences,
+  useVocabulary,
+} from '../../../src/hooks/useReviewData';
 import { subscribeCustomVocabulary } from '../../../src/lib/storage/customVocabulary';
 import { subscribeCustomDeclension } from '../../../src/lib/storage/customDeclension';
 import { subscribeCustomSentences } from '../../../src/lib/storage/customSentences';
@@ -35,7 +44,12 @@ import type {
   DeclensionReviewDataStore,
   DeclensionSettings,
 } from '../../../src/types';
-import type { TranslationDirection } from '../../../src/types/common';
+import type {
+  CardReviewData,
+  ReviewDataStore,
+  SessionId,
+  TranslationDirection,
+} from '../../../src/types/common';
 import type {
   CustomVocabularyWord,
   VocabularyReviewDataStore,
@@ -59,13 +73,23 @@ import type {
 } from '../../../src/types/aspectPairs';
 import { signInFakeUser, signOutFakeUser } from '../../fakes/firebase';
 import { withAuth } from './providers';
-import {
-  conjugationStorage,
-  sentenceStorage,
-  vocabularyStorage,
-} from '../../../src/lib/storage/reviewDeckStorage';
+import { emptyReviewStore } from '../../../src/lib/storage/reviewDeckStorage';
 
 type ByDirection<T> = Partial<Record<TranslationDirection, T>>;
+
+/** Every review context at once, with the loading flag, for tests that read across decks. */
+export function useAllReviewData() {
+  return {
+    loading: useReviewDataLoading(),
+    declension: useDeclension(),
+    vocabulary: useVocabulary(),
+    sentences: useSentences(),
+    conjugation: useConjugation(),
+    aspectPairs: useAspectPairs(),
+  };
+}
+
+export type ReviewData = ReturnType<typeof useAllReviewData>;
 
 /** What ReviewDataProvider would have loaded. Anything left out gets the provider's default. */
 export interface ReviewDataSeed {
@@ -89,25 +113,21 @@ export interface ReviewDataSeed {
   loading?: boolean;
 }
 
-const bothDirections = <T,>(given: ByDirection<T> | undefined, fallback: () => T) =>
+const bothDirections = <R extends CardReviewData, Id extends SessionId>(
+  given: ByDirection<ReviewDataStore<R, Id>> | undefined
+) =>
   given && {
-    'pl-to-en': given['pl-to-en'] ?? fallback(),
-    'en-to-pl': given['en-to-pl'] ?? fallback(),
+    'pl-to-en': given['pl-to-en'] ?? emptyReviewStore<R, Id>(),
+    'en-to-pl': given['en-to-pl'] ?? emptyReviewStore<R, Id>(),
   };
 
 /** Provider props for a seed, built once so their identity is stable across renders. */
 function toProviderProps(seed: ReviewDataSeed) {
   return {
     ...seed,
-    vocabularyStores: bothDirections(
-      seed.vocabularyStores,
-      vocabularyStorage['pl-to-en'].emptyStore
-    ),
-    sentenceStores: bothDirections(seed.sentenceStores, sentenceStorage['pl-to-en'].emptyStore),
-    conjugationStores: bothDirections(
-      seed.conjugationStores,
-      conjugationStorage['pl-to-en'].emptyStore
-    ),
+    vocabularyStores: bothDirections(seed.vocabularyStores),
+    sentenceStores: bothDirections(seed.sentenceStores),
+    conjugationStores: bothDirections(seed.conjugationStores),
   };
 }
 
@@ -152,50 +172,52 @@ export function renderWithReviewData<T>(
   let mountKey = 0;
 
   const wrapper = ({ children }: { children: ReactNode }) => (
-    <auth.wrapper>
-      <DeclensionProvider
-        initialSystemCards={props.systemDeclensionCards}
-        initialCustomCards={props.customDeclensionCards}
-        initialReviewStore={props.declensionStore}
-        initialSettings={props.declensionSettings}
-      >
-        <VocabularyProvider
-          initialSystemWords={props.systemWords}
-          initialCustomWords={props.customWords}
-          initialReviewStores={props.vocabularyStores}
-          initialSettings={props.vocabularySettings}
+    <SnackbarProvider>
+      <auth.wrapper>
+        <DeclensionProvider
+          initialSystemCards={props.systemDeclensionCards}
+          initialCustomCards={props.customDeclensionCards}
+          initialReviewStore={props.declensionStore}
+          initialSettings={props.declensionSettings}
         >
-          <SentenceProvider
-            initialSystemSentences={props.systemSentences}
-            initialCustomSentences={props.customSentences}
-            initialReviewStores={props.sentenceStores}
-            initialSettings={props.sentenceSettings}
+          <VocabularyProvider
+            initialSystemWords={props.systemWords}
+            initialCustomWords={props.customWords}
+            initialReviewStores={props.vocabularyStores}
+            initialSettings={props.vocabularySettings}
           >
-            <ConjugationProvider
-              initialVerbs={props.verbs}
-              initialReviewStores={props.conjugationStores}
-              initialSettings={props.conjugationSettings}
+            <SentenceProvider
+              initialSystemSentences={props.systemSentences}
+              initialCustomSentences={props.customSentences}
+              initialReviewStores={props.sentenceStores}
+              initialSettings={props.sentenceSettings}
             >
-              <AspectPairsProvider
-                verbs={props.verbs}
-                initialReviewStore={props.aspectPairsStore}
-                initialSettings={props.aspectPairsSettings}
+              <ConjugationProvider
+                initialVerbs={props.verbs}
+                initialReviewStores={props.conjugationStores}
+                initialSettings={props.conjugationSettings}
               >
-                <ReviewCountsProvider loading={props.loading ?? false}>
-                  {Inner ? (
-                    <Inner>
+                <AspectPairsProvider
+                  verbs={props.verbs}
+                  initialReviewStore={props.aspectPairsStore}
+                  initialSettings={props.aspectPairsSettings}
+                >
+                  <ReviewDataLoadingContext.Provider value={props.loading ?? false}>
+                    {Inner ? (
+                      <Inner>
+                        <Fragment key={mountKey}>{children}</Fragment>
+                      </Inner>
+                    ) : (
                       <Fragment key={mountKey}>{children}</Fragment>
-                    </Inner>
-                  ) : (
-                    <Fragment key={mountKey}>{children}</Fragment>
-                  )}
-                </ReviewCountsProvider>
-              </AspectPairsProvider>
-            </ConjugationProvider>
-          </SentenceProvider>
-        </VocabularyProvider>
-      </DeclensionProvider>
-    </auth.wrapper>
+                    )}
+                  </ReviewDataLoadingContext.Provider>
+                </AspectPairsProvider>
+              </ConjugationProvider>
+            </SentenceProvider>
+          </VocabularyProvider>
+        </DeclensionProvider>
+      </auth.wrapper>
+    </SnackbarProvider>
   );
 
   const hook = renderHook(useHook, { wrapper });

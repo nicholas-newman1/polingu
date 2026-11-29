@@ -1,14 +1,10 @@
-import { useState, useMemo, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useMemo } from 'react';
 import { CircularProgress } from '@mui/material';
 import { ConjugationFlashcard } from './components/ConjugationFlashcard';
-import { ConjugationModeSelector } from './components/ConjugationModeSelector';
 import { ConjugationFilterControls } from './components/ConjugationFilterControls';
-import { FinishedState } from '../../components/FinishedState';
 import { EmptyState } from '../../components/EmptyState';
 import { ReviewStage } from '../../components/ReviewStage';
 import { SettingsPanel } from '../../components/SettingsPanel';
-import { SessionStatusLine } from '../../components/SessionStatusLine';
 import { ReviewMainContent } from '../../components/ReviewLayout';
 import { EditConjugationModal } from '../../components/EditConjugationModal';
 import type {
@@ -20,146 +16,61 @@ import type {
   VerbClass,
 } from '../../types/conjugation';
 import type { TranslationDirection } from '../../types/common';
-import {
-  getExtraNewCards,
-  getPracticeAheadCards,
-  getSessionCards,
-} from '../../lib/reviewSession/scheduler';
+import { itemsMatching } from '../../lib/reviewSession/scheduler';
 import { conjugationDeck } from '../../lib/reviewSession/reviewDecks';
-import { recordCardReview } from '../../lib/reviewSession/recordReview';
-import { DIRECTION_ROUTES, otherDirection, toModeStats } from '../../lib/reviewSession/directions';
-import { useAuthContext } from '../../hooks/useAuthContext';
-import { useReviewData } from '../../hooks/useReviewData';
-import { useProgressStats } from '../../hooks/useProgressStats';
+import { useAuthContext } from '../../contexts/AuthContext';
+import { useConjugation, useReviewDataLoading } from '../../hooks/useReviewData';
 import {
   getDrillableFormsForVerb,
-  matchesFilters,
-  getDefaultFilters,
   getAmbiguousEnglishPromptKeys,
 } from '../../lib/conjugationUtils';
 import { useUserFilters } from '../../contexts/UserFiltersContext';
 import { updateVerb, deleteVerb } from '../../lib/storage/systemVerbs';
-import { useOptimistic } from '../../hooks/useOptimistic';
-import { useSnackbar } from '../../hooks/useSnackbar';
+import { writeBuiltIn } from '../../lib/storage/writeBuiltIn';
+import { useSaveError } from '../../hooks/useSaveError';
 import { useConfirm } from '../../hooks/useConfirm';
-import { useReviewSession } from '../../hooks/useReviewSession';
-
-function getFilteredForms(verbs: Verb[], filters: ConjugationFilters): DrillableForm[] {
-  return verbs.flatMap((verb) =>
-    getDrillableFormsForVerb(verb).filter((form) => matchesFilters(form, filters))
-  );
-}
+import { useDeckReview } from '../../hooks/useDeckReview';
 
 interface ConjugationPageProps {
-  mode?: TranslationDirection;
+  mode: TranslationDirection;
 }
 
 export function ConjugationPage({ mode }: ConjugationPageProps) {
-  const navigate = useNavigate();
   const { user, isAdmin } = useAuthContext();
-  const { showSnackbar } = useSnackbar();
+  const showSaveError = useSaveError();
   const { confirm, confirmDialog } = useConfirm();
-  const {
-    loading: contextLoading,
-    conjugationReviewStores,
-    conjugationSettings: settings,
-    verbs: contextVerbs,
-    updateConjugationReviewStore,
-    updateConjugationSettings,
-    clearConjugationReviewData,
-    setVerbs: setContextVerbs,
-  } = useReviewData();
-
-  const [verbs, applyOptimisticVerbs] = useOptimistic(contextVerbs, {
-    onError: () => showSnackbar('Failed to save. Please try again.', 'error'),
-  });
+  const loading = useReviewDataLoading();
+  const { progress, verbs, setVerbs } = useConjugation();
   const forms = useMemo(() => verbs.flatMap(getDrillableFormsForVerb), [verbs]);
 
   const { filters: userFilters, filtersLoading, updateConjugationFilters } = useUserFilters();
   const filters = userFilters.conjugation;
 
-  const [showSettings, setShowSettings] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
   const [editingForm, setEditingForm] = useState<DrillableForm | null>(null);
 
-  const currentDirection = mode ?? 'pl-to-en';
-  const directionSettings = settings[currentDirection];
-  const reviewStore = conjugationReviewStores[currentDirection];
-
-  const session = useReviewSession({
-    cardKey: 'form',
-    getId: (form) => form.fullFormKey,
+  const review = useDeckReview(progress, mode, {
+    deck: conjugationDeck,
+    items: forms,
+    filters,
+    ready: !loading && !filtersLoading && verbs.length > 0,
     getAudioUrls: (form) => [form.form.audioUrl],
-    ready: !contextLoading && !filtersLoading && verbs.length > 0,
-    sessionKey: currentDirection,
-    getSessionCards: () =>
-      getSessionCards(conjugationDeck, forms, reviewStore, directionSettings, filters),
-    getPracticeAheadCards: (count, store) =>
-      getPracticeAheadCards(conjugationDeck, forms, store, count, filters),
-    getExtraNewCards: (count, store) =>
-      getExtraNewCards(conjugationDeck, forms, store, count, filters),
-    reviewStore,
-    recordReview: recordCardReview,
-    saveReviewStore: (store) => updateConjugationReviewStore(currentDirection, store),
+    confirm,
+    resetMessage:
+      'Are you sure? This will erase all your conjugation progress for this direction and cannot be undone.',
   });
-  const { practice, history } = session;
-  const { canGoBack, goBack, goForward } = history;
+  const { session } = review;
+  const { practice } = session;
 
-  const progressStats = useProgressStats();
-  const modeStats = toModeStats(progressStats.conjugationByDirection);
-
-  const verbsById = useMemo(() => {
-    const map = new Map<string, Verb>();
-    for (const verb of verbs) {
-      map.set(verb.id, verb);
-    }
-    return map;
-  }, [verbs]);
-
+  const verbsById = useMemo(() => new Map(verbs.map((verb) => [verb.id, verb])), [verbs]);
   const ambiguousPromptKeys = useMemo(() => getAmbiguousEnglishPromptKeys(verbs), [verbs]);
 
-  const handleSelectMode = useCallback(
-    (direction: TranslationDirection) =>
-      navigate(`/conjugation/${DIRECTION_ROUTES[direction].route}`),
-    [navigate]
-  );
-
-  const handleSettingsChange = async (newCardsPerDay: number) => {
-    const newSettings = { ...directionSettings, newCardsPerDay };
-    await updateConjugationSettings(currentDirection, newSettings);
-    session.startSession(
-      getSessionCards(conjugationDeck, forms, reviewStore, newSettings, filters)
-    );
-  };
-
-  const handleResetAllData = async () => {
-    const confirmed = await confirm({
-      title: 'Reset Progress',
-      message:
-        'Are you sure? This will erase all your conjugation progress for this direction and cannot be undone.',
-      confirmLabel: 'Reset',
-    });
-    if (confirmed) {
-      await clearConjugationReviewData(currentDirection);
-      session.rebuildSession();
-      setShowSettings(false);
-    }
-  };
-
-  const handleFilterChange = (newFilters: ConjugationFilters) => {
-    updateConjugationFilters(newFilters);
+  const handleFilterChange = (next: ConjugationFilters) => {
+    updateConjugationFilters(next);
     if (practice.active) {
-      practice.reshuffle(getFilteredForms(verbs, newFilters));
+      practice.reshuffle(itemsMatching(conjugationDeck, forms, next));
     } else {
-      session.startSession(
-        getSessionCards(conjugationDeck, forms, reviewStore, directionSettings, newFilters)
-      );
+      session.restart(next);
     }
-  };
-
-  const openEditModal = (form: DrillableForm) => {
-    setEditingForm(form);
-    setShowEditModal(true);
   };
 
   const replaceVerbInForms = (updatedVerb: Verb) => {
@@ -198,193 +109,110 @@ export function ConjugationPage({ mode }: ConjugationPageProps) {
     const verb = editingForm.verb;
     // The modal edits everything but the audio, so a field it leaves out (such as an
     // emptied plAlternatives) was removed rather than left unchanged.
-    const updatedConjugations = withUpdatedForm(editingForm, ({ audioUrl }) =>
+    const conjugations = withUpdatedForm(editingForm, ({ audioUrl }) =>
       audioUrl ? { ...formUpdates, audioUrl } : formUpdates
     );
-    const updatedVerb: Verb = { ...verb, ...verbUpdates, conjugations: updatedConjugations };
-    const newVerbs = verbs.map((v) => (v.id === verb.id ? updatedVerb : v));
+    const updatedVerb: Verb = { ...verb, ...verbUpdates, conjugations };
 
     replaceVerbInForms(updatedVerb);
-
-    applyOptimisticVerbs(newVerbs, async () => {
-      await updateVerb(verb.id, { ...verbUpdates, conjugations: updatedConjugations });
-      setContextVerbs(newVerbs);
-    });
+    return writeBuiltIn(
+      verbs,
+      setVerbs,
+      verbs.map((v) => (v.id === verb.id ? updatedVerb : v)),
+      () => updateVerb(verb.id, { ...verbUpdates, conjugations })
+    );
   };
 
-  const deleteVerbById = async (
-    verbId: string,
-    { skipConfirm = false }: { skipConfirm?: boolean } = {}
-  ): Promise<boolean> => {
-    if (
-      !skipConfirm &&
-      !(await confirm({
-        title: 'Delete Verb',
-        message:
-          'Are you sure you want to delete this verb? This will remove all conjugation forms for this verb and affect all users.',
-        confirmLabel: 'Delete',
-      }))
-    ) {
-      return false;
-    }
-
-    const newVerbs = verbs.filter((v) => v.id !== verbId);
+  const removeVerb = (verbId: string) => {
     session.removeCards((form) => form.verb.id === verbId);
-    applyOptimisticVerbs(newVerbs, async () => {
-      await deleteVerb(verbId);
-      setContextVerbs(newVerbs);
+    void writeBuiltIn(
+      verbs,
+      setVerbs,
+      verbs.filter((v) => v.id !== verbId),
+      () => deleteVerb(verbId)
+    ).catch(showSaveError);
+  };
+
+  const deleteVerbById = async (verbId: string): Promise<boolean> => {
+    const confirmed = await confirm({
+      title: 'Delete Verb',
+      message:
+        'Are you sure you want to delete this verb? This will remove all conjugation forms for this verb and affect all users.',
+      confirmLabel: 'Delete',
     });
+    if (!confirmed) return false;
+    removeVerb(verbId);
     return true;
   };
 
-  const handleDeleteEditingVerb = () => {
-    if (!editingForm) return;
-    void deleteVerbById(editingForm.verb.id, { skipConfirm: true });
-    setShowEditModal(false);
-    setEditingForm(null);
-  };
+  const closeEditModal = () => setEditingForm(null);
 
   // No session is built without verbs; the stage's fallback says so instead of a spinner.
-  const isLoading = contextLoading || filtersLoading || (verbs.length > 0 && !session.isBuilt);
-
-  const getAspectPairVerb = (form: DrillableForm): Verb | undefined => {
-    if (!form.verb.aspectPair) return undefined;
-    return verbsById.get(form.verb.aspectPair);
-  };
-
-  if (!mode) {
-    return (
-      <ConjugationModeSelector
-        stats={modeStats}
-        loading={contextLoading}
-        onSelectMode={handleSelectMode}
-      />
-    );
-  }
+  const isLoading = loading || filtersLoading || (verbs.length > 0 && !session.isBuilt);
 
   return (
     <>
       <ConjugationFilterControls
-        tenseFilter={filters.tenses}
-        personFilter={filters.persons}
-        numberFilter={filters.number}
-        aspectFilter={filters.aspects}
-        verbClassFilter={filters.verbClasses}
-        genderFilter={filters.genders}
+        filters={filters}
         practiceMode={practice.active}
-        showSettings={showSettings}
-        onTenseChange={(value) => handleFilterChange({ ...filters, tenses: value })}
-        onPersonChange={(value) => handleFilterChange({ ...filters, persons: value })}
-        onNumberChange={(value) => handleFilterChange({ ...filters, number: value })}
-        onAspectChange={(value) => handleFilterChange({ ...filters, aspects: value })}
-        onVerbClassChange={(value) => handleFilterChange({ ...filters, verbClasses: value })}
-        onGenderChange={(value) => handleFilterChange({ ...filters, genders: value })}
-        onClearFilters={() => handleFilterChange(getDefaultFilters())}
-        onTogglePractice={() => practice.toggle(getFilteredForms(verbs, filters))}
-        onToggleSettings={() => setShowSettings(!showSettings)}
+        showSettings={review.showSettings}
+        onChange={handleFilterChange}
+        onTogglePractice={session.togglePractice}
+        onToggleSettings={review.toggleSettings}
       />
 
-      {showSettings && !practice.active && (
-        <SettingsPanel
-          newCardsPerDay={directionSettings.newCardsPerDay}
-          user={user}
-          onSettingsChange={handleSettingsChange}
-          onResetAllData={handleResetAllData}
-          resetButtonLabel={`Reset ${currentDirection === 'pl-to-en' ? 'PL→EN' : 'EN→PL'} Progress`}
-        />
+      {review.showSettings && !practice.active && (
+        <SettingsPanel {...review.settingsPanel} user={user} />
       )}
 
       <ReviewMainContent>
         {isLoading ? (
           <CircularProgress sx={{ color: 'text.disabled' }} />
         ) : (
-          <>
-            {session.isBuilt && <SessionStatusLine session={session} unitLabel="forms" />}
-
-            <ReviewStage
-              session={session}
-              practiceEmptyMessage="No forms match your filters"
-              renderPractice={(form) => (
-                <ConjugationFlashcard
-                  key={`practice-${form.fullFormKey}-${practice.index}`}
-                  form={form}
-                  direction={currentDirection}
-                  aspectPairVerb={getAspectPairVerb(form)}
-                  showGlossHint={ambiguousPromptKeys.has(form.fullFormKey)}
-                  practiceMode
-                  canEdit={isAdmin}
-                  onNext={practice.next}
-                  onEdit={() => openEditModal(form)}
-                  onDelete={() => void deleteVerbById(form.verb.id)}
-                />
-              )}
-              renderHistory={(form) => (
-                <ConjugationFlashcard
-                  key={`history-${form.fullFormKey}`}
-                  form={form}
-                  direction={currentDirection}
-                  aspectPairVerb={getAspectPairVerb(form)}
-                  showGlossHint={ambiguousPromptKeys.has(form.fullFormKey)}
-                  isViewingHistory
-                  canGoBack={canGoBack}
-                  canEdit={isAdmin}
-                  reassessIntervals={session.reassessIntervals}
-                  onGoBack={goBack}
-                  onContinue={goForward}
-                  onReassess={session.reassess}
-                  onEdit={() => openEditModal(form)}
-                  onDelete={async () => {
-                    if (await deleteVerbById(form.verb.id)) goForward();
-                  }}
-                />
-              )}
-              renderFinished={() => (
-                <FinishedState
-                  currentFeature="conjugation"
-                  currentDirection={currentDirection}
-                  otherDirectionDueCount={
-                    progressStats.conjugationByDirection[otherDirection(currentDirection)].due
-                  }
-                  otherDirectionLabel={DIRECTION_ROUTES[otherDirection(currentDirection)].label}
-                  onSwitchDirection={() => handleSelectMode(otherDirection(currentDirection))}
-                  {...session.finishedStateProps}
-                />
-              )}
-              renderCurrent={({ form }) => (
-                <ConjugationFlashcard
-                  key={`${form.fullFormKey}-${session.ratingCounter}`}
-                  form={form}
-                  direction={currentDirection}
-                  aspectPairVerb={getAspectPairVerb(form)}
-                  showGlossHint={ambiguousPromptKeys.has(form.fullFormKey)}
-                  intervals={session.intervals}
-                  remainingCount={session.totalRemaining}
-                  canGoBack={canGoBack}
-                  canEdit={isAdmin}
-                  onRate={session.rate}
-                  onGoBack={goBack}
-                  onEdit={() => openEditModal(form)}
-                  onDelete={() => void deleteVerbById(form.verb.id)}
-                />
-              )}
-              fallback={
-                verbs.length === 0 && (
-                  <EmptyState message="No verbs available. Import verbs to get started." />
-                )
-              }
-            />
-          </>
+          <ReviewStage
+            session={session}
+            feature="conjugation"
+            direction={mode}
+            unitLabel="forms"
+            practiceEmptyMessage="No forms match your filters"
+            renderCard={(form, controls) => (
+              <ConjugationFlashcard
+                {...controls}
+                form={form}
+                direction={mode}
+                aspectPairVerb={
+                  form.verb.aspectPair ? verbsById.get(form.verb.aspectPair) : undefined
+                }
+                showGlossHint={ambiguousPromptKeys.has(form.fullFormKey)}
+                canEdit={isAdmin}
+                onEdit={() => setEditingForm(form)}
+                onDelete={async () => {
+                  if (await deleteVerbById(form.verb.id)) controls.onContinue?.();
+                }}
+              />
+            )}
+            fallback={
+              verbs.length === 0 && (
+                <EmptyState message="No verbs available. Import verbs to get started." />
+              )
+            }
+          />
         )}
       </ReviewMainContent>
 
       <EditConjugationModal
-        open={showEditModal}
-        onClose={() => {
-          setShowEditModal(false);
-          setEditingForm(null);
-        }}
+        open={editingForm !== null}
+        onClose={closeEditModal}
         onSave={handleSaveForm}
-        onDelete={isAdmin ? handleDeleteEditingVerb : undefined}
+        onDelete={
+          isAdmin
+            ? () => {
+                if (!editingForm) return;
+                removeVerb(editingForm.verb.id);
+                closeEditModal();
+              }
+            : undefined
+        }
         form={editingForm}
         onAudioUpdated={(audioUrl) => {
           if (!editingForm) return;

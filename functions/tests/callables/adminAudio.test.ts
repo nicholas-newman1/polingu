@@ -94,6 +94,38 @@ describe('saveAudio', () => {
     });
   });
 
+  test('a form whose key contains an underscore is updated on the verb it was sent for', async () => {
+    db.seed('verbs/isc_sie', { conjugations: { past: { '1sg_f': { pl: 'szłam się' } } } });
+    db.seed('verbs/isc', { conjugations: {} });
+
+    const { audioUrl } = await ask({
+      type: 'conjugation',
+      id: 'isc_sie',
+      subPath: 'isc_sie_past_1sg_f',
+    });
+    expect(storage.file(AUDIO_BUCKET, 'conjugation/isc_sie_past_1sg_f.mp3')).toBeDefined();
+    expect(db.data('verbs/isc_sie')).toEqual({
+      conjugations: { past: { '1sg_f': { pl: 'szłam się', audioUrl } } },
+    });
+    expect(db.data('verbs/isc')).toEqual({ conjugations: {} });
+  });
+
+  test.each([
+    ['no sub-path', {}],
+    ['a sub-path of another verb', { subPath: 'robic_present_1sg' }],
+    ['a sub-path without a form key', { subPath: 'isc_present' }],
+  ])('rejects conjugation audio with %s and saves nothing', async (_case, data) => {
+    db.seed('verbs/isc', { conjugations: { present: { '1sg': { pl: 'idę' } } } });
+
+    const error = await rejection(ask({ type: 'conjugation', id: 'isc', ...data }));
+    expect(error).toMatchObject({
+      code: 'invalid-argument',
+      message: 'Sub-path must name a form of this verb.',
+    });
+    expect(storage.files.size).toBe(0);
+    expect(db.writes).toEqual([]);
+  });
+
   test('saves custom card audio under the calling admin’s own cards', async () => {
     db.seed(`users/${admin.uid}/customSentences/c1`, { polish: 'Cześć' });
 

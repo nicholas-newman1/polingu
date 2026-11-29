@@ -1,10 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
-interface UseTooltipInteractionOptions {
-  onClose?: () => void;
-}
-
-export function useTooltipInteraction(options?: UseTooltipInteractionOptions) {
+export function useTooltipInteraction() {
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const [isHovering, setIsHovering] = useState(false);
   const [isClicked, setIsClicked] = useState(false);
@@ -24,13 +20,12 @@ export function useTooltipInteraction(options?: UseTooltipInteractionOptions) {
         !anchorEl.contains(target)
       ) {
         setIsClicked(false);
-        options?.onClose?.();
       }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isClicked, anchorEl, options]);
+  }, [isClicked, anchorEl]);
 
   const handleClick = useCallback((event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -55,8 +50,6 @@ export function useTooltipInteraction(options?: UseTooltipInteractionOptions) {
     anchorEl,
     popperRef,
     open,
-    isClicked,
-    setIsClicked,
     handleClick,
     handleMouseEnter,
     handleMouseLeave,

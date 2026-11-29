@@ -6,7 +6,6 @@ interface RenderTappableTextOptions {
   translations?: Record<string, string>;
   declensionCardId?: number;
   sentenceId?: string;
-  onDailyLimitReached?: (resetTime: string) => void;
   onUpdateTranslation?: (word: string, translation: string) => void;
   sentenceContext: string;
 }
@@ -16,14 +15,8 @@ export function renderTappableText(
   options: RenderTappableTextOptions,
   highlightedWord?: string
 ) {
-  const {
-    translations,
-    declensionCardId,
-    sentenceId,
-    onDailyLimitReached,
-    onUpdateTranslation,
-    sentenceContext,
-  } = options;
+  const { translations, declensionCardId, sentenceId, onUpdateTranslation, sentenceContext } =
+    options;
   const tokens = text.split(/(\s+)/);
   const cleanHighlight = highlightedWord && translationCacheKey(highlightedWord);
 
@@ -46,7 +39,6 @@ export function renderTappableText(
         translations={translations}
         declensionCardId={declensionCardId}
         sentenceId={sentenceId}
-        onDailyLimitReached={onDailyLimitReached}
       />
     );
   });
@@ -57,7 +49,6 @@ export function renderTappableText(
       translations={translations}
       declensionCardId={declensionCardId}
       sentenceId={sentenceId}
-      onDailyLimitReached={onDailyLimitReached}
       onUpdateTranslation={onUpdateTranslation}
     >
       {elements}

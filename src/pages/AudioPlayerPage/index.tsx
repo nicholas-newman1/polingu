@@ -3,10 +3,9 @@ import { Navigate } from 'react-router-dom';
 import { Box, CircularProgress, Typography } from '@mui/material';
 import { styled } from '../../lib/styled';
 import { useAudioPlayerContext } from '../../contexts/AudioPlayerContext';
-import { useAuthContext } from '../../hooks/useAuthContext';
-import { useTranslationContext } from '../../hooks/useTranslationContext';
+import { useAuthContext } from '../../contexts/AuthContext';
 import { useTranscriptFontSize } from '../../hooks/useTranscriptFontSize';
-import { usePageTitle } from '../../hooks/usePageTitle';
+import { usePageTitle } from '../../contexts/PageTitleContext';
 import { updateSystemAudio } from '../../lib/audio/systemAudioItems';
 import type { TranscriptSegment, TranscriptWord } from '../../types/audio';
 import { TranscriptView } from './TranscriptView';
@@ -64,7 +63,6 @@ export function AudioPlayerPage() {
   } = useAudioPlayerContext();
   const { isAdmin } = useAuthContext();
   const [controlsHeight, setControlsHeight] = useState(CONTROLS_HEIGHT);
-  const { handleDailyLimitReached } = useTranslationContext();
   const [transcriptFontSize, setTranscriptFontSize] = useTranscriptFontSize();
   const [editMode, setEditMode] = useState(false);
   const [editingSegment, setEditingSegment] = useState<number | null>(null);
@@ -188,7 +186,6 @@ export function AudioPlayerPage() {
           transcript={audioItem?.transcript ?? []}
           activeSegmentIndex={activeSegmentIndex}
           fontSize={transcriptFontSize}
-          onDailyLimitReached={handleDailyLimitReached}
           onWordTap={pause}
           onSeekToSegment={handleSeekToSegment}
           editMode={editMode}

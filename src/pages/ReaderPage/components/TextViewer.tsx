@@ -8,11 +8,11 @@ import BookmarksIcon from '@mui/icons-material/Bookmarks';
 import { styled } from '../../../lib/styled';
 import { TranslatableWords } from '../../../components/lazyText/TranslatableWords';
 import { useLazyVisibility } from '../../../components/lazyText/useLazyVisibility';
+import { useTextBlocks } from '../../../components/lazyText/useTextBlocks';
 import { FONT_SIZE_MAP, estimatePlaceholderHeight } from '../../../components/lazyText/textSizing';
 import { TranslatableText } from '../../../components/TranslatableText';
 import { useTranscriptFontSize } from '../../../hooks/useTranscriptFontSize';
 import { parseTextParagraphs } from '../../../lib/reader';
-import { countWords } from '../../../lib/utils/countWords';
 import type { TranscriptFontSize } from '../../../types/appSettings';
 import { ReaderNavigationBar } from './ReaderNavigationBar';
 
@@ -74,7 +74,6 @@ export const TextViewer = memo(function TextViewer({
   const [fontSize, setFontSize] = useTranscriptFontSize();
   const [scrollPercent, setScrollPercent] = useState(initialScrollPercent);
   const [currentParagraph, setCurrentParagraph] = useState(initialParagraphIndex ?? 0);
-  const [translations, setTranslations] = useState<Record<string, string>>({});
   const [bookmarkMenuAnchor, setBookmarkMenuAnchor] = useState<HTMLElement | null>(null);
 
   const paragraphEls = useRef<Map<number, HTMLElement>>(new Map());
@@ -83,21 +82,19 @@ export const TextViewer = memo(function TextViewer({
   const restoreDone = useRef(false);
 
   const paragraphs = useMemo(() => parseTextParagraphs(text), [text]);
-
-  const paragraphWordCounts = useMemo(
-    () => paragraphs.map((paragraph) => countWords(paragraph)),
-    [paragraphs]
-  );
-
-  const paragraphWordOffsets = useMemo(() => {
-    const offsets: number[] = [];
-    let total = 0;
-    for (const count of paragraphWordCounts) {
-      offsets.push(total);
-      total += count;
-    }
-    return offsets;
-  }, [paragraphWordCounts]);
+  const {
+    wordCounts: paragraphWordCounts,
+    wordOffsets: paragraphWordOffsets,
+    initiallyVisible,
+    getSentenceContext,
+    translations,
+    updateTranslation,
+  } = useTextBlocks(paragraphs, {
+    initialBlock:
+      initialParagraphIndex ??
+      Math.floor(initialScrollPercent * Math.max(0, paragraphs.length - 1)),
+    initialBuffer: INITIAL_VISIBLE_BUFFER,
+  });
 
   const getObserver = useCallback(() => {
     if (!observerRef.current) {
@@ -153,30 +150,6 @@ export const TextViewer = memo(function TextViewer({
     },
     [getObserver]
   );
-
-  const getSentenceContext = useCallback(
-    (selectedIndices: number[]) => {
-      if (selectedIndices.length === 0 || paragraphs.length === 0) return undefined;
-      let min = Infinity;
-      let max = -Infinity;
-      for (const idx of selectedIndices) {
-        if (idx < min) min = idx;
-        if (idx > max) max = idx;
-      }
-      let firstPara = 0;
-      let lastPara = 0;
-      for (let i = 0; i < paragraphWordOffsets.length; i++) {
-        if (paragraphWordOffsets[i] <= min) firstPara = i;
-        if (paragraphWordOffsets[i] <= max) lastPara = i;
-      }
-      return paragraphs.slice(firstPara, lastPara + 1).join(' ');
-    },
-    [paragraphWordOffsets, paragraphs]
-  );
-
-  const handleUpdateTranslation = useCallback((word: string, translation: string) => {
-    setTranslations((prev) => ({ ...prev, [word]: translation }));
-  }, []);
 
   const scrollToParagraph = useCallback((index: number) => {
     const el = paragraphEls.current.get(index);
@@ -246,17 +219,6 @@ export const TextViewer = memo(function TextViewer({
     [fontSize, setFontSize]
   );
 
-  const initialVisibleSet = useMemo(() => {
-    const anchor =
-      initialParagraphIndex ??
-      Math.floor(initialScrollPercent * Math.max(0, paragraphs.length - 1));
-    const set = new Set<number>();
-    const start = Math.max(0, anchor - INITIAL_VISIBLE_BUFFER);
-    const end = Math.min(paragraphs.length - 1, anchor + INITIAL_VISIBLE_BUFFER);
-    for (let i = start; i <= end; i++) set.add(i);
-    return set;
-  }, [initialParagraphIndex, initialScrollPercent, paragraphs.length]);
-
   const isCurrentBookmarked = bookmarks.includes(currentParagraph);
 
   const handleBookmarkJump = useCallback(
@@ -281,18 +243,17 @@ export const TextViewer = memo(function TextViewer({
         <TranslatableText
           getSentenceContext={getSentenceContext}
           translations={translations}
-          onUpdateTranslation={handleUpdateTranslation}
+          onUpdateTranslation={updateTranslation}
         >
           {paragraphs.map((paragraph, paraIdx) => (
             <LazyParagraph
               key={paraIdx}
-              initiallyVisible={initialVisibleSet.has(paraIdx)}
+              initiallyVisible={initiallyVisible.has(paraIdx)}
               wordCount={paragraphWordCounts[paraIdx]}
               paragraph={paragraph}
               paraIdx={paraIdx}
               fontSize={fontSize}
               wordOffset={paragraphWordOffsets[paraIdx]}
-              translations={translations}
               registerRef={registerParagraphRef}
             />
           ))}
@@ -378,7 +339,6 @@ interface ParagraphRowProps {
   paraIdx: number;
   fontSize: TranscriptFontSize;
   wordOffset: number;
-  translations: Record<string, string>;
   registerRef: (index: number, el: HTMLElement | null) => void;
 }
 
@@ -417,7 +377,6 @@ const ParagraphRow = memo(function ParagraphRow({
   paraIdx,
   fontSize,
   wordOffset,
-  translations,
   registerRef,
 }: ParagraphRowProps) {
   const refCb = useCallback(
@@ -429,7 +388,7 @@ const ParagraphRow = memo(function ParagraphRow({
 
   return (
     <Paragraph ref={refCb} $fontSize={fontSize}>
-      <TranslatableWords text={paragraph} wordOffset={wordOffset} translations={translations} />
+      <TranslatableWords text={paragraph} wordOffset={wordOffset} />
     </Paragraph>
   );
 });

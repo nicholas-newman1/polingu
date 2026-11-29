@@ -1,6 +1,7 @@
 import { onCall, HttpsError } from 'firebase-functions/https';
 import { db } from '../shared/firebase.js';
 import { deeplApiKey } from '../shared/secrets.js';
+import { requestDeepL, requireDeepLKey } from '../shared/deepl.js';
 import { assertNotKilled } from '../shared/killSwitch.js';
 import {
   cacheKeyAppearsInSource,
@@ -10,8 +11,6 @@ import {
 } from '../shared/rateLimits.js';
 
 const MAX_TEXT_LENGTH = 500;
-const VOCABULARY_INFINITIVE_INSTRUCTION =
-  'When the Polish vocabulary entry is an infinitive verb or infinitive phrase, including reflexive verbs, translate it as an English infinitive phrase beginning with "to" (e.g. jeść: to eat; móc: to be able to; musieć: to have to).';
 
 interface TranslateRequest {
   text: string;
@@ -45,45 +44,6 @@ function validateRequest(data: TranslateRequest) {
   if (vocabulary !== undefined && typeof vocabulary !== 'boolean') {
     throw new HttpsError('invalid-argument', 'Vocabulary must be a boolean.');
   }
-}
-
-async function requestDeepL(
-  apiKey: string,
-  text: string,
-  targetLang: 'EN' | 'PL',
-  context: string | undefined,
-  vocabulary: boolean | undefined
-): Promise<string> {
-  const response = await fetch('https://api-free.deepl.com/v2/translate', {
-    method: 'POST',
-    headers: {
-      Authorization: `DeepL-Auth-Key ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      text: [text],
-      source_lang: targetLang === 'EN' ? 'PL' : 'EN',
-      target_lang: targetLang,
-      ...(context && { context }),
-      ...(vocabulary &&
-        targetLang === 'EN' && {
-          custom_instructions: [VOCABULARY_INFINITIVE_INSTRUCTION],
-        }),
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('DeepL API error:', response.status, errorText);
-    throw new HttpsError('internal', 'Translation failed. Please try again.');
-  }
-
-  const data = await response.json();
-  const translatedText = data.translations?.[0]?.text;
-  if (!translatedText) {
-    throw new HttpsError('internal', 'No translation returned.');
-  }
-  return translatedText;
 }
 
 /** Caches a word translation on its source doc, only if the word actually appears in `sourceField`. */
@@ -128,12 +88,8 @@ export const translate = onCall<TranslateRequest, Promise<TranslateResponse>>(
       resetTime
     );
 
-    const apiKey = deeplApiKey.value();
-    if (!apiKey) {
-      throw new HttpsError('failed-precondition', 'Translation service is not configured.');
-    }
-
-    const translatedText = await requestDeepL(apiKey, text, targetLang, context, vocabulary);
+    const apiKey = requireDeepLKey();
+    const translatedText = await requestDeepL(apiKey, text, targetLang, { context, vocabulary });
 
     if (targetLang === 'EN') {
       if (declensionCardId && typeof declensionCardId === 'number') {

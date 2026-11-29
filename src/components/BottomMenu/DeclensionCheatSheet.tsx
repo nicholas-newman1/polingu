@@ -287,10 +287,7 @@ interface DeclensionCheatSheetProps {
   pluralGridColumns?: 2 | 3;
 }
 
-export function DeclensionCheatSheet({
-  tables,
-  pluralGridColumns = 3,
-}: DeclensionCheatSheetProps) {
+export function DeclensionCheatSheet({ tables, pluralGridColumns = 3 }: DeclensionCheatSheetProps) {
   const singularTables = tables.filter((t) => t.number === 'singular');
   const pluralTables = tables.filter((t) => t.number === 'plural');
 

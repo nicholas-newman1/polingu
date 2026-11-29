@@ -11,16 +11,12 @@ import {
   useMediaQuery,
 } from '@mui/material';
 import { styled } from '../../lib/styled';
-import MenuBookIcon from '@mui/icons-material/MenuBook';
-import AbcIcon from '@mui/icons-material/Abc';
 import TranslateIcon from '@mui/icons-material/Translate';
-import SpellcheckIcon from '@mui/icons-material/Spellcheck';
-import AutoStoriesIcon from '@mui/icons-material/AutoStories';
-import LibraryBooksOutlinedIcon from '@mui/icons-material/LibraryBooksOutlined';
 import LibraryBooksIcon from '@mui/icons-material/LibraryBooks';
-import { useTranslationContext } from '../../hooks/useTranslationContext';
-import { useCheatSheetContext } from '../../hooks/useCheatSheetContext';
+import { useTranslationContext } from '../../contexts/TranslationContext';
+import { useCheatSheetContext } from '../../contexts/CheatSheetContext';
 import { alpha } from '../../lib/theme';
+import { CHEAT_SHEETS, type CheatSheetKey } from './cheatSheets';
 
 const MenuBarContainer = styled(Box)(({ theme }) => ({
   position: 'fixed',
@@ -95,14 +91,6 @@ const Label = styled(Typography)({
   fontWeight: 500,
 });
 
-const CHEAT_SHEETS = [
-  { key: 'declension', label: 'Noun Declensions', icon: MenuBookIcon },
-  { key: 'adjective-declension', label: 'Adjective Declensions', icon: LibraryBooksOutlinedIcon },
-  { key: 'consonants', label: 'Consonants', icon: AbcIcon },
-  { key: 'yi-rule', label: '-y/-i Rule', icon: SpellcheckIcon },
-  { key: 'conjugation', label: 'Conjugations', icon: AutoStoriesIcon },
-] as const;
-
 interface BottomMenuBarProps {
   showTranslator?: boolean;
 }
@@ -113,7 +101,7 @@ export function BottomMenuBar({ showTranslator = true }: BottomMenuBarProps) {
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
   const prefersReducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
 
-  const isCheatSheetOpen = CHEAT_SHEETS.some((sheet) => sheet.key === activeSheet);
+  const isCheatSheetOpen = activeSheet !== null;
   const menuOpen = Boolean(menuAnchor);
 
   const handleOpenMenu = (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -124,7 +112,7 @@ export function BottomMenuBar({ showTranslator = true }: BottomMenuBarProps) {
     setMenuAnchor(null);
   };
 
-  const handleSelectSheet = (sheetKey: (typeof CHEAT_SHEETS)[number]['key']) => {
+  const handleSelectSheet = (sheetKey: CheatSheetKey) => {
     openSheet(sheetKey);
     handleCloseMenu();
   };

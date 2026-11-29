@@ -1,15 +1,11 @@
-export type DeclensionCase =
-  | 'Nominative'
-  | 'Genitive'
-  | 'Dative'
-  | 'Accusative'
-  | 'Instrumental'
-  | 'Locative'
-  | 'Vocative';
+import { CASES, GENDERS, NUMBERS } from '../src/constants.js';
+import type {
+  Case as DeclensionCase,
+  Gender as DeclensionGender,
+  Number as DeclensionNumber,
+} from '../src/types.js';
 
-export type DeclensionGender = 'Masculine' | 'Feminine' | 'Neuter' | 'Pronoun';
-
-export type DeclensionNumber = 'Singular' | 'Plural';
+export type { DeclensionCase, DeclensionGender, DeclensionNumber };
 
 export interface DeclensionCard {
   id: number;
@@ -31,30 +27,16 @@ export interface DeclensionCardIndex {
   number: DeclensionNumber;
 }
 
-const VALID_CASES: DeclensionCase[] = [
-  'Nominative',
-  'Genitive',
-  'Dative',
-  'Accusative',
-  'Instrumental',
-  'Locative',
-  'Vocative',
-];
-
-const VALID_GENDERS: DeclensionGender[] = ['Masculine', 'Feminine', 'Neuter', 'Pronoun'];
-
-const VALID_NUMBERS: DeclensionNumber[] = ['Singular', 'Plural'];
-
 export function isValidCase(value: string): value is DeclensionCase {
-  return VALID_CASES.includes(value as DeclensionCase);
+  return CASES.includes(value as DeclensionCase);
 }
 
 function isValidGender(value: string): value is DeclensionGender {
-  return VALID_GENDERS.includes(value as DeclensionGender);
+  return GENDERS.includes(value as DeclensionGender);
 }
 
 function isValidNumber(value: string): value is DeclensionNumber {
-  return VALID_NUMBERS.includes(value as DeclensionNumber);
+  return NUMBERS.includes(value as DeclensionNumber);
 }
 
 const CARD_RULES: [check: (c: Record<string, unknown>) => boolean, message: string][] = [
@@ -68,15 +50,15 @@ const CARD_RULES: [check: (c: Record<string, unknown>) => boolean, message: stri
   ],
   [
     (c) => !!c.case && isValidCase(c.case as string),
-    `invalid "case" (must be one of: ${VALID_CASES.join(', ')})`,
+    `invalid "case" (must be one of: ${CASES.join(', ')})`,
   ],
   [
     (c) => !!c.gender && isValidGender(c.gender as string),
-    `invalid "gender" (must be one of: ${VALID_GENDERS.join(', ')})`,
+    `invalid "gender" (must be one of: ${GENDERS.join(', ')})`,
   ],
   [
     (c) => !!c.number && isValidNumber(c.number as string),
-    `invalid "number" (must be one of: ${VALID_NUMBERS.join(', ')})`,
+    `invalid "number" (must be one of: ${NUMBERS.join(', ')})`,
   ],
   [(c) => c.hint === undefined || typeof c.hint === 'string', 'hint must be a string if provided'],
 ];

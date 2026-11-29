@@ -1,6 +1,4 @@
-import { createContext, useCallback, useMemo, type ReactNode } from 'react';
-import { collection, getDocs } from 'firebase/firestore';
-import { db } from '../../lib/firebase';
+import { createContext, useMemo, type ReactNode } from 'react';
 import type {
   Verb,
   ConjugationReviewDataStore,
@@ -11,26 +9,19 @@ import type { TranslationDirection } from '../../types/common';
 import { DEFAULT_CONJUGATION_SETTINGS } from '../../types/conjugation';
 import { conjugationStorage } from '../../lib/storage/reviewDeckStorage';
 import { useLocalChanges } from './localChanges';
-import { useDeckProgress, useLoadedState } from './deckState';
+import { useDeckProgress, useLoadedState, type DeckProgress } from './deckState';
 
 export interface ConjugationContextType {
+  progress: DeckProgress<
+    TranslationDirection,
+    ConjugationReviewDataStore,
+    ConjugationDirectionSettings
+  >;
+  /** The built-in verbs; their forms (getDrillableFormsForVerb) are the deck's cards. */
   verbs: Verb[];
-  conjugationReviewStores: Record<TranslationDirection, ConjugationReviewDataStore>;
-  conjugationSettings: ConjugationSettings;
-  updateConjugationReviewStore: (
-    direction: TranslationDirection,
-    store: ConjugationReviewDataStore
-  ) => Promise<void>;
-  updateConjugationSettings: (
-    direction: TranslationDirection,
-    settings: ConjugationDirectionSettings
-  ) => Promise<void>;
-  clearConjugationReviewData: (direction: TranslationDirection) => Promise<void>;
-  refreshVerbs: () => Promise<void>;
   setVerbs: (verbs: Verb[]) => void;
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
 export const ConjugationContext = createContext<ConjugationContextType | null>(null);
 
 interface ConjugationProviderProps {
@@ -61,32 +52,9 @@ export function ConjugationProvider({
   );
   const [verbs, setVerbs] = useLoadedState(initialVerbs);
 
-  const refreshVerbs = useCallback(async () => {
-    const verbsSnapshot = await getDocs(collection(db, 'verbs'));
-    setVerbs(verbsSnapshot.docs.map((doc) => doc.data() as Verb));
-  }, [setVerbs]);
-
   const value = useMemo<ConjugationContextType>(
-    () => ({
-      verbs,
-      conjugationReviewStores: progress.stores,
-      conjugationSettings: progress.settings,
-      updateConjugationReviewStore: progress.updateStore,
-      updateConjugationSettings: progress.updateSettings,
-      clearConjugationReviewData: progress.clear,
-      refreshVerbs,
-      setVerbs,
-    }),
-    [
-      verbs,
-      progress.stores,
-      progress.settings,
-      progress.updateStore,
-      progress.updateSettings,
-      progress.clear,
-      refreshVerbs,
-      setVerbs,
-    ]
+    () => ({ progress, verbs, setVerbs }),
+    [progress, verbs, setVerbs]
   );
 
   return <ConjugationContext.Provider value={value}>{children}</ConjugationContext.Provider>;

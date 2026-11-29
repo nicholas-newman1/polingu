@@ -1,26 +1,31 @@
-import { useContext } from 'react';
+import { Suspense, useContext } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Box } from '@mui/material';
+import { Box, CircularProgress } from '@mui/material';
 import { styled } from '../lib/styled';
 import { BoxIconButton } from './BoxIconButton';
 import Home from '@mui/icons-material/Home';
 import { Header } from './Header';
 import { QuickAddFab } from './QuickAddFab';
 import { ScrollToTopOnNavigate } from './ScrollToTopOnNavigate';
-import { DeclensionCheatSheetDrawer } from './BottomMenu/DeclensionCheatSheetDrawer';
-import { AdjectiveDeclensionCheatSheetDrawer } from './BottomMenu/AdjectiveDeclensionCheatSheetDrawer';
-import { ConsonantsCheatSheetDrawer } from './BottomMenu/ConsonantsCheatSheetDrawer';
-import { YiRuleCheatSheetDrawer } from './BottomMenu/YiRuleCheatSheetDrawer';
-import { ConjugationCheatSheetDrawer } from './BottomMenu/ConjugationCheatSheetDrawer';
+import { CheatSheetDrawers } from './BottomMenu/CheatSheetDrawer';
 import { TranslatorModal } from './BottomMenu/TranslatorModal';
 import { LimitReachedDialog } from './LimitReachedDialog';
 import { BottomMenuBar } from './BottomMenu/BottomMenuBar';
-import { useAuthContext } from '../hooks/useAuthContext';
+import { useAuthContext } from '../contexts/AuthContext';
 import { PageTitleContext, PageTitleProvider } from '../contexts/PageTitleContext';
 import { AddToVocabularyProvider } from '../contexts/AddToVocabularyContext';
 import { AddSentenceProvider } from '../contexts/AddSentenceContext';
 import { ListeningMiniBar } from './ListeningMiniBar';
 import { HEADER_HEIGHT } from '../constants/layout';
+
+/** Shown in the content area while a lazily loaded page downloads. */
+function PageLoading() {
+  return (
+    <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+      <CircularProgress sx={{ color: 'text.disabled' }} />
+    </Box>
+  );
+}
 
 const PageContainer = styled(Box)({
   minHeight: '100vh',
@@ -152,15 +157,13 @@ function LayoutContent() {
 
             <ContentArea>
               <ScrollToTopOnNavigate />
-              <Outlet />
+              <Suspense fallback={<PageLoading />}>
+                <Outlet />
+              </Suspense>
             </ContentArea>
           </MainArea>
 
-          <DeclensionCheatSheetDrawer />
-          <AdjectiveDeclensionCheatSheetDrawer />
-          <ConsonantsCheatSheetDrawer />
-          <YiRuleCheatSheetDrawer />
-          <ConjugationCheatSheetDrawer />
+          <CheatSheetDrawers />
           <TranslatorModal />
           <LimitReachedDialog />
 

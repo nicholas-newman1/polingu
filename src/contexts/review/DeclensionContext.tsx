@@ -1,4 +1,4 @@
-import { createContext, useMemo, type ReactNode } from 'react';
+import { createContext, useMemo, type Dispatch, type ReactNode, type SetStateAction } from 'react';
 import type {
   DeclensionCard,
   CustomDeclensionCard,
@@ -9,22 +9,18 @@ import { subscribeCustomDeclension } from '../../lib/storage/customDeclension';
 import { declensionStorage } from '../../lib/storage/reviewDeckStorage';
 import { DEFAULT_DECLENSION_SETTINGS } from '../../constants';
 import { useLocalChanges } from './localChanges';
-import { useCustomItems, useLoadedState, useSinglePartProgress } from './deckState';
+import { useCustomItems, useDeckProgress, useLoadedState, type DeckProgress } from './deckState';
 
 export interface DeclensionContextType {
-  declensionCards: DeclensionCard[];
-  customDeclensionCards: CustomDeclensionCard[];
-  systemDeclensionCards: DeclensionCard[];
-  declensionReviewStore: DeclensionReviewDataStore;
-  declensionSettings: DeclensionSettings;
-  updateDeclensionReviewStore: (store: DeclensionReviewDataStore) => Promise<void>;
-  updateDeclensionSettings: (settings: DeclensionSettings) => Promise<void>;
-  clearDeclensionData: () => Promise<void>;
-  setCustomDeclensionCards: (cards: CustomDeclensionCard[]) => void;
-  setSystemDeclensionCards: (cards: DeclensionCard[]) => void;
+  progress: DeckProgress<'all', DeclensionReviewDataStore, DeclensionSettings>;
+  /** The learner's cards first, then the built-in ones. */
+  cards: DeclensionCard[];
+  customCards: CustomDeclensionCard[];
+  systemCards: DeclensionCard[];
+  setCustomCards: Dispatch<SetStateAction<CustomDeclensionCard[]>>;
+  setSystemCards: (cards: DeclensionCard[]) => void;
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
 export const DeclensionContext = createContext<DeclensionContextType | null>(null);
 
 interface DeclensionProviderProps {
@@ -49,51 +45,26 @@ export function DeclensionProvider({
   readAt,
 }: DeclensionProviderProps) {
   const localChanges = useLocalChanges();
-  const progress = useSinglePartProgress(
+  const progress = useDeckProgress(
     declensionStorage,
-    initialReviewStore,
-    initialSettings,
+    { all: initialReviewStore },
+    { all: initialSettings },
     readAt,
     localChanges
   );
-  const [customDeclensionCards, setCustomDeclensionCards] = useCustomItems(
+  const [customCards, setCustomCards] = useCustomItems(
     initialCustomCards,
     subscribeCustomDeclension,
     readAt,
     localChanges
   );
-  const [systemDeclensionCards, setSystemDeclensionCards] = useLoadedState(initialSystemCards);
+  const [systemCards, setSystemCards] = useLoadedState(initialSystemCards);
 
-  const declensionCards = useMemo<DeclensionCard[]>(
-    () => [...customDeclensionCards, ...systemDeclensionCards],
-    [customDeclensionCards, systemDeclensionCards]
-  );
+  const cards = useMemo(() => [...customCards, ...systemCards], [customCards, systemCards]);
 
   const value = useMemo<DeclensionContextType>(
-    () => ({
-      declensionCards,
-      customDeclensionCards,
-      systemDeclensionCards,
-      declensionReviewStore: progress.store,
-      declensionSettings: progress.settings,
-      updateDeclensionReviewStore: progress.updateStore,
-      updateDeclensionSettings: progress.updateSettings,
-      clearDeclensionData: progress.clear,
-      setCustomDeclensionCards,
-      setSystemDeclensionCards,
-    }),
-    [
-      declensionCards,
-      customDeclensionCards,
-      systemDeclensionCards,
-      progress.store,
-      progress.settings,
-      progress.updateStore,
-      progress.updateSettings,
-      progress.clear,
-      setCustomDeclensionCards,
-      setSystemDeclensionCards,
-    ]
+    () => ({ progress, cards, customCards, systemCards, setCustomCards, setSystemCards }),
+    [progress, cards, customCards, systemCards, setCustomCards, setSystemCards]
   );
 
   return <DeclensionContext.Provider value={value}>{children}</DeclensionContext.Provider>;

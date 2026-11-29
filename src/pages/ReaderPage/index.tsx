@@ -14,7 +14,7 @@ import type { Book, ReadingProgress } from '../../types/reader';
 import { PdfViewer } from './components/PdfViewer';
 import { TextViewer } from './components/TextViewer';
 import type { TextReadingPosition } from './components/TextViewer';
-import { usePageTitle } from '../../hooks/usePageTitle';
+import { usePageTitle } from '../../contexts/PageTitleContext';
 
 const PageContainer = styled(Box)({
   display: 'flex',

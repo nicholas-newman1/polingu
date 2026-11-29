@@ -34,18 +34,17 @@ import {
   type ReviewSubcollectionStorage,
   type ReviewSubcollectionSync,
 } from './createReviewSubcollectionStorage';
-import { getTodayString, getUserId } from './helpers';
+import { getTodayString } from './helpers';
+import { getCurrentUserId } from '../cachedAuth';
 import { REVIEW_DECK_DOCS, type DeckPart } from './reviewDeckDocs';
 
 export type { DeckPart };
 
 type AnyReviewStore = ReviewDataStore<CardReviewData, SessionId>;
 
-/** Where one part of a deck is saved, and how it resets. */
-export interface ReviewDeckStorage<R extends CardReviewData, Id extends SessionId, Settings> {
-  cards: ReviewSubcollectionStorage<R>;
-  /** The part's store before anything is studied, dated today. */
-  emptyStore: () => ReviewDataStore<R, Id>;
+/** Where one part of a deck, whose store has the shape of `Store`, is saved, and how it resets. */
+export interface ReviewDeckStorage<Store extends AnyReviewStore, Settings> {
+  cards: ReviewSubcollectionStorage<Store['cards'][string]>;
   sessionDocPath: string;
   settingsDocPath: string;
   defaultSettings: Settings;
@@ -57,17 +56,15 @@ export interface ReviewDeckStorage<R extends CardReviewData, Id extends SessionI
 
 const NEW_LIST = 'newCardsToday';
 
-type AnyDeckStorage<Settings = unknown> = ReviewDeckStorage<CardReviewData, SessionId, Settings>;
+type AnyDeckStorage<Settings = unknown> = ReviewDeckStorage<AnyReviewStore, Settings>;
 
-/** A deck part whose store has the shape of `Store`. */
 function part<Store extends AnyReviewStore, Settings>(
   docs: { cards: ReviewCardCollection; session: string; settings: string },
   defaultSettings: Settings,
   options: { resetDeletesSettings: boolean; savedNewListName?: string }
-): ReviewDeckStorage<Store['cards'][string], Store['newCardsToday'][number], Settings> {
+): ReviewDeckStorage<Store, Settings> {
   return {
     cards: createReviewSubcollectionStorage(docs.cards),
-    emptyStore: emptyReviewStore,
     sessionDocPath: docs.session,
     settingsDocPath: docs.settings,
     defaultSettings,
@@ -138,7 +135,8 @@ export const ALL_REVIEW_CARD_STORAGES: ReviewSubcollectionSync[] = [
   conjugationStorage,
 ].flatMap((parts) => Object.values<{ cards: ReviewSubcollectionSync }>(parts).map((p) => p.cards));
 
-function emptyReviewStore<R extends CardReviewData, Id extends SessionId>(): ReviewDataStore<
+/** A deck part's store before anything is studied, dated today. */
+export function emptyReviewStore<R extends CardReviewData, Id extends SessionId>(): ReviewDataStore<
   R,
   Id
 > {
@@ -176,9 +174,9 @@ function toSavedSession(store: AnyReviewStore, savedNewListName: string): SavedS
 
 /** Loads a part's cards and today's session lists; lists saved on an earlier day start empty. */
 export async function loadReviewStore<R extends CardReviewData, Id extends SessionId>(
-  storage: ReviewDeckStorage<R, Id, unknown>
+  storage: ReviewDeckStorage<ReviewDataStore<R, Id>, unknown>
 ): Promise<ReviewDataStore<R, Id>> {
-  const fresh = storage.emptyStore();
+  const fresh = emptyReviewStore<R, Id>();
   const [cards, saved] = await Promise.all([
     storage.cards.loadCards(),
     loadUserData(storage.sessionDocPath, toSavedSession(fresh, storage.savedNewListName)),
@@ -198,7 +196,7 @@ export async function loadReviewStore<R extends CardReviewData, Id extends Sessi
 
 /** Saves the cards that changed since `prev`, and today's session lists. */
 export async function saveReviewStore<R extends CardReviewData, Id extends SessionId>(
-  storage: ReviewDeckStorage<R, Id, unknown>,
+  storage: ReviewDeckStorage<ReviewDataStore<R, Id>, unknown>,
   prev: ReviewDataStore<R, Id> | null,
   next: ReviewDataStore<R, Id>
 ): Promise<void> {
@@ -230,7 +228,7 @@ export async function saveDeckSettings<Settings>(
  * Rejects if the server could not be updated.
  */
 export async function clearDeckProgress(storage: AnyDeckStorage): Promise<void> {
-  if (!getUserId()) return;
+  if (!getCurrentUserId()) return;
 
   await storage.cards.clearAllCards();
   await Promise.all([
@@ -246,7 +244,7 @@ export async function loadDeckProgress<
   Id extends SessionId,
   Settings,
 >(
-  parts: Record<K, ReviewDeckStorage<R, Id, Settings>>
+  parts: Record<K, ReviewDeckStorage<ReviewDataStore<R, Id>, Settings>>
 ): Promise<{ stores: Record<K, ReviewDataStore<R, Id>>; settings: Record<K, Settings> }> {
   const keys = partsOf(parts);
   const loaded = await Promise.all(

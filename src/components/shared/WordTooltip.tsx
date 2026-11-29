@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type RefObject } from 'react';
+import { useMemo, useState, type RefObject } from 'react';
 import { Box, Paper, Popper, type PopperProps } from '@mui/material';
 import { styled } from '../../lib/styled';
 
@@ -11,27 +11,6 @@ type TooltipPlacement = 'top' | 'bottom';
 
 /** Gap between anchor and tooltip (Popper offset skidding, distance). */
 const TOOLTIP_OFFSET: [number, number] = [0, 6];
-
-export const TappableSpan = styled('span')(({ theme }) => ({
-  cursor: 'pointer',
-  borderRadius: 2,
-  padding: '0 2px',
-  transition: 'background-color 0.15s',
-  '&:hover': {
-    backgroundColor: theme.palette.action.hover,
-  },
-}));
-
-export const HighlightedSpan = styled('span')(({ theme }) => ({
-  color: theme.palette.primary.main,
-  fontWeight: 600,
-  cursor: 'pointer',
-  borderRadius: 2,
-  transition: 'background-color 0.15s',
-  '&:hover': {
-    backgroundColor: theme.palette.action.hover,
-  },
-}));
 
 const TooltipPaper = styled(Paper, {
   shouldForwardProp: (prop) => prop !== '$placement',
@@ -80,19 +59,15 @@ interface WordTooltipPopperProps extends Omit<PopperProps, 'ref' | 'popperRef'> 
   children: React.ReactNode;
 }
 
-export function WordTooltipPopper({
-  popperRef,
-  children,
-  open,
-  ...props
-}: WordTooltipPopperProps) {
+export function WordTooltipPopper({ popperRef, children, open, ...props }: WordTooltipPopperProps) {
   const [resolvedPlacement, setResolvedPlacement] = useState<TooltipPlacement>('top');
 
-  useEffect(() => {
-    if (open) {
-      setResolvedPlacement('top');
-    }
-  }, [open]);
+  // Each opening starts from the preferred placement; Popper flips it if needed.
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
+    if (open) setResolvedPlacement('top');
+  }
 
   const modifiers = useMemo(
     () => [

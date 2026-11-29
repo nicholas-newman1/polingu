@@ -29,10 +29,11 @@ function DeclensionRowContent({ card }: { card: DeclensionCard }) {
 }
 
 export const DeclensionsTab = memo(function DeclensionsTab() {
-  const { systemDeclensionCards, setSystemDeclensionCards } = useDeclension();
+  const { systemCards: systemDeclensionCards, setSystemCards: setSystemDeclensionCards } =
+    useDeclension();
   const [editingCard, setEditingCard] = useState<DeclensionCard | null>(null);
   const { confirm, confirmDialog } = useConfirm();
-  const { deleteItem, patchItem } = useAdminItems<
+  const { deleteItem, patchItem, mirrorItem } = useAdminItems<
     DeclensionCard,
     Partial<Omit<DeclensionCard, 'id' | 'isCustom'>>
   >({
@@ -70,9 +71,7 @@ export const DeclensionsTab = memo(function DeclensionsTab() {
         onClose={() => setEditingCard(null)}
         onSave={(data) => patchItem(editingCard, data)}
         card={editingCard}
-        onAudioUpdated={(audioUrl) =>
-          patchItem(editingCard, { audioUrl }, { error: 'Failed to update audio' })
-        }
+        onAudioUpdated={(audioUrl) => mirrorItem(editingCard, { audioUrl })}
       />
       {confirmDialog}
     </>

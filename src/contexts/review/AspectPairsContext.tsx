@@ -8,18 +8,14 @@ import type {
 import { DEFAULT_ASPECT_PAIRS_SETTINGS } from '../../types/aspectPairs';
 import { aspectPairsStorage } from '../../lib/storage/reviewDeckStorage';
 import { useLocalChanges } from './localChanges';
-import { useSinglePartProgress } from './deckState';
+import { useDeckProgress, type DeckProgress } from './deckState';
 
 export interface AspectPairsContextType {
-  aspectPairCards: AspectPairCard[];
-  aspectPairsReviewStore: AspectPairsReviewDataStore;
-  aspectPairsSettings: AspectPairsSettings;
-  updateAspectPairsReviewStore: (store: AspectPairsReviewDataStore) => Promise<void>;
-  updateAspectPairsSettings: (settings: AspectPairsSettings) => Promise<void>;
-  clearAspectPairsData: () => Promise<void>;
+  progress: DeckProgress<'all', AspectPairsReviewDataStore, AspectPairsSettings>;
+  /** The pairs among the conjugation context's verbs (see pairUp). */
+  cards: AspectPairCard[];
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
 export const AspectPairsContext = createContext<AspectPairsContextType | null>(null);
 
 const EMPTY_VERBS: Verb[] = [];
@@ -63,33 +59,16 @@ export function AspectPairsProvider({
   readAt,
 }: AspectPairsProviderProps) {
   const localChanges = useLocalChanges();
-  const progress = useSinglePartProgress(
+  const progress = useDeckProgress(
     aspectPairsStorage,
-    initialReviewStore,
-    initialSettings,
+    { all: initialReviewStore },
+    { all: initialSettings },
     readAt,
     localChanges
   );
-  const aspectPairCards = useMemo(() => pairUp(verbs), [verbs]);
+  const cards = useMemo(() => pairUp(verbs), [verbs]);
 
-  const value = useMemo<AspectPairsContextType>(
-    () => ({
-      aspectPairCards,
-      aspectPairsReviewStore: progress.store,
-      aspectPairsSettings: progress.settings,
-      updateAspectPairsReviewStore: progress.updateStore,
-      updateAspectPairsSettings: progress.updateSettings,
-      clearAspectPairsData: progress.clear,
-    }),
-    [
-      aspectPairCards,
-      progress.store,
-      progress.settings,
-      progress.updateStore,
-      progress.updateSettings,
-      progress.clear,
-    ]
-  );
+  const value = useMemo<AspectPairsContextType>(() => ({ progress, cards }), [progress, cards]);
 
   return <AspectPairsContext.Provider value={value}>{children}</AspectPairsContext.Provider>;
 }

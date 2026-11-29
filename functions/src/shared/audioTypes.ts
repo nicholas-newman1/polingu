@@ -26,6 +26,30 @@ function buildFirebaseDownloadUrl(bucket: string, filePath: string, token: strin
   return `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encoded}?alt=media&token=${token}`;
 }
 
+/**
+ * A conjugated form's audio sub-path. The client builds the same one (conjugationSubPath in
+ * src/components/AudioRegenerator.tsx).
+ */
+export function conjugationSubPath(verbId: string, tense: string, formKey: string): string {
+  return `${verbId}_${tense}_${formKey}`;
+}
+
+/**
+ * The form a conjugation sub-path of verb `verbId` names, or null when it names another
+ * verb's form or none. Read relative to the known verb ID because verb IDs and form keys
+ * (`1sg_f`) may contain `_`; tenses never do.
+ */
+export function parseConjugationSubPath(
+  verbId: string,
+  subPath: string
+): { tense: string; formKey: string } | null {
+  const prefix = `${verbId}_`;
+  if (!subPath.startsWith(prefix)) return null;
+  const [tense, ...formKeyParts] = subPath.slice(prefix.length).split('_');
+  const formKey = formKeyParts.join('_');
+  return tense && formKey ? { tense, formKey } : null;
+}
+
 function getAudioPath(type: AudioType, id: string, subPath?: string, userId?: string): string {
   switch (type) {
     case 'sentence':
@@ -66,18 +90,16 @@ export async function updateFirestoreAudioUrl(
     case 'vocabulary':
       await db.collection('vocabulary').doc(id).update({ audioUrl });
       break;
-    case 'conjugation':
-      if (subPath) {
-        const parts = subPath.split('_');
-        const verbId = parts[0];
-        const tense = parts[1];
-        const formKey = parts.slice(2).join('_');
+    case 'conjugation': {
+      const form = subPath && parseConjugationSubPath(id, subPath);
+      if (form) {
         await db
           .collection('verbs')
-          .doc(verbId)
-          .update({ [`conjugations.${tense}.${formKey}.audioUrl`]: audioUrl });
+          .doc(id)
+          .update({ [`conjugations.${form.tense}.${form.formKey}.audioUrl`]: audioUrl });
       }
       break;
+    }
     case 'verb-infinitive':
       await db.collection('verbs').doc(id).update({ infinitiveAudioUrl: audioUrl });
       break;

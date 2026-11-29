@@ -13,16 +13,12 @@ import type {
   ListeningSettings,
   ListeningSessionMeta,
 } from '../types/listening';
-import { DEFAULT_LISTENING_SETTINGS } from '../types/listening';
-import { loadListeningSettings } from '../lib/storage/loadListeningSettings';
-import saveListeningSettings from '../lib/storage/saveListeningSettings';
-import { useAuthContext } from '../hooks/useAuthContext';
+import { listeningSettingsDoc } from '../lib/storage/userDocs';
+import { useUserDoc } from '../hooks/useUserDoc';
 import { emitAudioModeEvent, subscribeAudioModeEvent } from '../lib/audio/audioModeBus';
-import { showSaveError } from '../lib/storage/errorHandler';
 
 interface ListeningStartOptions {
   meta: ListeningSessionMeta;
-  startIndex?: number;
 }
 
 interface ListeningContextType {
@@ -32,6 +28,8 @@ interface ListeningContextType {
   currentIndex: number;
   currentItem: ListeningQueueItem | null;
   currentRepetition: number;
+  /** How many times the current card plays. */
+  totalRepetitions: number;
   meta: ListeningSessionMeta | null;
   settings: ListeningSettings;
   settingsLoading: boolean;
@@ -52,6 +50,11 @@ type AfterEnded =
   | { type: 'repeat'; gapMs: number }
   | { type: 'advance'; gapMs: number };
 
+/** Learned and unfamiliar cards each have their own repetitions and gaps. */
+function playbackGroupFor(item: ListeningQueueItem, settings: ListeningSettings) {
+  return item.isLearned ? settings.learned : settings.unknown;
+}
+
 /** After a clip ends: repeat it, move to the next card (after the configured gap), or finish. */
 function decideAfterEnded(
   queue: ListeningQueueItem[],
@@ -61,7 +64,7 @@ function decideAfterEnded(
 ): AfterEnded {
   const item = queue[index];
   if (!item) return { type: 'finish' };
-  const group = item.isLearned ? settings.learned : settings.unknown;
+  const group = playbackGroupFor(item, settings);
   if (repetition < group.repetitions) {
     return { type: 'repeat', gapMs: group.gapBetweenRepetitions * 1000 };
   }
@@ -69,7 +72,6 @@ function decideAfterEnded(
   return { type: 'advance', gapMs: group.gapBetweenCards * 1000 };
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
 export function useListening(): ListeningContextType {
   const ctx = useContext(ListeningContext);
   if (!ctx) throw new Error('useListening must be used within ListeningProvider');
@@ -77,61 +79,31 @@ export function useListening(): ListeningContextType {
 }
 
 export function ListeningProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuthContext();
-  const [settings, setSettings] = useState<ListeningSettings>(DEFAULT_LISTENING_SETTINGS);
-  const [settingsLoading, setSettingsLoading] = useState(true);
+  const {
+    value: settings,
+    loading: settingsLoading,
+    update: saveSettings,
+  } = useUserDoc(listeningSettingsDoc);
 
   const [queue, setQueue] = useState<ListeningQueueItem[]>([]);
   const [meta, setMeta] = useState<ListeningSessionMeta | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [currentRepetition, setCurrentRepetition] = useState(1);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [playToken, setPlayToken] = useState(0);
-  const [pauseToken, setPauseToken] = useState(0);
-  const [stopToken, setStopToken] = useState(0);
 
   const audioElRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<number | null>(null);
-  const settingsRef = useRef(settings);
+  // The element's listeners read the session from these; each is written along with its state.
   const queueRef = useRef(queue);
   const indexRef = useRef(currentIndex);
   const repetitionRef = useRef(currentRepetition);
   const isActiveRef = useRef(false);
+  // Settings are also loaded from storage, not only set by updateSettings, so this follows them.
+  const settingsRef = useRef(settings);
 
   useEffect(() => {
     settingsRef.current = settings;
   }, [settings]);
-  useEffect(() => {
-    queueRef.current = queue;
-  }, [queue]);
-  useEffect(() => {
-    indexRef.current = currentIndex;
-  }, [currentIndex]);
-  useEffect(() => {
-    repetitionRef.current = currentRepetition;
-  }, [currentRepetition]);
-
-  useEffect(() => {
-    let cancelled = false;
-    if (user) {
-      loadListeningSettings().then((loaded) => {
-        if (!cancelled) {
-          setSettings(loaded);
-          setSettingsLoading(false);
-        }
-      });
-    } else {
-      queueMicrotask(() => {
-        if (!cancelled) {
-          setSettings(DEFAULT_LISTENING_SETTINGS);
-          setSettingsLoading(false);
-        }
-      });
-    }
-    return () => {
-      cancelled = true;
-    };
-  }, [user]);
 
   const clearPendingTimer = useCallback(() => {
     if (timerRef.current !== null) {
@@ -141,6 +113,9 @@ export function ListeningProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const resetSession = useCallback(() => {
+    queueRef.current = [];
+    indexRef.current = 0;
+    repetitionRef.current = 1;
     setQueue([]);
     setMeta(null);
     setCurrentIndex(0);
@@ -148,8 +123,30 @@ export function ListeningProvider({ children }: { children: ReactNode }) {
     setIsPlaying(false);
   }, []);
 
+  /** Plays one repetition of a card in the queue, from the start. */
+  const playClip = useCallback((index: number, repetition: number) => {
+    indexRef.current = index;
+    repetitionRef.current = repetition;
+    setCurrentIndex(index);
+    setCurrentRepetition(repetition);
+    setIsPlaying(true);
+
+    const audio = audioElRef.current;
+    const url = queueRef.current[index]?.audioUrl;
+    if (!audio || !isActiveRef.current || !url) return;
+    if (audio.getAttribute('src') !== url) {
+      audio.setAttribute('src', url);
+      audio.load();
+    }
+    audio.currentTime = 0;
+    audio.playbackRate = settingsRef.current.playbackRate;
+    const promise = audio.play();
+    if (promise && typeof promise.catch === 'function') {
+      promise.catch((err) => console.error('listening audio play failed', err));
+    }
+  }, []);
+
   const currentItem = queue[currentIndex] ?? null;
-  const currentAudioUrl = currentItem?.audioUrl ?? '';
 
   useEffect(() => {
     const audio = audioElRef.current;
@@ -172,12 +169,10 @@ export function ListeningProvider({ children }: { children: ReactNode }) {
       timerRef.current = window.setTimeout(() => {
         timerRef.current = null;
         if (decision.type === 'repeat') {
-          setCurrentRepetition(rep + 1);
+          playClip(idx, rep + 1);
         } else {
-          setCurrentIndex(idx + 1);
-          setCurrentRepetition(1);
+          playClip(idx + 1, 1);
         }
-        setPlayToken((t) => t + 1);
       }, decision.gapMs);
     };
 
@@ -214,7 +209,7 @@ export function ListeningProvider({ children }: { children: ReactNode }) {
       unsubscribe();
       clearPendingTimer();
     };
-  }, [clearPendingTimer, resetSession]);
+  }, [clearPendingTimer, resetSession, playClip]);
 
   useEffect(() => {
     const audio = audioElRef.current;
@@ -222,51 +217,13 @@ export function ListeningProvider({ children }: { children: ReactNode }) {
     audio.playbackRate = settings.playbackRate;
   }, [settings.playbackRate]);
 
-  useEffect(() => {
-    if (playToken === 0) return;
-    const audio = audioElRef.current;
-    if (!audio) return;
-    if (!isActiveRef.current) return;
-    if (!currentAudioUrl) return;
-    if (audio.getAttribute('src') !== currentAudioUrl) {
-      audio.setAttribute('src', currentAudioUrl);
-      audio.load();
-    }
-    audio.currentTime = 0;
-    audio.playbackRate = settingsRef.current.playbackRate;
-    const promise = audio.play();
-    if (promise && typeof promise.catch === 'function') {
-      promise.catch((err) => console.error('listening audio play failed', err));
-    }
-  }, [playToken, currentAudioUrl]);
-
-  useEffect(() => {
-    if (pauseToken === 0) return;
-    const audio = audioElRef.current;
-    if (!audio) return;
-    clearPendingTimer();
-    audio.pause();
-  }, [pauseToken, clearPendingTimer]);
-
-  useEffect(() => {
-    if (stopToken === 0) return;
-    const audio = audioElRef.current;
-    if (!audio) return;
-    clearPendingTimer();
-    audio.pause();
-    audio.removeAttribute('src');
-    audio.load();
-  }, [stopToken, clearPendingTimer]);
-
-  const jumpTo = useCallback((index: number) => {
-    emitAudioModeEvent('listening-started');
-    indexRef.current = index;
-    repetitionRef.current = 1;
-    setCurrentIndex(index);
-    setCurrentRepetition(1);
-    setIsPlaying(true);
-    setPlayToken((t) => t + 1);
-  }, []);
+  const jumpTo = useCallback(
+    (index: number) => {
+      emitAudioModeEvent('listening-started');
+      playClip(index, 1);
+    },
+    [playClip]
+  );
 
   const start = useCallback(
     (newQueue: ListeningQueueItem[], options: ListeningStartOptions) => {
@@ -276,7 +233,7 @@ export function ListeningProvider({ children }: { children: ReactNode }) {
       isActiveRef.current = true;
       setQueue(newQueue);
       setMeta(options.meta);
-      jumpTo(Math.min(Math.max(options.startIndex ?? 0, 0), newQueue.length - 1));
+      jumpTo(0);
     },
     [clearPendingTimer, jumpTo]
   );
@@ -284,22 +241,27 @@ export function ListeningProvider({ children }: { children: ReactNode }) {
   const stop = useCallback(() => {
     clearPendingTimer();
     isActiveRef.current = false;
-    setStopToken((t) => t + 1);
+    const audio = audioElRef.current;
+    if (audio) {
+      audio.pause();
+      audio.removeAttribute('src');
+      audio.load();
+    }
     resetSession();
   }, [clearPendingTimer, resetSession]);
 
   const play = useCallback(() => {
     if (!isActiveRef.current) return;
     emitAudioModeEvent('listening-started');
-    setIsPlaying(true);
-    setPlayToken((t) => t + 1);
-  }, []);
+    playClip(indexRef.current, repetitionRef.current);
+  }, [playClip]);
 
   const pause = useCallback(() => {
     // In the gap between clips the element is already paused, so no `pause` event follows.
     setIsPlaying(false);
-    setPauseToken((t) => t + 1);
-  }, []);
+    clearPendingTimer();
+    audioElRef.current?.pause();
+  }, [clearPendingTimer]);
 
   const togglePlay = useCallback(() => {
     if (!isActiveRef.current) return;
@@ -327,20 +289,18 @@ export function ListeningProvider({ children }: { children: ReactNode }) {
     jumpTo(Math.max(0, indexRef.current - 1));
   }, [clearPendingTimer, jumpTo]);
 
-  const updateSettings = useCallback(async (updates: Partial<ListeningSettings>) => {
-    const nextSettings: ListeningSettings = {
-      ...settingsRef.current,
-      ...updates,
-      learned: { ...settingsRef.current.learned, ...(updates.learned ?? {}) },
-      unknown: { ...settingsRef.current.unknown, ...(updates.unknown ?? {}) },
-    };
-    setSettings(nextSettings);
-    try {
-      await saveListeningSettings(nextSettings);
-    } catch (e) {
-      showSaveError(e);
-    }
-  }, []);
+  const updateSettings = useCallback(
+    (updates: Partial<ListeningSettings>) =>
+      saveSettings({
+        ...settingsRef.current,
+        ...updates,
+        learned: { ...settingsRef.current.learned, ...(updates.learned ?? {}) },
+        unknown: { ...settingsRef.current.unknown, ...(updates.unknown ?? {}) },
+      }),
+    [saveSettings]
+  );
+
+  const totalRepetitions = currentItem ? playbackGroupFor(currentItem, settings).repetitions : 0;
 
   const value = useMemo<ListeningContextType>(
     () => ({
@@ -350,6 +310,7 @@ export function ListeningProvider({ children }: { children: ReactNode }) {
       currentIndex,
       currentItem,
       currentRepetition,
+      totalRepetitions,
       meta,
       settings,
       settingsLoading,
@@ -368,6 +329,7 @@ export function ListeningProvider({ children }: { children: ReactNode }) {
       currentIndex,
       currentItem,
       currentRepetition,
+      totalRepetitions,
       meta,
       settings,
       settingsLoading,

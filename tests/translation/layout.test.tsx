@@ -7,8 +7,8 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { act, fireEvent, screen } from '@testing-library/react';
 import { renderTappableText } from '../../src/lib/renderTappableText';
 import { TranslatorModal } from '../../src/components/BottomMenu/TranslatorModal';
-import { TranslationProvider } from '../../src/contexts/TranslationContext';
-import { useTranslationContext } from '../../src/hooks/useTranslationContext';
+import { TranslationProvider, useTranslationContext } from '../../src/contexts/TranslationContext';
+
 import { resetCallables } from './support/fakeFunctions';
 import { fakeTranslateServer } from './support/translateServer';
 import { renderInApp, settle, tap } from './support/app';

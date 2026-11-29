@@ -1,44 +1,33 @@
-import { useId, useRef, useState, type ReactNode, type Ref } from 'react';
-import { useForm, Controller, useFieldArray, useWatch, type Control } from 'react-hook-form';
+import { useId, useState, type ReactNode } from 'react';
+import { useForm, Controller, useWatch } from 'react-hook-form';
 import {
   DialogTitle,
   IconButton,
-  TextField,
   Box,
   Button,
   FormControl,
   InputLabel,
   Select,
   Typography,
-  CircularProgress,
   Divider,
   Collapse,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import AddIcon from '@mui/icons-material/Add';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import { styled } from '../lib/styled';
-import {
-  ModalHeader,
-  ModalContent,
-  ModalActions,
-  ExamplePairBox,
-  ExampleRowHeader,
-} from './modalStyles';
+import { ModalHeader, ModalContent, ModalActions } from './modalStyles';
 import { KeyboardAwareModalDialog } from './KeyboardAwareModalDialog';
-import { useAuthContext } from '../hooks/useAuthContext';
-import { useEditModalClose } from '../hooks/useEditModalClose';
-import { useOptimisticModalSave, type ModalSaveResult } from '../hooks/useOptimisticModalSave';
-import {
-  usePolishEnglishFormAutoTranslate,
-  usePolishEnglishAutoTranslate,
-} from '../hooks/usePolishEnglishAutoTranslate';
+import { useAuthContext } from '../contexts/AuthContext';
+import { useEditModal } from '../hooks/useEditModal';
+import { useExampleRows } from '../hooks/useExampleRows';
+import { type ModalSaveResult } from '../hooks/useOptimisticModalSave';
+import { usePolishEnglishFormAutoTranslate } from '../hooks/usePolishEnglishAutoTranslate';
 import { normalizeCustomVocabularyFields } from '../lib/utils/normalizeCustomVocabularyFields';
 import { AudioRegenerator } from './AudioRegenerator';
 import { AiExampleGenerator } from './AiExampleGenerator';
-import { FieldEndAdornment } from './FieldEndAdornment';
+import { ExampleRowsEditor } from './ExampleRowsEditor';
 import { FormTextField } from './FormFields';
 import { PolishEnglishFields } from './PolishEnglishFields';
 import { renderSelectOptions } from './selectOptions';
@@ -115,33 +104,14 @@ const getDefaultValues = (
   editWord?: CustomVocabularyWord | VocabularyWord | null,
   initialValues?: { polish: string; english: string }
 ): FormData => {
-  if (editWord) {
-    return {
-      polish: editWord.polish || '',
-      english: editWord.english || '',
-      partOfSpeech: editWord.partOfSpeech || '',
-      gender: editWord.gender || '',
-      notes: editWord.notes || '',
-      examples: ensureExampleIds(editWord.examples || []),
-    };
-  }
-  if (initialValues) {
-    return {
-      polish: initialValues.polish || '',
-      english: initialValues.english || '',
-      partOfSpeech: '',
-      gender: '',
-      notes: '',
-      examples: [],
-    };
-  }
+  const prefill = editWord ?? initialValues;
   return {
-    polish: '',
-    english: '',
-    partOfSpeech: '',
-    gender: '',
-    notes: '',
-    examples: [],
+    polish: prefill?.polish || '',
+    english: prefill?.english || '',
+    partOfSpeech: editWord?.partOfSpeech || '',
+    gender: editWord?.gender || '',
+    notes: editWord?.notes || '',
+    examples: ensureExampleIds(editWord?.examples || []),
   };
 };
 
@@ -170,18 +140,17 @@ const toGenerateRequest = ({
 interface WordAudioSectionProps {
   word: CustomVocabularyWord | VocabularyWord;
   text: string;
-  pendingAudioUrl: string | null;
   onAudioSaved: (audioUrl: string) => void;
 }
 
-function WordAudioSection({ word, text, pendingAudioUrl, onAudioSaved }: WordAudioSectionProps) {
+function WordAudioSection({ word, text, onAudioSaved }: WordAudioSectionProps) {
   return (
     <>
       <AudioRegenerator
         text={text}
         type={word.isCustom ? 'custom-vocabulary' : 'vocabulary'}
         id={String(word.id)}
-        currentAudioUrl={pendingAudioUrl || ('audioUrl' in word ? word.audioUrl : undefined)}
+        currentAudioUrl={'audioUrl' in word ? word.audioUrl : undefined}
         onAudioSaved={onAudioSaved}
         label="Word Audio"
       />
@@ -190,71 +159,10 @@ function WordAudioSection({ word, text, pendingAudioUrl, onAudioSaved }: WordAud
   );
 }
 
-type ExampleTranslation = ReturnType<typeof usePolishEnglishAutoTranslate<number>>;
-
-const EXAMPLE_FIELDS = {
-  polish: { label: 'Polish', placeholder: 'e.g., Mam czarnego kota.' },
-  english: { label: 'English', placeholder: 'e.g., I have a black cat.' },
-} as const;
-
-interface ExampleFieldProps {
-  control: Control<FormData>;
-  index: number;
-  lang: keyof typeof EXAMPLE_FIELDS;
-  translation: ExampleTranslation;
-  inputRef?: Ref<HTMLInputElement>;
-}
-
-function ExampleField({ control, index, lang, translation, inputRef }: ExampleFieldProps) {
-  const isPolish = lang === 'polish';
-  const handleChange = isPolish ? translation.handlePolishChange : translation.handleEnglishChange;
-  const handleBlur = isPolish ? translation.handlePolishBlur : translation.handleEnglishBlur;
-  const isTranslating = isPolish
-    ? translation.isTranslatingPolish
-    : translation.isTranslatingEnglish;
-  const { label, placeholder } = EXAMPLE_FIELDS[lang];
-
-  return (
-    <Controller
-      name={`examples.${index}.${lang}`}
-      control={control}
-      render={({ field }) => (
-        <TextField
-          {...field}
-          onChange={(e) => {
-            field.onChange(e);
-            handleChange(index, e.target.value);
-          }}
-          onBlur={() => {
-            field.onBlur();
-            handleBlur(index);
-          }}
-          inputRef={inputRef}
-          label={label}
-          size="small"
-          fullWidth
-          placeholder={placeholder}
-          slotProps={{
-            input: {
-              endAdornment: (
-                <FieldEndAdornment
-                  value={field.value}
-                  onClear={() => {
-                    field.onChange('');
-                    handleChange(index, '');
-                  }}
-                  clearLabel={`Clear example ${index + 1} ${label}`}
-                  dataQa={`add-vocabulary-clear-example-${lang}`}
-                  isTranslating={isTranslating(index)}
-                />
-              ),
-            },
-          }}
-        />
-      )}
-    />
-  );
-}
+const EXAMPLE_PLACEHOLDERS = {
+  polish: 'e.g., Mam czarnego kota.',
+  english: 'e.g., I have a black cat.',
+};
 
 export function AddVocabularyModal({
   open,
@@ -275,15 +183,10 @@ export function AddVocabularyModal({
     setValue,
     setFocus,
     getValues,
-    formState: { isValid, isSubmitting },
+    formState: { isValid },
   } = useForm<FormData>({
     values: getDefaultValues(editWord, initialValues),
     mode: 'onChange',
-  });
-
-  const { fields, append, remove } = useFieldArray({
-    control,
-    name: 'examples',
   });
 
   const partOfSpeech = useWatch({ control, name: 'partOfSpeech' });
@@ -292,27 +195,21 @@ export function AddVocabularyModal({
   const gender = useWatch({ control, name: 'gender' });
   const showGenderField = partOfSpeech === 'noun' || partOfSpeech === 'proper noun';
 
-  const newExamplePolishRef = useRef<HTMLInputElement>(null);
-
   const wordTranslation = usePolishEnglishFormAutoTranslate(
     { getValues, setValue },
     { vocabulary: true }
   );
-  const exampleTranslation = usePolishEnglishAutoTranslate<number>({
-    getPolish: (index) => getValues(`examples.${index}.polish`),
-    getEnglish: (index) => getValues(`examples.${index}.english`),
-    onPolishTranslated: (index, polish) => setValue(`examples.${index}.polish`, polish),
-    onEnglishTranslated: (index, english) => setValue(`examples.${index}.english`, english),
-  });
+  const exampleRows = useExampleRows({ control, getValues, setValue });
 
-  const { pendingAudioUrl, handleClose, handleAudioSaved } = useEditModalClose({
+  const { handleClose, handleAudioSaved, save } = useEditModal({
     open,
     onClose,
+    onSave,
     onAudioUpdated,
-    resetForm: () => {
-      reset(getDefaultValues(null, undefined));
+    reset: () => {
+      reset(getDefaultValues());
       wordTranslation.cancel();
-      exampleTranslation.cancelAll();
+      exampleRows.translation.cancelAll();
     },
   });
 
@@ -322,8 +219,6 @@ export function AddVocabularyModal({
     partOfSpeech,
     gender,
   });
-
-  const save = useOptimisticModalSave({ onSave, onClose: handleClose });
 
   const onSubmit = (data: FormData) => {
     const validExamples = data.examples.filter((ex) => ex.polish.trim() && ex.english.trim());
@@ -338,13 +233,6 @@ export function AddVocabularyModal({
         examples: validExamples.length > 0 ? validExamples : undefined,
       })
     );
-  };
-
-  const handleAddExample = () => {
-    append({ id: crypto.randomUUID(), polish: '', english: '' });
-    setTimeout(() => {
-      newExamplePolishRef.current?.focus();
-    }, 0);
   };
 
   const submitLabel = editWord ? 'Save Changes' : 'Add Word';
@@ -376,12 +264,7 @@ export function AddVocabularyModal({
       >
         <ModalContent>
           {isAdmin && editWord && 'id' in editWord && (
-            <WordAudioSection
-              word={editWord}
-              text={polishWord}
-              pendingAudioUrl={pendingAudioUrl}
-              onAudioSaved={handleAudioSaved}
-            />
+            <WordAudioSection word={editWord} text={polishWord} onAudioSaved={handleAudioSaved} />
           )}
 
           <PolishEnglishFields
@@ -443,45 +326,17 @@ export function AddVocabularyModal({
                 Example Sentences (optional)
               </Typography>
 
-              {fields.map((field, index) => (
-                <ExamplePairBox key={field.id}>
-                  <ExampleRowHeader>
-                    <Typography variant="caption" color="text.disabled">
-                      Example {index + 1}
-                    </Typography>
-                    <IconButton
-                      size="small"
-                      onClick={() => {
-                        exampleTranslation.cancelAll();
-                        remove(index);
-                      }}
-                      aria-label="remove example"
-                      sx={{ color: 'text.disabled' }}
-                    >
-                      <DeleteOutlineIcon fontSize="small" />
-                    </IconButton>
-                  </ExampleRowHeader>
-                  <ExampleField
-                    control={control}
-                    index={index}
-                    lang="polish"
-                    translation={exampleTranslation}
-                    inputRef={index === fields.length - 1 ? newExamplePolishRef : undefined}
-                  />
-                  <ExampleField
-                    control={control}
-                    index={index}
-                    lang="english"
-                    translation={exampleTranslation}
-                  />
-                </ExamplePairBox>
-              ))}
+              <ExampleRowsEditor
+                rows={exampleRows}
+                dataQaPrefix="add-vocabulary-example"
+                placeholders={EXAMPLE_PLACEHOLDERS}
+              />
 
               <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                 <AddExampleButton
                   size="small"
                   startIcon={<AddIcon />}
-                  onClick={handleAddExample}
+                  onClick={exampleRows.addEmptyRow}
                   type="button"
                 >
                   Add manually
@@ -489,10 +344,7 @@ export function AddVocabularyModal({
               </Box>
 
               {isAdmin && (
-                <AiExampleGenerator
-                  request={generateRequest}
-                  onAccept={(examples) => examples.forEach((ex) => append(ex))}
-                />
+                <AiExampleGenerator request={generateRequest} onAccept={exampleRows.append} />
               )}
             </ExamplesSection>
           </VocabularyDetails>
@@ -501,13 +353,8 @@ export function AddVocabularyModal({
           <Button onClick={handleClose} color="inherit" type="button">
             Cancel
           </Button>
-          <Button
-            type="submit"
-            variant="contained"
-            disabled={!isValid || isSubmitting}
-            startIcon={isSubmitting ? <CircularProgress size={16} color="inherit" /> : undefined}
-          >
-            {isSubmitting ? 'Saving...' : submitLabel}
+          <Button type="submit" variant="contained" disabled={!isValid}>
+            {submitLabel}
           </Button>
         </ModalActions>
       </Box>

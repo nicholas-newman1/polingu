@@ -4,11 +4,7 @@ import Visibility from '@mui/icons-material/Visibility';
 import { useAppSettings } from '../contexts/AppSettingsContext';
 import { BoxIconButton } from './BoxIconButton';
 
-interface HidePolishButtonProps {
-  size?: 'small' | 'medium';
-}
-
-export function HidePolishButton({ size = 'small' }: HidePolishButtonProps) {
+export function HidePolishButton() {
   const { settings, updateSettings } = useAppSettings();
   const isHidden = settings.hidePolishText;
 
@@ -20,12 +16,12 @@ export function HidePolishButton({ size = 'small' }: HidePolishButtonProps) {
     <Tooltip title={isHidden ? 'Show Polish text' : 'Hide Polish text (audio only)'}>
       <BoxIconButton
         onClick={handleToggle}
-        size={size}
+        size="small"
         active={isHidden}
         aria-label={isHidden ? 'Show Polish text' : 'Hide Polish text'}
         aria-pressed={isHidden}
       >
-        {isHidden ? <VisibilityOff fontSize={size} /> : <Visibility fontSize={size} />}
+        {isHidden ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
       </BoxIconButton>
     </Tooltip>
   );

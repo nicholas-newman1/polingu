@@ -5,10 +5,11 @@ import HeadphonesIcon from '@mui/icons-material/Headphones';
 import { styled } from '../../lib/styled';
 import { uploadAudio } from '../../lib/audio';
 import { useAudioPlayerContext } from '../../contexts/AudioPlayerContext';
-import { useAuthContext } from '../../hooks/useAuthContext';
-import { useSnackbar } from '../../hooks/useSnackbar';
-import type { AudioUploadProgress } from '../../types/audio';
-import { MiniPlayerBar, MINI_PLAYER_HEIGHT } from '../../components/MiniPlayerBar';
+import { useAuthContext } from '../../contexts/AuthContext';
+import { useSnackbar } from '../../contexts/SnackbarContext';
+import type { UploadProgress } from '../../lib/media/storageFiles';
+import { MiniPlayerBar } from '../../components/MiniPlayerBar';
+import { MINI_BAR_HEIGHT } from '../../components/audioStyles';
 import { UploadProgressOverlay } from '../../components/UploadProgressOverlay';
 import { tagSystemItems, tagUserItems, type MergedItem } from './types';
 import { ErrorTrackRow, ProcessingSection, ReadyTrackRow, SectionHeader } from './AudioRows';
@@ -53,7 +54,7 @@ export function AudioLibraryPage() {
   } = useAudioPlayerContext();
   const { isAdmin } = useAuthContext();
   const { showSnackbar } = useSnackbar();
-  const [uploadProgress, setUploadProgress] = useState<AudioUploadProgress | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
   const [menuAnchor, setMenuAnchor] = useState<{ el: HTMLElement; item: MergedItem } | null>(null);
   const [renaming, setRenaming] = useState<MergedItem | null>(null);
   const [deleting, setDeleting] = useState<MergedItem | null>(null);
@@ -122,7 +123,7 @@ export function AudioLibraryPage() {
   }
 
   return (
-    <PageContainer sx={showMiniPlayer ? { pb: `${MINI_PLAYER_HEIGHT + 8}px` } : undefined}>
+    <PageContainer sx={showMiniPlayer ? { pb: `${MINI_BAR_HEIGHT + 8}px` } : undefined}>
       {processingItems.length > 0 && <ProcessingSection items={processingItems} />}
 
       <PlaylistCard>

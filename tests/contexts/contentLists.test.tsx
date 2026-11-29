@@ -1,13 +1,12 @@
 /**
  * The card lists the review contexts expose: built-in content, the learner's
- * custom items (kept live from the server), and the setters and refreshes pages
- * use to change them.
+ * custom items (kept live from the server), and the setters pages use to change them.
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { act, waitFor } from '@testing-library/react';
 import { remote } from '../sync/support/fakeFirestore';
 import { freezeTime, setupSyncTests, userPath } from '../sync/support/harness';
-import type { ReviewDataContextType } from '../../src/hooks/useReviewData';
+import type { ReviewData } from '../hooks/support/reviewDataProviders';
 import type { CustomVocabularyWord } from '../../src/types/vocabulary';
 import type { CustomSentence } from '../../src/types/sentences';
 import type { CustomDeclensionCard } from '../../src/types';
@@ -38,8 +37,8 @@ interface CustomList {
   customItem(id: string): { id: string };
   /** Initial data with one built-in item, `builtin`. */
   initial: InitialData;
-  custom(data: ReviewDataContextType): Array<{ id: string | number }>;
-  all(data: ReviewDataContextType): Array<{ id: string | number }>;
+  custom(data: ReviewData): Array<{ id: string | number }>;
+  all(data: ReviewData): Array<{ id: string | number }>;
 }
 
 const customBase = (id: string) => ({ id, isCustom: true as const, createdAt: 1 });
@@ -50,8 +49,8 @@ const CUSTOM_LISTS: CustomList[] = [
     collection: 'customVocabulary',
     customItem: (id): CustomVocabularyWord => ({ ...customBase(id), polish: id, english: id }),
     initial: { vocabulary: { initialSystemWords: [word('builtin')] } },
-    custom: (data) => data.customWords,
-    all: (data) => data.vocabularyWords,
+    custom: (data) => data.vocabulary.customWords,
+    all: (data) => data.vocabulary.words,
   },
   {
     name: 'sentences',
@@ -64,8 +63,8 @@ const CUSTOM_LISTS: CustomList[] = [
       tags: [],
     }),
     initial: { sentences: { initialSystemSentences: [sentence('builtin')] } },
-    custom: (data) => data.customSentences,
-    all: (data) => data.sentences,
+    custom: (data) => data.sentences.customSentences,
+    all: (data) => data.sentences.sentences,
   },
   {
     name: 'declension',
@@ -80,8 +79,8 @@ const CUSTOM_LISTS: CustomList[] = [
       number: 'Singular',
     }),
     initial: { declension: { initialSystemCards: [declensionCard('builtin')] } },
-    custom: (data) => data.customDeclensionCards,
-    all: (data) => data.declensionCards,
+    custom: (data) => data.declension.customCards,
+    all: (data) => data.declension.cards,
   },
 ];
 
@@ -166,12 +165,14 @@ describe('replacing lists', () => {
   test('vocabulary: custom and built-in words are replaced separately, custom words listed first', () => {
     const h = renderReviewProviders(null, { vocabulary: { initialSystemWords: [word('w1')] } });
 
-    act(() => h.data().setCustomWords([{ ...customBase('c1'), polish: 'c1', english: 'c1' }]));
-    act(() => h.data().setSystemWords([word('w2'), word('w3')]));
+    act(() =>
+      h.data().vocabulary.setCustomWords([{ ...customBase('c1'), polish: 'c1', english: 'c1' }])
+    );
+    act(() => h.data().vocabulary.setSystemWords([word('w2'), word('w3')]));
 
-    expect(ids(h.data().customWords)).toEqual(['c1']);
-    expect(ids(h.data().systemWords)).toEqual(['w2', 'w3']);
-    expect(ids(h.data().vocabularyWords)).toEqual(['c1', 'w2', 'w3']);
+    expect(ids(h.data().vocabulary.customWords)).toEqual(['c1']);
+    expect(ids(h.data().vocabulary.systemWords)).toEqual(['w2', 'w3']);
+    expect(ids(h.data().vocabulary.words)).toEqual(['c1', 'w2', 'w3']);
   });
 
   test('declension: custom and built-in cards are replaced separately, custom cards listed first', () => {
@@ -180,11 +181,11 @@ describe('replacing lists', () => {
     });
 
     act(() =>
-      h.data().setCustomDeclensionCards([CUSTOM_LISTS[2].customItem('c1') as CustomDeclensionCard])
+      h.data().declension.setCustomCards([CUSTOM_LISTS[2].customItem('c1') as CustomDeclensionCard])
     );
-    act(() => h.data().setSystemDeclensionCards([declensionCard(2)]));
+    act(() => h.data().declension.setSystemCards([declensionCard(2)]));
 
-    expect(ids(h.data().declensionCards)).toEqual(['c1', '2']);
+    expect(ids(h.data().declension.cards)).toEqual(['c1', '2']);
   });
 
   test('sentences: custom and built-in sentences are replaced separately, custom sentences listed first', () => {
@@ -192,10 +193,12 @@ describe('replacing lists', () => {
       sentences: { initialSystemSentences: [sentence('s1')] },
     });
 
-    act(() => h.data().setCustomSentences([CUSTOM_LISTS[1].customItem('c1') as CustomSentence]));
-    act(() => h.data().setSystemSentences([sentence('s2')]));
+    act(() =>
+      h.data().sentences.setCustomSentences([CUSTOM_LISTS[1].customItem('c1') as CustomSentence])
+    );
+    act(() => h.data().sentences.setSystemSentences([sentence('s2')]));
 
-    expect(ids(h.data().sentences)).toEqual(['c1', 's2']);
+    expect(ids(h.data().sentences.sentences)).toEqual(['c1', 's2']);
   });
 
   test('sentences: setSentences with the full list shows each sentence once', () => {
@@ -206,41 +209,17 @@ describe('replacing lists', () => {
       },
     });
 
-    act(() => h.data().setSentences([...h.data().sentences, sentence('s2')]));
+    act(() => h.data().sentences.setSentences([...h.data().sentences.sentences, sentence('s2')]));
 
-    expect(ids(h.data().sentences)).toEqual(['c1', 's1', 's2']);
+    expect(ids(h.data().sentences.sentences)).toEqual(['c1', 's1', 's2']);
   });
 
   test('conjugation: setVerbs replaces the verbs', () => {
     const h = renderReviewProviders(null, { conjugation: { initialVerbs: [verb('robić')] } });
 
-    act(() => h.data().setVerbs([verb('mieć')]));
+    act(() => h.data().conjugation.setVerbs([verb('mieć')]));
 
-    expect(ids(h.data().verbs)).toEqual(['mieć']);
-  });
-});
-
-describe('refreshing from the server', () => {
-  test('vocabulary: built-in words come from the server and custom words from the device', async () => {
-    const uid = freshUid();
-    remote.seed(userPath(uid, 'customVocabulary', 'c1'), CUSTOM_LISTS[0].customItem('c1'));
-    const h = renderReviewProviders(uid, { vocabulary: { initialSystemWords: [word('old')] } });
-    await waitFor(() => expect(ids(h.data().customWords)).toEqual(['c1']));
-    seedContent({ vocabulary: [word('w1'), word('w2')] });
-
-    await h.run(() => h.data().refreshVocabularyWords());
-
-    expect(ids(h.data().systemWords)).toEqual(['w1', 'w2']);
-    expect(ids(h.data().vocabularyWords)).toEqual(['c1', 'w1', 'w2']);
-  });
-
-  test('conjugation: the verbs come from the server', async () => {
-    const h = renderReviewProviders(null, { conjugation: { initialVerbs: [verb('old')] } });
-    seedContent({ verbs: [verb('robić'), verb('mieć')] });
-
-    await h.run(() => h.data().refreshVerbs());
-
-    expect(ids(h.data().verbs)).toEqual(['mieć', 'robić']);
+    expect(ids(h.data().conjugation.verbs)).toEqual(['mieć']);
   });
 });
 
@@ -249,13 +228,13 @@ describe('aspect pair cards', () => {
     const h = renderReviewProviders(null, {
       aspectPairs: { verbs: [verb('robić', { aspectPair: 'zrobić' }), verb('zrobić')] },
     });
-    expect(h.data().aspectPairCards).toHaveLength(1);
+    expect(h.data().aspectPairs.cards).toHaveLength(1);
 
     h.provide({
       aspectPairs: { verbs: [verb('pisać', { aspectPair: 'napisać' }), verb('napisać')] },
     });
 
-    expect(h.data().aspectPairCards.map((c) => c.verb.id)).toEqual(['pisać']);
+    expect(h.data().aspectPairs.cards.map((c) => c.verb.id)).toEqual(['pisać']);
   });
 
   /** The full provider, loaded with one aspect pair: robić and zrobić. */
@@ -273,7 +252,7 @@ describe('aspect pair cards', () => {
   test('after a load, are built from the loaded verbs', async () => {
     const h = await renderLoadedPair();
 
-    expect(h.data().aspectPairCards.map((c) => [c.verb.id, c.pairVerb.infinitive])).toEqual([
+    expect(h.data().aspectPairs.cards.map((c) => [c.verb.id, c.pairVerb.infinitive])).toEqual([
       ['robić', 'zrobić'],
     ]);
   });
@@ -281,14 +260,13 @@ describe('aspect pair cards', () => {
   test('follow verbs edited through the conjugation context', async () => {
     const h = await renderLoadedPair();
 
+    const { conjugation } = h.data();
     act(() =>
-      h
-        .data()
-        .setVerbs(
-          h.data().verbs.map((v) => (v.id === 'zrobić' ? { ...v, infinitive: 'zrobić!' } : v))
-        )
+      conjugation.setVerbs(
+        conjugation.verbs.map((v) => (v.id === 'zrobić' ? { ...v, infinitive: 'zrobić!' } : v))
+      )
     );
 
-    expect(h.data().aspectPairCards[0].pairVerb.infinitive).toBe('zrobić!');
+    expect(h.data().aspectPairs.cards[0].pairVerb.infinitive).toBe('zrobić!');
   });
 });

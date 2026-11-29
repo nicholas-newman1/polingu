@@ -43,7 +43,8 @@ export interface ModeSelectorProps {
   stats: Record<TranslationDirection, DeckStats>;
   loading?: boolean;
   onSelectMode: (direction: TranslationDirection) => void;
-  renderStats?: (stats: DeckStats, color: string, direction: TranslationDirection) => ReactNode;
+  /** Replaces a mode card's learned/total figures. */
+  renderStats?: (direction: TranslationDirection) => ReactNode;
 }
 
 const Container = styled(Box)(({ theme }) => ({
@@ -111,7 +112,7 @@ export function ModeSelector({ stats, loading, onSelectMode, renderStats }: Mode
               align="center"
             >
               {renderStats ? (
-                renderStats(modeStats, mode.color, mode.direction)
+                renderStats(mode.direction)
               ) : (
                 <ProgressStats
                   learned={modeStats.learnedCount}

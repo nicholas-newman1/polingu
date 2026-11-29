@@ -4,20 +4,13 @@ import { BoxIconButton } from './BoxIconButton';
 interface ListenButtonProps {
   onClick: () => void;
   disabled?: boolean;
-  active?: boolean;
-  'aria-label'?: string;
+  'aria-label': string;
 }
 
-export function ListenButton({
-  onClick,
-  disabled,
-  active = false,
-  'aria-label': ariaLabel = 'Listening mode',
-}: ListenButtonProps) {
+export function ListenButton({ onClick, disabled, 'aria-label': ariaLabel }: ListenButtonProps) {
   return (
     <BoxIconButton
       variant="outlined"
-      active={active}
       onClick={onClick}
       disabled={disabled}
       size="small"

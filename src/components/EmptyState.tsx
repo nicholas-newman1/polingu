@@ -1,4 +1,5 @@
 import { Box, Card, Typography, styled } from '@mui/material';
+import { alpha } from '../lib/theme';
 
 const CardWrapper = styled(Box)({
   width: '100%',
@@ -21,7 +22,7 @@ const PrimaryCardGlow = styled(CardGlow)({
 const StyledCard = styled(Card)(({ theme }) => ({
   position: 'relative',
   padding: theme.spacing(3),
-  backgroundColor: 'rgba(255,255,255,0.95)',
+  backgroundColor: alpha(theme.palette.background.paper, 0.95),
   [theme.breakpoints.up('sm')]: {
     padding: theme.spacing(4),
   },

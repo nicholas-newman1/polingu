@@ -18,7 +18,7 @@ import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import DashboardCustomize from '@mui/icons-material/DashboardCustomize';
 import { styled } from '../lib/styled';
 import { useAppSettings } from '../contexts/AppSettingsContext';
-import { useReviewData } from '../hooks/useReviewData';
+import { useConjugation, useDeclension, useSentences, useVocabulary } from '../hooks/useReviewData';
 import {
   preloadAudioFiles,
   getAudioCacheCount,
@@ -107,7 +107,10 @@ function getVerbAudioUrls(verbs: Verb[]): Array<{ audioUrl?: string }> {
 
 export function SettingsPage() {
   const { settings, updateSettings } = useAppSettings();
-  const { systemSentences, systemWords, systemDeclensionCards, verbs } = useReviewData();
+  const { systemSentences } = useSentences();
+  const { systemWords } = useVocabulary();
+  const { systemCards: systemDeclensionCards } = useDeclension();
+  const { verbs } = useConjugation();
 
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState<PreloadProgress | null>(null);

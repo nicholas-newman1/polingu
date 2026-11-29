@@ -10,12 +10,13 @@ import {
   dailyLimitError,
   fakeTranslateServer,
   minuteLimitError,
-  RESET_TIME,
+  resetTimeIn,
   type FakeTranslateServer,
 } from './support/translateServer';
 import {
   elapse,
   fingerOver,
+  limitDialog,
   mouseDrag,
   nextTick,
   pressOutside,
@@ -374,16 +375,15 @@ describe('phrase translation errors', () => {
     expect(showSnackbar).toHaveBeenCalledWith('Translation failed. Please try again.', 'error');
   });
 
-  test('reaching the daily limit closes the phrase and reports when the limit resets', async () => {
-    server.failWith(dailyLimitError());
-    const onDailyLimitReached = vi.fn();
-    renderSentence({ onDailyLimitReached });
+  test('reaching the daily limit closes the phrase and says when the limit resets', async () => {
+    server.failWith(dailyLimitError(resetTimeIn(150)));
+    renderSentence();
 
     mouseDrag(word('jak'), word('się'));
     await settle();
 
     expect(tooltips()).toHaveLength(0);
-    expect(onDailyLimitReached).toHaveBeenCalledWith(RESET_TIME);
+    expect(limitDialog()).toHaveTextContent('Your limit will reset in 2 hours 30 minutes');
     expect(looksSelected(word('jak'))).toBe(false);
   });
 });

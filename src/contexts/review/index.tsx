@@ -4,7 +4,6 @@ import {
   useCallback,
   useContext,
   useRef,
-  memo,
   type ComponentProps,
   type ReactNode,
 } from 'react';
@@ -12,8 +11,8 @@ import type { DeclensionCard } from '../../types';
 import type { VocabularyWord } from '../../types/vocabulary';
 import type { Sentence } from '../../types/sentences';
 import type { Verb } from '../../types/conjugation';
-import { getUserId } from '../../lib/storage/helpers';
-import { useAuthContext } from '../../hooks/useAuthContext';
+import { getCurrentUserId } from '../../lib/cachedAuth';
+import { useAuthContext } from '../AuthContext';
 import { loadContentData, syncContentFromFirestore } from '../../lib/offlineDb/contentSync';
 import {
   refreshAllUserDataFromFirestore,
@@ -41,7 +40,7 @@ import { VocabularyProvider, VocabularyContext } from './VocabularyContext';
 import { SentenceProvider, SentenceContext } from './SentenceContext';
 import { ConjugationProvider, ConjugationContext } from './ConjugationContext';
 import { AspectPairsProvider, AspectPairsContext } from './AspectPairsContext';
-import { ReviewCountsProvider, ReviewCountsContext } from './ReviewCountsContext';
+import { ReviewDataLoadingContext } from './ReviewDataLoadingContext';
 import { latestLocalChange } from './localChanges';
 
 export type { DeclensionContextType } from './DeclensionContext';
@@ -49,7 +48,7 @@ export type { VocabularyContextType } from './VocabularyContext';
 export type { SentenceContextType } from './SentenceContext';
 export type { ConjugationContextType } from './ConjugationContext';
 export type { AspectPairsContextType } from './AspectPairsContext';
-export type { ReviewCounts, ReviewCountsContextType } from './ReviewCountsContext';
+export type { DeckProgress } from './deckState';
 
 export {
   DeclensionContext,
@@ -57,7 +56,7 @@ export {
   SentenceContext,
   ConjugationContext,
   AspectPairsContext,
-  ReviewCountsContext,
+  ReviewDataLoadingContext,
 };
 
 export interface ReviewDataProviderProps {
@@ -118,7 +117,7 @@ const EMPTY_DATA: LoadedData = {};
 
 async function fetchAllData(): Promise<LoadedData> {
   const [learnerData, content] = await Promise.all([
-    getUserId() ? loadLearnerData() : null,
+    getCurrentUserId() ? loadLearnerData() : null,
     loadContentData(),
   ]);
 
@@ -130,10 +129,6 @@ async function fetchAllData(): Promise<LoadedData> {
     verbs: content.verbs,
   };
 }
-
-const MemoizedChildTree = memo(function MemoizedChildTree({ children }: { children: ReactNode }) {
-  return children;
-});
 
 /** Builds the aspect pairs from the conjugation context's verbs, so they follow setVerbs. */
 function AspectPairsFromConjugationVerbs(
@@ -166,10 +161,10 @@ export function ReviewDataProvider({ children }: ReviewDataProviderProps) {
   const syncInFlightRef = useRef(false);
   const freshDataAppliedRef = useRef(false);
   const performBackgroundSync = useCallback(async () => {
-    if (!navigator.onLine || !getUserId()) return;
+    if (!navigator.onLine || !getCurrentUserId()) return;
     if (syncInFlightRef.current) return;
     syncInFlightRef.current = true;
-    const syncUid = getUserId();
+    const syncUid = getCurrentUserId();
     const readAt = latestLocalChange();
     try {
       await Promise.all([syncAllPendingToFirestore(), syncAllPendingReviewCards()]);
@@ -180,7 +175,7 @@ export function ReviewDataProvider({ children }: ReviewDataProviderProps) {
         refreshSentenceTagsFromFirestore(),
       ]);
       const fresh = await fetchAllData();
-      if (mountedRef.current && getUserId() === syncUid) {
+      if (mountedRef.current && getCurrentUserId() === syncUid) {
         freshDataAppliedRef.current = true;
         setData({ ...fresh, readAt });
       }
@@ -262,9 +257,9 @@ export function ReviewDataProvider({ children }: ReviewDataProviderProps) {
               initialSettings={d.aspectPairs?.settings.all}
               readAt={d.readAt}
             >
-              <ReviewCountsProvider loading={loading}>
-                <MemoizedChildTree>{children}</MemoizedChildTree>
-              </ReviewCountsProvider>
+              <ReviewDataLoadingContext.Provider value={loading}>
+                {children}
+              </ReviewDataLoadingContext.Provider>
             </AspectPairsFromConjugationVerbs>
           </ConjugationProvider>
         </SentenceProvider>

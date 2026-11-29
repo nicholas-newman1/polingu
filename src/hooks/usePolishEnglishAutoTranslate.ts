@@ -5,8 +5,6 @@ import { translate } from '../lib/translate';
 
 type TranslationKey = string | number;
 
-const SINGLE_FIELD_KEY = 'single';
-
 async function translateText(
   text: string,
   targetLang: 'EN' | 'PL',
@@ -25,7 +23,6 @@ interface DirectionOptions<K extends TranslationKey> {
   vocabulary?: boolean;
   getTargetValue: (key: K) => string | undefined;
   onTranslated: (key: K, translated: string) => void;
-  debounceMs: number;
 }
 
 /**
@@ -39,7 +36,6 @@ function useTranslateIntoEmptyField<K extends TranslationKey>({
   vocabulary,
   getTargetValue,
   onTranslated,
-  debounceMs,
 }: DirectionOptions<K>) {
   const timeouts = useRef<Map<K, ReturnType<typeof setTimeout>>>(new Map());
   const [translatingKeys, setTranslatingKeys] = useState<Set<K>>(new Set());
@@ -127,11 +123,11 @@ function useTranslateIntoEmptyField<K extends TranslationKey>({
             });
           }
         }
-      }, debounceMs);
+      }, TRANSLATION_DEBOUNCE_MS);
 
       timeouts.current.set(key, timeout);
     },
-    [canWrite, debounceMs, targetLang, vocabulary]
+    [canWrite, targetLang, vocabulary]
   );
 
   const closeReplacementWindow = useCallback((key: K) => {
@@ -159,12 +155,11 @@ interface AutoTranslateOptions<K extends TranslationKey> {
   getEnglish: (key: K) => string | undefined;
   onPolishTranslated: (key: K, polish: string) => void;
   onEnglishTranslated: (key: K, english: string) => void;
-  debounceMs?: number;
 }
 
 /**
- * Keeps a Polish/English field pair in sync in whichever direction is needed:
- * editing one side fills the other while that other side is empty or still
+ * Keeps Polish/English field pairs, one per key, in sync in whichever direction is
+ * needed: editing one side fills the other while that other side is empty or still
  * holds this hook's own auto-translation. Blurring a field settles
  * its counterpart, and every source edit invalidates pending translation results.
  */
@@ -174,27 +169,26 @@ export function usePolishEnglishAutoTranslate<K extends TranslationKey>({
   getEnglish,
   onPolishTranslated,
   onEnglishTranslated,
-  debounceMs = TRANSLATION_DEBOUNCE_MS,
 }: AutoTranslateOptions<K>) {
   const toEnglish = useTranslateIntoEmptyField<K>({
     targetLang: 'EN',
     vocabulary,
     getTargetValue: getEnglish,
     onTranslated: onEnglishTranslated,
-    debounceMs,
   });
 
   const toPolish = useTranslateIntoEmptyField<K>({
     targetLang: 'PL',
     getTargetValue: getPolish,
     onTranslated: onPolishTranslated,
-    debounceMs,
   });
 
+  const { cancelAll: cancelEnglish } = toEnglish;
+  const { cancelAll: cancelPolish } = toPolish;
   const cancelAll = useCallback(() => {
-    toEnglish.cancelAll();
-    toPolish.cancelAll();
-  }, [toEnglish, toPolish]);
+    cancelEnglish();
+    cancelPolish();
+  }, [cancelEnglish, cancelPolish]);
 
   return {
     handlePolishChange: toEnglish.scheduleTranslation,
@@ -207,60 +201,6 @@ export function usePolishEnglishAutoTranslate<K extends TranslationKey>({
   };
 }
 
-/** Single Polish/English field pair variant of `usePolishEnglishAutoTranslate`. */
-function useSinglePolishEnglishAutoTranslate({
-  vocabulary,
-  getPolish,
-  getEnglish,
-  onPolishTranslated,
-  onEnglishTranslated,
-  debounceMs,
-}: {
-  vocabulary?: boolean;
-  getPolish: () => string | undefined;
-  getEnglish: () => string | undefined;
-  onPolishTranslated: (polish: string) => void;
-  onEnglishTranslated: (english: string) => void;
-  debounceMs?: number;
-}) {
-  const {
-    handlePolishChange,
-    handleEnglishChange,
-    handlePolishBlur,
-    handleEnglishBlur,
-    isTranslatingEnglish,
-    isTranslatingPolish,
-    cancelAll,
-  } = usePolishEnglishAutoTranslate<string>({
-    vocabulary,
-    getPolish,
-    getEnglish,
-    onPolishTranslated: (_key, polish) => onPolishTranslated(polish),
-    onEnglishTranslated: (_key, english) => onEnglishTranslated(english),
-    debounceMs,
-  });
-
-  return {
-    handlePolishChange: useCallback(
-      (polish: string) => handlePolishChange(SINGLE_FIELD_KEY, polish),
-      [handlePolishChange]
-    ),
-    handleEnglishChange: useCallback(
-      (english: string) => handleEnglishChange(SINGLE_FIELD_KEY, english),
-      [handleEnglishChange]
-    ),
-    handlePolishBlur: useCallback(() => handlePolishBlur(SINGLE_FIELD_KEY), [handlePolishBlur]),
-    handleEnglishBlur: useCallback(() => handleEnglishBlur(SINGLE_FIELD_KEY), [handleEnglishBlur]),
-    isTranslatingEnglish: isTranslatingEnglish(SINGLE_FIELD_KEY),
-    isTranslatingPolish: isTranslatingPolish(SINGLE_FIELD_KEY),
-    cancel: cancelAll,
-  };
-}
-
-export type SinglePolishEnglishAutoTranslate = ReturnType<
-  typeof useSinglePolishEnglishAutoTranslate
->;
-
 /** Form field names holding the Polish and English halves of the pair. */
 export interface PolishEnglishFieldNames {
   polish: string;
@@ -269,8 +209,10 @@ export interface PolishEnglishFieldNames {
 
 const DEFAULT_FIELD_NAMES: PolishEnglishFieldNames = { polish: 'polish', english: 'english' };
 
+const FORM_PAIR = 'pair';
+
 /**
- * `useSinglePolishEnglishAutoTranslate` wired to a form's Polish/English field pair,
+ * `usePolishEnglishAutoTranslate` for a form's one Polish/English field pair,
  * named `polish` and `english` unless `fieldNames` says otherwise.
  */
 export function usePolishEnglishFormAutoTranslate<T extends FieldValues>(
@@ -283,11 +225,23 @@ export function usePolishEnglishFormAutoTranslate<T extends FieldValues>(
     'getValues' | 'setValue'
   >;
   const { polish, english } = options.fieldNames ?? DEFAULT_FIELD_NAMES;
-  return useSinglePolishEnglishAutoTranslate({
+  const pair = usePolishEnglishAutoTranslate<typeof FORM_PAIR>({
     vocabulary: options.vocabulary,
     getPolish: () => getValues(polish),
     getEnglish: () => getValues(english),
-    onPolishTranslated: (value) => setValue(polish, value, { shouldValidate: true }),
-    onEnglishTranslated: (value) => setValue(english, value, { shouldValidate: true }),
+    onPolishTranslated: (_key, value) => setValue(polish, value, { shouldValidate: true }),
+    onEnglishTranslated: (_key, value) => setValue(english, value, { shouldValidate: true }),
   });
+
+  return {
+    handlePolishChange: (text: string) => pair.handlePolishChange(FORM_PAIR, text),
+    handleEnglishChange: (text: string) => pair.handleEnglishChange(FORM_PAIR, text),
+    handlePolishBlur: () => pair.handlePolishBlur(FORM_PAIR),
+    handleEnglishBlur: () => pair.handleEnglishBlur(FORM_PAIR),
+    isTranslatingEnglish: pair.isTranslatingEnglish(FORM_PAIR),
+    isTranslatingPolish: pair.isTranslatingPolish(FORM_PAIR),
+    cancel: pair.cancelAll,
+  };
 }
+
+export type PolishEnglishFormAutoTranslate = ReturnType<typeof usePolishEnglishFormAutoTranslate>;

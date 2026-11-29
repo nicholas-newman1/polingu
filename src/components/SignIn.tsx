@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Box, Button, Card, Divider, Typography, Avatar, styled } from '@mui/material';
-import { useAuthContext } from '../hooks/useAuthContext';
-import { useSnackbar } from '../hooks/useSnackbar';
+import { useAuthContext } from '../contexts/AuthContext';
+import { useSnackbar } from '../contexts/SnackbarContext';
 import { alpha } from '../lib/theme';
 import { SITE_NAME, SITE_TAGLINE } from '../constants';
 import { SiteLogo } from './SiteLogo';

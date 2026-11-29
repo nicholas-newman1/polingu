@@ -1,22 +1,20 @@
-import { useState, useCallback, memo } from 'react';
+import { useState, useCallback } from 'react';
 import { TextField, Button, Typography, Chip, CircularProgress, Stack } from '@mui/material';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import AddIcon from '@mui/icons-material/Add';
-import type { CEFRLevel, Sentence } from '../../types/sentences';
+import type { CEFRLevel } from '../../types/sentences';
 import { ALL_LEVELS } from '../../types/sentences';
 import { processSentence } from '../../lib/processSentence';
-import { createSentence, getNextSentenceIds } from '../../lib/storage/systemSentences';
+import { assignNewSentenceIds, createSentence } from '../../lib/storage/systemSentences';
 import toggleInArray from '../../lib/utils/toggleInArray';
 import { Section, ChipGroup } from './shared';
 import { TagCategoryPicker } from './TagCategoryPicker';
-import type { AddCustomTabProps } from './types';
+import { useSentences } from '../../hooks/useReviewData';
+import { useSnackbar } from '../../contexts/SnackbarContext';
 
-export const AddCustomTab = memo(function AddCustomTab({
-  sentences,
-  setSentences,
-  sentenceTags,
-  showSnackbar,
-}: AddCustomTabProps) {
+export function AddCustomTab() {
+  const { sentences, setSentences, tags: sentenceTags } = useSentences();
+  const { showSnackbar } = useSnackbar();
   const [customText, setCustomText] = useState('');
   const [customSourceLang, setCustomSourceLang] = useState<'EN' | 'PL'>('PL');
   const [customTags, setCustomTags] = useState<string[]>([]);
@@ -56,15 +54,9 @@ export const AddCustomTab = memo(function AddCustomTab({
     if (!customPolish || !customEnglish) return;
     setSavingCustom(true);
     try {
-      const nextIds = await getNextSentenceIds([customLevel]);
-      const id = `${customLevel.toLowerCase()}_${String(nextIds[customLevel]).padStart(3, '0')}`;
-      const sentence: Sentence = {
-        id,
-        polish: customPolish,
-        english: customEnglish,
-        level: customLevel,
-        tags: customTags,
-      };
+      const [sentence] = await assignNewSentenceIds([
+        { polish: customPolish, english: customEnglish, level: customLevel, tags: customTags },
+      ]);
       await createSentence(sentence);
       setSentences([...sentences, sentence]);
       showSnackbar('Sentence saved!', 'success');
@@ -188,4 +180,4 @@ export const AddCustomTab = memo(function AddCustomTab({
       )}
     </Stack>
   );
-});
+}

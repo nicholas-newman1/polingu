@@ -21,11 +21,11 @@ import AbcIcon from '@mui/icons-material/Abc';
 import TextSnippetIcon from '@mui/icons-material/TextSnippet';
 import { translate, RateLimitMinuteError, RateLimitDailyError } from '../../lib/translate';
 import { TRANSLATION_DEBOUNCE_MS } from '../../constants/translation';
-import { useTranslationContext } from '../../hooks/useTranslationContext';
+import { useTranslationContext } from '../../contexts/TranslationContext';
 import { useBackClose } from '../../hooks/useBackClose';
-import { useSnackbar } from '../../hooks/useSnackbar';
-import { useAddToVocabulary } from '../../hooks/useAddToVocabulary';
-import { useAddSentence } from '../../hooks/useAddSentence';
+import { useSnackbar } from '../../contexts/SnackbarContext';
+import { useAddToVocabulary } from '../../contexts/AddToVocabularyContext';
+import { useAddSentence } from '../../contexts/AddSentenceContext';
 import { DirectionToggle } from '../DirectionToggle';
 import type { TranslationDirection } from '../../types/common';
 
@@ -63,8 +63,7 @@ const ResultActions = styled(Box)(({ theme }) => ({
   gap: theme.spacing(0.25),
 }));
 
-const getTranslationErrorMessage = (err: unknown): string | null => {
-  if (err instanceof Error && err.name === 'AbortError') return null;
+const getTranslationErrorMessage = (err: unknown): string => {
   if (err instanceof RateLimitMinuteError) return 'Too many requests. Please wait a moment.';
   console.error('Translation error:', err);
   return 'Translation failed. Please try again.';
@@ -130,12 +129,9 @@ export function TranslatorModal() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [keyboardOpen, setKeyboardOpen] = useState(false);
-  // Firebase calls keep running; only the current input may update the UI.
-  const translationVersion = useRef(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleClose = useCallback(() => {
-    translationVersion.current += 1;
     setText('');
     setResult('');
     setError(null);
@@ -169,8 +165,8 @@ export function TranslatorModal() {
   }, [open]);
 
   useEffect(() => {
-    const version = ++translationVersion.current;
-    const isCurrent = () => translationVersion.current === version;
+    // Firebase calls keep running; only the latest input may update the UI.
+    let stale = false;
 
     setResult('');
     setError(null);
@@ -178,19 +174,17 @@ export function TranslatorModal() {
     if (!open || !text.trim()) return;
 
     const timeoutId = setTimeout(async () => {
-      if (!isCurrent()) return;
-
       setLoading(true);
       setError(null);
 
       try {
         const targetLang = direction === 'en-to-pl' ? 'PL' : 'EN';
         const translationResult = await translate(text, targetLang);
-        if (!isCurrent()) return;
+        if (stale) return;
         setResult(translationResult.translatedText);
         onTranslationSuccess?.(translationResult);
       } catch (err) {
-        if (!isCurrent()) return;
+        if (stale) return;
         if (err instanceof RateLimitDailyError) {
           handleClose();
           onDailyLimitReached(err.resetTime);
@@ -198,13 +192,13 @@ export function TranslatorModal() {
         }
         setError(getTranslationErrorMessage(err));
       } finally {
-        if (isCurrent()) setLoading(false);
+        if (!stale) setLoading(false);
       }
     }, TRANSLATION_DEBOUNCE_MS);
 
     return () => {
       clearTimeout(timeoutId);
-      if (isCurrent()) translationVersion.current += 1;
+      stale = true;
     };
   }, [open, text, direction, handleClose, onDailyLimitReached, onTranslationSuccess]);
 
@@ -251,7 +245,6 @@ export function TranslatorModal() {
   };
 
   const toggleDirection = () => {
-    translationVersion.current += 1;
     setDirection((prev) => (prev === 'en-to-pl' ? 'pl-to-en' : 'en-to-pl'));
     if (result) setText(result);
     setResult('');
@@ -275,10 +268,7 @@ export function TranslatorModal() {
             direction === 'en-to-pl' ? 'Enter English text...' : 'Wpisz tekst po polsku...'
           }
           value={text}
-          onChange={(e) => {
-            translationVersion.current += 1;
-            setText(e.target.value);
-          }}
+          onChange={(e) => setText(e.target.value)}
           fullWidth
           autoFocus
           inputRef={inputRef}

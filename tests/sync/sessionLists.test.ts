@@ -83,7 +83,7 @@ describe('changing the lists', () => {
   test('a store from an earlier day starts the new day empty', () => {
     const old = setInSessionList(doc([1], undefined, '2026-11-25'), 'reviewedToday', 2, true, 10);
 
-    expect(startDayIfNeeded(old, ['reviewedToday', 'newCardsToday'], DAY)).toEqual({
+    expect(startDayIfNeeded(old, DAY)).toEqual({
       reviewedToday: [],
       newCardsToday: [],
       lastReviewDate: DAY,
@@ -93,6 +93,6 @@ describe('changing the lists', () => {
 
   test("today's store is left as it is", () => {
     const today = doc([1]);
-    expect(startDayIfNeeded(today, ['reviewedToday'], DAY)).toBe(today);
+    expect(startDayIfNeeded(today, DAY)).toBe(today);
   });
 });

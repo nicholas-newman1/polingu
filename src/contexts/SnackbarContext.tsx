@@ -1,5 +1,4 @@
-import { createContext, useState, useCallback, useEffect, type ReactNode } from 'react';
-import { setGlobalErrorHandler } from '../lib/storage/errorHandler';
+import { createContext, useCallback, useContext, useState, type ReactNode } from 'react';
 
 export type SnackbarSeverity = 'error' | 'success' | 'info' | 'warning';
 
@@ -25,7 +24,6 @@ export interface SnackbarContextType {
   hideSnackbar: () => void;
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
 export const SnackbarContext = createContext<SnackbarContextType | null>(null);
 
 let snackbarId = 0;
@@ -45,14 +43,17 @@ export function SnackbarProvider({ children }: { children: ReactNode }) {
     setSnackbar(null);
   }, []);
 
-  useEffect(() => {
-    setGlobalErrorHandler(showSnackbar);
-    return () => setGlobalErrorHandler(null);
-  }, [showSnackbar]);
-
   return (
     <SnackbarContext.Provider value={{ snackbar, showSnackbar, hideSnackbar }}>
       {children}
     </SnackbarContext.Provider>
   );
+}
+
+export function useSnackbar(): SnackbarContextType {
+  const context = useContext(SnackbarContext);
+  if (!context) {
+    throw new Error('useSnackbar must be used within a SnackbarProvider');
+  }
+  return context;
 }

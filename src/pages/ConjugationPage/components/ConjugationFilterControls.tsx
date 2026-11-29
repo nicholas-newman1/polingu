@@ -2,14 +2,7 @@ import { Box, Stack } from '@mui/material';
 import { ClearButton } from '../../../components/ClearButton';
 import { PracticeModeButton } from '../../../components/PracticeModeButton';
 import { SettingsButton } from '../../../components/SettingsButton';
-import type {
-  Tense,
-  Person,
-  GrammaticalNumber,
-  Aspect,
-  VerbClass,
-  ConjugationGender,
-} from '../../../types/conjugation';
+import type { ConjugationFilters, GrammaticalNumber } from '../../../types/conjugation';
 import {
   ALL_TENSES,
   ALL_PERSONS,
@@ -18,6 +11,7 @@ import {
   ALL_CONJUGATION_GENDERS,
   TENSE_LABELS,
 } from '../../../types/conjugation';
+import { getDefaultFilters } from '../../../lib/conjugationUtils';
 import {
   FilterChips,
   MultiSelectFilter,
@@ -28,51 +22,34 @@ import {
 const NUMBER_OPTIONS: GrammaticalNumber[] = ['Singular', 'Plural'];
 
 interface ConjugationFilterControlsProps {
-  tenseFilter: Tense[];
-  personFilter: Person[];
-  numberFilter: GrammaticalNumber | 'All';
-  aspectFilter: Aspect[];
-  verbClassFilter: VerbClass[];
-  genderFilter: ConjugationGender[];
+  filters: ConjugationFilters;
   practiceMode: boolean;
   showSettings: boolean;
-  onTenseChange: (value: Tense[]) => void;
-  onPersonChange: (value: Person[]) => void;
-  onNumberChange: (value: GrammaticalNumber | 'All') => void;
-  onAspectChange: (value: Aspect[]) => void;
-  onVerbClassChange: (value: VerbClass[]) => void;
-  onGenderChange: (value: ConjugationGender[]) => void;
-  onClearFilters: () => void;
+  onChange: (filters: ConjugationFilters) => void;
   onTogglePractice: () => void;
   onToggleSettings: () => void;
 }
 
 export function ConjugationFilterControls({
-  tenseFilter,
-  personFilter,
-  numberFilter,
-  aspectFilter,
-  verbClassFilter,
-  genderFilter,
+  filters,
   practiceMode,
   showSettings,
-  onTenseChange,
-  onPersonChange,
-  onNumberChange,
-  onAspectChange,
-  onVerbClassChange,
-  onGenderChange,
-  onClearFilters,
+  onChange,
   onTogglePractice,
   onToggleSettings,
 }: ConjugationFilterControlsProps) {
+  const { tenses, persons, number, aspects, verbClasses, genders } = filters;
+  const set =
+    <F extends keyof ConjugationFilters>(field: F) =>
+    (value: ConjugationFilters[F]) =>
+      onChange({ ...filters, [field]: value });
   const hasActiveFilters =
-    tenseFilter.length > 0 ||
-    personFilter.length > 0 ||
-    numberFilter !== 'All' ||
-    aspectFilter.length > 0 ||
-    verbClassFilter.length > 0 ||
-    genderFilter.length > 0;
+    tenses.length > 0 ||
+    persons.length > 0 ||
+    number !== 'All' ||
+    aspects.length > 0 ||
+    verbClasses.length > 0 ||
+    genders.length > 0;
 
   return (
     <Box sx={{ mb: { xs: 2, sm: 3 } }}>
@@ -86,51 +63,47 @@ export function ConjugationFilterControls({
         <MultiSelectFilter
           label="Tense"
           options={ALL_TENSES}
-          value={tenseFilter}
-          onChange={onTenseChange}
+          value={tenses}
+          onChange={set('tenses')}
           getLabel={(t) => TENSE_LABELS[t]}
         />
         <MultiSelectFilter
           label="Person"
           options={ALL_PERSONS}
-          value={personFilter}
-          onChange={onPersonChange}
+          value={persons}
+          onChange={set('persons')}
         />
-        <NumberFilter options={NUMBER_OPTIONS} value={numberFilter} onChange={onNumberChange} />
+        <NumberFilter options={NUMBER_OPTIONS} value={number} onChange={set('number')} />
         <MultiSelectFilter
           label="Aspect"
           options={ALL_ASPECTS}
-          value={aspectFilter}
-          onChange={onAspectChange}
+          value={aspects}
+          onChange={set('aspects')}
         />
         <MultiSelectFilter
           label="Verb Class"
           options={ALL_VERB_CLASSES}
-          value={verbClassFilter}
-          onChange={onVerbClassChange}
+          value={verbClasses}
+          onChange={set('verbClasses')}
         />
         <MultiSelectFilter
           label="Gender"
           options={ALL_CONJUGATION_GENDERS}
-          value={genderFilter}
-          onChange={onGenderChange}
+          value={genders}
+          onChange={set('genders')}
         />
 
-        {hasActiveFilters && <ClearButton onClick={onClearFilters} />}
+        {hasActiveFilters && <ClearButton onClick={() => onChange(getDefaultFilters())} />}
       </Box>
 
       {hasActiveFilters && (
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 1.5 }}>
-          <FilterChips
-            values={tenseFilter}
-            onChange={onTenseChange}
-            getLabel={(t) => TENSE_LABELS[t]}
-          />
-          <FilterChips values={personFilter} onChange={onPersonChange} />
-          <NumberFilterChip value={numberFilter} onChange={onNumberChange} />
-          <FilterChips values={aspectFilter} onChange={onAspectChange} />
-          <FilterChips values={verbClassFilter} onChange={onVerbClassChange} />
-          <FilterChips values={genderFilter} onChange={onGenderChange} />
+          <FilterChips values={tenses} onChange={set('tenses')} getLabel={(t) => TENSE_LABELS[t]} />
+          <FilterChips values={persons} onChange={set('persons')} />
+          <NumberFilterChip value={number} onChange={set('number')} />
+          <FilterChips values={aspects} onChange={set('aspects')} />
+          <FilterChips values={verbClasses} onChange={set('verbClasses')} />
+          <FilterChips values={genders} onChange={set('genders')} />
         </Box>
       )}
     </Box>

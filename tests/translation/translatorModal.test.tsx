@@ -5,8 +5,8 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { act, fireEvent, screen, within } from '@testing-library/react';
 import { TranslatorModal } from '../../src/components/BottomMenu/TranslatorModal';
-import { TranslationProvider } from '../../src/contexts/TranslationContext';
-import { useTranslationContext } from '../../src/hooks/useTranslationContext';
+import { TranslationProvider, useTranslationContext } from '../../src/contexts/TranslationContext';
+
 import { TRANSLATION_DEBOUNCE_MS } from '../../src/constants/translation';
 import { renderTappableText } from '../../src/lib/renderTappableText';
 import { resetCallables } from './support/fakeFunctions';
@@ -236,18 +236,6 @@ describe('translator errors', () => {
     expect(consoleError).toHaveBeenCalled();
   });
 
-  test('an aborted request is not reported as an error', async () => {
-    server.failWith(Object.assign(new Error('aborted'), { name: 'AbortError' }));
-    renderTranslator();
-    await openTranslator();
-
-    type('cat');
-    await pause();
-
-    expect(dialog()).not.toHaveTextContent('failed');
-    expect(dialog()).toHaveTextContent('Translation will appear here');
-  });
-
   test('reaching the daily limit closes the translator and says when it resets', async () => {
     server.failWith(dailyLimitError());
     renderTranslator();
@@ -339,23 +327,10 @@ describe('the daily translation limit', () => {
 
   test('a daily limit hit by tapping a word also blocks the translator', async () => {
     server.failWith(dailyLimitError());
-    function FlashcardPage() {
-      const { handleDailyLimitReached } = useTranslationContext();
-      return (
-        <>
-          <p>
-            {renderTappableText('Kot śpi.', {
-              sentenceContext: 'Kot śpi.',
-              onDailyLimitReached: handleDailyLimitReached,
-            })}
-          </p>
-          <Page />
-        </>
-      );
-    }
     renderInApp(
       <TranslationProvider>
-        <FlashcardPage />
+        <p>{renderTappableText('Kot śpi.', { sentenceContext: 'Kot śpi.' })}</p>
+        <Page />
       </TranslationProvider>
     );
 

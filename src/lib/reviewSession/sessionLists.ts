@@ -17,6 +17,9 @@ interface SessionDoc {
   changedAt?: SessionChanges;
 }
 
+/** A session doc with the day's two lists. */
+type DayLists = SessionDoc & { reviewedToday: SessionId[]; newCardsToday: SessionId[] };
+
 /** A key of `Store` holding one of the day's id lists. */
 type ListKey<Store> = keyof Store & string;
 
@@ -51,9 +54,11 @@ export function setInSessionList<Store extends SessionDoc, L extends ListKey<Sto
  * Takes a card out of today's reviewed and new lists ("Review again"), so it is
  * offered as a new card again today.
  */
-export function removeFromDayLists<
-  Store extends SessionDoc & { reviewedToday: SessionId[]; newCardsToday: SessionId[] },
->(store: Store, id: SessionId, now: number = Date.now()): Store {
+export function removeFromDayLists<Store extends DayLists>(
+  store: Store,
+  id: SessionId,
+  now: number = Date.now()
+): Store {
   const next = setInSessionList(store, 'reviewedToday', id, false, now);
   return setInSessionList(next, 'newCardsToday', id, false, now);
 }
@@ -62,27 +67,20 @@ export function removeFromDayLists<
  * Starts a new day's lists when `store` is dated before `today`, so reviews made
  * after midnight in a session opened the day before are counted for the new day.
  */
-export function startDayIfNeeded<Store extends SessionDoc>(
-  store: Store,
-  lists: ListKey<Store>[],
-  today: string
-): Store {
+export function startDayIfNeeded<Store extends DayLists>(store: Store, today: string): Store {
   if (store.lastReviewDate === today) return store;
-  const fresh: Store = { ...store, lastReviewDate: today, changedAt: {} };
-  for (const list of lists) (fresh as Record<string, unknown>)[list] = [];
-  return fresh;
+  return { ...store, reviewedToday: [], newCardsToday: [], lastReviewDate: today, changedAt: {} };
 }
 
 /** startDayIfNeeded for each of a deck's stores, returning `stores` itself when none changes. */
-export function startDayInEachStore<K extends string, Store extends SessionDoc>(
+export function startDayInEachStore<K extends string, Store extends DayLists>(
   stores: Record<K, Store>,
-  lists: ListKey<Store>[],
   today: string
 ): Record<K, Store> {
   let changed = false;
   const next = { ...stores };
   for (const key of Object.keys(stores) as K[]) {
-    next[key] = startDayIfNeeded(stores[key], lists, today);
+    next[key] = startDayIfNeeded(stores[key], today);
     if (next[key] !== stores[key]) changed = true;
   }
   return changed ? next : stores;

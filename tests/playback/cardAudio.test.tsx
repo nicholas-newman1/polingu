@@ -11,6 +11,7 @@ import { settle, setupApp, freezeClock } from './support/app';
 import { withAuth } from '../hooks/support/providers';
 import { signInFakeUser } from '../fakes/firebase';
 import { AppSettingsProvider, useAppSettings } from '../../src/contexts/AppSettingsContext';
+import { SnackbarProvider } from '../../src/contexts/SnackbarContext';
 import { useAudioPlayer } from '../../src/hooks/useAudioPlayer';
 import { usePrefetchAudio } from '../../src/hooks/usePrefetchAudio';
 import { playCardChime } from '../../src/lib/cardFeedback';
@@ -47,9 +48,11 @@ async function renderCardAudio(initialProps: CardProps, { autoPlay = false } = {
   });
   const auth = withAuth('reader');
   const wrapper = ({ children }: { children: ReactNode }) => (
-    <auth.wrapper>
-      <AppSettingsProvider>{children}</AppSettingsProvider>
-    </auth.wrapper>
+    <SnackbarProvider>
+      <auth.wrapper>
+        <AppSettingsProvider>{children}</AppSettingsProvider>
+      </auth.wrapper>
+    </SnackbarProvider>
   );
   const hook = renderHook(
     ({ cardId, audioUrl, revealed, autoPlayOnMount, autoPlayOnReveal }: CardProps) => ({

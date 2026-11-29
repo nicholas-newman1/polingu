@@ -45,8 +45,10 @@ export const declensionDeck: ReviewDeck<
   DeclensionCardReviewData,
   DeclensionCardId,
   DeclensionSessionCard,
-  DeclensionFilters
+  DeclensionFilters,
+  'card'
 > = {
+  cardKey: 'card',
   idOf: (card) => card.id,
   newReviewData: (cardId) => ({ cardId, fsrsCard: createEmptyCard() }),
   toSessionCard: (card, reviewData, isNew) => ({ card, reviewData, isNew }),
@@ -61,8 +63,10 @@ export const vocabularyDeck: ReviewDeck<
   VocabularyCardReviewData,
   VocabularyWordId,
   VocabularySessionCard,
-  never
+  never,
+  'word'
 > = {
+  cardKey: 'word',
   idOf: (word) => word.id,
   newReviewData: (wordId) => ({ wordId, fsrsCard: createEmptyCard() }),
   toSessionCard: (word, reviewData, isNew) => ({ word, reviewData, isNew }),
@@ -76,8 +80,10 @@ export const sentenceDeck: ReviewDeck<
   SentenceCardReviewData,
   string,
   SentenceSessionCard,
-  never
+  never,
+  'sentence'
 > = {
+  cardKey: 'sentence',
   idOf: (sentence) => sentence.id,
   newReviewData: (sentenceId) => ({ sentenceId, fsrsCard: createEmptyCard() }),
   toSessionCard: (sentence, reviewData, isNew) => ({ sentence, reviewData, isNew }),
@@ -90,8 +96,10 @@ export const conjugationDeck: ReviewDeck<
   ConjugationFormReviewData,
   ConjugationFormKey,
   ConjugationSessionCard,
-  ConjugationFilters
+  ConjugationFilters,
+  'form'
 > = {
+  cardKey: 'form',
   idOf: (form) => form.fullFormKey,
   newReviewData: (formKey) => ({ formKey, fsrsCard: createEmptyCard() }),
   toSessionCard: (form, reviewData, isNew) => ({ form, reviewData, isNew }),
@@ -104,8 +112,10 @@ export const aspectPairsDeck: ReviewDeck<
   AspectPairsCardReviewData,
   string,
   AspectPairsSessionCard,
-  never
+  never,
+  'card'
 > = {
+  cardKey: 'card',
   idOf: (card) => card.verb.id,
   newReviewData: (verbId) => ({ verbId, fsrsCard: createEmptyCard() }),
   toSessionCard: (card, reviewData, isNew) => ({ card, reviewData, isNew }),

@@ -26,6 +26,10 @@ interface TranslateResponse {
 
 export const RESET_TIME = '2026-11-27T00:00:00.000Z';
 
+/** A reset time `minutes` from now, and a few seconds more so the minutes shown are stable. */
+export const resetTimeIn = (minutes: number) =>
+  new Date(Date.now() + minutes * 60_000 + 10_000).toISOString();
+
 /** An error as the Firebase SDK raises it for an HttpsError thrown by a callable. */
 export const functionsError = (code: string, message: string) =>
   Object.assign(new Error(message), { code: `functions/${code}` });

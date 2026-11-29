@@ -10,7 +10,7 @@ import {
 } from '@mui/material';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import { uploadBook, uploadText } from '../../../lib/reader';
-import type { UploadProgress } from '../../../types/reader';
+import type { UploadProgress } from '../../../lib/media/storageFiles';
 import { BookTitleAuthorFields } from './BookTitleAuthorFields';
 
 interface AddBookDialogProps {

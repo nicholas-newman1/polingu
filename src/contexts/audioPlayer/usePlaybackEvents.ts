@@ -28,9 +28,12 @@ function findActiveIndex(spans: { startTime: number; endTime: number }[], time: 
   return result >= 0 && time <= spans[result].endTime ? result : -1;
 }
 
-interface PlaybackEventsOptions {
+/**
+ * What the playback listeners read and update. It must keep one identity for the provider's
+ * lifetime: the listeners are attached once per URL, and reattaching them reloads the track.
+ */
+export interface PlaybackHandles {
   audioRef: RefObject<HTMLAudioElement | null>;
-  audioUrl: string | null;
   /** Set when the active element was swapped in already buffered, so it must not be reloaded. */
   skipLoadRef: RefObject<boolean>;
   playbackRateRef: RefObject<number>;
@@ -45,32 +48,30 @@ interface PlaybackEventsOptions {
   setDuration: (duration: number) => void;
   setCurrentTime: (time: number) => void;
   setActiveSegmentIndex: (index: number) => void;
-  setActiveWordIndex: (index: number) => void;
 }
 
 /**
  * Loads `audioUrl` into the active element and mirrors its events into player state, driving the
  * transcript highlight from a requestAnimationFrame loop while playing.
  */
-export function usePlaybackEvents({
-  audioRef,
-  audioUrl,
-  skipLoadRef,
-  playbackRateRef,
-  transcriptRef,
-  rafRef,
-  restoreTimeRef,
-  autoPlayRef,
-  playNextRef,
-  persistTime,
-  flushTime,
-  setIsPlaying,
-  setDuration,
-  setCurrentTime,
-  setActiveSegmentIndex,
-  setActiveWordIndex,
-}: PlaybackEventsOptions) {
+export function usePlaybackEvents(audioUrl: string | null, handles: PlaybackHandles) {
   useEffect(() => {
+    const {
+      audioRef,
+      skipLoadRef,
+      playbackRateRef,
+      transcriptRef,
+      rafRef,
+      restoreTimeRef,
+      autoPlayRef,
+      playNextRef,
+      persistTime,
+      flushTime,
+      setIsPlaying,
+      setDuration,
+      setCurrentTime,
+      setActiveSegmentIndex,
+    } = handles;
     const audio = audioRef.current;
     if (!audio || !audioUrl) return;
 
@@ -84,30 +85,19 @@ export function usePlaybackEvents({
     // After load(), which resets playbackRate to defaultPlaybackRate.
     audio.playbackRate = playbackRateRef.current;
 
-    function computeIndices(time: number) {
-      const segments = transcriptRef.current;
-      const rate = audio?.playbackRate ?? playbackRateRef.current;
-      const adjusted = time + HIGHLIGHT_LOOKAHEAD_S * rate;
-      const segIdx = findActiveIndex(segments, adjusted);
-      const wordIdx = segIdx >= 0 ? findActiveIndex(segments[segIdx].words, adjusted) : -1;
-      return { segIdx, wordIdx };
-    }
-
     let lastSegIdx = -1;
-    let lastWordIdx = -1;
     let lastPublishAt = 0;
 
     function publishPosition(force: boolean) {
       if (!audio) return;
       const time = audio.currentTime;
-      const { segIdx, wordIdx } = computeIndices(time);
+      const segIdx = findActiveIndex(
+        transcriptRef.current,
+        time + HIGHLIGHT_LOOKAHEAD_S * audio.playbackRate
+      );
       if (force || segIdx !== lastSegIdx) {
         lastSegIdx = segIdx;
         setActiveSegmentIndex(segIdx);
-      }
-      if (force || wordIdx !== lastWordIdx) {
-        lastWordIdx = wordIdx;
-        setActiveWordIndex(wordIdx);
       }
       const now = performance.now();
       if (force || now - lastPublishAt >= TIME_PUBLISH_INTERVAL_MS) {
@@ -191,22 +181,5 @@ export function usePlaybackEvents({
       cancelAnimationFrame(rafRef.current);
       audio.pause();
     };
-  }, [
-    audioRef,
-    audioUrl,
-    skipLoadRef,
-    playbackRateRef,
-    transcriptRef,
-    rafRef,
-    restoreTimeRef,
-    autoPlayRef,
-    playNextRef,
-    persistTime,
-    flushTime,
-    setIsPlaying,
-    setDuration,
-    setCurrentTime,
-    setActiveSegmentIndex,
-    setActiveWordIndex,
-  ]);
+  }, [audioUrl, handles]);
 }

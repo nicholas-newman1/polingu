@@ -1,4 +1,4 @@
-import type { Card as FSRSCard, ReviewLog } from 'ts-fsrs';
+import type { Card as FSRSCard } from 'ts-fsrs';
 
 export type TranslationDirection = 'en-to-pl' | 'pl-to-en';
 
@@ -11,7 +11,6 @@ export type SessionId = string | number;
 /** What every deck keeps per card; each deck adds the card's own id field. */
 export interface CardReviewData {
   fsrsCard: FSRSCard;
-  log?: ReviewLog;
 }
 
 /** A deck's review progress: every card studied, plus today's session lists. */

@@ -33,20 +33,16 @@ export function useCardHistory<T, M = undefined>(): CardHistoryResult<T, M> {
   const canGoBack = history.length > 0 && (historyIndex === null || historyIndex > 0);
   const canGoForward = historyIndex !== null;
 
-  const addToHistory = useCallback((card: T, meta?: M) => {
+  const addToHistory = (card: T, meta?: M) => {
     setHistory((prev) => [...prev, card]);
     setMetaHistory((prev) => [...prev, meta]);
     setHistoryIndex(null);
-  }, []);
+  };
 
-  const updateInHistory = useCallback(
-    (predicate: (item: T) => boolean, updater: (item: T) => T) => {
-      setHistory((prev) => prev.map((item) => (predicate(item) ? updater(item) : item)));
-    },
-    []
-  );
+  const updateInHistory = (predicate: (item: T) => boolean, updater: (item: T) => T) =>
+    setHistory((prev) => prev.map((item) => (predicate(item) ? updater(item) : item)));
 
-  const goBack = useCallback(() => {
+  const goBack = () => {
     if (!canGoBack) return;
 
     if (historyIndex === null) {
@@ -54,9 +50,9 @@ export function useCardHistory<T, M = undefined>(): CardHistoryResult<T, M> {
     } else if (historyIndex > 0) {
       setHistoryIndex(historyIndex - 1);
     }
-  }, [canGoBack, historyIndex, history.length]);
+  };
 
-  const goForward = useCallback(() => {
+  const goForward = () => {
     if (historyIndex === null) return;
 
     if (historyIndex < history.length - 1) {
@@ -64,8 +60,9 @@ export function useCardHistory<T, M = undefined>(): CardHistoryResult<T, M> {
     } else {
       setHistoryIndex(null);
     }
-  }, [historyIndex, history.length]);
+  };
 
+  // Stable, so the session's build effect does not run again on every render.
   const clearHistory = useCallback(() => {
     setHistory([]);
     setMetaHistory([]);

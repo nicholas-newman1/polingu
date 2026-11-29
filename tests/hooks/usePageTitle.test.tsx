@@ -1,8 +1,12 @@
 import { useContext, type ReactNode } from 'react';
 import { describe, expect, test } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import { usePageTitle } from '../../src/hooks/usePageTitle';
-import { PageTitleContext, PageTitleProvider } from '../../src/contexts/PageTitleContext';
+
+import {
+  PageTitleContext,
+  PageTitleProvider,
+  usePageTitle,
+} from '../../src/contexts/PageTitleContext';
 
 function TitledPage({ title }: { title: string | null }) {
   usePageTitle(title);

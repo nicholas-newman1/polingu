@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo } from 'react';
 import { Box, Typography, ToggleButton, ToggleButtonGroup, Button } from '@mui/material';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import { styled } from '../../lib/styled';
@@ -116,28 +116,23 @@ export function ConsonantDrillerPage() {
     [mode, sessionKey]
   );
 
-  const currentCard = cards[currentIndex];
   const isFinished = currentIndex >= cards.length;
 
-  const handleModeChange = useCallback(
-    (_: React.MouseEvent<HTMLElement>, newMode: ConsonantDrillerMode | null) => {
-      if (newMode) {
-        setMode(newMode);
-        setCurrentIndex(0);
-        setSessionKey((k) => k + 1);
-      }
-    },
-    []
-  );
+  const handleModeChange = (
+    _: React.MouseEvent<HTMLElement>,
+    newMode: ConsonantDrillerMode | null
+  ) => {
+    if (newMode) {
+      setMode(newMode);
+      setCurrentIndex(0);
+      setSessionKey((k) => k + 1);
+    }
+  };
 
-  const handleNext = useCallback(() => {
-    setCurrentIndex((prev) => prev + 1);
-  }, []);
-
-  const handleRestart = useCallback(() => {
+  const handleRestart = () => {
     setCurrentIndex(0);
     setSessionKey((k) => k + 1);
-  }, []);
+  };
 
   return (
     <>
@@ -200,14 +195,14 @@ export function ConsonantDrillerPage() {
                 Drill Again
               </Button>
             </FinishedBox>
-          ) : currentCard ? (
+          ) : (
             <ConsonantFlashcard
               key={`${sessionKey}-${currentIndex}`}
-              card={currentCard}
+              card={cards[currentIndex]}
               remainingCount={cards.length - currentIndex}
-              onNext={handleNext}
+              onNext={() => setCurrentIndex((index) => index + 1)}
             />
-          ) : null}
+          )}
         </CardDeckStage>
       </MainContent>
     </>

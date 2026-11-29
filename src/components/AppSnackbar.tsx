@@ -1,5 +1,5 @@
 import { Snackbar, Alert, Button } from '@mui/material';
-import { useSnackbar } from '../hooks/useSnackbar';
+import { useSnackbar } from '../contexts/SnackbarContext';
 
 const AUTO_HIDE_DURATION = 5000;
 const AUTO_HIDE_DURATION_WITH_ACTION = 8000;

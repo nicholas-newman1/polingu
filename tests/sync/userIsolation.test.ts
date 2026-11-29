@@ -1,8 +1,8 @@
 import { describe, expect, test, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import type { User } from 'firebase/auth';
-import { AuthProvider } from '../../src/contexts/AuthContext';
-import { useAuthContext } from '../../src/hooks/useAuthContext';
+import { AuthProvider, useAuthContext } from '../../src/contexts/AuthContext';
+
 import { clearUserData } from '../../src/lib/offlineDb/userSync';
 import {
   loadUserData,
@@ -10,8 +10,11 @@ import {
   syncAllPendingToFirestore,
 } from '../../src/lib/offlineDb/userDataWrapper';
 import { getCachedUser, setCachedUser } from '../../src/lib/cachedAuth';
-import { loadCustomVocabulary, saveCustomVocabulary } from '../../src/lib/storage/customVocabulary';
-import loadAppSettings from '../../src/lib/storage/loadAppSettings';
+import {
+  customVocabularyStorage,
+  loadCustomVocabulary,
+} from '../../src/lib/storage/customVocabulary';
+import { appSettingsDoc } from '../../src/lib/storage/userDocs';
 import { DEFAULT_APP_SETTINGS } from '../../src/types/appSettings';
 import type { CustomVocabularyWord } from '../../src/types/vocabulary';
 import { remote } from './support/fakeFirestore';
@@ -90,7 +93,7 @@ async function learnerAWithData(): Promise<Auth> {
   await declensionStorage.all.cards.saveCardsDiff(null, {
     1: { cardId: 1, fsrsCard: ratedCard('2026-11-20T10:00:00Z') },
   });
-  await saveCustomVocabulary([word('custom_a', 'kot')]);
+  await customVocabularyStorage.add(word('custom_a', 'kot'));
   network.goOffline();
   await saveUserData('userFilters', { declension: { cases: ['Genitive'] } });
   network.goOnline();
@@ -107,7 +110,7 @@ describe('signing out and in as someone else', () => {
     remote.seed(userPath('learner-b', 'data', 'appSettings'), { autoPlayAudio: false });
 
     expect(auth.result.current.user?.uid).toBe('learner-b');
-    expect(await loadAppSettings()).toEqual({ ...DEFAULT_APP_SETTINGS, autoPlayAudio: false });
+    expect(await appSettingsDoc.load()).toEqual({ ...DEFAULT_APP_SETTINGS, autoPlayAudio: false });
     expect(await declensionStorage.all.cards.loadCards()).toEqual({});
     expect(await loadCustomVocabulary()).toEqual([]);
   });
@@ -130,7 +133,7 @@ describe('signing out and in as someone else', () => {
 
     expect(getCachedUser()).toBeNull();
     network.goOffline();
-    expect(await loadAppSettings()).toEqual(DEFAULT_APP_SETTINGS);
+    expect(await appSettingsDoc.load()).toEqual(DEFAULT_APP_SETTINGS);
     expect(await declensionStorage.all.cards.loadCards()).toEqual({});
   });
 
@@ -153,7 +156,7 @@ describe('signing out and in as someone else', () => {
 
     await firebaseSignsIn('learner-a');
 
-    expect(await loadAppSettings()).toEqual({ autoPlayAudio: true, hidePolishText: true });
+    expect(await appSettingsDoc.load()).toEqual({ autoPlayAudio: true, hidePolishText: true });
     expect(Object.keys(await declensionStorage.all.cards.loadCards())).toEqual(['1']);
   });
 
@@ -173,7 +176,7 @@ describe('signing out and in as someone else', () => {
     await firebaseEndsSession();
     await firebaseSignsIn('learner-b');
 
-    expect(await loadAppSettings()).toEqual(DEFAULT_APP_SETTINGS);
+    expect(await appSettingsDoc.load()).toEqual(DEFAULT_APP_SETTINGS);
     await syncAllPendingToFirestore();
     expect(remote.list(userPath('learner-b', 'data'))).toEqual({});
   });
@@ -182,7 +185,10 @@ describe('signing out and in as someone else', () => {
     await firebaseEndsSession();
     await firebaseSignsIn('learner-a');
 
-    expect(await loadAppSettings()).toMatchObject({ autoPlayAudio: true, hidePolishText: true });
+    expect(await appSettingsDoc.load()).toMatchObject({
+      autoPlayAudio: true,
+      hidePolishText: true,
+    });
     expect(await syncAllPendingToFirestore()).toBe(1);
     expect(remote.get(userPath('learner-a', 'data', 'userFilters'))).toEqual({
       declension: { cases: ['Genitive'] },
@@ -198,7 +204,7 @@ describe('starting offline with a remembered account', () => {
     setCachedUser(stub<User>({ uid: 'learner-a', email: 'a@example.com' }));
     network.goOffline();
 
-    expect(await loadAppSettings()).toEqual({ autoPlayAudio: true, hidePolishText: false });
+    expect(await appSettingsDoc.load()).toEqual({ autoPlayAudio: true, hidePolishText: false });
 
     await saveUserData('appSettings', { autoPlayAudio: false, hidePolishText: false });
     network.goOnline();

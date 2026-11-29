@@ -1,67 +1,35 @@
-import { memo, useState, useMemo, useCallback } from 'react';
-import { Typography, Chip, Table, TableBody, TableCell, TableRow } from '@mui/material';
+import { Chip } from '@mui/material';
 import { styled } from '../lib/styled';
 import { alpha } from '../lib/theme';
 import { AddVocabularyModal } from '../components/AddVocabularyModal';
-import { InlineAudioRegenerator } from '../components/AudioRegenerator';
-import { saveCustomVocabulary, subscribeCustomVocabulary } from '../lib/storage/customVocabulary';
-import { findCustomWordWithSamePolish } from '../lib/utils/findDuplicateCustomVocabularyPolish';
-import { foldForSearch, matchesSearch } from '../lib/utils/foldForSearch';
+import { customVocabularyStorage } from '../lib/storage/customVocabulary';
+import { findWordWithSamePolish } from '../lib/utils/findDuplicateCustomVocabularyPolish';
 import capitalize from '../lib/utils/capitalize';
 import {
   PARTS_OF_SPEECH,
   NOUN_GENDERS,
   type CustomVocabularyWord,
-  type PartOfSpeech,
   type NounGender,
 } from '../types/vocabulary';
 import { createCustomItem } from '../types/customItems';
-import { useAuthContext } from '../hooks/useAuthContext';
 import { useReprioritizeVocabularyWord } from '../hooks/useReprioritizeVocabularyWord';
-import { useCustomCollection } from '../hooks/useCustomCollection';
-import { useOptimistic } from '../hooks/useOptimistic';
-import { useSnackbar } from '../hooks/useSnackbar';
-import { useConfirm } from '../hooks/useConfirm';
+import { useReviewDataLoading, useVocabulary } from '../hooks/useReviewData';
+import { useSnackbar } from '../contexts/SnackbarContext';
 import {
-  PageContainer,
-  FiltersRow,
-  StyledTableContainer,
+  CustomItemPage,
+  useCustomItemPage,
+  MetaChip,
   PrimaryCell,
   SecondaryCell,
-  MetaChip,
-  CustomItemPageHeader,
-  CustomItemEmptyState,
-  CustomItemLoadingState,
-  CustomItemActions,
-  CustomItemSearchField,
-  FilterSelectField,
-  SortableHeaderCell,
-  formatDate,
-  sortItems,
-  useSortState,
-  usePagination,
-  CustomItemPagination,
-  FilterResultCount,
-  CustomItemTableHead,
   byPolish,
   byEnglish,
-  byCreatedAt,
+  type CustomItemColumn,
+  type CustomItemFilter,
 } from '../components/CustomItemPage';
 
-type SortField = 'polish' | 'english' | 'partOfSpeech' | 'gender' | 'createdAt';
+type WordFormData = Omit<CustomVocabularyWord, 'id' | 'isCustom' | 'createdAt'>;
 
-const COMPARATORS: Record<SortField, (a: CustomVocabularyWord, b: CustomVocabularyWord) => number> =
-  {
-    polish: byPolish,
-    english: byEnglish,
-    partOfSpeech: (a, b) => (a.partOfSpeech || '').localeCompare(b.partOfSpeech || ''),
-    gender: (a, b) => (a.gender || '').localeCompare(b.gender || ''),
-    createdAt: byCreatedAt,
-  };
-
-const GenderChip = styled(Chip)<{
-  $gender: 'masculine' | 'feminine' | 'neuter';
-}>(({ theme, $gender }) => ({
+const GenderChip = styled(Chip)<{ $gender: NounGender }>(({ theme, $gender }) => ({
   height: 24,
   fontSize: '0.75rem',
   fontWeight: 500,
@@ -69,282 +37,86 @@ const GenderChip = styled(Chip)<{
   color: theme.palette.gender[$gender].main,
 }));
 
+const COLUMNS: CustomItemColumn<CustomVocabularyWord>[] = [
+  {
+    label: 'Polish',
+    compare: byPolish,
+    render: (word) => <PrimaryCell>{word.polish}</PrimaryCell>,
+  },
+  { label: 'English', compare: byEnglish, render: (word) => word.english },
+  {
+    label: 'Type',
+    compare: (a, b) => (a.partOfSpeech || '').localeCompare(b.partOfSpeech || ''),
+    render: (word) => word.partOfSpeech && <MetaChip label={word.partOfSpeech} size="small" />,
+  },
+  {
+    label: 'Gender',
+    compare: (a, b) => (a.gender || '').localeCompare(b.gender || ''),
+    render: (word) =>
+      word.gender && <GenderChip $gender={word.gender} label={word.gender} size="small" />,
+  },
+  {
+    label: 'Notes',
+    render: (word) => word.notes && <SecondaryCell title={word.notes}>{word.notes}</SecondaryCell>,
+  },
+];
+
+const FILTERS: CustomItemFilter<CustomVocabularyWord>[] = [
+  {
+    label: 'Part of Speech',
+    options: PARTS_OF_SPEECH,
+    value: (word) => word.partOfSpeech,
+    format: capitalize,
+  },
+  { label: 'Gender', options: NOUN_GENDERS, value: (word) => word.gender, format: capitalize },
+];
+
 export function CustomVocabularyPage() {
-  const { isAdmin } = useAuthContext();
+  const loading = useReviewDataLoading();
+  const { customWords, setCustomWords } = useVocabulary();
   const { showSnackbar } = useSnackbar();
   const { canReprioritize, reprioritize, reportDuplicatePolish } = useReprioritizeVocabularyWord();
-  const { confirm, confirmDialog } = useConfirm();
-  const {
-    items: customWordsBase,
-    setItems: setCustomWordsBase,
-    isLoading,
-  } = useCustomCollection(subscribeCustomVocabulary);
-  const optimisticOptions = useMemo(
-    () => ({ onError: () => showSnackbar('Failed to save. Please try again.', 'error') }),
-    [showSnackbar]
-  );
-  const [customWords, applyOptimisticCustomWords] = useOptimistic(
-    customWordsBase,
-    optimisticOptions
-  );
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [editingWord, setEditingWord] = useState<CustomVocabularyWord | null>(null);
+  const page = useCustomItemPage({
+    items: customWords,
+    setItems: setCustomWords,
+    loading,
+    storage: customVocabularyStorage,
+    noun: 'word',
+  });
+  const { editing } = page;
 
-  const handleAddWord = (wordData: Omit<CustomVocabularyWord, 'id' | 'isCustom' | 'createdAt'>) => {
-    if (reportDuplicatePolish(customWords, wordData.polish)) return false;
-    const newWord = createCustomItem(wordData);
-    const newCustomWords = [newWord, ...customWordsBase];
-
-    applyOptimisticCustomWords(newCustomWords, async () => {
-      await saveCustomVocabulary(newCustomWords);
-      setCustomWordsBase(newCustomWords);
-    });
-  };
-
-  const handleEditWord = (
-    wordData: Omit<CustomVocabularyWord, 'id' | 'isCustom' | 'createdAt'>
-  ) => {
-    if (!editingWord) return;
-    if (findCustomWordWithSamePolish(customWords, wordData.polish, editingWord.id)) {
+  const handleSave = (wordData: WordFormData) => {
+    if (!editing) {
+      if (reportDuplicatePolish(customWords, wordData.polish)) return false;
+      return page.add(createCustomItem(wordData));
+    }
+    if (findWordWithSamePolish(customWords, wordData.polish, editing.id)) {
       showSnackbar('This Polish word is already in your custom vocabulary.', 'error');
       return false;
     }
-    const newCustomWords = customWords.map((w) =>
-      w.id === editingWord.id ? { ...w, ...wordData } : w
-    );
-    setEditingWord(null);
-
-    applyOptimisticCustomWords(newCustomWords, async () => {
-      await saveCustomVocabulary(newCustomWords);
-      setCustomWordsBase(newCustomWords);
-    });
+    return page.update(editing.id, wordData);
   };
 
-  const handleDeleteWord = useCallback(
-    async (wordId: string) => {
-      const confirmed = await confirm({
-        title: 'Delete Word',
-        message: 'Are you sure you want to delete this word?',
-        confirmLabel: 'Delete',
-      });
-      if (!confirmed) return;
-
-      const newCustomWords = customWords.filter((w) => w.id !== wordId);
-
-      applyOptimisticCustomWords(newCustomWords, async () => {
-        await saveCustomVocabulary(newCustomWords);
-        setCustomWordsBase(newCustomWords);
-      });
-    },
-    [confirm, customWords, applyOptimisticCustomWords, setCustomWordsBase]
-  );
-
-  const handleOpenAddModal = useCallback(() => setShowAddModal(true), []);
-
-  const handleOpenEditModal = useCallback((word: CustomVocabularyWord) => {
-    setEditingWord(word);
-    setShowAddModal(true);
-  }, []);
-
-  const handleAudioSaved = useCallback(
-    (wordId: string, audioUrl: string) => {
-      setCustomWordsBase((prev) => prev.map((w) => (w.id === wordId ? { ...w, audioUrl } : w)));
-    },
-    [setCustomWordsBase]
-  );
-
-  if (isLoading) {
-    return <CustomItemLoadingState />;
-  }
-
   return (
-    <PageContainer>
-      <CustomItemPageHeader
-        title="My Vocabulary"
-        subtitle="Your personal vocabulary collection"
-        count={customWords.length}
-        addLabel="Add Word"
-        onAdd={handleOpenAddModal}
-      />
-
-      <VocabularyTable
-        customWords={customWords}
-        isAdmin={isAdmin}
-        onAdd={handleOpenAddModal}
-        onEdit={handleOpenEditModal}
-        onDelete={handleDeleteWord}
-        onAudioSaved={handleAudioSaved}
-        canReprioritize={canReprioritize}
-        reprioritize={reprioritize}
-      />
-
+    <CustomItemPage
+      title="My Vocabulary"
+      subtitle="Your personal vocabulary collection"
+      emptyTitle="No custom words yet"
+      emptyDescription="Add your own vocabulary words to drill alongside the standard word list."
+      page={page}
+      columns={COLUMNS}
+      filters={FILTERS}
+      searchFields={(word) => [word.polish, word.english, word.notes]}
+      audio={{ type: 'custom-vocabulary', text: (word) => word.polish }}
+      canReprioritize={canReprioritize}
+      onReprioritize={reprioritize}
+    >
       <AddVocabularyModal
-        open={showAddModal}
-        onClose={() => {
-          setShowAddModal(false);
-          setEditingWord(null);
-        }}
-        onSave={editingWord ? handleEditWord : handleAddWord}
-        editWord={editingWord}
+        open={page.modalOpen}
+        onClose={page.closeModal}
+        onSave={handleSave}
+        editWord={editing}
       />
-      {confirmDialog}
-    </PageContainer>
+    </CustomItemPage>
   );
 }
-
-interface VocabularyTableProps {
-  customWords: CustomVocabularyWord[];
-  isAdmin: boolean;
-  onAdd: () => void;
-  onEdit: (item: CustomVocabularyWord) => void;
-  onDelete: (id: CustomVocabularyWord['id']) => void;
-  onAudioSaved: (id: CustomVocabularyWord['id'], audioUrl: string) => void;
-  canReprioritize: (id: CustomVocabularyWord['id']) => boolean;
-  reprioritize: (id: CustomVocabularyWord['id']) => void;
-}
-
-// Dialog state stays in the page; stable props let the table skip those updates.
-const VocabularyTable = memo(function VocabularyTable({
-  customWords,
-  isAdmin,
-  onAdd,
-  onEdit,
-  onDelete,
-  onAudioSaved,
-  canReprioritize,
-  reprioritize,
-}: VocabularyTableProps) {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [posFilter, setPosFilter] = useState<PartOfSpeech | ''>('');
-  const [genderFilter, setGenderFilter] = useState<NounGender | ''>('');
-  const sort = useSortState<SortField>('createdAt');
-
-  const { sortField, sortDirection } = sort;
-  const filteredAndSortedWords = useMemo(() => {
-    const query = foldForSearch(searchQuery);
-    const filtered = customWords.filter(
-      (word) =>
-        matchesSearch(query, word.polish, word.english, word.notes) &&
-        (!posFilter || word.partOfSpeech === posFilter) &&
-        (!genderFilter || word.gender === genderFilter)
-    );
-    return sortItems(filtered, COMPARATORS, { sortField, sortDirection });
-  }, [customWords, searchQuery, posFilter, genderFilter, sortField, sortDirection]);
-
-  const { paginatedItems, ...pagination } = usePagination(
-    filteredAndSortedWords,
-    JSON.stringify([searchQuery, posFilter, genderFilter, sortField, sortDirection])
-  );
-
-  if (customWords.length === 0) {
-    return (
-      <CustomItemEmptyState
-        title="No custom words yet"
-        description="Add your own vocabulary words to drill alongside the standard word list."
-        addLabel="Add Your First Word"
-        onAdd={onAdd}
-      />
-    );
-  }
-
-  return (
-    <>
-      <FiltersRow>
-        <CustomItemSearchField
-          value={searchQuery}
-          onChange={setSearchQuery}
-          placeholder="Search words..."
-        />
-        <FilterSelectField
-          label="Part of Speech"
-          value={posFilter}
-          options={PARTS_OF_SPEECH}
-          onChange={setPosFilter}
-          format={capitalize}
-        />
-        <FilterSelectField
-          label="Gender"
-          value={genderFilter}
-          options={NOUN_GENDERS}
-          onChange={setGenderFilter}
-          format={capitalize}
-        />
-        <FilterResultCount
-          visible={Boolean(searchQuery || posFilter || genderFilter)}
-          shown={filteredAndSortedWords.length}
-          total={customWords.length}
-          noun="words"
-        />
-      </FiltersRow>
-
-      <StyledTableContainer elevation={0}>
-        <Table>
-          <CustomItemTableHead isAdmin={isAdmin}>
-            <SortableHeaderCell field="polish" label="Polish" sort={sort} />
-            <SortableHeaderCell field="english" label="English" sort={sort} />
-            <SortableHeaderCell field="partOfSpeech" label="Type" sort={sort} />
-            <SortableHeaderCell field="gender" label="Gender" sort={sort} />
-            <TableCell>Notes</TableCell>
-            <SortableHeaderCell field="createdAt" label="Added" sort={sort} />
-          </CustomItemTableHead>
-          <TableBody>
-            {paginatedItems.map((word) => (
-              <TableRow key={word.id}>
-                <TableCell>
-                  <CustomItemActions
-                    onEdit={() => onEdit(word)}
-                    onDelete={() => onDelete(word.id)}
-                    editLabel="edit word"
-                    deleteLabel="delete word"
-                    onReprioritize={() => reprioritize(word.id)}
-                    canReprioritize={canReprioritize(word.id)}
-                    reprioritizeLabel="review word again"
-                  />
-                </TableCell>
-                {isAdmin && (
-                  <TableCell>
-                    <InlineAudioRegenerator
-                      text={word.polish}
-                      type="custom-vocabulary"
-                      id={word.id}
-                      currentAudioUrl={word.audioUrl}
-                      onAudioSaved={(audioUrl) => onAudioSaved(word.id, audioUrl)}
-                    />
-                  </TableCell>
-                )}
-                <TableCell>
-                  <PrimaryCell>{word.polish}</PrimaryCell>
-                </TableCell>
-                <TableCell>{word.english}</TableCell>
-                <TableCell>
-                  {word.partOfSpeech && <MetaChip label={word.partOfSpeech} size="small" />}
-                </TableCell>
-                <TableCell>
-                  {word.gender && (
-                    <GenderChip $gender={word.gender} label={word.gender} size="small" />
-                  )}
-                </TableCell>
-                <TableCell>
-                  {word.notes && <SecondaryCell title={word.notes}>{word.notes}</SecondaryCell>}
-                </TableCell>
-                <TableCell>
-                  <Typography variant="body2" color="text.secondary">
-                    {formatDate(word.createdAt)}
-                  </Typography>
-                </TableCell>
-              </TableRow>
-            ))}
-            {filteredAndSortedWords.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={isAdmin ? 8 : 7} align="center" sx={{ py: 4 }}>
-                  <Typography color="text.secondary">No words match your filters</Typography>
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </StyledTableContainer>
-      <CustomItemPagination {...pagination} />
-    </>
-  );
-});

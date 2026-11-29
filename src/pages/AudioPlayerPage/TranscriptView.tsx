@@ -4,6 +4,7 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import { styled } from '../../lib/styled';
 import { TranslatableWords } from '../../components/lazyText/TranslatableWords';
 import { useLazyVisibility } from '../../components/lazyText/useLazyVisibility';
+import { useTextBlocks } from '../../components/lazyText/useTextBlocks';
 import {
   TEXT_LINE_HEIGHT,
   FONT_SIZE_MAP,
@@ -12,7 +13,6 @@ import {
 import { TranslatableText } from '../../components/TranslatableText';
 import type { TranscriptSegment } from '../../types/audio';
 import type { TranscriptFontSize } from '../../types/appSettings';
-import { countWords } from '../../lib/utils/countWords';
 
 const INITIAL_VISIBLE_BUFFER = 5;
 const LAZY_ROOT_MARGIN = '800px 0px';
@@ -104,7 +104,6 @@ interface TranscriptViewProps {
   transcript: TranscriptSegment[];
   activeSegmentIndex: number;
   fontSize: TranscriptFontSize;
-  onDailyLimitReached?: (resetTime: string) => void;
   onWordTap?: () => void;
   onSeekToSegment?: (time: number) => void;
   editMode?: boolean;
@@ -115,7 +114,6 @@ export function TranscriptView({
   transcript,
   activeSegmentIndex,
   fontSize,
-  onDailyLimitReached,
   onWordTap,
   onSeekToSegment,
   editMode = false,
@@ -125,7 +123,19 @@ export function TranscriptView({
   const segmentRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const scrollAnchorRef = useRef<{ segIdx: number; offset: number } | null>(null);
   const prevEditModeRef = useRef(editMode);
-  const [translations, setTranslations] = useState<Record<string, string>>({});
+  const [initialActiveSegmentIndex] = useState(activeSegmentIndex);
+  const segmentTexts = useMemo(() => transcript.map((segment) => segment.text), [transcript]);
+  const {
+    wordCounts: segmentWordCounts,
+    wordOffsets: segmentWordOffsets,
+    initiallyVisible,
+    getSentenceContext,
+    translations,
+    updateTranslation,
+  } = useTextBlocks(segmentTexts, {
+    initialBlock: initialActiveSegmentIndex,
+    initialBuffer: INITIAL_VISIBLE_BUFFER,
+  });
 
   const measureAnchor = useCallback((): { segIdx: number; offset: number } | null => {
     const container = containerRef.current;
@@ -168,57 +178,6 @@ export function TranscriptView({
     container.scrollTop += newOffset - anchor.offset;
     scrollAnchorRef.current = measureAnchor();
   });
-
-  const handleUpdateTranslation = useCallback((word: string, translation: string) => {
-    setTranslations((prev) => ({ ...prev, [word]: translation }));
-  }, []);
-
-  const segmentWordCounts = useMemo(
-    () => transcript.map((segment) => countWords(segment.text)),
-    [transcript]
-  );
-
-  const segmentWordOffsets = useMemo(() => {
-    const offsets: number[] = [];
-    let total = 0;
-    for (const count of segmentWordCounts) {
-      offsets.push(total);
-      total += count;
-    }
-    return offsets;
-  }, [segmentWordCounts]);
-
-  const [initialActiveSegmentIndex] = useState(activeSegmentIndex);
-  const initialVisibleSet = useMemo(() => {
-    const set = new Set<number>();
-    const start = Math.max(0, initialActiveSegmentIndex - INITIAL_VISIBLE_BUFFER);
-    const end = Math.min(transcript.length - 1, initialActiveSegmentIndex + INITIAL_VISIBLE_BUFFER);
-    for (let i = start; i <= end; i++) set.add(i);
-    return set;
-  }, [initialActiveSegmentIndex, transcript.length]);
-
-  const getSentenceContext = useCallback(
-    (selectedIndices: number[]) => {
-      if (selectedIndices.length === 0 || transcript.length === 0) return undefined;
-      let min = Infinity;
-      let max = -Infinity;
-      for (const idx of selectedIndices) {
-        if (idx < min) min = idx;
-        if (idx > max) max = idx;
-      }
-      let firstSeg = 0;
-      let lastSeg = 0;
-      for (let i = 0; i < segmentWordOffsets.length; i++) {
-        if (segmentWordOffsets[i] <= min) firstSeg = i;
-        if (segmentWordOffsets[i] <= max) lastSeg = i;
-      }
-      return transcript
-        .slice(firstSeg, lastSeg + 1)
-        .map((s) => s.text)
-        .join(' ');
-    },
-    [segmentWordOffsets, transcript]
-  );
 
   const handleSeekToSegmentClick = useCallback(
     (segIdx: number, time: number) => {
@@ -277,22 +236,19 @@ export function TranscriptView({
       <TranslatableText
         getSentenceContext={getSentenceContext}
         translations={translations}
-        onDailyLimitReached={onDailyLimitReached}
-        onUpdateTranslation={handleUpdateTranslation}
+        onUpdateTranslation={updateTranslation}
         onWordTap={onWordTap}
       >
         {transcript.map((segment, segIdx) => (
           <LazyTranscriptRow
             key={segIdx}
-            initiallyVisible={initialVisibleSet.has(segIdx)}
+            initiallyVisible={initiallyVisible.has(segIdx)}
             wordCount={segmentWordCounts[segIdx]}
             segment={segment}
             segIdx={segIdx}
             isActive={segIdx === activeSegmentIndex}
             fontSize={fontSize}
             wordOffset={segmentWordOffsets[segIdx]}
-            translations={translations}
-            onDailyLimitReached={onDailyLimitReached}
             onSeekClick={seekEnabled ? handleSeekToSegmentClick : undefined}
             editMode={editMode}
             onEditSegment={onEditSegment}
@@ -310,8 +266,6 @@ interface TranscriptRowProps {
   isActive: boolean;
   fontSize: TranscriptFontSize;
   wordOffset: number;
-  translations: Record<string, string>;
-  onDailyLimitReached?: (resetTime: string) => void;
   onSeekClick?: (segIdx: number, time: number) => void;
   editMode?: boolean;
   onEditSegment?: (segIdx: number) => void;
@@ -359,8 +313,6 @@ const TranscriptRow = memo(function TranscriptRow({
   isActive,
   fontSize,
   wordOffset,
-  translations,
-  onDailyLimitReached,
   onSeekClick,
   editMode = false,
   onEditSegment,
@@ -420,12 +372,7 @@ const TranscriptRow = memo(function TranscriptRow({
         </SeekButtonSlot>
       )}
       <SegmentText>
-        <TranslatableWords
-          text={segment.text}
-          wordOffset={wordOffset}
-          translations={translations}
-          onDailyLimitReached={onDailyLimitReached}
-        />
+        <TranslatableWords text={segment.text} wordOffset={wordOffset} />
       </SegmentText>
     </SegmentRow>
   );

@@ -1,44 +1,31 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, CircularProgress, styled } from '@mui/material';
 import { DeclensionFlashcard } from './components/DeclensionFlashcard';
 import { DeclensionFilterControls } from './components/DeclensionFilterControls';
 import { SettingsPanel } from '../../components/SettingsPanel';
-import { FinishedState } from '../../components/FinishedState';
 import { ReviewStage } from '../../components/ReviewStage';
 import { EmptyState } from '../../components/EmptyState';
-import { SessionStatusLine } from '../../components/SessionStatusLine';
 import { ReviewMainContent } from '../../components/ReviewLayout';
 import { EditDeclensionModal } from '../../components/EditDeclensionModal';
-import type {
-  DeclensionCard,
-  CustomDeclensionCard,
-  DeclensionFilters,
-  Case,
-  Gender,
-  Number,
-} from '../../types';
+import type { DeclensionCard, DeclensionFilters } from '../../types';
 import {
   updateDeclensionCard,
   updateDeclensionCardTranslation,
   deleteDeclensionCard,
 } from '../../lib/storage/systemDeclension';
-import { saveCustomDeclension } from '../../lib/storage/customDeclension';
-import { generateCustomId } from '../../types/customItems';
-import {
-  getExtraNewCards,
-  getPracticeAheadCards,
-  getSessionCards,
-} from '../../lib/reviewSession/scheduler';
-import { declensionDeck, matchesDeclensionFilters } from '../../lib/reviewSession/reviewDecks';
-import { DEFAULT_USER_FILTERS } from '../../types/userFilters';
-import { recordCardReview } from '../../lib/reviewSession/recordReview';
-import { useAuthContext } from '../../hooks/useAuthContext';
-import { useReviewData } from '../../hooks/useReviewData';
-import { useOptimistic } from '../../hooks/useOptimistic';
-import { useSnackbar } from '../../hooks/useSnackbar';
+import { customDeclensionStorage } from '../../lib/storage/customDeclension';
+import { writeBuiltIn } from '../../lib/storage/writeBuiltIn';
+import { createCustomItem } from '../../types/customItems';
+import { itemsMatching } from '../../lib/reviewSession/scheduler';
+import { declensionDeck } from '../../lib/reviewSession/reviewDecks';
+import { useAuthContext } from '../../contexts/AuthContext';
+import { useDeclension, useReviewDataLoading } from '../../hooks/useReviewData';
+import { useCustomItemWrites } from '../../hooks/useCustomItemWrites';
+import { useSaveError } from '../../hooks/useSaveError';
+import { useSnackbar } from '../../contexts/SnackbarContext';
 import { useConfirm } from '../../hooks/useConfirm';
-import { useReviewSession } from '../../hooks/useReviewSession';
+import { useDeckReview } from '../../hooks/useDeckReview';
 import { useUserFilters } from '../../contexts/UserFiltersContext';
 import { useListening } from '../../contexts/ListeningContext';
 import { buildDeclensionListeningQueue } from '../../lib/listeningScheduler';
@@ -54,109 +41,65 @@ export function DeclensionPage() {
   const navigate = useNavigate();
   const { user, isAdmin } = useAuthContext();
   const { showSnackbar } = useSnackbar();
+  const showSaveError = useSaveError();
   const { confirm, confirmDialog } = useConfirm();
-  const {
-    loading: contextLoading,
-    customDeclensionCards: contextCustomDeclensionCards,
-    systemDeclensionCards: contextSystemDeclensionCards,
-    declensionReviewStore: reviewStore,
-    declensionSettings: settings,
-    updateDeclensionReviewStore,
-    updateDeclensionSettings,
-    clearDeclensionData,
-    setCustomDeclensionCards: setContextCustomDeclensionCards,
-    setSystemDeclensionCards: setContextSystemDeclensionCards,
-  } = useReviewData();
-
-  const [customDeclensionCards, applyOptimisticCustomCards] = useOptimistic(
-    contextCustomDeclensionCards,
-    {
-      onError: () => showSnackbar('Failed to save. Please try again.', 'error'),
-    }
-  );
-
-  const [systemDeclensionCards, applyOptimisticSystemCards] = useOptimistic(
-    contextSystemDeclensionCards,
-    {
-      onError: () => showSnackbar('Failed to save. Please try again.', 'error'),
-    }
-  );
-
-  const allDeclensionCards = useMemo(
-    () => [...customDeclensionCards, ...systemDeclensionCards],
-    [customDeclensionCards, systemDeclensionCards]
-  );
+  const loading = useReviewDataLoading();
+  const { progress, cards, systemCards, setCustomCards, setSystemCards } = useDeclension();
+  const customWrites = useCustomItemWrites(customDeclensionStorage, setCustomCards);
 
   const { filters: userFilters, filtersLoading, updateDeclensionFilters } = useUserFilters();
-  const filters: DeclensionFilters = userFilters.declension;
+  const filters = userFilters.declension;
 
   const { start: startListening, settings: listeningSettings } = useListening();
 
-  const [showSettings, setShowSettings] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  // Null while the modal creates a new card.
   const [editingCard, setEditingCard] = useState<DeclensionCard | null>(null);
-  const [isCreatingNew, setIsCreatingNew] = useState(false);
 
-  const session = useReviewSession({
-    cardKey: 'card',
-    getId: (card) => card.id,
+  const review = useDeckReview(progress, 'all', {
+    deck: declensionDeck,
+    items: cards,
+    filters,
+    ready: !loading && !filtersLoading && cards.length > 0,
     getAudioUrls: (card) => [card.audioUrl],
-    ready: !contextLoading && !filtersLoading && allDeclensionCards.length > 0,
-    getSessionCards: () =>
-      getSessionCards(declensionDeck, allDeclensionCards, reviewStore, settings, filters),
-    getPracticeAheadCards: (count, store) =>
-      getPracticeAheadCards(declensionDeck, allDeclensionCards, store, count, filters),
-    getExtraNewCards: (count, store) =>
-      getExtraNewCards(declensionDeck, allDeclensionCards, store, count, filters),
-    reviewStore,
-    recordReview: recordCardReview,
-    saveReviewStore: updateDeclensionReviewStore,
+    confirm,
+    resetMessage: 'Are you sure? This will erase all your progress and cannot be undone.',
   });
-  const { practice, history } = session;
-  const { canGoBack, goBack, goForward } = history;
+  const { session } = review;
+  const { practice } = session;
 
-  const handleFiltersChange = (newFilters: DeclensionFilters) => {
-    updateDeclensionFilters(newFilters);
-    session.startSession(
-      getSessionCards(declensionDeck, allDeclensionCards, reviewStore, settings, newFilters)
-    );
-    if (practice.active) {
-      practice.reshuffle(allDeclensionCards.filter((c) => matchesDeclensionFilters(c, newFilters)));
-    }
+  const handleFiltersChange = (next: DeclensionFilters) => {
+    updateDeclensionFilters(next);
+    session.restart(next);
+    if (practice.active) practice.reshuffle(itemsMatching(declensionDeck, cards, next));
   };
 
-  const handleSettingsChange = async (newCardsPerDay: number) => {
-    const newSettings = { ...settings, newCardsPerDay };
-    await updateDeclensionSettings(newSettings);
-    session.startSession(
-      getSessionCards(declensionDeck, allDeclensionCards, reviewStore, newSettings, filters)
-    );
-  };
-
-  const handleResetAllData = async () => {
-    const confirmed = await confirm({
-      title: 'Reset Progress',
-      message: 'Are you sure? This will erase all your progress and cannot be undone.',
-      confirmLabel: 'Reset',
+  const handleListen = () => {
+    const queue = buildDeclensionListeningQueue({
+      cards,
+      reviewStore: review.store,
+      ordering: listeningSettings.ordering,
+      filters,
     });
-    if (confirmed) {
-      await clearDeclensionData();
-      session.rebuildSession();
-      setShowSettings(false);
+    if (queue.length === 0) {
+      showSnackbar('No declensions with audio for the current filters.', 'info');
+      return;
     }
+    startListening(queue, {
+      meta: { feature: 'declension', title: 'Declension' },
+    });
+    navigate('/listen/play');
   };
 
-  const openEditModal = (card: DeclensionCard) => {
+  const openEditModal = (card: DeclensionCard | null) => {
     setEditingCard(card);
-    setIsCreatingNew(false);
     setShowEditModal(true);
   };
 
-  const handleOpenCreateModal = useCallback(() => {
+  const closeEditModal = () => {
+    setShowEditModal(false);
     setEditingCard(null);
-    setIsCreatingNew(true);
-    setShowEditModal(true);
-  }, []);
+  };
 
   const replaceCard = (updatedCard: DeclensionCard) =>
     session.updateCards(
@@ -164,136 +107,72 @@ export function DeclensionPage() {
       () => updatedCard
     );
 
+  /** Saves a change to one card: the learner's own, or (for an admin) a built-in one. */
+  const saveCard = (
+    card: DeclensionCard,
+    changes: Partial<Omit<DeclensionCard, 'id' | 'isCustom'>>,
+    saveBuiltIn: () => Promise<void>
+  ) =>
+    card.isCustom
+      ? customWrites.update(card.id as string, changes)
+      : writeBuiltIn(
+          systemCards,
+          setSystemCards,
+          systemCards.map((c) => (c.id === card.id ? { ...c, ...changes } : c)),
+          saveBuiltIn
+        );
+
   const handleSaveCard = (cardData: Omit<DeclensionCard, 'id' | 'isCustom'>) => {
-    if (isCreatingNew) {
-      const newCard: CustomDeclensionCard = {
-        ...cardData,
-        id: generateCustomId(),
-        isCustom: true,
-        createdAt: Date.now(),
-      };
-      const newCustomCards = [...customDeclensionCards, newCard];
-
-      applyOptimisticCustomCards(newCustomCards, async () => {
-        await saveCustomDeclension(newCustomCards);
-        setContextCustomDeclensionCards(newCustomCards);
-      });
-
-      session.startSession(
-        getSessionCards(
-          declensionDeck,
-          [...newCustomCards, ...systemDeclensionCards],
-          reviewStore,
-          settings,
-          filters
-        )
-      );
-      return;
+    if (!editingCard) {
+      const saved = customWrites.add(createCustomItem(cardData));
+      session.restartAfterRender();
+      return saved;
     }
-
-    if (!editingCard) return;
-    const updatedCard = { ...editingCard, ...cardData };
-    replaceCard(updatedCard);
-
-    if (editingCard.isCustom === true) {
-      const newCustomCards = customDeclensionCards.map((card) =>
-        card.id === editingCard.id ? { ...card, ...cardData } : card
-      );
-      applyOptimisticCustomCards(newCustomCards, async () => {
-        await saveCustomDeclension(newCustomCards);
-        setContextCustomDeclensionCards(newCustomCards);
-      });
-    } else {
-      const newSystemCards = systemDeclensionCards.map((card) =>
-        card.id === editingCard.id ? updatedCard : card
-      );
-      applyOptimisticSystemCards(newSystemCards, async () => {
-        await updateDeclensionCard(editingCard.id as number, cardData);
-        setContextSystemDeclensionCards(newSystemCards);
-      });
-    }
+    replaceCard({ ...editingCard, ...cardData });
+    return saveCard(editingCard, cardData, () =>
+      updateDeclensionCard(editingCard.id as number, cardData)
+    );
   };
 
-  const deleteCard = async (
-    card: DeclensionCard,
-    { skipConfirm = false }: { skipConfirm?: boolean } = {}
-  ): Promise<boolean> => {
-    const isCustomCard = card.isCustom === true;
-    if (!isCustomCard && !isAdmin) return false;
-
-    if (!skipConfirm) {
-      const confirmMessage = isCustomCard
-        ? 'Are you sure you want to delete this custom card?'
-        : 'Are you sure you want to delete this system declension card? This will affect all users.';
-      const confirmed = await confirm({
-        title: 'Delete Card',
-        message: confirmMessage,
-        confirmLabel: 'Delete',
-      });
-      if (!confirmed) return false;
-    }
-
+  const removeCard = (card: DeclensionCard) => {
     session.removeCards((c) => c.id === card.id);
+    const removed = card.isCustom
+      ? customWrites.remove(card.id as string)
+      : writeBuiltIn(
+          systemCards,
+          setSystemCards,
+          systemCards.filter((c) => c.id !== card.id),
+          () => deleteDeclensionCard(card.id as number)
+        );
+    void removed.catch(showSaveError);
+  };
 
-    if (isCustomCard) {
-      const newCustomCards = customDeclensionCards.filter((c) => c.id !== card.id);
-      applyOptimisticCustomCards(newCustomCards, async () => {
-        await saveCustomDeclension(newCustomCards);
-        setContextCustomDeclensionCards(newCustomCards);
-      });
-    } else {
-      const newSystemCards = systemDeclensionCards.filter((c) => c.id !== card.id);
-      applyOptimisticSystemCards(newSystemCards, async () => {
-        await deleteDeclensionCard(card.id as number);
-        setContextSystemDeclensionCards(newSystemCards);
-      });
-    }
+  const deleteCard = async (card: DeclensionCard): Promise<boolean> => {
+    if (!card.isCustom && !isAdmin) return false;
+    const confirmed = await confirm({
+      title: 'Delete Card',
+      message: card.isCustom
+        ? 'Are you sure you want to delete this custom card?'
+        : 'Are you sure you want to delete this system declension card? This will affect all users.',
+      confirmLabel: 'Delete',
+    });
+    if (!confirmed) return false;
+    removeCard(card);
     return true;
   };
 
-  const handleDeleteEditingCard = () => {
-    if (!editingCard) return;
-    void deleteCard(editingCard, { skipConfirm: true });
-    setShowEditModal(false);
-    setEditingCard(null);
-  };
-
-  const handleUpdateTranslation = (
-    cardId: DeclensionCard['id'],
-    word: string,
-    translation: string
-  ) => {
-    const card = allDeclensionCards.find((c) => c.id === cardId);
+  const updateTranslation = (cardId: DeclensionCard['id'], word: string, translation: string) => {
+    const card = cards.find((c) => c.id === cardId);
     if (!card) return;
-
-    const updatedTranslations = { ...card.translations, [word]: translation };
-    const updatedCard = { ...card, translations: updatedTranslations };
-    replaceCard(updatedCard);
-
-    if (card.isCustom) {
-      const newCustomCards = customDeclensionCards.map((c) =>
-        c.id === cardId ? { ...c, translations: updatedTranslations } : c
-      );
-      applyOptimisticCustomCards(newCustomCards, async () => {
-        await saveCustomDeclension(newCustomCards);
-        setContextCustomDeclensionCards(newCustomCards);
-      });
-    } else {
-      const newSystemCards = systemDeclensionCards.map((c) => (c.id === cardId ? updatedCard : c));
-      applyOptimisticSystemCards(newSystemCards, async () => {
-        await updateDeclensionCardTranslation(cardId as number, word, translation);
-        setContextSystemDeclensionCards(newSystemCards);
-      });
-    }
+    const translations = { ...card.translations, [word]: translation };
+    replaceCard({ ...card, translations });
+    void saveCard(card, { translations }, () =>
+      updateDeclensionCardTranslation(cardId as number, word, translation)
+    ).catch(showSaveError);
   };
-
-  const translationHandler = (card: DeclensionCard) =>
-    isAdmin
-      ? (word: string, translation: string) => handleUpdateTranslation(card.id, word, translation)
-      : undefined;
 
   // No session is built without cards; the stage's fallback says so instead of a spinner.
-  if (contextLoading || filtersLoading || (allDeclensionCards.length > 0 && !session.isBuilt)) {
+  if (loading || filtersLoading || (cards.length > 0 && !session.isBuilt)) {
     return (
       <LoadingContainer>
         <CircularProgress sx={{ color: 'text.disabled' }} />
@@ -304,124 +183,59 @@ export function DeclensionPage() {
   return (
     <>
       <DeclensionFilterControls
-        caseFilter={filters.cases}
-        genderFilter={filters.genders}
-        numberFilter={filters.number}
+        filters={filters}
         practiceMode={practice.active}
-        showSettings={showSettings}
-        onCaseChange={(cases: Case[]) => handleFiltersChange({ ...filters, cases })}
-        onGenderChange={(genders: Gender[]) => handleFiltersChange({ ...filters, genders })}
-        onNumberChange={(number: Number | 'All') => handleFiltersChange({ ...filters, number })}
-        onClearFilters={() => handleFiltersChange(DEFAULT_USER_FILTERS.declension)}
-        onTogglePractice={() =>
-          practice.toggle(allDeclensionCards.filter((c) => matchesDeclensionFilters(c, filters)))
-        }
-        onToggleSettings={() => setShowSettings(!showSettings)}
-        onAddCard={user ? handleOpenCreateModal : undefined}
-        onStartListening={() => {
-          const queue = buildDeclensionListeningQueue({
-            cards: allDeclensionCards,
-            reviewStore,
-            ordering: listeningSettings.ordering,
-            filters,
-          });
-          if (queue.length === 0) {
-            showSnackbar('No declensions with audio for the current filters.', 'info');
-            return;
-          }
-          startListening(queue, {
-            meta: { feature: 'declension', title: 'Declension' },
-          });
-          navigate('/listen/play');
-        }}
+        showSettings={review.showSettings}
+        onChange={handleFiltersChange}
+        onTogglePractice={session.togglePractice}
+        onToggleSettings={review.toggleSettings}
+        onAddCard={user ? () => openEditModal(null) : undefined}
+        onStartListening={handleListen}
       />
 
-      {showSettings && !practice.active && (
-        <SettingsPanel
-          newCardsPerDay={settings.newCardsPerDay}
-          user={user}
-          onSettingsChange={handleSettingsChange}
-          onResetAllData={handleResetAllData}
-        />
+      {review.showSettings && !practice.active && (
+        <SettingsPanel {...review.settingsPanel} user={user} />
       )}
 
       <ReviewMainContent>
-        {session.isBuilt && <SessionStatusLine session={session} unitLabel="cards" />}
-
         <ReviewStage
           session={session}
+          feature="declension"
+          unitLabel="cards"
           practiceEmptyMessage="No cards match your filters"
-          renderPractice={(card) => (
+          renderCard={(card, controls) => (
             <DeclensionFlashcard
-              key={`practice-${card.id}-${practice.index}`}
+              {...controls}
               card={card}
-              practiceMode
               canEdit={card.isCustom || isAdmin}
-              onNext={practice.next}
-              onEdit={() => openEditModal(card)}
-              onDelete={() => void deleteCard(card)}
-              onUpdateTranslation={translationHandler(card)}
-            />
-          )}
-          renderHistory={(card) => (
-            <DeclensionFlashcard
-              key={`history-${card.id}`}
-              card={card}
-              isViewingHistory
-              canGoBack={canGoBack}
-              canEdit={card.isCustom || isAdmin}
-              reassessIntervals={session.reassessIntervals}
-              onGoBack={goBack}
-              onContinue={goForward}
-              onReassess={session.reassess}
               onEdit={() => openEditModal(card)}
               onDelete={async () => {
-                if (await deleteCard(card)) goForward();
+                if (await deleteCard(card)) controls.onContinue?.();
               }}
-              onUpdateTranslation={translationHandler(card)}
+              onUpdateTranslation={
+                isAdmin
+                  ? (word, translation) => updateTranslation(card.id, word, translation)
+                  : undefined
+              }
             />
           )}
-          renderFinished={() => (
-            <FinishedState currentFeature="declension" {...session.finishedStateProps} />
-          )}
-          renderCurrent={({ card }) => (
-            <DeclensionFlashcard
-              key={`${card.id}-${session.ratingCounter}`}
-              card={card}
-              intervals={session.intervals}
-              remainingCount={session.totalRemaining}
-              canGoBack={canGoBack}
-              canEdit={card.isCustom || isAdmin}
-              onRate={session.rate}
-              onGoBack={goBack}
-              onEdit={() => openEditModal(card)}
-              onDelete={() => void deleteCard(card)}
-              onUpdateTranslation={translationHandler(card)}
-            />
-          )}
-          fallback={
-            allDeclensionCards.length === 0 && (
-              <EmptyState message="No declension cards available." />
-            )
-          }
+          fallback={cards.length === 0 && <EmptyState message="No declension cards available." />}
         />
       </ReviewMainContent>
 
       <EditDeclensionModal
         open={showEditModal}
-        onClose={() => {
-          setShowEditModal(false);
-          setEditingCard(null);
-          setIsCreatingNew(false);
-        }}
+        onClose={closeEditModal}
         onSave={handleSaveCard}
         onDelete={
-          editingCard && !isCreatingNew && (editingCard.isCustom || isAdmin)
-            ? handleDeleteEditingCard
+          editingCard && (editingCard.isCustom || isAdmin)
+            ? () => {
+                removeCard(editingCard);
+                closeEditModal();
+              }
             : undefined
         }
         card={editingCard}
-        isCreating={isCreatingNew}
         onAudioUpdated={(audioUrl) => {
           if (editingCard) replaceCard({ ...editingCard, audioUrl });
         }}

@@ -3,14 +3,17 @@ import {
   createCustomCollectionStorage,
   syncPendingCustomCards,
 } from '../../src/lib/storage/createCustomCollectionStorage';
-import { loadCustomVocabulary, saveCustomVocabulary } from '../../src/lib/storage/customVocabulary';
-import { loadCustomSentences, saveCustomSentences } from '../../src/lib/storage/customSentences';
 import {
+  customVocabularyStorage,
+  loadCustomVocabulary,
+} from '../../src/lib/storage/customVocabulary';
+import { customSentenceStorage, loadCustomSentences } from '../../src/lib/storage/customSentences';
+import {
+  customDeclensionStorage,
   loadCustomDeclension,
-  saveCustomDeclension,
   subscribeCustomDeclension,
 } from '../../src/lib/storage/customDeclension';
-import { findCustomWordWithSamePolish } from '../../src/lib/utils/findDuplicateCustomVocabularyPolish';
+import { findWordWithSamePolish } from '../../src/lib/utils/findDuplicateCustomVocabularyPolish';
 import { findCustomSentenceWithSamePolish } from '../../src/lib/utils/findDuplicateCustomSentence';
 import { findCustomDeclensionDuplicate } from '../../src/lib/utils/findDuplicateCustomDeclension';
 import { syncAllPendingToFirestore } from '../../src/lib/offlineDb/userDataWrapper';
@@ -157,62 +160,54 @@ describe('adding, editing and deleting while online', () => {
 
   test('clearing an optional field in an edit removes it on the server too', async () => {
     signIn(UID);
-    const original = word('custom_1', 'kot', { notes: 'old note' });
-    await saveCustomVocabulary([original]);
+    await vocabStorage().add(word('custom_1', 'kot', { notes: 'old note' }));
 
-    await saveCustomVocabulary([{ ...original, notes: undefined }]);
+    await vocabStorage().update('custom_1', { notes: undefined });
 
     expect(remote.get(`${vocabPath}/custom_1`)).not.toHaveProperty('notes');
+    expect(await vocabStorage().load()).toEqual([word('custom_1', 'kot')]);
+  });
+
+  test('an edit leaves the fields it does not change as the server has them', async () => {
+    signIn(UID);
+    await customDeclensionStorage.add(declension('a', 'kot'));
+    // Another device changes the hint meanwhile.
+    remote.seed(`${userPath(UID, 'customDeclension')}/a`, declension('a', 'kot', { hint: 'pet' }));
+
+    await customDeclensionStorage.update('a', { number: 'Plural' });
+
+    expect(remote.get(`${userPath(UID, 'customDeclension')}/a`)).toEqual(
+      declension('a', 'kot', { hint: 'pet', number: 'Plural' })
+    );
   });
 });
 
-describe('save(items) — the list-diffing API the pages use', () => {
-  test('adds new items, updates changed ones, deletes missing ones and leaves the rest alone', async () => {
+describe('the storage for each kind of custom item', () => {
+  test('custom vocabulary is stored trimmed and lower-cased, when added and when edited', async () => {
     signIn(UID);
-    await saveCustomDeclension([
-      declension('a', 'kot'),
-      declension('b', 'pies'),
-      declension('c', 'ryba'),
-    ]);
-    remote.calls.length = 0;
-
-    await saveCustomDeclension([
-      declension('a', 'kot'),
-      declension('b', 'pies', { hint: 'animal' }),
-      declension('d', 'koń'),
-    ]);
-
-    expect(remote.callsTo('setDoc', 'updateDoc', 'deleteDoc').sort()).toEqual([
-      `deleteDoc ${userPath(UID, 'customDeclension')}/c`,
-      `setDoc ${userPath(UID, 'customDeclension')}/d`,
-      `updateDoc ${userPath(UID, 'customDeclension')}/b`,
-    ]);
-    expect(ids(await loadCustomDeclension())).toEqual(['a', 'b', 'd']);
-    expect(remote.list(userPath(UID, 'customDeclension'))).toEqual({
-      a: declension('a', 'kot'),
-      b: declension('b', 'pies', { hint: 'animal' }),
-      d: declension('d', 'koń'),
-    });
-  });
-
-  test('custom vocabulary is stored trimmed and lower-cased', async () => {
-    signIn(UID);
-    await saveCustomVocabulary([word('custom_1', '  Kot ', { english: ' Cat' })]);
+    await customVocabularyStorage.add(word('custom_1', '  Kot ', { english: ' Cat' }));
 
     expect(await loadCustomVocabulary()).toEqual([word('custom_1', 'kot', { english: 'cat' })]);
     expect(remote.get(`${vocabPath}/custom_1`)).toMatchObject({ polish: 'kot', english: 'cat' });
+
+    await customVocabularyStorage.update('custom_1', { english: ' House Cat ' });
+
+    expect(await loadCustomVocabulary()).toEqual([
+      word('custom_1', 'kot', { english: 'house cat' }),
+    ]);
+    expect(remote.get(`${vocabPath}/custom_1`)).toMatchObject({ english: 'house cat' });
   });
 
   test('each kind of custom item lives in its own collection', async () => {
     signIn(UID);
-    await saveCustomVocabulary([word('custom_1', 'kot')]);
-    await saveCustomSentences([sentence('custom_2', 'Mam kota.')]);
+    await customVocabularyStorage.add(word('custom_1', 'kot'));
+    await customSentenceStorage.add(sentence('custom_2', 'Mam kota.'));
 
     expect(ids(await loadCustomVocabulary())).toEqual(['custom_1']);
     expect(ids(await loadCustomSentences())).toEqual(['custom_2']);
     expect(await loadCustomDeclension()).toEqual([]);
 
-    await saveCustomVocabulary([]);
+    await customVocabularyStorage.delete('custom_1');
     expect(ids(await loadCustomSentences())).toEqual(['custom_2']);
   });
 });
@@ -300,7 +295,7 @@ describe('changes made offline', () => {
   test('an item added offline reaches the server once back online', async () => {
     signIn(UID);
     network.goOffline();
-    await saveCustomVocabulary([word('custom_1', 'kot')]);
+    await vocabStorage().add(word('custom_1', 'kot'));
 
     // Everything the app runs on reconnect and on its background sync.
     network.goOnline();
@@ -340,19 +335,19 @@ describe('duplicate detection', () => {
   test('vocabulary: the same Polish word ignoring case, spacing and punctuation is a duplicate', () => {
     const words = [word('custom_1', 'dzień dobry')];
 
-    expect(findCustomWordWithSamePolish(words, '  Dzień   Dobry! ')?.id).toBe('custom_1');
-    expect(findCustomWordWithSamePolish(words, 'dzień')).toBeUndefined();
+    expect(findWordWithSamePolish(words, '  Dzień   Dobry! ')?.id).toBe('custom_1');
+    expect(findWordWithSamePolish(words, 'dzień')).toBeUndefined();
   });
 
   test('vocabulary: a word is not a duplicate of itself while being edited', () => {
     const words = [word('custom_1', 'kot'), word('custom_2', 'pies')];
 
-    expect(findCustomWordWithSamePolish(words, 'kot', 'custom_1')).toBeUndefined();
-    expect(findCustomWordWithSamePolish(words, 'kot', 'custom_2')?.id).toBe('custom_1');
+    expect(findWordWithSamePolish(words, 'kot', 'custom_1')).toBeUndefined();
+    expect(findWordWithSamePolish(words, 'kot', 'custom_2')?.id).toBe('custom_1');
   });
 
   test('vocabulary and sentences: blank input is never a duplicate', () => {
-    expect(findCustomWordWithSamePolish([word('custom_1', '')], '  ')).toBeUndefined();
+    expect(findWordWithSamePolish([word('custom_1', '')], '  ')).toBeUndefined();
     expect(findCustomSentenceWithSamePolish([sentence('s', '')], ' ')).toBeUndefined();
   });
 
@@ -377,8 +372,8 @@ describe('duplicate detection', () => {
 
   test('a duplicate check against the stored items sees what was saved', async () => {
     signIn(UID);
-    await saveCustomVocabulary([word('custom_1', 'Kot')]);
+    await customVocabularyStorage.add(word('custom_1', 'Kot'));
 
-    expect(findCustomWordWithSamePolish(await loadCustomVocabulary(), 'KOT')?.id).toBe('custom_1');
+    expect(findWordWithSamePolish(await loadCustomVocabulary(), 'KOT')?.id).toBe('custom_1');
   });
 });

@@ -19,7 +19,16 @@ import sortByDueDate from '../fsrsUtils/sortByDueDate';
 import shuffleArray from '../utils/shuffleArray';
 import type { SessionCards } from './sessionQueue';
 
-export interface ReviewDeck<Item, R extends CardReviewData, Id extends SessionId, Card, Filters> {
+export interface ReviewDeck<
+  Item,
+  R extends CardReviewData,
+  Id extends SessionId,
+  Card,
+  Filters,
+  K extends keyof Card = keyof Card,
+> {
+  /** The property of a session card that holds its item (e.g. `'word'`). */
+  cardKey: K;
   /** The id the item's review data and the day's session lists use. */
   idOf(item: Item): Id;
   /** Review data for an item never studied. */
@@ -60,6 +69,14 @@ export function reviewDataFor<R extends CardReviewData, Id extends SessionId>(
 
 const idSet = (ids: SessionId[]) => new Set(ids.map(String));
 
+/** How many new cards today's session may still introduce. */
+export function newCardsLeftToday(
+  store: { newCardsToday: unknown[] },
+  settings: { newCardsPerDay: number }
+): number {
+  return Math.max(0, settings.newCardsPerDay - store.newCardsToday.length);
+}
+
 /** Each item with its review data and where it stands today, in deck order. */
 export function placeItems<Item, R extends CardReviewData, Id extends SessionId, Card, Filters>(
   deck: ReviewDeck<Item, R, Id, Card, Filters>,
@@ -85,6 +102,15 @@ function passes<Item, Filters>(
   filters: Filters | undefined
 ): boolean {
   return !deck.matches || filters === undefined || deck.matches(item, filters);
+}
+
+/** The items that pass the learner's filters: all of them, for a deck without filters. */
+export function itemsMatching<Item, Filters>(
+  deck: Pick<ReviewDeck<Item, CardReviewData, SessionId, unknown, Filters>, 'matches'>,
+  items: readonly Item[],
+  filters: Filters | undefined
+): Item[] {
+  return items.filter((item) => passes(deck, item, filters));
 }
 
 /** Learner-made items first, keeping each group's order. */
@@ -126,7 +152,7 @@ export function getSessionCards<
   filters?: Filters
 ): SessionCards<Card> {
   const placed = placeItems(deck, items, store, filters);
-  const remainingNew = Math.max(0, settings.newCardsPerDay - store.newCardsToday.length);
+  const remainingNew = newCardsLeftToday(store, settings);
   const reviews = customFirst(
     deck,
     placed.filter((p) => p.bucket === 'review'),
@@ -185,19 +211,4 @@ export function getExtraNewCards<
   return orderNewCards(deck, unseen)
     .slice(0, count)
     .map((p) => deck.toSessionCard(p.item, p.reviewData, true));
-}
-
-/** How many cards today's session holds: due reviews plus new cards up to the daily limit. */
-export function countDueToday<Item, R extends CardReviewData, Id extends SessionId, Filters>(
-  deck: ReviewDeck<Item, R, Id, unknown, Filters>,
-  items: readonly Item[],
-  store: ReviewDataStore<R, Id>,
-  settings: { newCardsPerDay: number },
-  filters?: Filters
-): number {
-  const placed = placeItems(deck, items, store, filters);
-  const reviews = placed.filter((p) => p.bucket === 'review').length;
-  const unseen = placed.filter((p) => p.bucket === 'new').length;
-  const remainingNew = Math.max(0, settings.newCardsPerDay - store.newCardsToday.length);
-  return reviews + Math.min(unseen, remainingNew);
 }

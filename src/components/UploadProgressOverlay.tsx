@@ -1,5 +1,6 @@
 import { Box, LinearProgress, Typography } from '@mui/material';
 import { styled } from '../lib/styled';
+import type { UploadProgress } from '../lib/media/storageFiles';
 
 const Overlay = styled(Box)(({ theme }) => ({
   position: 'fixed',
@@ -15,7 +16,7 @@ const Overlay = styled(Box)(({ theme }) => ({
 }));
 
 interface UploadProgressOverlayProps {
-  progress: { status: string; uploadPercent?: number; error?: string };
+  progress: UploadProgress;
   processingLabel: string;
 }
 

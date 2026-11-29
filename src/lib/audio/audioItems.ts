@@ -1,70 +1,26 @@
-import { collection, doc, onSnapshot, query, orderBy, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
-import { getDownloadURL, ref } from 'firebase/storage';
-import { db, functions, storage } from '../firebase';
-import { getUserId } from '../storage/helpers';
-import { userDb } from '../offlineDb/userDb';
+import { db, functions } from '../firebase';
+import { getCurrentUserId } from '../cachedAuth';
+import { cachedCollection } from '../media/cachedCollection';
+import { getStorageDownloadUrl } from '../media/storageFiles';
 import { removeCachedAudioBlob } from './audioCache';
 import type { AudioItem } from '../../types/audio';
 
-const AUDIO_ITEMS_CACHE_KEY = '__audio-items-list';
+const audioItems = cachedCollection<AudioItem>({
+  cacheKey: '__audio-items-list',
+  path: () => {
+    const userId = getCurrentUserId();
+    return userId ? ['users', userId, 'audioItems'] : null;
+  },
+  newestFirstBy: 'createdAt',
+  label: 'Audio items',
+});
 
-export async function getCachedAudioItems(): Promise<AudioItem[]> {
-  const record = await userDb.userData.get(AUDIO_ITEMS_CACHE_KEY);
-  return record ? (record.data as AudioItem[]) : [];
-}
-
-async function cacheAudioItems(items: AudioItem[]): Promise<void> {
-  await userDb.userData.put({
-    key: AUDIO_ITEMS_CACHE_KEY,
-    data: items,
-    lastModified: Date.now(),
-    pendingSync: 0,
-  });
-}
-
-export function subscribeToAudioItemsUpdates(callback: (items: AudioItem[]) => void): () => void {
-  const userId = getUserId();
-  if (!userId) return () => {};
-
-  const itemsRef = collection(db, 'users', userId, 'audioItems');
-  const q = query(itemsRef, orderBy('createdAt', 'desc'));
-
-  return onSnapshot(
-    q,
-    (snapshot) => {
-      const items = snapshot.docs.map((doc) => doc.data() as AudioItem);
-      cacheAudioItems(items);
-      callback(items);
-    },
-    (error) => {
-      console.error('Audio items subscription error:', error);
-    }
-  );
-}
-
-export function subscribeToAudioItem(
-  audioId: string,
-  callback: (item: AudioItem | null) => void
-): () => void {
-  const userId = getUserId();
-  if (!userId) return () => {};
-
-  const audioRef = doc(db, 'users', userId, 'audioItems', audioId);
-
-  return onSnapshot(audioRef, (snapshot) => {
-    if (!snapshot.exists()) {
-      callback(null);
-      return;
-    }
-    callback(snapshot.data() as AudioItem);
-  });
-}
-
-export async function getAudioDownloadUrl(storagePath: string): Promise<string> {
-  const storageRef = ref(storage, storagePath);
-  return getDownloadURL(storageRef);
-}
+export const getCachedAudioItems = audioItems.getCached;
+export const subscribeToAudioItemsUpdates = audioItems.subscribe;
+export const subscribeToAudioItem = audioItems.subscribeOne;
+export const getAudioDownloadUrl = getStorageDownloadUrl;
 
 export async function deleteUserAudio(audioId: string): Promise<void> {
   const deleteFn = httpsCallable<{ audioId: string }, { success: boolean }>(
@@ -85,7 +41,7 @@ export async function createUserAudio(data: { title: string; text: string }): Pr
 }
 
 export async function updateUserAudio(audioId: string, updates: { title?: string }): Promise<void> {
-  const userId = getUserId();
+  const userId = getCurrentUserId();
   if (!userId) throw new Error('Not authenticated');
 
   const audioRef = doc(db, 'users', userId, 'audioItems', audioId);

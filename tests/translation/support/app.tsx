@@ -3,10 +3,11 @@
  * drives it the way a learner does: taps, mouse drags, and touch long-presses.
  *
  * The add-to-vocabulary and add-sentence contexts are replaced by recorders: the
- * tests check what the translation UI hands them, not the modals they open.
+ * tests check what the translation UI hands them, not the modals they open. The daily
+ * translation limit is the app's own, with the dialog the app layout shows for it.
  */
 import type { ReactElement, ReactNode } from 'react';
-import { act, fireEvent, render } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { ThemeProvider } from '@mui/material/styles';
 import { vi } from 'vitest';
 import type { User } from 'firebase/auth';
@@ -14,6 +15,8 @@ import { createAppTheme } from '../../../src/lib/theme';
 import { AuthContext } from '../../../src/contexts/AuthContext';
 import { AddToVocabularyContext } from '../../../src/contexts/AddToVocabularyContext';
 import { AddSentenceContext } from '../../../src/contexts/AddSentenceContext';
+import { TranslationProvider } from '../../../src/contexts/TranslationContext';
+import { LimitReachedDialog } from '../../../src/components/LimitReachedDialog';
 import { withSnackbar } from '../../hooks/support/providers';
 
 interface AppOptions {
@@ -50,11 +53,14 @@ export function renderInApp(
           }}
         >
           <Snackbar>
-            <AddToVocabularyContext.Provider value={vocabularyValue}>
-              <AddSentenceContext.Provider value={sentenceValue}>
-                {children}
-              </AddSentenceContext.Provider>
-            </AddToVocabularyContext.Provider>
+            <TranslationProvider>
+              <AddToVocabularyContext.Provider value={vocabularyValue}>
+                <AddSentenceContext.Provider value={sentenceValue}>
+                  {children}
+                </AddSentenceContext.Provider>
+              </AddToVocabularyContext.Provider>
+              <LimitReachedDialog />
+            </TranslationProvider>
           </Snackbar>
         </AuthContext.Provider>
       </ThemeProvider>
@@ -64,6 +70,10 @@ export function renderInApp(
   const view = render(ui, { wrapper: Providers });
   return { ...view, showSnackbar, openAddToVocabulary, openAddSentence };
 }
+
+/** The dialog shown once the day's translations are used up, if it is open. */
+export const limitDialog = () =>
+  screen.queryByRole('dialog', { name: "You've hit your translation limit for the day" });
 
 /** Lets pending promises (fake server answers) settle and React commit the result. */
 export const settle = () => act(async () => {});

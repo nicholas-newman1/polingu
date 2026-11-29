@@ -1,25 +1,22 @@
 import type { Context, ReactNode } from 'react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import { useAuthContext } from '../../src/hooks/useAuthContext';
-import { useSnackbar } from '../../src/hooks/useSnackbar';
-import { useCheatSheetContext } from '../../src/hooks/useCheatSheetContext';
-import { useColorMode } from '../../src/hooks/useColorMode';
-import { useTranslationContext } from '../../src/hooks/useTranslationContext';
-import { useAddSentence } from '../../src/hooks/useAddSentence';
-import { useAddToVocabulary } from '../../src/hooks/useAddToVocabulary';
-import { useTranslatableTextActions } from '../../src/hooks/useTranslatableTextActions';
-import { useTranslatableTextUI } from '../../src/hooks/useTranslatableTextUI';
-import { AuthContext } from '../../src/contexts/AuthContext';
-import { SnackbarContext } from '../../src/contexts/SnackbarContext';
-import { CheatSheetContext } from '../../src/contexts/CheatSheetContext';
-import { ColorModeContext } from '../../src/contexts/ColorModeContext';
-import { TranslationContext } from '../../src/contexts/TranslationContext';
-import { AddSentenceContext } from '../../src/contexts/AddSentenceContext';
-import { AddToVocabularyContext } from '../../src/contexts/AddToVocabularyContext';
+
+import { AuthContext, useAuthContext } from '../../src/contexts/AuthContext';
+import { SnackbarContext, useSnackbar } from '../../src/contexts/SnackbarContext';
+import { CheatSheetContext, useCheatSheetContext } from '../../src/contexts/CheatSheetContext';
+import { ColorModeContext, useColorMode } from '../../src/contexts/ColorModeContext';
+import { TranslationContext, useTranslationContext } from '../../src/contexts/TranslationContext';
+import { AddSentenceContext, useAddSentence } from '../../src/contexts/AddSentenceContext';
+import {
+  AddToVocabularyContext,
+  useAddToVocabulary,
+} from '../../src/contexts/AddToVocabularyContext';
 import {
   TranslatableTextActionsContext,
   TranslatableTextUIContext,
+  useTranslatableTextActions,
+  useTranslatableTextUI,
 } from '../../src/contexts/TranslatableTextContext';
 
 // The add-sentence and add-word modals import modules that connect to Firebase Functions
@@ -68,6 +65,18 @@ const required = [
     ...accessor('useTranslationContext', useTranslationContext, TranslationContext),
     error: 'useTranslationContext must be used within a TranslationProvider',
   },
+  {
+    ...accessor(
+      'useTranslatableTextActions',
+      useTranslatableTextActions,
+      TranslatableTextActionsContext
+    ),
+    error: 'useTranslatableTextActions must be used within a TranslatableTextProvider',
+  },
+  {
+    ...accessor('useTranslatableTextUI', useTranslatableTextUI, TranslatableTextUIContext),
+    error: 'useTranslatableTextUI must be used within a TranslatableTextProvider',
+  },
 ];
 
 // Components using these also render outside the providers (e.g. text in a modal), and
@@ -75,12 +84,6 @@ const required = [
 const optional = [
   accessor('useAddSentence', useAddSentence, AddSentenceContext),
   accessor('useAddToVocabulary', useAddToVocabulary, AddToVocabularyContext),
-  accessor(
-    'useTranslatableTextActions',
-    useTranslatableTextActions,
-    TranslatableTextActionsContext
-  ),
-  accessor('useTranslatableTextUI', useTranslatableTextUI, TranslatableTextUIContext),
 ];
 
 describe('context accessor hooks', () => {

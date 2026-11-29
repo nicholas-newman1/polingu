@@ -10,7 +10,7 @@ import {
 } from '@mui/material';
 import BlockIcon from '@mui/icons-material/Block';
 import { useEffect, useReducer } from 'react';
-import { useTranslationContext } from '../hooks/useTranslationContext';
+import { useTranslationContext } from '../contexts/TranslationContext';
 import { useBackClose } from '../hooks/useBackClose';
 
 const StyledDialog = styled(Dialog)(({ theme }) => ({

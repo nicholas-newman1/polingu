@@ -1,6 +1,6 @@
 /**
- * Renders useReviewSession the way the vocabulary page wires it: real schedulers,
- * real recordCardReview, and a parent that owns one review store per direction.
+ * Renders useReviewSession the way the vocabulary page wires it: the real vocabulary
+ * deck, and a parent that owns one review store per direction.
  *
  * By default the parent commits a saved store synchronously, as the review
  * contexts do. Pass `deferCommits` to hold each commit until the test releases it.
@@ -10,7 +10,6 @@ import { act, renderHook } from '@testing-library/react';
 import { vi } from 'vitest';
 import type { Grade } from 'ts-fsrs';
 import { useReviewSession } from '../../../src/hooks/useReviewSession';
-import { recordCardReview } from '../../../src/lib/reviewSession/recordReview';
 import type { TranslationDirection } from '../../../src/types/common';
 import type {
   VocabularyCardReviewData,
@@ -18,11 +17,6 @@ import type {
   VocabularyWord,
 } from '../../../src/types/vocabulary';
 import { stubs } from '../../helpers/stub';
-import {
-  getExtraNewCards,
-  getPracticeAheadCards,
-  getSessionCards,
-} from '../../../src/lib/reviewSession/scheduler';
 import { vocabularyDeck } from '../../../src/lib/reviewSession/reviewDecks';
 
 export type Store = VocabularyReviewDataStore;
@@ -87,18 +81,14 @@ export function renderReviewSession({
       setAll((prev) => ({ ...prev, [dir]: next }));
 
     const session = useReviewSession({
-      cardKey: 'word',
-      getId: (word: VocabularyWord) => word.id,
+      deck: vocabularyDeck,
+      items: words,
+      store,
+      settings: { newCardsPerDay },
       getAudioUrls: (word) => [word.audioUrl],
       ready,
       sessionKey: direction,
-      getSessionCards: () => getSessionCards(vocabularyDeck, words, store, { newCardsPerDay }),
-      getPracticeAheadCards: (count, current) =>
-        getPracticeAheadCards(vocabularyDeck, words, current, count),
-      getExtraNewCards: (count, current) => getExtraNewCards(vocabularyDeck, words, current, count),
-      reviewStore: store,
-      recordReview: recordCardReview,
-      saveReviewStore: async (next) => {
+      save: async (next) => {
         saves(direction, next);
         if (deferCommits) pendingCommits.push(() => commit(direction, next));
         else commit(direction, next);

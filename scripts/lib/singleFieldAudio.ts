@@ -95,7 +95,9 @@ export function runSingleFieldAudioScript(config: SingleFieldAudioConfig): void 
     console.log(`   Processed: ${processed}`);
     console.log(`   Errors: ${errors}`);
     if (processed > 0 && errors === 0) {
-      console.log(`\n🎉 Everything works! Run --full when ready to process ${config.fullRunTarget}.`);
+      console.log(
+        `\n🎉 Everything works! Run --full when ready to process ${config.fullRunTarget}.`
+      );
     }
   };
 

@@ -8,7 +8,7 @@ import {
   Typography,
 } from '@mui/material';
 import { deleteBook } from '../../../lib/reader';
-import { useSnackbar } from '../../../hooks/useSnackbar';
+import { useSnackbar } from '../../../contexts/SnackbarContext';
 import type { Book } from '../../../types/reader';
 
 interface DeleteBookDialogProps {

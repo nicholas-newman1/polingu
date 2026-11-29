@@ -17,7 +17,7 @@ import {
   PENDING_CLEAR_KEY_PREFIX,
   removeIfUnchanged,
 } from '../offlineDb/pendingWrites';
-import { getUserId } from './helpers';
+import { getCurrentUserId } from '../cachedAuth';
 import { stripUndefinedDeep } from './firestoreUtils';
 import type { Card as FSRSCard } from 'ts-fsrs';
 
@@ -118,7 +118,7 @@ export function createReviewSubcollectionStorage<TCard extends ReviewCardData>(
   const pendingClearKey = `${PENDING_CLEAR_KEY_PREFIX}${collectionName}`;
 
   async function loadCards(): Promise<Record<string, TCard>> {
-    const userId = getUserId();
+    const userId = getCurrentUserId();
     if (!userId) return {};
 
     const cached = await readCachedCardEntries<TCard>(collectionName);
@@ -192,7 +192,7 @@ export function createReviewSubcollectionStorage<TCard extends ReviewCardData>(
    * cached snapshot, so callers can leave the existing cache in place and retry.
    */
   async function refreshFromFirestore(): Promise<void> {
-    const userId = getUserId();
+    const userId = getCurrentUserId();
     if (!userId || !navigator.onLine) return;
     // The server still holds the cards a queued reset will delete; applying
     // them now would bring the reset progress back.
@@ -216,7 +216,7 @@ export function createReviewSubcollectionStorage<TCard extends ReviewCardData>(
    * pending so the next refresh can replace it.
    */
   async function syncPendingCards(): Promise<void> {
-    const userId = getUserId();
+    const userId = getCurrentUserId();
     if (!userId || !navigator.onLine) return;
 
     try {
@@ -256,7 +256,7 @@ export function createReviewSubcollectionStorage<TCard extends ReviewCardData>(
   }
 
   async function upsertCard(cardId: string, card: TCard): Promise<void> {
-    const userId = getUserId();
+    const userId = getCurrentUserId();
     if (!userId) return;
 
     const serialized = serialize(card);
@@ -284,7 +284,7 @@ export function createReviewSubcollectionStorage<TCard extends ReviewCardData>(
   }
 
   async function deleteCardById(cardId: string): Promise<void> {
-    const userId = getUserId();
+    const userId = getCurrentUserId();
     const key = compoundKey(collectionName, cardId);
 
     if (!userId) {
@@ -374,7 +374,7 @@ export function createReviewSubcollectionStorage<TCard extends ReviewCardData>(
    * the (now empty) cache alone.
    */
   async function clearAllCards(): Promise<void> {
-    const userId = getUserId();
+    const userId = getCurrentUserId();
 
     if (!userId) {
       await clearLocalCards();

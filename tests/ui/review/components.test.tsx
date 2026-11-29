@@ -1,6 +1,7 @@
 /**
  * Review components whose behaviour the page tests cannot reach: the translation
- * limit dialog (rendered by the app layout) and the direction toggle.
+ * limit dialog (rendered by the app layout), the direction toggle, and the empty
+ * deck card in dark mode.
  */
 import { useState, type ReactNode } from 'react';
 import { describe, expect, test, vi } from 'vitest';
@@ -9,10 +10,14 @@ import { ThemeProvider } from '@mui/material/styles';
 import { click, elapse, setupReviewUi, until } from './support/app';
 import { withAuth } from '../../hooks/support/providers';
 import { createAppTheme } from '../../../src/lib/theme';
-import { TranslationProvider } from '../../../src/contexts/TranslationContext';
+import {
+  TranslationProvider,
+  useTranslationContext,
+} from '../../../src/contexts/TranslationContext';
 import { LimitReachedDialog } from '../../../src/components/LimitReachedDialog';
 import { DirectionToggle } from '../../../src/components/DirectionToggle';
-import { useTranslationContext } from '../../../src/hooks/useTranslationContext';
+import { EmptyState } from '../../../src/components/EmptyState';
+
 import type { TranslationDirection } from '../../../src/types/common';
 
 vi.mock('firebase/firestore', () => import('../../sync/support/fakeFirestore'));
@@ -152,5 +157,17 @@ describe('direction toggle', () => {
     expect(screen.getByRole('button')).toHaveTextContent(/^PL\s*EN$/);
     click(screen.getByRole('button'));
     expect(onToggle).not.toHaveBeenCalled();
+  });
+});
+
+describe('empty deck card', () => {
+  test('in dark mode it is a dark card, not a white one', () => {
+    render(
+      <ThemeProvider theme={createAppTheme('dark')}>
+        <EmptyState message="No cards match your filters" />
+      </ThemeProvider>
+    );
+    const card = screen.getByText('No cards match your filters').closest('.MuiCard-root')!;
+    expect(getComputedStyle(card).backgroundColor).toBe('rgba(26, 22, 18, 0.95)');
   });
 });

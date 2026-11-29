@@ -1,61 +1,29 @@
-import { memo, useState, useMemo, useCallback } from 'react';
-import { Typography, Chip, Table, TableBody, TableCell, TableRow } from '@mui/material';
+import { Typography, Chip } from '@mui/material';
 import { styled } from '../lib/styled';
 import { alpha } from '../lib/theme';
 import { EditDeclensionModal } from '../components/EditDeclensionModal';
-import { InlineAudioRegenerator } from '../components/AudioRegenerator';
-import { saveCustomDeclension, subscribeCustomDeclension } from '../lib/storage/customDeclension';
+import { customDeclensionStorage } from '../lib/storage/customDeclension';
 import { findCustomDeclensionDuplicate } from '../lib/utils/findDuplicateCustomDeclension';
-import { foldForSearch, matchesSearch } from '../lib/utils/foldForSearch';
-import reprioritizeDeclensionCard, {
-  canReprioritizeDeclensionCard,
-} from '../lib/storage/reprioritizeDeclensionCard';
-import type { CustomDeclensionCard, Case, Gender, Number, DeclensionCard } from '../types';
+import type { CustomDeclensionCard, DeclensionCard, Gender } from '../types';
+import { CASES, GENDERS, NUMBERS } from '../constants';
 import { createCustomItem } from '../types/customItems';
-import { useAuthContext } from '../hooks/useAuthContext';
-import { useCustomCollection } from '../hooks/useCustomCollection';
-import { useDeclension } from '../hooks/useReviewData';
-import { useOptimistic } from '../hooks/useOptimistic';
-import { useSnackbar } from '../hooks/useSnackbar';
-import { useConfirm } from '../hooks/useConfirm';
+import { useDeclension, useReviewDataLoading } from '../hooks/useReviewData';
+import { useReprioritize } from '../hooks/useReprioritize';
+import { useSnackbar } from '../contexts/SnackbarContext';
 import {
-  PageContainer,
-  FiltersRow,
-  StyledTableContainer,
+  CustomItemPage,
+  useCustomItemPage,
   TruncatedCell,
   MetaChip,
-  CustomItemPageHeader,
-  CustomItemEmptyState,
-  CustomItemLoadingState,
-  CustomItemActions,
-  CustomItemSearchField,
-  FilterSelectField,
-  SortableHeaderCell,
-  formatDate,
-  sortItems,
-  useSortState,
-  usePagination,
-  CustomItemPagination,
-  FilterResultCount,
-  CustomItemTableHead,
-  byCreatedAt,
+  type CustomItemColumn,
+  type CustomItemFilter,
 } from '../components/CustomItemPage';
 
-type SortField = 'front' | 'declined' | 'case' | 'gender' | 'number' | 'createdAt';
+type CardFormData = Omit<DeclensionCard, 'id' | 'isCustom'>;
 
-const COMPARATORS: Record<SortField, (a: CustomDeclensionCard, b: CustomDeclensionCard) => number> =
-  {
-    front: (a, b) => a.front.localeCompare(b.front, 'pl'),
-    declined: (a, b) => a.declined.localeCompare(b.declined, 'pl'),
-    case: (a, b) => a.case.localeCompare(b.case),
-    gender: (a, b) => a.gender.localeCompare(b.gender),
-    number: (a, b) => a.number.localeCompare(b.number),
-    createdAt: byCreatedAt,
-  };
+const DUPLICATE = 'This declension card is already in your collection.';
 
-const GenderChip = styled(Chip)<{
-  $gender: 'Masculine' | 'Feminine' | 'Neuter' | 'Pronoun';
-}>(({ theme, $gender }) => {
+const GenderChip = styled(Chip)<{ $gender: Gender }>(({ theme, $gender }) => {
   const genderKey =
     $gender === 'Pronoun'
       ? 'neuter'
@@ -69,342 +37,96 @@ const GenderChip = styled(Chip)<{
   };
 });
 
-const CASES: Case[] = [
-  'Nominative',
-  'Genitive',
-  'Dative',
-  'Accusative',
-  'Instrumental',
-  'Locative',
-  'Vocative',
+const COLUMNS: CustomItemColumn<CustomDeclensionCard>[] = [
+  {
+    label: 'Question',
+    compare: (a, b) => a.front.localeCompare(b.front, 'pl'),
+    render: (card) => <TruncatedCell title={card.front}>{card.front}</TruncatedCell>,
+  },
+  {
+    label: 'Answer',
+    compare: (a, b) => a.declined.localeCompare(b.declined, 'pl'),
+    render: (card) => <Typography fontWeight={500}>{card.declined}</Typography>,
+  },
+  {
+    label: 'Case',
+    compare: (a, b) => a.case.localeCompare(b.case),
+    render: (card) => <MetaChip label={card.case} size="small" />,
+  },
+  {
+    label: 'Gender',
+    compare: (a, b) => a.gender.localeCompare(b.gender),
+    render: (card) => <GenderChip $gender={card.gender} label={card.gender} size="small" />,
+  },
+  {
+    label: 'Number',
+    compare: (a, b) => a.number.localeCompare(b.number),
+    render: (card) => <MetaChip label={card.number} size="small" />,
+  },
 ];
 
-const GENDERS: Gender[] = ['Masculine', 'Feminine', 'Neuter', 'Pronoun'];
-
-const NUMBERS: Number[] = ['Singular', 'Plural'];
+const FILTERS: CustomItemFilter<CustomDeclensionCard>[] = [
+  { label: 'Case', options: CASES, value: (card) => card.case },
+  { label: 'Gender', options: GENDERS, value: (card) => card.gender },
+  { label: 'Number', options: NUMBERS, value: (card) => card.number },
+];
 
 export function CustomDeclensionPage() {
-  const { isAdmin } = useAuthContext();
+  const loading = useReviewDataLoading();
+  const { progress, customCards, setCustomCards } = useDeclension();
   const { showSnackbar } = useSnackbar();
-  const { confirm, confirmDialog } = useConfirm();
-  const { declensionReviewStore, updateDeclensionReviewStore } = useDeclension();
-  const {
-    items: customCardsBase,
-    setItems: setCustomCardsBase,
-    isLoading,
-  } = useCustomCollection(subscribeCustomDeclension);
-  const optimisticOptions = useMemo(
-    () => ({ onError: () => showSnackbar('Failed to save. Please try again.', 'error') }),
-    [showSnackbar]
-  );
-  const [customCards, applyOptimisticCustomCards] = useOptimistic(
-    customCardsBase,
-    optimisticOptions
-  );
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [editingCard, setEditingCard] = useState<CustomDeclensionCard | null>(null);
+  const { canReprioritize, reprioritize, showDuplicateError } = useReprioritize({
+    progress,
+    queuedMessage: 'Card queued for review again.',
+    duplicateMessage: DUPLICATE,
+  });
+  const page = useCustomItemPage({
+    items: customCards,
+    setItems: setCustomCards,
+    loading,
+    storage: customDeclensionStorage,
+    noun: 'card',
+  });
+  const { editing } = page;
 
-  const handleReprioritize = useCallback(
-    (cardId: string) => {
-      const next = reprioritizeDeclensionCard(declensionReviewStore, cardId);
-      if (next === declensionReviewStore) return;
-      void updateDeclensionReviewStore(next);
-      showSnackbar('Card queued for review again.', 'success');
-    },
-    [declensionReviewStore, updateDeclensionReviewStore, showSnackbar]
-  );
-
-  const handleAddCard = (cardData: Omit<DeclensionCard, 'id' | 'isCustom'>) => {
-    const duplicate = findCustomDeclensionDuplicate(customCards, cardData);
+  const handleSave = (cardData: CardFormData) => {
+    const duplicate = findCustomDeclensionDuplicate(customCards, cardData, editing?.id);
     if (duplicate) {
-      const reviewable = canReprioritizeDeclensionCard(declensionReviewStore, duplicate.id);
-      showSnackbar(
-        'This declension card is already in your collection.',
-        'error',
-        reviewable
-          ? {
-              action: {
-                label: 'Review again',
-                onClick: () => handleReprioritize(duplicate.id),
-              },
-            }
-          : undefined
-      );
+      if (editing) showSnackbar(DUPLICATE, 'error');
+      else showDuplicateError(duplicate.id);
       return false;
     }
-
-    const newCustomCards: CustomDeclensionCard[] = [createCustomItem(cardData), ...customCardsBase];
-
-    applyOptimisticCustomCards(newCustomCards, async () => {
-      await saveCustomDeclension(newCustomCards);
-      setCustomCardsBase(newCustomCards);
-    });
+    return editing ? page.update(editing.id, cardData) : page.add(createCustomItem(cardData));
   };
 
-  const handleEditCard = (cardData: Omit<DeclensionCard, 'id' | 'isCustom'>) => {
-    if (!editingCard) return;
-    if (findCustomDeclensionDuplicate(customCards, cardData, editingCard.id)) {
-      showSnackbar('This declension card is already in your collection.', 'error');
-      return false;
-    }
-    const newCustomCards = customCards.map((c) =>
-      c.id === editingCard.id ? { ...c, ...cardData } : c
-    );
-    setEditingCard(null);
-
-    applyOptimisticCustomCards(newCustomCards, async () => {
-      await saveCustomDeclension(newCustomCards);
-      setCustomCardsBase(newCustomCards);
-    });
+  const handleDeleteEditing = () => {
+    if (!editing) return;
+    // The dialog has already asked for confirmation.
+    page.deleteItem(editing.id);
+    page.closeModal();
   };
-
-  const deleteCard = useCallback(
-    (cardId: string) => {
-      const newCustomCards = customCards.filter((c) => c.id !== cardId);
-
-      applyOptimisticCustomCards(newCustomCards, async () => {
-        await saveCustomDeclension(newCustomCards);
-        setCustomCardsBase(newCustomCards);
-      });
-    },
-    [customCards, applyOptimisticCustomCards, setCustomCardsBase]
-  );
-
-  const handleDeleteCard = useCallback(
-    async (cardId: string) => {
-      const confirmed = await confirm({
-        title: 'Delete Card',
-        message: 'Are you sure you want to delete this card?',
-        confirmLabel: 'Delete',
-      });
-      if (confirmed) deleteCard(cardId);
-    },
-    [confirm, deleteCard]
-  );
-
-  const handleOpenAddModal = useCallback(() => setShowAddModal(true), []);
-
-  const handleOpenEditModal = useCallback((card: CustomDeclensionCard) => {
-    setEditingCard(card);
-    setShowAddModal(true);
-  }, []);
-
-  const handleAudioSaved = useCallback(
-    (cardId: string, audioUrl: string) => {
-      setCustomCardsBase((prev) => prev.map((c) => (c.id === cardId ? { ...c, audioUrl } : c)));
-    },
-    [setCustomCardsBase]
-  );
-
-  if (isLoading) {
-    return <CustomItemLoadingState />;
-  }
 
   return (
-    <PageContainer>
-      <CustomItemPageHeader
-        title="My Declensions"
-        subtitle="Your personal declension card collection"
-        count={customCards.length}
-        addLabel="Add Card"
-        onAdd={handleOpenAddModal}
-      />
-
-      <DeclensionTable
-        customCards={customCards}
-        isAdmin={isAdmin}
-        onAdd={handleOpenAddModal}
-        onEdit={handleOpenEditModal}
-        onDelete={handleDeleteCard}
-        onAudioSaved={handleAudioSaved}
-        declensionReviewStore={declensionReviewStore}
-        handleReprioritize={handleReprioritize}
-      />
-
+    <CustomItemPage
+      title="My Declensions"
+      subtitle="Your personal declension card collection"
+      emptyTitle="No custom declension cards yet"
+      emptyDescription="Add your own declension cards to drill alongside the standard card set."
+      page={page}
+      columns={COLUMNS}
+      filters={FILTERS}
+      searchFields={(card) => [card.front, card.back, card.declined, card.hint]}
+      audio={{ type: 'custom-declension', text: (card) => card.back }}
+      canReprioritize={canReprioritize}
+      onReprioritize={reprioritize}
+    >
       <EditDeclensionModal
-        open={showAddModal}
-        onClose={() => {
-          setShowAddModal(false);
-          setEditingCard(null);
-        }}
-        onSave={editingCard ? handleEditCard : handleAddCard}
-        onDelete={
-          editingCard
-            ? () => {
-                // The dialog has already asked for confirmation.
-                deleteCard(editingCard.id);
-                setShowAddModal(false);
-                setEditingCard(null);
-              }
-            : undefined
-        }
-        card={editingCard}
-        isCreating={!editingCard}
+        open={page.modalOpen}
+        onClose={page.closeModal}
+        onSave={handleSave}
+        onDelete={editing ? handleDeleteEditing : undefined}
+        card={editing}
       />
-      {confirmDialog}
-    </PageContainer>
+    </CustomItemPage>
   );
 }
-
-interface DeclensionTableProps {
-  customCards: CustomDeclensionCard[];
-  isAdmin: boolean;
-  onAdd: () => void;
-  onEdit: (item: CustomDeclensionCard) => void;
-  onDelete: (id: CustomDeclensionCard['id']) => void;
-  onAudioSaved: (id: CustomDeclensionCard['id'], audioUrl: string) => void;
-  declensionReviewStore: Parameters<typeof canReprioritizeDeclensionCard>[0];
-  handleReprioritize: (id: CustomDeclensionCard['id']) => void;
-}
-
-// Dialog state stays in the page; stable props let the table skip those updates.
-const DeclensionTable = memo(function DeclensionTable({
-  customCards,
-  isAdmin,
-  onAdd,
-  onEdit,
-  onDelete,
-  onAudioSaved,
-  declensionReviewStore,
-  handleReprioritize,
-}: DeclensionTableProps) {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [caseFilter, setCaseFilter] = useState<Case | ''>('');
-  const [genderFilter, setGenderFilter] = useState<Gender | ''>('');
-  const [numberFilter, setNumberFilter] = useState<Number | ''>('');
-  const sort = useSortState<SortField>('createdAt');
-
-  const { sortField, sortDirection } = sort;
-  const filteredAndSortedCards = useMemo(() => {
-    const query = foldForSearch(searchQuery);
-    const filtered = customCards.filter(
-      (card) =>
-        matchesSearch(query, card.front, card.back, card.declined, card.hint) &&
-        (!caseFilter || card.case === caseFilter) &&
-        (!genderFilter || card.gender === genderFilter) &&
-        (!numberFilter || card.number === numberFilter)
-    );
-    return sortItems(filtered, COMPARATORS, { sortField, sortDirection });
-  }, [customCards, searchQuery, caseFilter, genderFilter, numberFilter, sortField, sortDirection]);
-
-  const { paginatedItems, ...pagination } = usePagination(
-    filteredAndSortedCards,
-    JSON.stringify([searchQuery, caseFilter, genderFilter, numberFilter, sortField, sortDirection])
-  );
-
-  if (customCards.length === 0) {
-    return (
-      <CustomItemEmptyState
-        title="No custom declension cards yet"
-        description="Add your own declension cards to drill alongside the standard card set."
-        addLabel="Add Your First Card"
-        onAdd={onAdd}
-      />
-    );
-  }
-
-  return (
-    <>
-      <FiltersRow>
-        <CustomItemSearchField
-          value={searchQuery}
-          onChange={setSearchQuery}
-          placeholder="Search cards..."
-        />
-        <FilterSelectField
-          label="Case"
-          value={caseFilter}
-          options={CASES}
-          onChange={setCaseFilter}
-        />
-        <FilterSelectField
-          label="Gender"
-          value={genderFilter}
-          options={GENDERS}
-          onChange={setGenderFilter}
-        />
-        <FilterSelectField
-          label="Number"
-          value={numberFilter}
-          options={NUMBERS}
-          onChange={setNumberFilter}
-        />
-        <FilterResultCount
-          visible={Boolean(searchQuery || caseFilter || genderFilter || numberFilter)}
-          shown={filteredAndSortedCards.length}
-          total={customCards.length}
-          noun="cards"
-        />
-      </FiltersRow>
-
-      <StyledTableContainer elevation={0}>
-        <Table>
-          <CustomItemTableHead isAdmin={isAdmin}>
-            <SortableHeaderCell field="front" label="Question" sort={sort} />
-            <SortableHeaderCell field="declined" label="Answer" sort={sort} />
-            <SortableHeaderCell field="case" label="Case" sort={sort} />
-            <SortableHeaderCell field="gender" label="Gender" sort={sort} />
-            <SortableHeaderCell field="number" label="Number" sort={sort} />
-            <SortableHeaderCell field="createdAt" label="Added" sort={sort} />
-          </CustomItemTableHead>
-          <TableBody>
-            {paginatedItems.map((card) => (
-              <TableRow key={card.id}>
-                <TableCell>
-                  <CustomItemActions
-                    onEdit={() => onEdit(card)}
-                    onDelete={() => onDelete(card.id)}
-                    editLabel="edit card"
-                    deleteLabel="delete card"
-                    onReprioritize={() => handleReprioritize(card.id)}
-                    canReprioritize={canReprioritizeDeclensionCard(declensionReviewStore, card.id)}
-                    reprioritizeLabel="review card again"
-                  />
-                </TableCell>
-                {isAdmin && (
-                  <TableCell>
-                    <InlineAudioRegenerator
-                      text={card.back}
-                      type="custom-declension"
-                      id={card.id}
-                      currentAudioUrl={card.audioUrl}
-                      onAudioSaved={(audioUrl) => onAudioSaved(card.id, audioUrl)}
-                    />
-                  </TableCell>
-                )}
-                <TableCell>
-                  <TruncatedCell title={card.front}>{card.front}</TruncatedCell>
-                </TableCell>
-                <TableCell>
-                  <Typography fontWeight={500}>{card.declined}</Typography>
-                </TableCell>
-                <TableCell>
-                  <MetaChip label={card.case} size="small" />
-                </TableCell>
-                <TableCell>
-                  <GenderChip $gender={card.gender} label={card.gender} size="small" />
-                </TableCell>
-                <TableCell>
-                  <MetaChip label={card.number} size="small" />
-                </TableCell>
-                <TableCell>
-                  <Typography variant="body2" color="text.secondary">
-                    {formatDate(card.createdAt)}
-                  </Typography>
-                </TableCell>
-              </TableRow>
-            ))}
-            {filteredAndSortedCards.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={isAdmin ? 8 : 7} align="center" sx={{ py: 4 }}>
-                  <Typography color="text.secondary">No cards match your filters</Typography>
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </StyledTableContainer>
-      <CustomItemPagination {...pagination} />
-    </>
-  );
-});

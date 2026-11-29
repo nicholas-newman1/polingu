@@ -8,7 +8,7 @@ import MenuBook from '@mui/icons-material/MenuBook';
 import Headphones from '@mui/icons-material/Headphones';
 import Storage from '@mui/icons-material/Storage';
 import AutoAwesome from '@mui/icons-material/AutoAwesome';
-import type { ReviewCounts } from '../contexts/review';
+import type { ReviewDeckName } from '../hooks/useProgressStats';
 
 type ColorKey = 'primary' | 'info' | 'success' | 'warning' | 'secondary' | 'error';
 
@@ -19,7 +19,7 @@ export interface FeatureNavItem {
   description: string;
   fullDescription: string;
   colorKey: ColorKey;
-  statsKey: keyof ReviewCounts;
+  statsKey: ReviewDeckName;
 }
 
 /**

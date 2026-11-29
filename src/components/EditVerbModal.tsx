@@ -18,8 +18,9 @@ import { styled } from '../lib/styled';
 import { ModalDialog, ModalHeader, ModalContent } from './modalStyles';
 import { ModalFooter } from './ModalFooter';
 import { FormTextField, FormYesNoField, VerbDetailsFields } from './FormFields';
-import { useEditModalClose } from '../hooks/useEditModalClose';
-import { useOptimisticModalSave, type ModalSaveResult } from '../hooks/useOptimisticModalSave';
+import { VERB_FIELD_NAMES } from './verbFieldNames';
+import { useEditModal } from '../hooks/useEditModal';
+import { type ModalSaveResult } from '../hooks/useOptimisticModalSave';
 import { useConfirm } from '../hooks/useConfirm';
 import { AudioRegenerator, InlineAudioRegenerator } from './AudioRegenerator';
 import type { Verb, Aspect, VerbClass, Tense, ConjugationForm } from '../types/conjugation';
@@ -31,13 +32,6 @@ import {
   IMPERATIVE_FORM_KEYS,
   CONDITIONAL_FORM_KEYS,
 } from '../types/conjugation';
-
-const VERB_FIELD_NAMES = {
-  infinitive: 'infinitive',
-  infinitiveEn: 'infinitiveEn',
-  aspect: 'aspect',
-  verbClass: 'verbClass',
-} as const;
 
 const TENSE_FORM_KEYS: Record<Tense, readonly string[]> = {
   present: PRESENT_FORM_KEYS,
@@ -138,15 +132,16 @@ export function EditVerbModal({
 
   const infinitiveText = useWatch({ control, name: 'infinitive' });
 
-  const { pendingAudioUrl, handleClose, handleAudioSaved } = useEditModalClose({
+  const { handleClose, handleAudioSaved, save } = useEditModal({
     open,
     onClose,
-    resetForm: () => {
+    onSave,
+    onAudioUpdated,
+    reset: () => {
       reset(getDefaultValues(null));
       setEditConjugations({});
       setEnglishDrafts({});
     },
-    onAudioUpdated,
   });
 
   const updateFormField = useCallback(
@@ -176,8 +171,6 @@ export function EditVerbModal({
       updateConjugationForm(prev, tense, formKey, (form) => ({ ...form, audioUrl }))
     );
   }, []);
-
-  const save = useOptimisticModalSave({ onSave, onClose: handleClose });
 
   const onSubmit = (data: MetadataFormData) => {
     save({
@@ -224,7 +217,7 @@ export function EditVerbModal({
               text={infinitiveText}
               type="verb-infinitive"
               id={verb.id}
-              currentAudioUrl={pendingAudioUrl || verb.infinitiveAudioUrl}
+              currentAudioUrl={verb.infinitiveAudioUrl}
               onAudioSaved={handleAudioSaved}
               label="Infinitive Audio"
             />
@@ -316,7 +309,7 @@ export function EditVerbModal({
                               text={form.pl}
                               type="conjugation"
                               id={verb.id}
-                              subPath={`${verb.id}_${tense}_${fk}`}
+                              conjugationForm={{ tense, formKey: fk }}
                               currentAudioUrl={form.audioUrl}
                               onAudioSaved={(url) => handleFormAudioSaved(tense, fk, url)}
                             />

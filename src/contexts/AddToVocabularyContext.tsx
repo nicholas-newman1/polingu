@@ -1,10 +1,12 @@
-import { createContext, useState, useCallback, useRef, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 import { AddVocabularyModal } from '../components/AddVocabularyModal';
-import { loadCustomVocabulary, saveCustomVocabulary } from '../lib/storage/customVocabulary';
+import { customVocabularyStorage } from '../lib/storage/customVocabulary';
 import type { CustomVocabularyWord } from '../types/vocabulary';
+import { createCustomItem } from '../types/customItems';
 import { useVocabulary } from '../hooks/useReviewData';
 import { normalizeVocabularyPrefill } from '../lib/utils/normalizeVocabularyPrefill';
 import { useReprioritizeVocabularyWord } from '../hooks/useReprioritizeVocabularyWord';
+import { useCustomItemWrites } from '../hooks/useCustomItemWrites';
 
 type NewWord = Omit<CustomVocabularyWord, 'id' | 'isCustom' | 'createdAt'>;
 
@@ -12,7 +14,6 @@ interface AddToVocabularyContextType {
   openAddToVocabulary: (polish: string, english: string) => void;
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
 export const AddToVocabularyContext = createContext<AddToVocabularyContextType | null>(null);
 
 interface AddToVocabularyProviderProps {
@@ -24,12 +25,10 @@ export function AddToVocabularyProvider({ children }: AddToVocabularyProviderPro
   const [initialValues, setInitialValues] = useState<
     { polish: string; english: string } | undefined
   >();
-  // The saved words, read when the dialog opens, so a duplicate is caught
-  // synchronously and the dialog stays open with what was typed.
-  const savedRef = useRef<CustomVocabularyWord[]>([]);
 
-  const { customWords, refreshVocabularyWords } = useVocabulary();
-  const { reportDuplicatePolish: reportDuplicate } = useReprioritizeVocabularyWord();
+  const { customWords, setCustomWords } = useVocabulary();
+  const { reportDuplicatePolish } = useReprioritizeVocabularyWord();
+  const { add } = useCustomItemWrites(customVocabularyStorage, setCustomWords);
 
   const openAddToVocabulary = useCallback((polish: string, english: string) => {
     setInitialValues({
@@ -37,47 +36,21 @@ export function AddToVocabularyProvider({ children }: AddToVocabularyProviderPro
       english: normalizeVocabularyPrefill(english),
     });
     setModalOpen(true);
-    savedRef.current = [];
-    loadCustomVocabulary().then(
-      (loaded) => (savedRef.current = loaded),
-      (e) => console.error('Failed to load custom vocabulary:', e)
-    );
   }, []);
 
-  const handleClose = useCallback(() => {
+  // Every translatable word reads this context, so a stable value keeps them from re-rendering.
+  const value = useMemo(() => ({ openAddToVocabulary }), [openAddToVocabulary]);
+
+  const handleClose = () => {
     setModalOpen(false);
     setInitialValues(undefined);
-  }, []);
+  };
 
-  const addWord = useCallback(
-    async (wordData: NewWord) => {
-      const loaded = await loadCustomVocabulary();
-      // Checked again in case the save came before the list above had loaded.
-      if (reportDuplicate(loaded, wordData.polish)) return;
-      const newWord: CustomVocabularyWord = {
-        ...wordData,
-        id: `custom_${Date.now()}`,
-        isCustom: true,
-        createdAt: Date.now(),
-      };
-      const newCustomVocabulary = [newWord, ...loaded];
-      await saveCustomVocabulary(newCustomVocabulary);
-      await refreshVocabularyWords();
-    },
-    [refreshVocabularyWords, reportDuplicate]
-  );
-
-  const handleSave = useCallback(
-    (wordData: NewWord) =>
-      // The live list covers words the stored copy may not have yet.
-      reportDuplicate([...customWords, ...savedRef.current], wordData.polish)
-        ? false
-        : addWord(wordData),
-    [customWords, reportDuplicate, addWord]
-  );
+  const handleSave = (wordData: NewWord) =>
+    reportDuplicatePolish(customWords, wordData.polish) ? false : add(createCustomItem(wordData));
 
   return (
-    <AddToVocabularyContext.Provider value={{ openAddToVocabulary }}>
+    <AddToVocabularyContext.Provider value={value}>
       {children}
       <AddVocabularyModal
         open={modalOpen}
@@ -87,4 +60,9 @@ export function AddToVocabularyProvider({ children }: AddToVocabularyProviderPro
       />
     </AddToVocabularyContext.Provider>
   );
+}
+
+export function useAddToVocabulary() {
+  const context = useContext(AddToVocabularyContext);
+  return context;
 }

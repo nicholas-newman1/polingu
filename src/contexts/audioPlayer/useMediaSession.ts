@@ -1,4 +1,4 @@
-import { useEffect, useRef, type RefObject } from 'react';
+import { useEffect, type RefObject } from 'react';
 
 /** Pushes the current position to the OS media controls (lock screen, headset, etc.). */
 export function syncPositionState(audio: HTMLAudioElement | null) {
@@ -22,13 +22,6 @@ export function useMediaSession(
   nextTrack: () => void,
   previousTrack: () => void
 ) {
-  const nextTrackRef = useRef(nextTrack);
-  const previousTrackRef = useRef(previousTrack);
-  useEffect(() => {
-    nextTrackRef.current = nextTrack;
-    previousTrackRef.current = previousTrack;
-  }, [nextTrack, previousTrack]);
-
   useEffect(() => {
     if (!('mediaSession' in navigator)) return;
     const seekBack = () => {
@@ -42,8 +35,8 @@ export function useMediaSession(
 
     navigator.mediaSession.setActionHandler('play', () => audioRef.current?.play().catch(() => {}));
     navigator.mediaSession.setActionHandler('pause', () => audioRef.current?.pause());
-    navigator.mediaSession.setActionHandler('previoustrack', () => previousTrackRef.current());
-    navigator.mediaSession.setActionHandler('nexttrack', () => nextTrackRef.current());
+    navigator.mediaSession.setActionHandler('previoustrack', previousTrack);
+    navigator.mediaSession.setActionHandler('nexttrack', nextTrack);
     navigator.mediaSession.setActionHandler('seekto', (details) => {
       if (audioRef.current && details.seekTime !== undefined) {
         audioRef.current.currentTime = details.seekTime;
@@ -51,7 +44,7 @@ export function useMediaSession(
     });
     navigator.mediaSession.setActionHandler('seekbackward', seekBack);
     navigator.mediaSession.setActionHandler('seekforward', seekForward);
-  }, [audioRef]);
+  }, [audioRef, nextTrack, previousTrack]);
 
   useEffect(() => {
     if (!('mediaSession' in navigator) || title === undefined) return;

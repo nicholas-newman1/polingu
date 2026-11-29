@@ -1,36 +1,29 @@
 import { useEffect, useState, useRef } from 'react';
-import {
-  CircularProgress,
-  Typography,
-  Box,
-  IconButton,
-  Divider,
-  TextField,
-  InputAdornment,
-} from '@mui/material';
+import { Box, IconButton, Divider, TextField, InputAdornment } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import BookmarkAddOutlinedIcon from '@mui/icons-material/BookmarkAddOutlined';
 import FormatQuoteIcon from '@mui/icons-material/FormatQuote';
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import EditIcon from '@mui/icons-material/Edit';
 import CheckIcon from '@mui/icons-material/Check';
 import CloseIcon from '@mui/icons-material/Close';
 import { styled } from '../lib/styled';
-import { TranslatableTextProvider } from '../contexts/TranslatableTextContext';
-import { useTranslatableTextActions } from '../hooks/useTranslatableTextActions';
-import { useTranslatableTextUI } from '../hooks/useTranslatableTextUI';
-import { useAddToVocabulary } from '../hooks/useAddToVocabulary';
-import { useAddSentence } from '../hooks/useAddSentence';
-import { useSnackbar } from '../hooks/useSnackbar';
-import { useAuthContext } from '../hooks/useAuthContext';
 import {
-  translate,
-  handleTooltipTranslationError,
-  translationCacheKey,
-  wordToTranslate,
-} from '../lib/translate';
+  TranslatableTextProvider,
+  useTranslatableTextActions,
+  useTranslatableTextUI,
+} from '../contexts/TranslatableTextContext';
+import { useAddToVocabulary } from '../contexts/AddToVocabularyContext';
+import { useAddSentence } from '../contexts/AddSentenceContext';
+import { useAuthContext } from '../contexts/AuthContext';
+import { translate, translationCacheKey, wordToTranslate } from '../lib/translate';
 import { useDismissOnOutsideClick } from '../hooks/useDismissOnOutsideClick';
-import { TooltipContent, WordTooltipPopper } from './shared';
+import {
+  TooltipContent,
+  TooltipIconButton,
+  TranslationTooltipBody,
+  useTooltipTranslation,
+  WordTooltipPopper,
+} from './shared';
 
 const TextContainer = styled(Box)({
   display: 'inline',
@@ -43,17 +36,8 @@ interface PhraseTooltipProps {
   translations?: Record<string, string>;
   declensionCardId?: number;
   sentenceId?: string;
-  onDailyLimitReached?: (resetTime: string) => void;
   onUpdateTranslation?: (phrase: string, translation: string) => void;
 }
-
-const TooltipIconButton = styled(IconButton)(({ theme }) => ({
-  padding: 2,
-  color: theme.palette.tooltip.text,
-  '&:hover': {
-    backgroundColor: 'transparent',
-  },
-}));
 
 const SaveOptionButton = styled(IconButton)(({ theme }) => ({
   padding: '2px 6px',
@@ -76,118 +60,73 @@ function PhraseTooltip({
   translations,
   declensionCardId,
   sentenceId,
-  onDailyLimitReached,
   onUpdateTranslation,
 }: PhraseTooltipProps) {
-  const actions = useTranslatableTextActions();
-  const ui = useTranslatableTextUI();
+  const { closePhraseTooltip, getSelectedIndices } = useTranslatableTextActions();
+  const { selectedPhrase, phraseAnchorEl } = useTranslatableTextUI();
   const addToVocabulary = useAddToVocabulary();
   const addSentence = useAddSentence();
-  const { showSnackbar } = useSnackbar();
-  const [translation, setTranslation] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [showSaveMenu, setShowSaveMenu] = useState(false);
   const popperRef = useRef<HTMLDivElement>(null);
+  const { translation, error, loading, show, lookUp } = useTooltipTranslation(
+    selectedPhrase,
+    closePhraseTooltip
+  );
 
-  const selectedPhrase = ui?.selectedPhrase;
-  const phraseAnchorEl = ui?.phraseAnchorEl;
-  const closePhraseTooltip = actions?.closePhraseTooltip;
-  const getSelectedIndices = actions?.getSelectedIndices;
+  if (!selectedPhrase && showSaveMenu) setShowSaveMenu(false);
 
   const getSentenceContextRef = useRef(getSentenceContext);
   useEffect(() => {
     getSentenceContextRef.current = getSentenceContext;
   });
 
-  useEffect(() => {
-    if (!selectedPhrase) setShowSaveMenu(false);
-  }, [selectedPhrase]);
-
   const handleAddToVocabulary = () => {
     if (selectedPhrase && addToVocabulary) {
       addToVocabulary.openAddToVocabulary(selectedPhrase, translation || '');
-      closePhraseTooltip?.();
+      closePhraseTooltip();
     }
   };
 
   const handleAddSentence = () => {
     if (selectedPhrase && addSentence) {
       addSentence.openAddSentence({ polish: selectedPhrase, english: translation || '' });
-      closePhraseTooltip?.();
-    }
-  };
-
-  const handleCopy = async () => {
-    if (!selectedPhrase) return;
-    try {
-      await navigator.clipboard.writeText(selectedPhrase);
-      showSnackbar('Copied to clipboard', 'success');
-    } catch {
-      showSnackbar('Failed to copy', 'error');
+      closePhraseTooltip();
     }
   };
 
   useEffect(() => {
-    setLoading(false);
-    setError(null);
     if (!selectedPhrase) {
-      setTranslation(null);
+      show(null);
       return;
     }
 
     const cacheKey = translationCacheKey(selectedPhrase);
     const cachedTranslation = translations?.[cacheKey];
     if (cachedTranslation) {
-      setTranslation(cachedTranslation);
+      show(cachedTranslation);
       return;
     }
 
-    let stale = false;
-    const fetchTranslation = async () => {
-      setLoading(true);
-      try {
-        const dynamicContext = getSentenceContextRef.current?.(getSelectedIndices?.() ?? []);
-        const effectiveContext = dynamicContext ?? sentenceContext;
-        const result = await translate(selectedPhrase, 'EN', {
-          context: effectiveContext,
-          declensionCardId,
-          sentenceId,
-        });
-        if (stale) return;
-        setTranslation(result.translatedText);
-        onUpdateTranslation?.(cacheKey, result.translatedText);
-      } catch (err) {
-        if (stale) return;
-        handleTooltipTranslationError(err, {
-          setError,
-          showSnackbar,
-          onDailyLimit: (resetTime) => {
-            closePhraseTooltip?.();
-            onDailyLimitReached?.(resetTime);
-          },
-        });
-      } finally {
-        if (!stale) setLoading(false);
-      }
-    };
-
-    fetchTranslation();
-    // A late answer for an earlier selection must not land on the current one.
-    return () => {
-      stale = true;
-    };
+    const dynamicContext = getSentenceContextRef.current?.(getSelectedIndices());
+    lookUp(
+      translate(selectedPhrase, 'EN', {
+        context: dynamicContext ?? sentenceContext,
+        declensionCardId,
+        sentenceId,
+      })
+    ).then((result) => {
+      if (result !== null) onUpdateTranslation?.(cacheKey, result);
+    });
   }, [
     selectedPhrase,
     sentenceContext,
     translations,
     declensionCardId,
     sentenceId,
-    onDailyLimitReached,
     onUpdateTranslation,
-    closePhraseTooltip,
-    showSnackbar,
     getSelectedIndices,
+    show,
+    lookUp,
   ]);
 
   useDismissOnOutsideClick(
@@ -201,63 +140,53 @@ function PhraseTooltip({
   return (
     <WordTooltipPopper open={true} anchorEl={phraseAnchorEl} popperRef={popperRef}>
       <TooltipContent>
-        {loading ? (
-          <CircularProgress size={16} sx={{ color: 'tooltip.text' }} />
-        ) : (
-          <>
-            {error ? (
-              <Typography variant="caption" sx={{ color: 'tooltip.error' }}>
-                {error}
-              </Typography>
-            ) : (
-              <Typography variant="body2" fontWeight={500}>
-                {translation}
-              </Typography>
-            )}
-            <TooltipIconButton size="small" onClick={handleCopy} aria-label="Copy to clipboard">
-              <ContentCopyIcon sx={{ fontSize: 16 }} />
-            </TooltipIconButton>
-            {showSaveMenu ? (
-              <>
-                <Divider
-                  orientation="vertical"
-                  flexItem
-                  sx={{ mx: 0.5, borderColor: 'tooltip.text', opacity: 0.3 }}
-                />
-                <SaveOptionButton
-                  size="small"
-                  onClick={handleAddToVocabulary}
-                  aria-label="Add to vocabulary"
-                >
-                  <BookmarkAddOutlinedIcon sx={{ fontSize: 14 }} />
-                  <Box component="span" sx={{ fontSize: '0.6rem', lineHeight: 1 }}>
-                    Vocab
-                  </Box>
-                </SaveOptionButton>
-                <SaveOptionButton
-                  size="small"
-                  onClick={handleAddSentence}
-                  aria-label="Add as sentence"
-                >
-                  <FormatQuoteIcon sx={{ fontSize: 14 }} />
-                  <Box component="span" sx={{ fontSize: '0.6rem', lineHeight: 1 }}>
-                    Sentence
-                  </Box>
-                </SaveOptionButton>
-              </>
-            ) : (
-              (addToVocabulary || addSentence) && (
-                <TooltipIconButton
-                  size="small"
-                  onClick={() => setShowSaveMenu(true)}
-                  aria-label="Save"
-                >
-                  <AddIcon sx={{ fontSize: 16 }} />
-                </TooltipIconButton>
-              )
-            )}
-          </>
-        )}
+        <TranslationTooltipBody
+          text={selectedPhrase}
+          translation={translation}
+          error={error}
+          loading={loading}
+          iconSize={16}
+        >
+          {showSaveMenu ? (
+            <>
+              <Divider
+                orientation="vertical"
+                flexItem
+                sx={{ mx: 0.5, borderColor: 'tooltip.text', opacity: 0.3 }}
+              />
+              <SaveOptionButton
+                size="small"
+                onClick={handleAddToVocabulary}
+                aria-label="Add to vocabulary"
+              >
+                <BookmarkAddOutlinedIcon sx={{ fontSize: 14 }} />
+                <Box component="span" sx={{ fontSize: '0.6rem', lineHeight: 1 }}>
+                  Vocab
+                </Box>
+              </SaveOptionButton>
+              <SaveOptionButton
+                size="small"
+                onClick={handleAddSentence}
+                aria-label="Add as sentence"
+              >
+                <FormatQuoteIcon sx={{ fontSize: 14 }} />
+                <Box component="span" sx={{ fontSize: '0.6rem', lineHeight: 1 }}>
+                  Sentence
+                </Box>
+              </SaveOptionButton>
+            </>
+          ) : (
+            (addToVocabulary || addSentence) && (
+              <TooltipIconButton
+                size="small"
+                onClick={() => setShowSaveMenu(true)}
+                aria-label="Save"
+              >
+                <AddIcon sx={{ fontSize: 16 }} />
+              </TooltipIconButton>
+            )
+          )}
+        </TranslationTooltipBody>
       </TooltipContent>
     </WordTooltipPopper>
   );
@@ -293,19 +222,10 @@ const EditInput = styled(TextField)(({ theme }) => ({
   },
 }));
 
-const ActionIconButton = styled(IconButton)(({ theme }) => ({
-  padding: 2,
-  color: theme.palette.tooltip.text,
-  '&:hover': {
-    backgroundColor: 'transparent',
-  },
-}));
-
 interface WordTooltipProps {
   translations?: Record<string, string>;
   declensionCardId?: number;
   sentenceId?: string;
-  onDailyLimitReached?: (resetTime: string) => void;
   onUpdateTranslation?: (word: string, translation: string) => void;
 }
 
@@ -313,90 +233,52 @@ function WordTooltip({
   translations,
   declensionCardId,
   sentenceId,
-  onDailyLimitReached,
   onUpdateTranslation,
 }: WordTooltipProps) {
-  const actions = useTranslatableTextActions();
-  const ui = useTranslatableTextUI();
+  const { closeWordTooltip } = useTranslatableTextActions();
+  const { activeWord } = useTranslatableTextUI();
   const addToVocabulary = useAddToVocabulary();
-  const { showSnackbar } = useSnackbar();
   const { isAdmin } = useAuthContext();
-  const [translation, setTranslation] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const popperRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  const activeWord = ui?.activeWord;
-  const closeWordTooltip = actions?.closeWordTooltip;
+  const text = activeWord ? wordToTranslate(activeWord.word) : null;
+  const { translation, error, loading, show, lookUp } = useTooltipTranslation(
+    text,
+    closeWordTooltip
+  );
 
   useEffect(() => {
-    setLoading(false);
-    setError(null);
     if (!activeWord) {
-      setTranslation(null);
+      show(null);
       setIsEditing(false);
       return;
     }
 
-    const text = wordToTranslate(activeWord.word);
     // A token of punctuation alone has nothing to look up.
     if (!text) {
-      setTranslation(null);
+      show(null);
       return;
     }
 
     const knownTranslation =
       translations?.[translationCacheKey(activeWord.word)] ?? activeWord.translation;
     if (knownTranslation) {
-      setTranslation(knownTranslation);
+      show(knownTranslation);
       return;
     }
 
-    let stale = false;
-    const fetchTranslation = async () => {
-      setLoading(true);
-      try {
-        const result = await (activeWord.pendingTranslation ??
-          translate(text, 'EN', {
-            context: activeWord.sentenceContext,
-            declensionCardId,
-            sentenceId,
-          }));
-        if (stale) return;
-        setTranslation(result.translatedText);
-      } catch (err) {
-        if (stale) return;
-        handleTooltipTranslationError(err, {
-          setError,
-          showSnackbar,
-          onDailyLimit: (resetTime) => {
-            closeWordTooltip?.();
-            onDailyLimitReached?.(resetTime);
-          },
-        });
-      } finally {
-        if (!stale) setLoading(false);
-      }
-    };
-
-    fetchTranslation();
-    // A late answer for a word the learner has moved on from must not land on this one.
-    return () => {
-      stale = true;
-    };
-  }, [
-    activeWord,
-    translations,
-    declensionCardId,
-    sentenceId,
-    onDailyLimitReached,
-    closeWordTooltip,
-    showSnackbar,
-  ]);
+    lookUp(
+      activeWord.pendingTranslation ??
+        translate(text, 'EN', {
+          context: activeWord.sentenceContext,
+          declensionCardId,
+          sentenceId,
+        })
+    );
+  }, [activeWord, text, translations, declensionCardId, sentenceId, show, lookUp]);
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -433,10 +315,10 @@ function WordTooltip({
     setIsSaving(true);
     try {
       await onUpdateTranslation?.(translationCacheKey(activeWord.word), editValue.trim());
-      setTranslation(editValue.trim());
+      show(editValue.trim());
       setIsEditing(false);
     } catch {
-      setError('Save failed');
+      show(translation, 'Save failed');
     } finally {
       setIsSaving(false);
     }
@@ -453,17 +335,7 @@ function WordTooltip({
   const handleAddToVocabulary = () => {
     if (activeWord && addToVocabulary) {
       addToVocabulary.openAddToVocabulary(activeWord.word, translation || '');
-      closeWordTooltip?.();
-    }
-  };
-
-  const handleCopy = async () => {
-    if (!activeWord) return;
-    try {
-      await navigator.clipboard.writeText(activeWord.word);
-      showSnackbar('Copied to clipboard', 'success');
-    } catch {
-      showSnackbar('Failed to copy', 'error');
+      closeWordTooltip();
     }
   };
 
@@ -472,9 +344,7 @@ function WordTooltip({
   return (
     <WordTooltipPopper open={true} anchorEl={activeWord.anchorEl} popperRef={popperRef}>
       <TooltipContent>
-        {loading || isSaving ? (
-          <CircularProgress size={16} sx={{ color: 'tooltip.text' }} />
-        ) : isEditing ? (
+        {isEditing && !loading && !isSaving ? (
           <EditInput
             size="small"
             value={editValue}
@@ -484,45 +354,33 @@ function WordTooltip({
             InputProps={{
               endAdornment: (
                 <InputAdornment position="end">
-                  <ActionIconButton size="small" onClick={handleSaveEdit}>
+                  <TooltipIconButton size="small" onClick={handleSaveEdit}>
                     <CheckIcon sx={{ fontSize: 14 }} />
-                  </ActionIconButton>
-                  <ActionIconButton size="small" onClick={handleCancelEdit}>
+                  </TooltipIconButton>
+                  <TooltipIconButton size="small" onClick={handleCancelEdit}>
                     <CloseIcon sx={{ fontSize: 14 }} />
-                  </ActionIconButton>
+                  </TooltipIconButton>
                 </InputAdornment>
               ),
             }}
           />
         ) : (
-          <>
-            {error ? (
-              <Typography variant="caption" sx={{ color: 'tooltip.error' }}>
-                {error}
-              </Typography>
-            ) : (
-              <Typography variant="body2" fontWeight={500}>
-                {translation}
-              </Typography>
-            )}
-            {isAdmin && translation && (
-              <EditButton size="small" onClick={handleStartEdit}>
-                <EditIcon sx={{ fontSize: 14 }} />
-              </EditButton>
-            )}
-            <ActionIconButton size="small" onClick={handleCopy} aria-label="Copy to clipboard">
-              <ContentCopyIcon sx={{ fontSize: 14 }} />
-            </ActionIconButton>
-            {addToVocabulary && (
-              <ActionIconButton
-                size="small"
-                onClick={handleAddToVocabulary}
-                aria-label="Add to vocabulary"
-              >
-                <AddIcon sx={{ fontSize: 14 }} />
-              </ActionIconButton>
-            )}
-          </>
+          <TranslationTooltipBody
+            text={activeWord.word}
+            translation={translation}
+            error={error}
+            loading={loading || isSaving}
+            iconSize={14}
+            beforeCopy={
+              isAdmin &&
+              translation && (
+                <EditButton size="small" onClick={handleStartEdit}>
+                  <EditIcon sx={{ fontSize: 14 }} />
+                </EditButton>
+              )
+            }
+            onAddToVocabulary={addToVocabulary ? handleAddToVocabulary : undefined}
+          />
         )}
       </TooltipContent>
     </WordTooltipPopper>
@@ -544,7 +402,6 @@ export interface TranslatableTextProps {
   translations?: Record<string, string>;
   declensionCardId?: number;
   sentenceId?: string;
-  onDailyLimitReached?: (resetTime: string) => void;
   onUpdateTranslation?: (phrase: string, translation: string) => void;
   onWordTap?: () => void;
 }
@@ -556,7 +413,6 @@ export function TranslatableText({
   translations,
   declensionCardId,
   sentenceId,
-  onDailyLimitReached,
   onUpdateTranslation,
   onWordTap,
 }: TranslatableTextProps) {
@@ -569,7 +425,6 @@ export function TranslatableText({
             translations={translations}
             declensionCardId={declensionCardId}
             sentenceId={sentenceId}
-            onDailyLimitReached={onDailyLimitReached}
             onUpdateTranslation={onUpdateTranslation}
           />
           <PhraseTooltip
@@ -578,7 +433,6 @@ export function TranslatableText({
             translations={translations}
             declensionCardId={declensionCardId}
             sentenceId={sentenceId}
-            onDailyLimitReached={onDailyLimitReached}
             onUpdateTranslation={onUpdateTranslation}
           />
         </>

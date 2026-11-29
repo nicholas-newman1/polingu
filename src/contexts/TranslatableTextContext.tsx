@@ -5,11 +5,13 @@ import {
   useRef,
   useMemo,
   useEffect,
+  useContext,
   startTransition,
   memo,
   type ReactNode,
 } from 'react';
 import type { TranslationResult } from '../lib/translate';
+import { useTranslationContext } from './TranslationContext';
 
 interface ActiveWordState {
   index: number;
@@ -28,7 +30,6 @@ interface TranslatableTextActionsContextValue {
   startDrag: (index: number, element: HTMLElement) => void;
   updateDrag: (index: number) => void;
   endDrag: () => void;
-  cancelDrag: () => void;
   registerWord: (index: number, word: string) => void;
   closePhraseTooltip: () => void;
   /** Returns whether the tap opened the word's tooltip (it may close one instead). */
@@ -40,6 +41,11 @@ interface TranslatableTextActionsContextValue {
   getSelectedIndices: () => number[];
   subscribeInteractionState: (callback: () => void) => () => void;
   getInteractionState: () => { isDragging: boolean; hasPhrase: boolean };
+  /**
+   * Opens the daily-limit dialog. Read from TranslationContext here, once, so the words do
+   * not each re-render whenever the translator's state changes.
+   */
+  handleDailyLimitReached: (resetTime: string) => void;
 }
 
 interface TranslatableTextUIContextValue {
@@ -48,17 +54,30 @@ interface TranslatableTextUIContextValue {
   selectedPhrase: string | null;
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
 export const TranslatableTextActionsContext =
   createContext<TranslatableTextActionsContextValue | null>(null);
 
-// eslint-disable-next-line react-refresh/only-export-components
 export const TranslatableTextUIContext = createContext<TranslatableTextUIContextValue | null>(null);
+
+export function useTranslatableTextActions() {
+  const context = useContext(TranslatableTextActionsContext);
+  if (!context) {
+    throw new Error('useTranslatableTextActions must be used within a TranslatableTextProvider');
+  }
+  return context;
+}
+
+export function useTranslatableTextUI() {
+  const context = useContext(TranslatableTextUIContext);
+  if (!context) {
+    throw new Error('useTranslatableTextUI must be used within a TranslatableTextProvider');
+  }
+  return context;
+}
 
 interface TranslatableTextProviderProps {
   children: React.ReactNode;
   overlays?: React.ReactNode;
-  onTranslatePhrase?: (phrase: string) => void;
   onWordTap?: () => void;
 }
 
@@ -123,9 +142,9 @@ function addDocumentDragListeners(onUpdate: (index: number) => void, onEnd: () =
 export function TranslatableTextProvider({
   children,
   overlays,
-  onTranslatePhrase,
   onWordTap,
 }: TranslatableTextProviderProps) {
+  const { handleDailyLimitReached } = useTranslationContext();
   const [phraseAnchorEl, setPhraseAnchorEl] = useState<HTMLElement | null>(null);
   const [selectedPhrase, setSelectedPhraseState] = useState<string | null>(null);
   const [activeWord, setActiveWord] = useState<ActiveWordState | null>(null);
@@ -140,18 +159,11 @@ export function TranslatableTextProvider({
   const subscribersRef = useRef<Set<() => void>>(new Set());
   const interactionSubscribersRef = useRef<Set<() => void>>(new Set());
   const documentListenersCleanupRef = useRef<(() => void) | null>(null);
-  const updateDragRef = useRef<((index: number) => void) | null>(null);
-  const endDragRef = useRef<(() => void) | null>(null);
-  const onTranslatePhraseRef = useRef(onTranslatePhrase);
   const onWordTapRef = useRef(onWordTap);
 
   useEffect(() => {
     activeWordRef.current = activeWord;
   }, [activeWord]);
-
-  useEffect(() => {
-    onTranslatePhraseRef.current = onTranslatePhrase;
-  }, [onTranslatePhrase]);
 
   useEffect(() => {
     onWordTapRef.current = onWordTap;
@@ -232,41 +244,10 @@ export function TranslatableTextProvider({
     wordsRef.current.set(index, word);
   }, []);
 
-  const installDocumentDragListeners = useCallback(() => {
-    if (documentListenersCleanupRef.current) return;
-    documentListenersCleanupRef.current = addDocumentDragListeners(
-      (index) => updateDragRef.current?.(index),
-      () => endDragRef.current?.()
-    );
-  }, []);
-
   const removeDocumentDragListeners = useCallback(() => {
     documentListenersCleanupRef.current?.();
     documentListenersCleanupRef.current = null;
   }, []);
-
-  const startDrag = useCallback(
-    (index: number, element: HTMLElement) => {
-      isDraggingRef.current = true;
-      dragStartRef.current = index;
-      dragEndRef.current = index;
-      dragStartElementRef.current = element;
-      installDocumentDragListeners();
-      notifySelectionChange();
-      notifyInteractionChange();
-      startTransition(() => {
-        setSelectedPhrase(null);
-        setPhraseAnchorEl(null);
-        setActiveWord(null);
-      });
-    },
-    [
-      notifySelectionChange,
-      notifyInteractionChange,
-      installDocumentDragListeners,
-      setSelectedPhrase,
-    ]
-  );
 
   const updateDrag = useCallback(
     (index: number) => {
@@ -291,7 +272,6 @@ export function TranslatableTextProvider({
     if (hasDragged && phrase) {
       setSelectedPhrase(phrase);
       setPhraseAnchorEl(dragStartElementRef.current);
-      onTranslatePhraseRef.current?.(phrase);
     } else {
       dragStartRef.current = null;
       dragEndRef.current = null;
@@ -304,29 +284,33 @@ export function TranslatableTextProvider({
     setSelectedPhrase,
   ]);
 
-  useEffect(() => {
-    updateDragRef.current = updateDrag;
-    endDragRef.current = endDrag;
-  });
+  const installDocumentDragListeners = useCallback(() => {
+    if (documentListenersCleanupRef.current) return;
+    documentListenersCleanupRef.current = addDocumentDragListeners(updateDrag, endDrag);
+  }, [updateDrag, endDrag]);
 
-  const cancelDrag = useCallback(() => {
-    isDraggingRef.current = false;
-    dragStartRef.current = null;
-    dragEndRef.current = null;
-    dragStartElementRef.current = null;
-    removeDocumentDragListeners();
-    notifySelectionChange();
-    notifyInteractionChange();
-    startTransition(() => {
-      setSelectedPhrase(null);
-      setPhraseAnchorEl(null);
-    });
-  }, [
-    notifySelectionChange,
-    notifyInteractionChange,
-    removeDocumentDragListeners,
-    setSelectedPhrase,
-  ]);
+  const startDrag = useCallback(
+    (index: number, element: HTMLElement) => {
+      isDraggingRef.current = true;
+      dragStartRef.current = index;
+      dragEndRef.current = index;
+      dragStartElementRef.current = element;
+      installDocumentDragListeners();
+      notifySelectionChange();
+      notifyInteractionChange();
+      startTransition(() => {
+        setSelectedPhrase(null);
+        setPhraseAnchorEl(null);
+        setActiveWord(null);
+      });
+    },
+    [
+      notifySelectionChange,
+      notifyInteractionChange,
+      installDocumentDragListeners,
+      setSelectedPhrase,
+    ]
+  );
 
   const closePhraseTooltip = useCallback(() => {
     dragStartRef.current = null;
@@ -341,7 +325,6 @@ export function TranslatableTextProvider({
       startDrag,
       updateDrag,
       endDrag,
-      cancelDrag,
       registerWord,
       closePhraseTooltip,
       handleWordClick,
@@ -352,12 +335,12 @@ export function TranslatableTextProvider({
       getSelectedIndices,
       subscribeInteractionState,
       getInteractionState,
+      handleDailyLimitReached,
     }),
     [
       startDrag,
       updateDrag,
       endDrag,
-      cancelDrag,
       registerWord,
       closePhraseTooltip,
       handleWordClick,
@@ -368,6 +351,7 @@ export function TranslatableTextProvider({
       getSelectedIndices,
       subscribeInteractionState,
       getInteractionState,
+      handleDailyLimitReached,
     ]
   );
 

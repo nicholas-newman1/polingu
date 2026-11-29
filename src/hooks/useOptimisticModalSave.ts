@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { useSnackbar } from './useSnackbar';
+import { useSaveError } from './useSaveError';
 
 /**
  * Return `false` (synchronously) to keep the modal open. A promise is never waited for,
@@ -17,21 +17,19 @@ export function useOptimisticModalSave<T extends unknown[]>({
   onSave,
   onClose,
 }: OptimisticModalSaveOptions<T>) {
-  const { showSnackbar } = useSnackbar();
+  const showSaveError = useSaveError();
 
   return useCallback(
     (...data: T) => {
-      const handleError = () => showSnackbar('Failed to save. Please try again.', 'error');
-
       try {
         const result = onSave(...data);
         if (result === false) return;
         onClose();
-        void Promise.resolve(result).catch(handleError);
-      } catch {
-        handleError();
+        void Promise.resolve(result).catch(showSaveError);
+      } catch (e) {
+        showSaveError(e);
       }
     },
-    [onSave, onClose, showSnackbar]
+    [onSave, onClose, showSaveError]
   );
 }

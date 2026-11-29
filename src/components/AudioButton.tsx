@@ -9,10 +9,9 @@ import { BoxIconButton } from './BoxIconButton';
 interface AudioButtonProps {
   isPlaying: boolean;
   onToggle: () => void;
-  size?: 'small' | 'medium';
 }
 
-export function AudioButton({ isPlaying, onToggle, size = 'small' }: AudioButtonProps) {
+export function AudioButton({ isPlaying, onToggle }: AudioButtonProps) {
   const { settings, updateSettings } = useAppSettings();
   const isMuted = !settings.autoPlayAudio;
 
@@ -24,24 +23,24 @@ export function AudioButton({ isPlaying, onToggle, size = 'small' }: AudioButton
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
       <BoxIconButton
         onClick={onToggle}
-        size={size}
+        size="small"
         active={isPlaying}
         aria-label={isPlaying ? 'Stop audio' : 'Play audio'}
         aria-pressed={isPlaying}
       >
-        {isPlaying ? <Stop fontSize={size} /> : <PlayArrow fontSize={size} />}
+        {isPlaying ? <Stop fontSize="small" /> : <PlayArrow fontSize="small" />}
       </BoxIconButton>
       <Tooltip title={isMuted ? 'Enable auto-play & chimes' : 'Mute auto-play & chimes'}>
         <BoxIconButton
           onClick={handleToggleMute}
-          size={size}
+          size="small"
           active={isMuted}
           aria-label={
             isMuted ? 'Enable auto-play audio and chimes' : 'Mute auto-play audio and chimes'
           }
           aria-pressed={isMuted}
         >
-          {isMuted ? <VolumeOff fontSize={size} /> : <VolumeUp fontSize={size} />}
+          {isMuted ? <VolumeOff fontSize="small" /> : <VolumeUp fontSize="small" />}
         </BoxIconButton>
       </Tooltip>
     </Box>

@@ -411,6 +411,31 @@ describe('Deleting a word', () => {
     await waitFor(() => expect(serverWords()).toHaveLength(0));
   });
 
+  test('a word added while a delete is still saving does not bring the deleted word back', async () => {
+    seedCustom(UID, 'customVocabulary', [word('w1', 'kot', 'cat')]);
+    await openPage();
+    await screen.findByText('kot');
+    const deletion = remote.hold('deleteDoc');
+    fireEvent.click(within(rowWith('kot')).getByRole('button', { name: 'delete word' }));
+    await answerDeleteConfirmation('Delete');
+    await waitForDialogsToClose();
+    expect(screen.queryByText('kot')).toBeNull();
+
+    const dialog = await openAddDialog();
+    fillWord(dialog, 'pies', 'dog');
+    await press(within(dialog).getByRole('button', { name: 'Add Word' }));
+    await waitForDialogsToClose();
+    expect(await screen.findByText('pies')).toBeInTheDocument();
+    await act(quiesce);
+    expect(screen.queryByText('kot')).toBeNull();
+
+    deletion.release();
+    await act(quiesce);
+    expect(serverWords()).toEqual([expect.objectContaining({ polish: 'pies' })]);
+    expect(screen.queryByText('kot')).toBeNull();
+    expect(screen.getByText('pies')).toBeInTheDocument();
+  });
+
   test('a delete the server rejects puts the word back with an error', async () => {
     seedCustom(UID, 'customVocabulary', [word('w1', 'kot', 'cat')]);
     await openPage();

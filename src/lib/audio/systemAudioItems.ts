@@ -1,57 +1,19 @@
-import { collection, doc, onSnapshot, query, orderBy, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../firebase';
-import { userDb } from '../offlineDb/userDb';
+import { cachedCollection } from '../media/cachedCollection';
 import type { SystemAudioItem, TranscriptSegment } from '../../types/audio';
 
-const SYSTEM_AUDIO_ITEMS_CACHE_KEY = '__system-audio-items-list';
+const systemAudioItems = cachedCollection<SystemAudioItem>({
+  cacheKey: '__system-audio-items-list',
+  path: () => ['systemAudioItems'],
+  newestFirstBy: 'createdAt',
+  label: 'System audio items',
+});
 
-export async function getCachedSystemAudioItems(): Promise<SystemAudioItem[]> {
-  const record = await userDb.userData.get(SYSTEM_AUDIO_ITEMS_CACHE_KEY);
-  return record ? (record.data as SystemAudioItem[]) : [];
-}
-
-async function cacheSystemAudioItems(items: SystemAudioItem[]): Promise<void> {
-  await userDb.userData.put({
-    key: SYSTEM_AUDIO_ITEMS_CACHE_KEY,
-    data: items,
-    lastModified: Date.now(),
-    pendingSync: 0,
-  });
-}
-
-export function subscribeToSystemAudioItems(
-  callback: (items: SystemAudioItem[]) => void
-): () => void {
-  const itemsRef = collection(db, 'systemAudioItems');
-  const q = query(itemsRef, orderBy('createdAt', 'desc'));
-
-  return onSnapshot(
-    q,
-    (snapshot) => {
-      const items = snapshot.docs.map((d) => d.data() as SystemAudioItem);
-      cacheSystemAudioItems(items);
-      callback(items);
-    },
-    (error) => {
-      console.error('System audio items subscription error:', error);
-    }
-  );
-}
-
-export function subscribeToSystemAudioItem(
-  audioId: string,
-  callback: (item: SystemAudioItem | null) => void
-): () => void {
-  const audioRef = doc(db, 'systemAudioItems', audioId);
-  return onSnapshot(audioRef, (snapshot) => {
-    if (!snapshot.exists()) {
-      callback(null);
-      return;
-    }
-    callback(snapshot.data() as SystemAudioItem);
-  });
-}
+export const getCachedSystemAudioItems = systemAudioItems.getCached;
+export const subscribeToSystemAudioItems = systemAudioItems.subscribe;
+export const subscribeToSystemAudioItem = systemAudioItems.subscribeOne;
 
 const createFn = httpsCallable<{ title: string; text: string }, { id: string }>(
   functions,

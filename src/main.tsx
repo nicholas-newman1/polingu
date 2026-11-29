@@ -1,4 +1,4 @@
-import { StrictMode } from 'react';
+import { StrictMode, lazy } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ColorModeProvider } from './contexts/ColorModeContext';
@@ -20,16 +20,14 @@ import { DeclensionPage } from './pages/DeclensionPage';
 import { SentencesPage } from './pages/SentencesPage';
 import { VocabularyPage } from './pages/VocabularyPage';
 import { ConjugationPage } from './pages/ConjugationPage';
+import { ModeSelectorPage } from './pages/ModeSelectorPage';
 import { AspectPairsPage } from './pages/AspectPairsPage';
 import { ConsonantDrillerPage } from './pages/ConsonantDrillerPage';
 import { CustomVocabularyPage } from './pages/CustomVocabularyPage';
 import { CustomDeclensionPage } from './pages/CustomDeclensionPage';
 import { CustomSentencesPage } from './pages/CustomSentencesPage';
 import { SettingsPage } from './pages/SettingsPage';
-import { SentenceGeneratorPage } from './pages/SentenceGenerator';
-import { AdminContentPage } from './pages/AdminContentPage';
 import { LibraryPage } from './pages/LibraryPage';
-import { ReaderPage } from './pages/ReaderPage';
 import { AudioLibraryPage } from './pages/AudioLibraryPage';
 import { AudioPlayerPage } from './pages/AudioPlayerPage';
 import { AppSettingsProvider } from './contexts/AppSettingsContext';
@@ -40,6 +38,17 @@ import { ListeningHubPage } from './pages/ListeningHubPage';
 import { ListeningPlayerPage } from './pages/ListeningPlayerPage';
 import { setUpDevMute } from './lib/devMute';
 
+// Loaded on first visit: the reader brings pdf.js, and the admin pages are for admins only.
+const ReaderPage = lazy(() =>
+  import('./pages/ReaderPage').then((m) => ({ default: m.ReaderPage }))
+);
+const SentenceGeneratorPage = lazy(() =>
+  import('./pages/SentenceGenerator').then((m) => ({ default: m.SentenceGeneratorPage }))
+);
+const AdminContentPage = lazy(() =>
+  import('./pages/AdminContentPage').then((m) => ({ default: m.AdminContentPage }))
+);
+
 if (import.meta.env.DEV) setUpDevMute();
 
 createRoot(document.getElementById('root')!).render(
@@ -49,7 +58,6 @@ createRoot(document.getElementById('root')!).render(
         <SnackbarProvider>
           <AuthProvider>
             <AuthGate>
-              {/* Above the review data, whose due counts follow the learner's session filters. */}
               <UserFiltersProvider>
                 <ReviewDataProvider>
                   <AppSettingsProvider>
@@ -64,7 +72,7 @@ createRoot(document.getElementById('root')!).render(
                                   <Route path="/dashboard" element={<DashboardPage />} />
                                   <Route path="/declension" element={<DeclensionPage />} />
                                   <Route path="/vocabulary">
-                                    <Route index element={<VocabularyPage />} />
+                                    <Route index element={<ModeSelectorPage deck="vocabulary" />} />
                                     <Route
                                       path="recognition"
                                       element={<VocabularyPage mode="pl-to-en" />}
@@ -75,7 +83,7 @@ createRoot(document.getElementById('root')!).render(
                                     />
                                   </Route>
                                   <Route path="/sentences">
-                                    <Route index element={<SentencesPage />} />
+                                    <Route index element={<ModeSelectorPage deck="sentences" />} />
                                     <Route
                                       path="recognition"
                                       element={<SentencesPage mode="pl-to-en" />}
@@ -86,7 +94,10 @@ createRoot(document.getElementById('root')!).render(
                                     />
                                   </Route>
                                   <Route path="/conjugation">
-                                    <Route index element={<ConjugationPage />} />
+                                    <Route
+                                      index
+                                      element={<ModeSelectorPage deck="conjugation" />}
+                                    />
                                     <Route
                                       path="recognition"
                                       element={<ConjugationPage mode="pl-to-en" />}

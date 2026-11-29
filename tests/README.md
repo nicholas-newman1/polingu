@@ -16,7 +16,7 @@ CI runs all four before every deploy; a failure stops the deploy.
 | `tests/scheduling/`  | Schedulers, `fsrsUtils`, `reviewSession`, pure utilities                     |
 | `tests/content/`     | Invariants of the built-in content data checked into the repo                |
 | `tests/sync/`        | `offlineDb` and `storage`: IndexedDB, Firestore writes, offline sync         |
-| `tests/contexts/`    | Review contexts: loading, background sync, saving stores, resets, badges     |
+| `tests/contexts/`    | Review contexts: loading, background sync, saving stores, resets, item lists |
 | `tests/hooks/`       | React hooks, rendered with `renderHook`                                      |
 | `tests/translation/` | Tap-to-translate, phrase selection, the translator and translation callables |
 | `tests/media/`       | Client audio and reader libraries: uploads, caches, books, rating feedback   |

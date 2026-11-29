@@ -256,7 +256,7 @@ export function CardDeckStage({ children }: { children: ReactNode }) {
   const value = useMemo(() => ({ transitionId, launchExit }), [transitionId, launchExit]);
 
   const overlay =
-    exitingCards.length > 0 && typeof document !== 'undefined'
+    exitingCards.length > 0
       ? createPortal(
           <ExitingOverlayLayer aria-hidden="true">
             {exitingCards.map((item) => (

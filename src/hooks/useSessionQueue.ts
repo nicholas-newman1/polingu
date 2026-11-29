@@ -39,28 +39,18 @@ export function useSessionQueue<S extends SessionQueueItem>(): SessionQueue<S> {
     createSessionQueueState<S>
   );
 
+  // Stable, so the session's build effect does not run again on every render.
   const start = useCallback(
     (cards: SessionCards<S>, options?: { isPracticeAhead?: boolean }) =>
       dispatch({ type: 'start', cards, isPracticeAhead: options?.isPracticeAhead ?? false }),
     []
   );
-  const rate = useCallback(
-    (reviewData: S['reviewData'], rating: Grade) => dispatch({ type: 'rate', reviewData, rating }),
-    []
-  );
-  const update = useCallback(
-    (updater: (item: S) => S) => dispatch({ type: 'update', updater }),
-    []
-  );
-  const reassess = useCallback(
-    (predicate: (item: S) => boolean, reviewData: S['reviewData'], again: boolean) =>
-      dispatch({ type: 'reassess', predicate, reviewData, again }),
-    []
-  );
-  const remove = useCallback(
-    (predicate: (item: S) => boolean) => dispatch({ type: 'remove', predicate }),
-    []
-  );
+  const rate = (reviewData: S['reviewData'], rating: Grade) =>
+    dispatch({ type: 'rate', reviewData, rating });
+  const update = (updater: (item: S) => S) => dispatch({ type: 'update', updater });
+  const reassess = (predicate: (item: S) => boolean, reviewData: S['reviewData'], again: boolean) =>
+    dispatch({ type: 'reassess', predicate, reviewData, again });
+  const remove = (predicate: (item: S) => boolean) => dispatch({ type: 'remove', predicate });
 
   return {
     ...state,

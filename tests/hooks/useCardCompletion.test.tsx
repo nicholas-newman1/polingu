@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import { Rating, type Grade } from 'ts-fsrs';
 import { AppSettingsProvider } from '../../src/contexts/AppSettingsContext';
+import { SnackbarProvider } from '../../src/contexts/SnackbarContext';
 import {
   CardDeckContext,
   useCardDeck,
@@ -10,13 +11,18 @@ import {
 } from '../../src/hooks/useCardDeck';
 import { ratingToCompletionOutcome, useCardCompletion } from '../../src/hooks/useCardCompletion';
 import { playCardChime } from '../../src/lib/cardFeedback';
-import loadAppSettings from '../../src/lib/storage/loadAppSettings';
+import { appSettingsDoc } from '../../src/lib/storage/userDocs';
 import { DEFAULT_APP_SETTINGS } from '../../src/types/appSettings';
 import { withAuth } from './support/providers';
 
 // Settings come from storage; the chime is Web Audio. Both are boundaries here.
-vi.mock('../../src/lib/storage/loadAppSettings', () => ({ default: vi.fn() }));
-vi.mock('../../src/lib/storage/saveAppSettings', () => ({ default: vi.fn() }));
+vi.mock('../../src/lib/storage/userDocs', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/lib/storage/userDocs')>();
+  return {
+    ...actual,
+    appSettingsDoc: { ...actual.appSettingsDoc, load: vi.fn(), save: vi.fn(async () => {}) },
+  };
+});
 vi.mock('../../src/lib/cardFeedback', () => ({ playCardChime: vi.fn() }));
 
 let reducedMotion = false;
@@ -36,14 +42,16 @@ interface Setup {
 }
 
 async function renderCompletion({ autoPlayAudio = false, deck = null }: Setup = {}) {
-  vi.mocked(loadAppSettings).mockResolvedValue({ ...DEFAULT_APP_SETTINGS, autoPlayAudio });
+  vi.mocked(appSettingsDoc.load).mockResolvedValue({ ...DEFAULT_APP_SETTINGS, autoPlayAudio });
   const auth = withAuth('learner');
   const wrapper = ({ children }: { children: ReactNode }) => (
-    <auth.wrapper>
-      <AppSettingsProvider>
-        <CardDeckContext.Provider value={deck}>{children}</CardDeckContext.Provider>
-      </AppSettingsProvider>
-    </auth.wrapper>
+    <SnackbarProvider>
+      <auth.wrapper>
+        <AppSettingsProvider>
+          <CardDeckContext.Provider value={deck}>{children}</CardDeckContext.Provider>
+        </AppSettingsProvider>
+      </auth.wrapper>
+    </SnackbarProvider>
   );
   const hook = renderHook(() => useCardCompletion(), { wrapper });
   await act(async () => {}); // settings load

@@ -1,93 +1,47 @@
-import { useContext } from 'react';
+import { useContext, type Context } from 'react';
 import {
   DeclensionContext,
   VocabularyContext,
   SentenceContext,
   ConjugationContext,
   AspectPairsContext,
-  ReviewCountsContext,
+  ReviewDataLoadingContext,
   type DeclensionContextType,
   type VocabularyContextType,
   type SentenceContextType,
   type ConjugationContextType,
   type AspectPairsContextType,
-  type ReviewCountsContextType,
 } from '../contexts/review';
 
-export function useDeclension(): DeclensionContextType {
-  const context = useContext(DeclensionContext);
-  if (!context) {
-    throw new Error('useDeclension must be used within a ReviewDataProvider');
+function useProvided<T>(context: Context<T | null>, hookName: string): T {
+  const value = useContext(context);
+  if (value === null) {
+    throw new Error(`${hookName} must be used within a ReviewDataProvider`);
   }
-  return context;
+  return value;
+}
+
+export function useDeclension(): DeclensionContextType {
+  return useProvided(DeclensionContext, 'useDeclension');
 }
 
 export function useVocabulary(): VocabularyContextType {
-  const context = useContext(VocabularyContext);
-  if (!context) {
-    throw new Error('useVocabulary must be used within a ReviewDataProvider');
-  }
-  return context;
+  return useProvided(VocabularyContext, 'useVocabulary');
 }
 
 export function useSentences(): SentenceContextType {
-  const context = useContext(SentenceContext);
-  if (!context) {
-    throw new Error('useSentences must be used within a ReviewDataProvider');
-  }
-  return context;
+  return useProvided(SentenceContext, 'useSentences');
 }
 
 export function useConjugation(): ConjugationContextType {
-  const context = useContext(ConjugationContext);
-  if (!context) {
-    throw new Error('useConjugation must be used within a ReviewDataProvider');
-  }
-  return context;
+  return useProvided(ConjugationContext, 'useConjugation');
 }
 
 export function useAspectPairs(): AspectPairsContextType {
-  const context = useContext(AspectPairsContext);
-  if (!context) {
-    throw new Error('useAspectPairs must be used within a ReviewDataProvider');
-  }
-  return context;
+  return useProvided(AspectPairsContext, 'useAspectPairs');
 }
 
-function useReviewCounts(): ReviewCountsContextType {
-  const context = useContext(ReviewCountsContext);
-  if (!context) {
-    throw new Error('useReviewCounts must be used within a ReviewDataProvider');
-  }
-  return context;
-}
-
-export interface ReviewDataContextType
-  extends
-    DeclensionContextType,
-    VocabularyContextType,
-    SentenceContextType,
-    ConjugationContextType,
-    AspectPairsContextType {
-  loading: boolean;
-  counts: ReviewCountsContextType['counts'];
-}
-
-export function useReviewData(): ReviewDataContextType {
-  const declension = useDeclension();
-  const vocabulary = useVocabulary();
-  const sentences = useSentences();
-  const conjugation = useConjugation();
-  const aspectPairs = useAspectPairs();
-  const { counts, loading } = useReviewCounts();
-
-  return {
-    ...declension,
-    ...vocabulary,
-    ...sentences,
-    ...conjugation,
-    ...aspectPairs,
-    loading,
-    counts,
-  };
+/** Whether the review data is still loading, so pages show a spinner rather than empty decks. */
+export function useReviewDataLoading(): boolean {
+  return useProvided(ReviewDataLoadingContext, 'useReviewDataLoading');
 }

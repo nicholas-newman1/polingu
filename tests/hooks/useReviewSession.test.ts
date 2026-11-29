@@ -113,7 +113,7 @@ describe('rating a card', () => {
 
     const saved = lastSaved(h.saves);
     expect(saved.cards.A.fsrsCard.reps).toBe(1);
-    expect(saved.cards.A.log?.rating).toBe(Rating.Good);
+    expect(saved.cards.A.fsrsCard.state).toBe(State.Learning);
     expect(saved.reviewedToday).toEqual(['A']);
     expect(saved.newCardsToday).toEqual(['A']);
     expect(saved.cards.B).toBeUndefined();
@@ -138,7 +138,7 @@ describe('rating a card', () => {
     const saved = lastSaved(h.saves);
     expect(Object.keys(saved.cards).sort()).toEqual(['A', 'B']);
     expect(saved.reviewedToday).toEqual(['A', 'B']);
-    expect(h.store().cards.B.log?.rating).toBe(Rating.Easy);
+    expect(h.store().cards.B.fsrsCard.state).toBe(State.Review);
   });
 
   test('Again keeps a new card in the session until it is passed, introducing it only once', async () => {
@@ -243,7 +243,7 @@ describe('rating a card', () => {
     const tenMinutes = 10 * 60_000;
     expect(cards.A.fsrsCard.due.getTime()).toBe(firstRating + tenMinutes);
     expect(cards.B.fsrsCard.due.getTime()).toBe(secondRating + tenMinutes);
-    expect(cards.B.log?.review.getTime()).toBe(secondRating);
+    expect(cards.B.fsrsCard.last_review?.getTime()).toBe(secondRating);
   });
 });
 
@@ -279,7 +279,6 @@ describe('stepping back through history', () => {
     const saved = lastSaved(h.saves);
     expect(saved.cards.A.fsrsCard.reps).toBe(1);
     expect(saved.cards.A.fsrsCard.state).toBe(State.Review);
-    expect(saved.cards.A.log?.rating).toBe(Rating.Easy);
     expect(saved.newCardsToday).toEqual(['A']);
     expect(saved.reviewedToday).toEqual(['A']);
     expect(h.session().finishedStateProps.sessionStats.reviewed).toBe(1);
@@ -349,7 +348,7 @@ describe('stepping back through history', () => {
     h.rate(Rating.Good);
     expect(h.session().isFinished).toBe(true);
 
-    act(() => h.session().rebuildSession());
+    act(() => h.session().restartAfterRender());
     await h.settle();
 
     expect(h.currentId()).toBeUndefined();
@@ -406,7 +405,7 @@ describe('saving reviews', () => {
     const saved = lastSaved(h.saves, 'en-to-pl');
     expect(Object.keys(saved.cards)).toEqual(['A']);
     expect(saved.cards.A.fsrsCard.reps).toBe(1);
-    expect(h.store('pl-to-en').cards.A.log?.rating).toBe(Rating.Good);
+    expect(h.store('pl-to-en').cards.A.fsrsCard.state).toBe(State.Learning);
   });
 
   test('a rating made while the previous save is still landing builds on it', async () => {
@@ -438,7 +437,7 @@ describe('saving reviews', () => {
     expect(h.session().isFinished).toBe(true);
 
     h.replaceStore('pl-to-en', emptyStore());
-    act(() => h.session().rebuildSession());
+    act(() => h.session().restartAfterRender());
     await h.settle();
     expect(h.currentId()).toBe('A');
     expect(h.session().newCount).toBe(2);
@@ -486,7 +485,7 @@ describe('rebuilding and extra rounds', () => {
     await h.settle();
     h.rate(Rating.Good);
 
-    act(() => h.session().rebuildSession());
+    act(() => h.session().restartAfterRender());
     expect(h.saves).toHaveBeenCalledTimes(1);
     await h.settle();
 

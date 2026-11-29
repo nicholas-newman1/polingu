@@ -36,12 +36,12 @@ type Rendered = ReturnType<typeof renderReviewDataProvider>;
 /** Rates `wordId` Good in the pl-to-en direction, the way a review session saves it. */
 const rateWord = (h: Rendered, wordId: string) =>
   h.run(() => {
-    const next = withWordRated(h.data().vocabularyReviewStores['pl-to-en'], wordId);
-    return h.data().updateVocabularyReviewStore('pl-to-en', next);
+    const next = withWordRated(h.data().vocabulary.progress.stores['pl-to-en'], wordId);
+    return h.data().vocabulary.progress.updateStore('pl-to-en', next);
   });
 
 const shownCards = (h: Rendered) =>
-  Object.keys(h.data().vocabularyReviewStores['pl-to-en'].cards).sort();
+  Object.keys(h.data().vocabulary.progress.stores['pl-to-en'].cards).sort();
 
 const focusWindow = () => act(() => void window.dispatchEvent(new Event('focus')));
 
@@ -83,20 +83,20 @@ describe('initial load', () => {
 
     const h = renderReviewDataProvider(uid);
     expect(h.data().loading).toBe(true);
-    expect(h.data().vocabularyWords).toEqual([]);
+    expect(h.data().vocabulary.words).toEqual([]);
 
     await waitFor(() => expect(h.data().loading).toBe(false));
-    const store = h.data().vocabularyReviewStores['pl-to-en'];
+    const store = h.data().vocabulary.progress.stores['pl-to-en'];
     expect(Object.keys(store.cards)).toEqual(['w1']);
     expect(store.cards.w1.fsrsCard.due).toBeInstanceOf(Date);
     expect(store.reviewedToday).toEqual(['w1']);
-    expect(h.data().vocabularySettings).toEqual({
+    expect(h.data().vocabulary.progress.settings).toEqual({
       'pl-to-en': { newCardsPerDay: 15 },
       'en-to-pl': { newCardsPerDay: 10 },
     });
-    expect(h.data().sentences.map((s) => s.id)).toEqual(['s1']);
+    expect(h.data().sentences.sentences.map((s) => s.id)).toEqual(['s1']);
     await waitFor(() =>
-      expect(h.data().vocabularyWords.map((w) => w.id)).toEqual(['custom_1', 'w1', 'w2'])
+      expect(h.data().vocabulary.words.map((w) => w.id)).toEqual(['custom_1', 'w1', 'w2'])
     );
   });
 
@@ -130,7 +130,7 @@ describe('initial load', () => {
 
     const h = await renderLoaded(freshUid());
 
-    expect(h.data().sentenceTags).toEqual({ topics: ['food'], grammar: [], style: ['formal'] });
+    expect(h.data().sentences.tags).toEqual({ topics: ['food'], grammar: [], style: ['formal'] });
   });
 
   test('a session saved on an earlier day loads as an empty day, keeping the cards', async () => {
@@ -145,7 +145,7 @@ describe('initial load', () => {
 
     const h = await renderLoaded(uid);
 
-    const store = h.data().vocabularyReviewStores['pl-to-en'];
+    const store = h.data().vocabulary.progress.stores['pl-to-en'];
     expect(Object.keys(store.cards)).toEqual(['w1']);
     expect(store).toMatchObject({
       reviewedToday: [],
@@ -159,15 +159,8 @@ describe('initial load', () => {
 
     const h = await renderLoaded(null);
 
-    expect(h.data().systemWords.map((w) => w.id)).toEqual(['w1', 'w2']);
-    expect(h.data().vocabularyReviewStores['pl-to-en'].cards).toEqual({});
-    expect(h.data().counts).toEqual({
-      declension: 0,
-      vocabulary: 0,
-      sentences: 0,
-      conjugation: 0,
-      aspectPairs: 0,
-    });
+    expect(h.data().vocabulary.systemWords.map((w) => w.id)).toEqual(['w1', 'w2']);
+    expect(h.data().vocabulary.progress.stores['pl-to-en'].cards).toEqual({});
     expect(remote.calls.filter((c) => c.path.startsWith('users/'))).toEqual([]);
 
     // No background sync either, not even on focus.
@@ -190,7 +183,7 @@ describe('initial load', () => {
     await act(idle);
 
     expect(shownCards(h)).toEqual(['w1']);
-    expect(h.data().systemWords.map((w) => w.id)).toEqual(['w1', 'w2']);
+    expect(h.data().vocabulary.systemWords.map((w) => w.id)).toEqual(['w1', 'w2']);
     // Custom-item listeners are registered, to hear from the server once it is back.
     const requests = remote.calls.slice(callsBefore).filter((c) => c.op !== 'onSnapshot');
     expect(requests).toEqual([]);
@@ -262,7 +255,9 @@ describe('background sync', () => {
 
     network.goOffline();
     await rateWord(h, 'w1');
-    await h.run(() => h.data().updateVocabularySettings('en-to-pl', { newCardsPerDay: 3 }));
+    await h.run(() =>
+      h.data().vocabulary.progress.updateSettings('en-to-pl', { newCardsPerDay: 3 })
+    );
     // Meanwhile, on another device and in the built-in content:
     seedServerCard(uid, VOCAB_PL_EN, 'wordId', 'w2', ratedNow());
     seedUserDoc(uid, 'vocabularySettings-pl-en', { newCardsPerDay: 30 });
@@ -273,11 +268,11 @@ describe('background sync', () => {
     await focusWindow();
 
     await waitFor(() => expect(shownCards(h)).toEqual(['w1', 'w2']));
-    expect(h.data().vocabularySettings).toEqual({
+    expect(h.data().vocabulary.progress.settings).toEqual({
       'pl-to-en': { newCardsPerDay: 30 },
       'en-to-pl': { newCardsPerDay: 3 },
     });
-    expect(h.data().systemWords.map((w) => w.id)).toEqual(['w1', 'w2', 'w3']);
+    expect(h.data().vocabulary.systemWords.map((w) => w.id)).toEqual(['w1', 'w2', 'w3']);
     expect(serverIds(uid, VOCAB_PL_EN)).toEqual(['w1', 'w2']);
     expect(remote.get(userPath(uid, 'data', 'vocabularySettings-en-pl'))).toEqual({
       newCardsPerDay: 3,
@@ -431,19 +426,17 @@ describe('switching accounts', () => {
     seedUserDoc(uid, 'vocabularySettings-pl-en', { newCardsPerDay: 15 });
     const h = await renderLoaded(uid);
     expect(shownCards(h)).toEqual(['w1']);
-    expect(h.data().counts.vocabulary).toBeGreaterThan(0);
 
     await clearUserData();
     act(() => h.switchUser(null));
 
     expect(h.data().loading).toBe(true);
     expect(shownCards(h)).toEqual([]);
-    expect(h.data().vocabularySettings['pl-to-en']).toEqual({ newCardsPerDay: 10 });
+    expect(h.data().vocabulary.progress.settings['pl-to-en']).toEqual({ newCardsPerDay: 10 });
     await waitFor(() => expect(h.data().loading).toBe(false));
     await act(idle);
     expect(shownCards(h)).toEqual([]);
-    expect(h.data().systemWords.map((w) => w.id)).toEqual(['w1', 'w2']);
-    expect(h.data().counts.vocabulary).toBe(0);
+    expect(h.data().vocabulary.systemWords.map((w) => w.id)).toEqual(['w1', 'w2']);
   });
 
   test("a sync that read the previous account's data is not applied after the switch", async () => {
@@ -527,14 +520,16 @@ describe('changes made while a background sync is running', () => {
     await finishSync();
 
     expect(shownCards(h)).toEqual(['w0', 'w1']);
-    expect(h.data().vocabularyReviewStores['pl-to-en'].newCardsToday).toEqual(['w1']);
+    expect(h.data().vocabulary.progress.stores['pl-to-en'].newCardsToday).toEqual(['w1']);
   });
 
   test('a settings change shows at once and is stored', async () => {
     const { h, finishSync } = await renderWithSyncPaused();
 
-    await h.run(() => h.data().updateVocabularySettings('pl-to-en', { newCardsPerDay: 33 }));
-    expect(h.data().vocabularySettings['pl-to-en']).toEqual({ newCardsPerDay: 33 });
+    await h.run(() =>
+      h.data().vocabulary.progress.updateSettings('pl-to-en', { newCardsPerDay: 33 })
+    );
+    expect(h.data().vocabulary.progress.settings['pl-to-en']).toEqual({ newCardsPerDay: 33 });
     await finishSync();
 
     expect(await loadDeckSettings(vocabularyStorage['pl-to-en'])).toEqual({ newCardsPerDay: 33 });
@@ -543,16 +538,18 @@ describe('changes made while a background sync is running', () => {
   test('a settings change stays shown when the sync finishes', async () => {
     const { h, finishSync } = await renderWithSyncPaused();
 
-    await h.run(() => h.data().updateVocabularySettings('pl-to-en', { newCardsPerDay: 33 }));
+    await h.run(() =>
+      h.data().vocabulary.progress.updateSettings('pl-to-en', { newCardsPerDay: 33 })
+    );
     await finishSync();
 
-    expect(h.data().vocabularySettings['pl-to-en']).toEqual({ newCardsPerDay: 33 });
+    expect(h.data().vocabulary.progress.settings['pl-to-en']).toEqual({ newCardsPerDay: 33 });
   });
 
   test('a reset clears the shown progress at once and reaches the server and the device', async () => {
     const { uid, h, finishSync } = await renderWithSyncPaused();
 
-    await h.run(() => h.data().clearVocabularyReviewData('pl-to-en'));
+    await h.run(() => h.data().vocabulary.progress.clear('pl-to-en'));
     expect(shownCards(h)).toEqual([]);
     await finishSync();
 
@@ -563,7 +560,7 @@ describe('changes made while a background sync is running', () => {
   test('a reset stays reset when the sync finishes', async () => {
     const { h, finishSync } = await renderWithSyncPaused();
 
-    await h.run(() => h.data().clearVocabularyReviewData('pl-to-en'));
+    await h.run(() => h.data().vocabulary.progress.clear('pl-to-en'));
     await finishSync();
 
     expect(shownCards(h)).toEqual([]);

@@ -8,7 +8,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { showSaveError } from '../../lib/storage/errorHandler';
+import { useSaveError } from '../../hooks/useSaveError';
 
 interface EditTranscriptSegmentDialogProps {
   open: boolean;
@@ -25,6 +25,7 @@ export function EditTranscriptSegmentDialog({
 }: EditTranscriptSegmentDialogProps) {
   const [draftText, setDraftText] = useState(initialText);
   const [saving, setSaving] = useState(false);
+  const showSaveError = useSaveError();
 
   useEffect(() => {
     if (open) setDraftText(initialText);

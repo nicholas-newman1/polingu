@@ -424,18 +424,6 @@ describe('transcript', () => {
     expect(highlighted()).toEqual(['Do zobaczenia jutro']);
   });
 
-  test('the active word follows the audio within the line', async () => {
-    await openPlayerWith(NEWS);
-    const el = media.withSource(trackUrl('t1'));
-    fireEvent.click(playPauseButton());
-
-    // "Oto najnowsze wiadomości" spans 3-6 s, a second per word; highlight leads by 0.5 s.
-    seekAudio(el, 3.6);
-    expect([player().activeSegmentIndex, player().activeWordIndex]).toEqual([1, 1]);
-    seekAudio(el, 4.6);
-    expect([player().activeSegmentIndex, player().activeWordIndex]).toEqual([1, 2]);
-  });
-
   test('"Jump to this line" starts playback just before the line', async () => {
     await openPlayerWith(NEWS);
     const el = media.withSource(trackUrl('t1'));

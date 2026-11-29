@@ -1,16 +1,13 @@
 import type { Sentence, CEFRLevel, SentenceReviewDataStore } from '../../types/sentences';
 import type { ListeningOrdering, ListeningQueueItem } from '../../types/listening';
-import { reviewDataFor } from '../reviewSession/scheduler';
 import { sentenceDeck } from '../reviewSession/reviewDecks';
-import isFsrsCardLearned from './isFsrsCardLearned';
-import orderListeningPool from './orderListeningPool';
+import buildListeningQueue from './buildListeningQueue';
 
 export interface BuildSentenceListeningQueueArgs {
   sentences: Sentence[];
   reviewStore: SentenceReviewDataStore;
   ordering: ListeningOrdering;
   levels?: CEFRLevel[];
-  limit?: number;
 }
 
 export default function buildSentenceListeningQueue({
@@ -18,29 +15,15 @@ export default function buildSentenceListeningQueue({
   reviewStore,
   ordering,
   levels,
-  limit,
 }: BuildSentenceListeningQueueArgs): ListeningQueueItem[] {
-  const filtered = sentences.filter((s) => {
-    if (!s.audioUrl) return false;
-    if (levels && levels.length > 0 && !levels.includes(s.level)) return false;
-    return true;
-  });
-
-  const pool = orderListeningPool(
-    filtered.map((sentence) => ({
-      item: sentence,
-      reviewData: reviewDataFor(sentenceDeck, reviewStore, sentence.id),
-    })),
+  return buildListeningQueue({
+    items: sentences,
+    deck: sentenceDeck,
+    reviewStore,
     ordering,
-    limit
-  );
-
-  return pool.map(({ item: sentence, reviewData }) => ({
-    id: `sentence:${sentence.id}`,
     feature: 'sentences',
-    audioUrl: sentence.audioUrl!,
-    primaryText: sentence.polish,
-    secondaryText: sentence.english,
-    isLearned: isFsrsCardLearned(reviewData.fsrsCard),
-  }));
+    idPrefix: 'sentence',
+    include: (sentence) => !levels || levels.length === 0 || levels.includes(sentence.level),
+    text: (sentence) => ({ primaryText: sentence.polish, secondaryText: sentence.english }),
+  });
 }

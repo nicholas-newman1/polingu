@@ -30,7 +30,7 @@ export const VocabularyTab = memo(function VocabularyTab() {
   const { systemWords, setSystemWords } = useVocabulary();
   const [editingWord, setEditingWord] = useState<VocabularyWord | null>(null);
   const { confirm, confirmDialog } = useConfirm();
-  const { deleteItem, patchItem } = useAdminItems<
+  const { deleteItem, patchItem, mirrorItem } = useAdminItems<
     VocabularyWord,
     Partial<Omit<CustomVocabularyWord, 'id' | 'isCustom' | 'createdAt'>>
   >({
@@ -68,9 +68,7 @@ export const VocabularyTab = memo(function VocabularyTab() {
         onClose={() => setEditingWord(null)}
         onSave={(data) => patchItem(editingWord, data)}
         editWord={editingWord}
-        onAudioUpdated={(audioUrl) =>
-          patchItem(editingWord, { audioUrl }, { error: 'Failed to update audio' })
-        }
+        onAudioUpdated={(audioUrl) => mirrorItem(editingWord, { audioUrl })}
       />
       {confirmDialog}
     </>

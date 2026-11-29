@@ -1,21 +1,9 @@
 import type { VocabularyReviewDataStore, VocabularyWordId } from '../../types/vocabulary';
-import type { TranslationDirection } from '../../types/common';
 import forgetCard from '../fsrsUtils/forgetCard';
 import { removeFromDayLists } from '../reviewSession/sessionLists';
 import { reviewDataFor } from '../reviewSession/scheduler';
 import { vocabularyDeck } from '../reviewSession/reviewDecks';
-
-export function canReprioritizeVocabularyWord(
-  stores: Record<TranslationDirection, VocabularyReviewDataStore>,
-  wordId: VocabularyWordId
-): boolean {
-  const key = String(wordId);
-  const plToEn = stores['pl-to-en'].cards[key];
-  const enToPl = stores['en-to-pl'].cards[key];
-  return Boolean(
-    (plToEn && plToEn.fsrsCard.state !== 0) || (enToPl && enToPl.fsrsCard.state !== 0)
-  );
-}
+import { reprioritizeCard } from './reprioritizeCard';
 
 /**
  * "Review again": resets a studied word and puts it first in line among the new words.
@@ -26,17 +14,10 @@ export default function reprioritizeVocabularyWord(
   wordId: VocabularyWordId,
   now: Date = new Date()
 ): VocabularyReviewDataStore {
-  const key = String(wordId);
-  const entry = store.cards[key];
-  if (!entry || entry.fsrsCard.state === 0) {
-    return store;
-  }
-  const forgotten = { ...forgetCard(entry, now), prioritizedAt: now.getTime() };
-  return removeFromDayLists(
-    { ...store, cards: { ...store.cards, [key]: forgotten } },
-    wordId,
-    now.getTime()
-  );
+  return reprioritizeCard(store, wordId, now, (entry) => ({
+    ...forgetCard(entry, now),
+    prioritizedAt: now.getTime(),
+  }));
 }
 
 /**

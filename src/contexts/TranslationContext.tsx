@@ -1,6 +1,6 @@
-import { createContext, useState, useCallback, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useState, type ReactNode } from 'react';
 import type { TranslationResult } from '../lib/translate';
-import { useAuthContext } from '../hooks/useAuthContext';
+import { useAuthContext } from './AuthContext';
 
 const MAX_CHARS_PER_DAY = 1500;
 
@@ -15,7 +15,6 @@ interface TranslationContextValue {
   handleTranslationSuccess: (result: TranslationResult) => void;
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
 export const TranslationContext = createContext<TranslationContextValue | null>(null);
 
 interface TranslationUsage {
@@ -108,4 +107,12 @@ export function TranslationProvider({ children }: { children: ReactNode }) {
       {children}
     </TranslationContext.Provider>
   );
+}
+
+export function useTranslationContext() {
+  const context = useContext(TranslationContext);
+  if (!context) {
+    throw new Error('useTranslationContext must be used within a TranslationProvider');
+  }
+  return context;
 }

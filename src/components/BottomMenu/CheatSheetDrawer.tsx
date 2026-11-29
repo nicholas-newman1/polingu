@@ -2,6 +2,8 @@ import type { ReactNode } from 'react';
 import { Drawer, Box, Typography, IconButton, styled } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import { useBackClose } from '../../hooks/useBackClose';
+import { useCheatSheetContext } from '../../contexts/CheatSheetContext';
+import { CHEAT_SHEETS } from './cheatSheets';
 
 const DrawerHeader = styled(Box)(({ theme }) => ({
   display: 'flex',
@@ -28,7 +30,7 @@ interface CheatSheetDrawerProps {
   children: ReactNode;
 }
 
-export function CheatSheetDrawer({ open, onClose, title, children }: CheatSheetDrawerProps) {
+function CheatSheetDrawer({ open, onClose, title, children }: CheatSheetDrawerProps) {
   useBackClose(open, onClose);
 
   return (
@@ -54,4 +56,20 @@ export function CheatSheetDrawer({ open, onClose, title, children }: CheatSheetD
       <DrawerContent>{children}</DrawerContent>
     </Drawer>
   );
+}
+
+/** A full-screen drawer per cheat sheet, open while that sheet is the active one. */
+export function CheatSheetDrawers() {
+  const { activeSheet, closeSheet } = useCheatSheetContext();
+
+  return CHEAT_SHEETS.map((sheet) => (
+    <CheatSheetDrawer
+      key={sheet.key}
+      open={activeSheet === sheet.key}
+      onClose={closeSheet}
+      title={sheet.title}
+    >
+      {sheet.render()}
+    </CheatSheetDrawer>
+  ));
 }

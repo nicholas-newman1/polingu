@@ -23,7 +23,7 @@ function recentlyAddedFirst<T extends { isCustom?: boolean }>(
   return [...custom, ...system];
 }
 
-function orderEntries<T extends { isCustom?: boolean }>(
+export default function orderListeningPool<T extends { isCustom?: boolean }>(
   entries: PoolEntry<T>[],
   ordering: ListeningOrdering
 ): PoolEntry<T>[] {
@@ -46,13 +46,4 @@ function orderEntries<T extends { isCustom?: boolean }>(
     default:
       return shuffleArray(entries);
   }
-}
-
-export default function orderListeningPool<T extends { isCustom?: boolean }>(
-  entries: PoolEntry<T>[],
-  ordering: ListeningOrdering,
-  limit?: number
-): PoolEntry<T>[] {
-  const pool = orderEntries(entries, ordering);
-  return typeof limit === 'number' ? pool.slice(0, limit) : pool;
 }

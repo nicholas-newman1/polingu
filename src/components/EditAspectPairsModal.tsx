@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useForm, useWatch, type Control } from 'react-hook-form';
 import { DialogTitle, IconButton, Box, Typography, Divider } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
@@ -7,9 +6,9 @@ import { styled } from '../lib/styled';
 import { ModalDialog, ModalHeader, ModalContent } from './modalStyles';
 import { ModalFooter } from './ModalFooter';
 import { VerbDetailsFields } from './FormFields';
-import { useBackClose } from '../hooks/useBackClose';
-import { useOptimisticModalSave, type ModalSaveResult } from '../hooks/useOptimisticModalSave';
-import { useAuthContext } from '../hooks/useAuthContext';
+import { useEditModal } from '../hooks/useEditModal';
+import { type ModalSaveResult } from '../hooks/useOptimisticModalSave';
+import { useAuthContext } from '../contexts/AuthContext';
 import { useConfirm } from '../hooks/useConfirm';
 import { AudioRegenerator } from './AudioRegenerator';
 import type { AspectPairCard } from '../types/aspectPairs';
@@ -58,7 +57,6 @@ interface VerbSlotSectionProps {
   control: Control<FormData>;
   verb: AspectPairCard['verb'] | undefined;
   infinitive: string;
-  pendingAudioUrl: string | null;
   onAudioSaved: (audioUrl: string) => void;
   showAudio: boolean;
   withAspect?: boolean;
@@ -70,7 +68,6 @@ function VerbSlotSection({
   control,
   verb,
   infinitive,
-  pendingAudioUrl,
   onAudioSaved,
   showAudio,
   withAspect,
@@ -83,7 +80,7 @@ function VerbSlotSection({
           text={infinitive}
           type="verb-infinitive"
           id={verb.id}
-          currentAudioUrl={pendingAudioUrl || verb.infinitiveAudioUrl}
+          currentAudioUrl={verb.infinitiveAudioUrl}
           onAudioSaved={onAudioSaved}
           label="Infinitive Audio"
         />
@@ -134,8 +131,6 @@ export function EditAspectPairsModal({
 }: EditAspectPairsModalProps) {
   const { isAdmin } = useAuthContext();
   const { confirm, confirmDialog } = useConfirm();
-  const [pendingVerb1AudioUrl, setPendingVerb1AudioUrl] = useState<string | null>(null);
-  const [pendingVerb2AudioUrl, setPendingVerb2AudioUrl] = useState<string | null>(null);
 
   const {
     control,
@@ -150,28 +145,17 @@ export function EditAspectPairsModal({
   const verb1Infinitive = useWatch({ control, name: 'verb1Infinitive' });
   const verb2Infinitive = useWatch({ control, name: 'verb2Infinitive' });
 
-  const handleClose = () => {
-    reset(getDefaultValues(null));
-    setPendingVerb1AudioUrl(null);
-    setPendingVerb2AudioUrl(null);
-    onClose();
-  };
+  const { handleClose, save } = useEditModal({
+    open,
+    onClose,
+    onSave,
+    reset: () => reset(getDefaultValues(null)),
+  });
 
-  const handleVerb1AudioSaved = (audioUrl: string) => {
-    setPendingVerb1AudioUrl(audioUrl);
-    onVerb1AudioUpdated?.(audioUrl);
+  const closeOnAudioSaved = (onAudioUpdated?: (audioUrl: string) => void) => (audioUrl: string) => {
+    onAudioUpdated?.(audioUrl);
     handleClose();
   };
-
-  const handleVerb2AudioSaved = (audioUrl: string) => {
-    setPendingVerb2AudioUrl(audioUrl);
-    onVerb2AudioUpdated?.(audioUrl);
-    handleClose();
-  };
-
-  useBackClose(open, handleClose);
-
-  const save = useOptimisticModalSave({ onSave, onClose: handleClose });
 
   const onSubmit = (data: FormData) => {
     const verb1Updates: VerbUpdates = {
@@ -211,15 +195,13 @@ export function EditAspectPairsModal({
     verb1: {
       verb: card?.verb,
       infinitive: verb1Infinitive,
-      pendingAudioUrl: pendingVerb1AudioUrl,
-      onAudioSaved: handleVerb1AudioSaved,
+      onAudioSaved: closeOnAudioSaved(onVerb1AudioUpdated),
       showAudio: isAdmin,
     },
     verb2: {
       verb: card?.pairVerb,
       infinitive: verb2Infinitive,
-      pendingAudioUrl: pendingVerb2AudioUrl,
-      onAudioSaved: handleVerb2AudioSaved,
+      onAudioSaved: closeOnAudioSaved(onVerb2AudioUpdated),
       showAudio: isAdmin,
     },
   };

@@ -53,7 +53,7 @@ function Reader({ paragraphs = PARAGRAPHS, getSentenceContext, onWordTap, onCach
     >
       {paragraphs.map((paragraph, i) => (
         <p key={i}>
-          <TranslatableWords text={paragraph} wordOffset={offsets[i]} translations={translations} />
+          <TranslatableWords text={paragraph} wordOffset={offsets[i]} />
         </p>
       ))}
     </TranslatableText>

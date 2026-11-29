@@ -1,16 +1,17 @@
-import { createContext, useState, useCallback, useRef, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 import { EditSentenceModal } from '../components/EditSentenceModal';
-import { loadCustomSentences, saveCustomSentences } from '../lib/storage/customSentences';
+import { customSentenceStorage } from '../lib/storage/customSentences';
 import { findCustomSentenceWithSamePolish } from '../lib/utils/findDuplicateCustomSentence';
-import type { Sentence, CustomSentence } from '../types/sentences';
+import type { Sentence } from '../types/sentences';
+import { createCustomItem } from '../types/customItems';
 import { useSentences } from '../hooks/useReviewData';
 import { useReprioritizeSentence } from '../hooks/useReprioritizeSentence';
+import { useCustomItemWrites } from '../hooks/useCustomItemWrites';
 
 interface AddSentenceContextType {
   openAddSentence: (initialValues?: { polish?: string; english?: string }) => void;
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
 export const AddSentenceContext = createContext<AddSentenceContextType | null>(null);
 
 interface AddSentenceProviderProps {
@@ -22,74 +23,47 @@ export function AddSentenceProvider({ children }: AddSentenceProviderProps) {
   const [initialValues, setInitialValues] = useState<
     { polish?: string; english?: string } | undefined
   >();
-  // The saved sentences, read when the dialog opens, so a duplicate is caught
-  // synchronously and the dialog stays open with what was typed.
-  const savedRef = useRef<CustomSentence[]>([]);
   const { customSentences, setCustomSentences } = useSentences();
   const { showDuplicateError } = useReprioritizeSentence();
+  const { add } = useCustomItemWrites(customSentenceStorage, setCustomSentences);
 
   const openAddSentence = useCallback((values?: { polish?: string; english?: string }) => {
     setInitialValues(values);
     setModalOpen(true);
-    savedRef.current = [];
-    loadCustomSentences().then(
-      (loaded) => (savedRef.current = loaded),
-      (e) => console.error('Failed to load custom sentences:', e)
-    );
   }, []);
 
-  const handleClose = useCallback(() => {
+  // Translatable text reads this context, so a stable value keeps every word from re-rendering.
+  const value = useMemo(() => ({ openAddSentence }), [openAddSentence]);
+
+  const handleClose = () => {
     setModalOpen(false);
     setInitialValues(undefined);
-  }, []);
+  };
 
-  const reportDuplicate = useCallback(
-    (sentences: CustomSentence[], polish: string) => {
-      const duplicate = findCustomSentenceWithSamePolish(sentences, polish);
-      if (duplicate) showDuplicateError(duplicate.id);
-      return !!duplicate;
-    },
-    [showDuplicateError]
-  );
-
-  const addSentence = useCallback(
-    async (sentenceData: Omit<Sentence, 'id'>) => {
-      const loaded = await loadCustomSentences();
-      // Checked again in case the save came before the list above had loaded.
-      if (reportDuplicate(loaded, sentenceData.polish)) return;
-      const newSentence: CustomSentence = {
-        ...sentenceData,
-        id: `custom_${Date.now()}`,
-        isCustom: true,
-        createdAt: Date.now(),
-      };
-      const newCustomSentences = [newSentence, ...loaded];
-      await saveCustomSentences(newCustomSentences);
-      setCustomSentences(newCustomSentences);
-    },
-    [setCustomSentences, reportDuplicate]
-  );
-
-  const handleSave = useCallback(
-    (sentenceData: Omit<Sentence, 'id'>) =>
-      // The live list covers sentences the stored copy may not have yet.
-      reportDuplicate([...customSentences, ...savedRef.current], sentenceData.polish)
-        ? false
-        : addSentence(sentenceData),
-    [customSentences, reportDuplicate, addSentence]
-  );
+  const handleSave = (sentenceData: Omit<Sentence, 'id'>) => {
+    const duplicate = findCustomSentenceWithSamePolish(customSentences, sentenceData.polish);
+    if (duplicate) {
+      showDuplicateError(duplicate.id);
+      return false;
+    }
+    return add(createCustomItem(sentenceData));
+  };
 
   return (
-    <AddSentenceContext.Provider value={{ openAddSentence }}>
+    <AddSentenceContext.Provider value={value}>
       {children}
       <EditSentenceModal
         open={modalOpen}
         onClose={handleClose}
         onSave={handleSave}
         sentence={null}
-        isCreating
         initialValues={initialValues}
       />
     </AddSentenceContext.Provider>
   );
+}
+
+export function useAddSentence() {
+  const context = useContext(AddSentenceContext);
+  return context;
 }

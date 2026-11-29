@@ -1,7 +1,9 @@
+import { createObjectUrlLru } from './objectUrlLru';
+
 /**
  * In-memory LRU cache of prefetched audio blobs.
  *
- * Storing a Blob + object URL lets playback start instantly — browsers do not
+ * Holding the fetched blob as an object URL lets playback start instantly — browsers do not
  * reliably share `HTMLMediaElement` fetches with the HTTP cache, so
  * `preload="auto"` alone is often not enough on slower networks.
  *
@@ -11,34 +13,12 @@
  * cache rather than giving us a blob we can play instantly.
  */
 
-interface CacheEntry {
-  objectUrl: string;
-  blob: Blob;
-}
-
 const MAX_ENTRIES = 20;
 
-const cache = new Map<string, CacheEntry>();
+const cache = createObjectUrlLru(MAX_ENTRIES);
 const inFlight = new Map<string, Promise<void>>();
 const fallbackWarmed = new Set<string>();
 const fallbackElements = new Set<HTMLAudioElement>();
-
-function touch(url: string): void {
-  const entry = cache.get(url);
-  if (!entry) return;
-  cache.delete(url);
-  cache.set(url, entry);
-}
-
-function evictIfNeeded(): void {
-  while (cache.size > MAX_ENTRIES) {
-    const oldestKey = cache.keys().next().value;
-    if (!oldestKey) return;
-    const entry = cache.get(oldestKey);
-    cache.delete(oldestKey);
-    if (entry) URL.revokeObjectURL(entry.objectUrl);
-  }
-}
 
 function warmViaAudioElement(url: string): void {
   if (fallbackWarmed.has(url)) return;
@@ -67,11 +47,7 @@ function warmViaAudioElement(url: string): void {
  */
 export function prefetchAudio(url: string | null | undefined): void {
   if (!url) return;
-  if (cache.has(url)) {
-    touch(url);
-    return;
-  }
-  if (inFlight.has(url)) return;
+  if (cache.get(url) || inFlight.has(url)) return;
 
   const promise = (async () => {
     try {
@@ -82,9 +58,7 @@ export function prefetchAudio(url: string | null | undefined): void {
       }
       const blob = await response.blob();
       if (cache.has(url)) return;
-      const objectUrl = URL.createObjectURL(blob);
-      cache.set(url, { objectUrl, blob });
-      evictIfNeeded();
+      cache.set(url, URL.createObjectURL(blob));
     } catch {
       warmViaAudioElement(url);
     } finally {
@@ -101,10 +75,5 @@ export function prefetchAudio(url: string | null | undefined): void {
  */
 export function resolvePlayableAudioUrl(url: string | null | undefined): string | undefined {
   if (!url) return undefined;
-  const entry = cache.get(url);
-  if (entry) {
-    touch(url);
-    return entry.objectUrl;
-  }
-  return url;
+  return cache.get(url) ?? url;
 }

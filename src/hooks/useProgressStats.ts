@@ -1,11 +1,27 @@
 import { useMemo } from 'react';
 import { State, type Card as FSRSCard } from 'ts-fsrs';
-import { useReviewData, type ReviewDataContextType } from './useReviewData';
-import type { CardReviewData, TranslationDirection } from '../types/common';
-import type { CEFRLevel } from '../types/sentences';
+import {
+  useAspectPairs,
+  useConjugation,
+  useDeclension,
+  useSentences,
+  useVocabulary,
+} from './useReviewData';
+import type {
+  CardReviewData,
+  ReviewDataStore,
+  SessionId,
+  TranslationDirection,
+} from '../types/common';
+import type { CEFRLevel, Sentence } from '../types/sentences';
 import { ALL_LEVELS } from '../types/sentences';
 import { getDrillableFormsForVerb } from '../lib/conjugationUtils';
-import { placeItems, type PlacedItem } from '../lib/reviewSession/scheduler';
+import {
+  newCardsLeftToday,
+  placeItems,
+  type PlacedItem,
+  type ReviewDeck,
+} from '../lib/reviewSession/scheduler';
 import {
   aspectPairsDeck,
   conjugationDeck,
@@ -13,8 +29,8 @@ import {
   sentenceDeck,
   vocabularyDeck,
 } from '../lib/reviewSession/reviewDecks';
-import type { DrillableForm } from '../types/conjugation';
-import type { UserFilters } from '../types/userFilters';
+import type { DeckPart } from '../lib/storage/reviewDeckDocs';
+import type { DeckProgress, SentenceContextType } from '../contexts/review';
 import { useSessionFilters } from '../contexts/review/sessionFilters';
 
 export interface ProgressStats {
@@ -40,24 +56,13 @@ export interface AllProgressStats {
   aspectPairs: ProgressStats;
 }
 
-type Data = { filters: UserFilters } & Pick<
-  ReviewDataContextType,
-  | 'declensionCards'
-  | 'declensionReviewStore'
-  | 'declensionSettings'
-  | 'vocabularyWords'
-  | 'vocabularyReviewStores'
-  | 'vocabularySettings'
+/** The five review decks, each with its overall stats in AllProgressStats. */
+export type ReviewDeckName =
+  | 'declension'
+  | 'vocabulary'
   | 'sentences'
-  | 'sentenceReviewStores'
-  | 'sentenceSettings'
-  | 'verbs'
-  | 'conjugationReviewStores'
-  | 'conjugationSettings'
-  | 'aspectPairCards'
-  | 'aspectPairsReviewStore'
-  | 'aspectPairsSettings'
->;
+  | 'conjugation'
+  | 'aspectPairs';
 
 interface FlaggedCard {
   fsrsCard: FSRSCard;
@@ -70,7 +75,7 @@ function flagDue(
   store: { newCardsToday: unknown[] },
   settings: { newCardsPerDay: number }
 ): FlaggedCard[] {
-  let newSlots = settings.newCardsPerDay - store.newCardsToday.length;
+  let newSlots = newCardsLeftToday(store, settings);
   return placed.map(({ reviewData: { fsrsCard }, bucket }) => {
     if (bucket === 'new' && newSlots > 0) {
       newSlots--;
@@ -80,6 +85,39 @@ function flagDue(
   });
 }
 
+/** The cards of one part of a deck, flagged due as that part's session today would serve them. */
+function flagPart<
+  Item,
+  R extends CardReviewData,
+  Id extends SessionId,
+  Card,
+  K extends DeckPart,
+  F,
+>(
+  deck: ReviewDeck<Item, R, Id, Card, F>,
+  items: readonly Item[],
+  progress: DeckProgress<K, ReviewDataStore<R, Id>, { newCardsPerDay: number }>,
+  part: K,
+  filters?: F
+): FlaggedCard[] {
+  const store = progress.stores[part];
+  return flagDue(placeItems(deck, items, store, filters), store, progress.settings[part]);
+}
+
+/** Every sentence is counted, but only those at the selected levels can be due. */
+function flagSentences(
+  sentences: Sentence[],
+  progress: SentenceContextType['progress'],
+  direction: TranslationDirection
+): FlaggedCard[] {
+  const store = progress.stores[direction];
+  const settings = progress.settings[direction];
+  const placed = placeItems(sentenceDeck, sentences, store).map((p) =>
+    settings.selectedLevels.includes(p.item.level) ? p : { ...p, bucket: null }
+  );
+  return flagDue(placed, store, settings);
+}
+
 function summarize(cards: FlaggedCard[]): ProgressStats {
   return {
     total: cards.length,
@@ -87,6 +125,17 @@ function summarize(cards: FlaggedCard[]): ProgressStats {
     mastered: cards.filter((c) => c.fsrsCard.state === State.Review).length,
     due: cards.filter((c) => c.due).length,
   };
+}
+
+function summarizeSentencesByLevel(
+  sentences: Sentence[],
+  flagged: FlaggedCard[]
+): TranslationDirectionStats {
+  const byLevel = {} as Record<CEFRLevel, ProgressStats>;
+  for (const level of ALL_LEVELS) {
+    byLevel[level] = summarize(flagged.filter((_, i) => sentences[i].level === level));
+  }
+  return { total: summarize(flagged), byLevel };
 }
 
 /** Learned if started in either direction; mastered only when mastered in both. */
@@ -110,127 +159,65 @@ function mapDirections<T>(
   return { 'pl-to-en': fn('pl-to-en'), 'en-to-pl': fn('en-to-pl') };
 }
 
-function flagDeclension(data: Data): FlaggedCard[] {
-  const store = data.declensionReviewStore;
-  const placed = placeItems(declensionDeck, data.declensionCards, store, data.filters.declension);
-  return flagDue(placed, store, data.declensionSettings);
-}
-
-function flagVocabulary(data: Data, direction: TranslationDirection): FlaggedCard[] {
-  const store = data.vocabularyReviewStores[direction];
-  const placed = placeItems(vocabularyDeck, data.vocabularyWords, store);
-  return flagDue(placed, store, data.vocabularySettings[direction]);
-}
-
-/** Every sentence is counted, but only those at the selected levels can be due. */
-function flagSentences(data: Data, direction: TranslationDirection): FlaggedCard[] {
-  const store = data.sentenceReviewStores[direction];
-  const settings = data.sentenceSettings[direction];
-  const placed = placeItems(sentenceDeck, data.sentences, store).map((p) =>
-    settings.selectedLevels.includes(p.item.level) ? p : { ...p, bucket: null }
-  );
-  return flagDue(placed, store, settings);
-}
-
-function summarizeSentencesByLevel(data: Data, flagged: FlaggedCard[]): TranslationDirectionStats {
-  const byLevel = {} as Record<CEFRLevel, ProgressStats>;
-  for (const level of ALL_LEVELS) {
-    byLevel[level] = summarize(flagged.filter((_, i) => data.sentences[i].level === level));
-  }
-  return { total: summarize(flagged), byLevel };
-}
-
-function flagConjugation(
-  data: Data,
-  direction: TranslationDirection,
-  forms: DrillableForm[]
-): FlaggedCard[] {
-  const store = data.conjugationReviewStores[direction];
-  const placed = placeItems(conjugationDeck, forms, store, data.filters.conjugation);
-  return flagDue(placed, store, data.conjugationSettings[direction]);
-}
-
-function flagAspectPairs(data: Data): FlaggedCard[] {
-  const store = data.aspectPairsReviewStore;
-  const placed = placeItems(aspectPairsDeck, data.aspectPairCards, store);
-  return flagDue(placed, store, data.aspectPairsSettings);
-}
-
-function computeAllStats(data: Data): AllProgressStats {
-  const vocabulary = mapDirections((d) => flagVocabulary(data, d));
-  const sentences = mapDirections((d) => flagSentences(data, d));
-  const forms = data.verbs.flatMap(getDrillableFormsForVerb);
-  const conjugation = mapDirections((d) => flagConjugation(data, d, forms));
-
-  return {
-    declension: summarize(flagDeclension(data)),
-    vocabulary: combineDirections(vocabulary),
-    vocabularyByDirection: mapDirections((d) => summarize(vocabulary[d])),
-    sentences: combineDirections(sentences),
-    sentencesByDirection: mapDirections((d) => summarizeSentencesByLevel(data, sentences[d])),
-    conjugation: combineDirections(conjugation),
-    conjugationByDirection: mapDirections((d) => summarize(conjugation[d])),
-    aspectPairs: summarize(flagAspectPairs(data)),
-  };
-}
-
+/** Each deck is summarised on its own, so a change to one deck leaves the others' numbers be. */
 export function useProgressStats(): AllProgressStats {
-  const {
-    declensionCards,
-    declensionReviewStore,
-    declensionSettings,
-    vocabularyWords,
-    vocabularyReviewStores,
-    vocabularySettings,
-    sentences,
-    sentenceReviewStores,
-    sentenceSettings,
-    verbs,
-    conjugationReviewStores,
-    conjugationSettings,
-    aspectPairCards,
-    aspectPairsReviewStore,
-    aspectPairsSettings,
-  } = useReviewData();
+  const declension = useDeclension();
+  const vocabulary = useVocabulary();
+  const { sentences, progress: sentenceProgress } = useSentences();
+  const conjugation = useConjugation();
+  const aspectPairs = useAspectPairs();
   const filters = useSessionFilters();
 
-  return useMemo(
+  const declensionStats = useMemo(
     () =>
-      computeAllStats({
-        filters,
-        declensionCards,
-        declensionReviewStore,
-        declensionSettings,
-        vocabularyWords,
-        vocabularyReviewStores,
-        vocabularySettings,
-        sentences,
-        sentenceReviewStores,
-        sentenceSettings,
-        verbs,
-        conjugationReviewStores,
-        conjugationSettings,
-        aspectPairCards,
-        aspectPairsReviewStore,
-        aspectPairsSettings,
-      }),
-    [
-      filters,
-      declensionCards,
-      declensionReviewStore,
-      declensionSettings,
-      vocabularyWords,
-      vocabularyReviewStores,
-      vocabularySettings,
-      sentences,
-      sentenceReviewStores,
-      sentenceSettings,
-      verbs,
-      conjugationReviewStores,
-      conjugationSettings,
-      aspectPairCards,
-      aspectPairsReviewStore,
-      aspectPairsSettings,
-    ]
+      summarize(
+        flagPart(declensionDeck, declension.cards, declension.progress, 'all', filters.declension)
+      ),
+    [declension.cards, declension.progress, filters.declension]
+  );
+
+  const vocabularyStats = useMemo(() => {
+    const flagged = mapDirections((d) =>
+      flagPart(vocabularyDeck, vocabulary.words, vocabulary.progress, d)
+    );
+    return {
+      vocabulary: combineDirections(flagged),
+      vocabularyByDirection: mapDirections((d) => summarize(flagged[d])),
+    };
+  }, [vocabulary.words, vocabulary.progress]);
+
+  const sentenceStats = useMemo(() => {
+    const flagged = mapDirections((d) => flagSentences(sentences, sentenceProgress, d));
+    return {
+      sentences: combineDirections(flagged),
+      sentencesByDirection: mapDirections((d) => summarizeSentencesByLevel(sentences, flagged[d])),
+    };
+  }, [sentences, sentenceProgress]);
+
+  const conjugationStats = useMemo(() => {
+    const forms = conjugation.verbs.flatMap(getDrillableFormsForVerb);
+    const flagged = mapDirections((d) =>
+      flagPart(conjugationDeck, forms, conjugation.progress, d, filters.conjugation)
+    );
+    return {
+      conjugation: combineDirections(flagged),
+      conjugationByDirection: mapDirections((d) => summarize(flagged[d])),
+    };
+  }, [conjugation.verbs, conjugation.progress, filters.conjugation]);
+
+  const aspectPairsStats = useMemo(
+    () => summarize(flagPart(aspectPairsDeck, aspectPairs.cards, aspectPairs.progress, 'all')),
+    [aspectPairs.cards, aspectPairs.progress]
+  );
+
+  return useMemo(
+    () => ({
+      declension: declensionStats,
+      ...vocabularyStats,
+      ...sentenceStats,
+      ...conjugationStats,
+      aspectPairs: aspectPairsStats,
+    }),
+    [declensionStats, vocabularyStats, sentenceStats, conjugationStats, aspectPairsStats]
   );
 }

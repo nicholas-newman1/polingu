@@ -1,5 +1,5 @@
 import { onCall, HttpsError } from 'firebase-functions/https';
-import { CHAT_MODEL_PARAMS, createOpenAI } from '../shared/openai.js';
+import { CHAT_MODEL_PARAMS, createConfiguredOpenAI } from '../shared/openai.js';
 import { openaiApiKey } from '../shared/secrets.js';
 import { requestJsonCompletion } from '../shared/openaiJson.js';
 import { CEFRLevel } from '../shared/cefr.js';
@@ -71,12 +71,7 @@ export const discoverCurriculum = onCall<
     throw new HttpsError('invalid-argument', 'Existing tags required.');
   }
 
-  const apiKey = openaiApiKey.value();
-  if (!apiKey) {
-    throw new HttpsError('failed-precondition', 'AI service is not configured.');
-  }
-
-  const openai = await createOpenAI(apiKey);
+  const openai = await createConfiguredOpenAI();
 
   let userPrompt: string;
 

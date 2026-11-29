@@ -1,4 +1,11 @@
-import { createContext, useCallback, useMemo, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useMemo,
+  type Dispatch,
+  type ReactNode,
+  type SetStateAction,
+} from 'react';
 import type {
   Sentence,
   CustomSentence,
@@ -16,34 +23,24 @@ import {
 } from '../../lib/storage/sentenceTags';
 import { subscribeCustomSentences } from '../../lib/storage/customSentences';
 import { sentenceStorage } from '../../lib/storage/reviewDeckStorage';
-import { showSaveError } from '../../lib/storage/errorHandler';
+import { useSaveError } from '../../hooks/useSaveError';
 import { useLocalChanges } from './localChanges';
-import { useCustomItems, useDeckProgress, useLoadedState } from './deckState';
+import { useCustomItems, useDeckProgress, useLoadedState, type DeckProgress } from './deckState';
 
 export interface SentenceContextType {
-  sentenceReviewStores: Record<TranslationDirection, SentenceReviewDataStore>;
-  sentenceSettings: SentenceSettings;
+  progress: DeckProgress<TranslationDirection, SentenceReviewDataStore, SentenceDirectionSettings>;
+  /** The learner's sentences first, then the built-in ones. */
   sentences: Sentence[];
   customSentences: CustomSentence[];
   systemSentences: Sentence[];
-  sentenceTags: SentenceTagsData;
-  updateSentenceReviewStore: (
-    direction: TranslationDirection,
-    store: SentenceReviewDataStore
-  ) => Promise<void>;
-  updateSentenceSettings: (
-    direction: TranslationDirection,
-    settings: SentenceDirectionSettings
-  ) => Promise<void>;
-  clearSentenceReviewData: (direction: TranslationDirection) => Promise<void>;
+  /** Takes the whole list back (custom and built-in) and keeps its built-in sentences. */
   setSentences: (sentences: Sentence[]) => void;
-  setCustomSentences: (sentences: CustomSentence[]) => void;
+  setCustomSentences: Dispatch<SetStateAction<CustomSentence[]>>;
   setSystemSentences: (sentences: Sentence[]) => void;
-  addSentenceTag: (category: TagCategory, tag: string) => Promise<void>;
-  removeSentenceTag: (category: TagCategory, tag: string) => Promise<void>;
+  tags: SentenceTagsData;
+  addTag: (category: TagCategory, tag: string) => Promise<void>;
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
 export const SentenceContext = createContext<SentenceContextType | null>(null);
 
 interface SentenceProviderProps {
@@ -84,81 +81,55 @@ export function SentenceProvider({
     localChanges
   );
   const [systemSentences, setSystemSentences] = useLoadedState(initialSystemSentences);
-  const [sentenceTags, setSentenceTags] = useLoadedState(initialTags);
+  const [tags, setTags] = useLoadedState(initialTags);
+  const showSaveError = useSaveError();
 
-  const sentences = useMemo<Sentence[]>(
+  const sentences = useMemo(
     () => [...customSentences, ...systemSentences],
     [customSentences, systemSentences]
   );
 
-  // Callers pass back the whole list (custom + built-in); custom sentences have their own state.
   const setSentences = useCallback(
     (all: Sentence[]) => setSystemSentences(all.filter((sentence) => !sentence.isCustom)),
     [setSystemSentences]
   );
 
-  const saveTags = useCallback(
-    async (tags: SentenceTagsData) => {
-      setSentenceTags(tags);
+  const addTag = useCallback(
+    async (category: TagCategory, tag: string) => {
+      if (tags[category].includes(tag)) return;
+      const next = { ...tags, [category]: [...tags[category], tag] };
+      setTags(next);
       try {
-        await saveSentenceTags(tags);
+        await saveSentenceTags(next);
       } catch (e) {
         showSaveError(e);
       }
     },
-    [setSentenceTags]
-  );
-
-  const addSentenceTag = useCallback(
-    async (category: TagCategory, tag: string) => {
-      if (sentenceTags[category].includes(tag)) return;
-      await saveTags({ ...sentenceTags, [category]: [...sentenceTags[category], tag] });
-    },
-    [sentenceTags, saveTags]
-  );
-
-  const removeSentenceTag = useCallback(
-    async (category: TagCategory, tag: string) => {
-      await saveTags({
-        ...sentenceTags,
-        [category]: sentenceTags[category].filter((t) => t !== tag),
-      });
-    },
-    [sentenceTags, saveTags]
+    [tags, setTags, showSaveError]
   );
 
   const value = useMemo<SentenceContextType>(
     () => ({
-      sentenceReviewStores: progress.stores,
-      sentenceSettings: progress.settings,
+      progress,
       sentences,
       customSentences,
       systemSentences,
-      sentenceTags,
-      updateSentenceReviewStore: progress.updateStore,
-      updateSentenceSettings: progress.updateSettings,
-      clearSentenceReviewData: progress.clear,
       setSentences,
       setCustomSentences,
       setSystemSentences,
-      addSentenceTag,
-      removeSentenceTag,
+      tags,
+      addTag,
     }),
     [
-      progress.stores,
-      progress.settings,
-      progress.updateStore,
-      progress.updateSettings,
-      progress.clear,
+      progress,
       sentences,
       customSentences,
       systemSentences,
-      sentenceTags,
       setSentences,
       setCustomSentences,
       setSystemSentences,
-      addSentenceTag,
-      removeSentenceTag,
+      tags,
+      addTag,
     ]
   );
 

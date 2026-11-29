@@ -2,7 +2,7 @@ import { Tooltip } from '@mui/material';
 import DarkMode from '@mui/icons-material/DarkMode';
 import LightMode from '@mui/icons-material/LightMode';
 import { BoxIconButton } from './BoxIconButton';
-import { useColorMode } from '../hooks/useColorMode';
+import { useColorMode } from '../contexts/ColorModeContext';
 
 export function ColorModeToggle() {
   const { mode, toggleMode } = useColorMode();

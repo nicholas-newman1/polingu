@@ -1,52 +1,31 @@
-import { collection, doc, getDoc, onSnapshot, query, orderBy, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
-import { getDownloadURL, ref } from 'firebase/storage';
-import { db, functions, storage } from '../firebase';
+import { db, functions } from '../firebase';
+import { cachedCollection } from '../media/cachedCollection';
+import { getStorageDownloadUrl } from '../media/storageFiles';
 import { loadUserData, saveUserData } from '../offlineDb/userDataWrapper';
 import { userDb } from '../offlineDb/userDb';
-import { getUserId } from '../storage/helpers';
+import { getCurrentUserId } from '../cachedAuth';
 import { undefinedToDeleteField } from '../storage/firestoreUtils';
 import type { Book, BookColor, ReadingProgress } from '../../types/reader';
 
-const BOOKS_CACHE_KEY = '__books-list';
 const BOOK_TEXT_CACHE_PREFIX = '__book-text-';
 
-export async function getCachedBooks(): Promise<Book[]> {
-  const record = await userDb.userData.get(BOOKS_CACHE_KEY);
-  return record ? (record.data as Book[]) : [];
-}
+const books = cachedCollection<Book>({
+  cacheKey: '__books-list',
+  path: () => {
+    const userId = getCurrentUserId();
+    return userId ? ['users', userId, 'books'] : null;
+  },
+  newestFirstBy: 'uploadedAt',
+  label: 'Books',
+});
 
-async function cacheBooks(books: Book[]): Promise<void> {
-  await userDb.userData.put({
-    key: BOOKS_CACHE_KEY,
-    data: books,
-    lastModified: Date.now(),
-    pendingSync: 0,
-  });
-}
-
-export function subscribeToBooksUpdates(callback: (books: Book[]) => void): () => void {
-  const userId = getUserId();
-  if (!userId) return () => {};
-
-  const booksRef = collection(db, 'users', userId, 'books');
-  const q = query(booksRef, orderBy('uploadedAt', 'desc'));
-
-  return onSnapshot(
-    q,
-    (snapshot) => {
-      const books = snapshot.docs.map((d) => d.data() as Book);
-      cacheBooks(books);
-      callback(books);
-    },
-    (error) => {
-      console.error('Books subscription error:', error);
-    }
-  );
-}
+export const getCachedBooks = books.getCached;
+export const subscribeToBooksUpdates = books.subscribe;
 
 export async function getBook(bookId: string): Promise<Book | null> {
-  const userId = getUserId();
+  const userId = getCurrentUserId();
   if (!userId) return null;
 
   if (!navigator.onLine) {
@@ -66,10 +45,7 @@ export async function getBook(bookId: string): Promise<Book | null> {
   }
 }
 
-export async function getBookDownloadUrl(storagePath: string): Promise<string> {
-  const storageRef = ref(storage, storagePath);
-  return getDownloadURL(storageRef);
-}
+export const getBookDownloadUrl = getStorageDownloadUrl;
 
 /** A book's text was never downloaded, so it can't be read until the device is back online. */
 export class BookTextOfflineError extends Error {
@@ -135,7 +111,7 @@ export async function updateBook(
   bookId: string,
   updates: { title?: string; author?: string; color?: BookColor }
 ): Promise<void> {
-  const userId = getUserId();
+  const userId = getCurrentUserId();
   if (!userId) throw new Error('Not authenticated');
 
   const bookRef = doc(db, 'users', userId, 'books', bookId);

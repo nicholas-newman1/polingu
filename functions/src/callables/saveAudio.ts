@@ -1,5 +1,10 @@
 import { onCall, HttpsError } from 'firebase-functions/https';
-import { AudioType, updateFirestoreAudioUrl, uploadAudioBuffer } from '../shared/audioTypes.js';
+import {
+  AudioType,
+  parseConjugationSubPath,
+  updateFirestoreAudioUrl,
+  uploadAudioBuffer,
+} from '../shared/audioTypes.js';
 
 interface SaveAudioRequest {
   audioBase64: string;
@@ -26,6 +31,13 @@ export const saveAudio = onCall<SaveAudioRequest, Promise<SaveAudioResponse>>(as
 
   if (!type || !id) {
     throw new HttpsError('invalid-argument', 'Type and ID required.');
+  }
+
+  if (
+    type === 'conjugation' &&
+    (typeof subPath !== 'string' || !parseConjugationSubPath(id, subPath))
+  ) {
+    throw new HttpsError('invalid-argument', 'Sub-path must name a form of this verb.');
   }
 
   try {

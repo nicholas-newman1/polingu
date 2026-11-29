@@ -7,6 +7,7 @@ import { screenSize, visualViewport } from './support/browser';
 import { EditConjugationModal } from '../../../src/components/EditConjugationModal';
 import { EditAspectPairsModal } from '../../../src/components/EditAspectPairsModal';
 import { EditVerbModal } from '../../../src/components/EditVerbModal';
+import { EditDeclensionModal } from '../../../src/components/EditDeclensionModal';
 import { AddVocabularyModal } from '../../../src/components/AddVocabularyModal';
 import type { DrillableForm, Verb } from '../../../src/types/conjugation';
 import { stub } from '../../helpers/stub';
@@ -365,6 +366,22 @@ describe('Edit Verb dialog (admin)', () => {
     expect(saved.conjugations.present['1sg'].audioUrl).toBe('https://audio.test/robie.mp3');
   });
 
+  test('a conjugated form’s audio is regenerated for that form', async () => {
+    audioService('https://audio.test/robisz.mp3');
+    renderVerb();
+    const dialog = await findDialog('Edit Verb');
+    fireEvent.click(within(dialog).getByText('Present'));
+    const row = within(dialog).getByDisplayValue('robisz').closest('.MuiTextField-root')!
+      .parentElement as HTMLElement;
+    expect(within(row).queryByTestId('VolumeUpIcon')).toBeNull();
+    fireEvent.click(within(row).getByTestId('GraphicEqIcon').closest('button')!);
+
+    expect(await within(row).findByTestId('VolumeUpIcon')).toBeInTheDocument();
+    expect(callables.callsTo('saveAudio')).toEqual([
+      { audioBase64: 'AAAA', type: 'conjugation', id: 'robic', subPath: 'robic_present_2sg' },
+    ]);
+  });
+
   test('a second English translation can be typed after a comma', async () => {
     renderVerb();
     const dialog = await findDialog('Edit Verb');
@@ -396,6 +413,28 @@ describe('Edit Verb dialog (admin)', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
     expect(onClose).toHaveBeenCalled();
     expect(onSave).not.toHaveBeenCalled();
+  });
+});
+
+describe('Create Custom Card dialog', () => {
+  test('a translation still waiting when the dialog is cancelled is dropped', async () => {
+    callables.set('translate', () => ({
+      translatedText: 'This is a cat.',
+      charsUsedToday: 1,
+      resetTime: '',
+    }));
+    const onClose = vi.fn();
+    renderInShell(<EditDeclensionModal open card={null} onSave={vi.fn()} onClose={onClose} />);
+    const dialog = await findDialog('Create Custom Card');
+    type(within(dialog).getByRole('textbox', { name: 'Back (Answer)' }), 'To jest kot.');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(onClose).toHaveBeenCalled();
+
+    await settle(700);
+    expect(callables.callsTo('translate')).toEqual([]);
+    expect(
+      within(dialog).getByRole('textbox', { name: 'English Translation (optional)' })
+    ).toHaveValue('');
   });
 });
 

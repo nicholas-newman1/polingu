@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { Navigate } from 'react-router-dom';
 import { Box, IconButton, Stack, Typography } from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import PauseIcon from '@mui/icons-material/Pause';
@@ -9,7 +9,6 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import { styled } from '../../lib/styled';
 import { useListening } from '../../contexts/ListeningContext';
 import { ListeningSettingsPanel } from '../../components/ListeningSettingsPanel';
-import { useState } from 'react';
 
 const PageContainer = styled(Box)(({ theme }) => ({
   flex: 1,
@@ -65,7 +64,6 @@ const MetaChip = styled(Box)(({ theme }) => ({
 }));
 
 export function ListeningPlayerPage() {
-  const navigate = useNavigate();
   const {
     isActive,
     isPlaying,
@@ -73,6 +71,7 @@ export function ListeningPlayerPage() {
     currentIndex,
     queue,
     currentRepetition,
+    totalRepetitions,
     meta,
     settings,
     togglePlay,
@@ -83,22 +82,9 @@ export function ListeningPlayerPage() {
 
   const [showSettings, setShowSettings] = useState(false);
 
-  useEffect(() => {
-    if (!isActive && !currentItem) {
-      const t = setTimeout(() => {
-        navigate('/listen', { replace: true });
-      }, 300);
-      return () => clearTimeout(t);
-    }
-  }, [isActive, currentItem, navigate]);
-
   if (!isActive || !currentItem) {
     return <Navigate to="/listen" replace />;
   }
-
-  const totalReps = currentItem.isLearned
-    ? settings.learned.repetitions
-    : settings.unknown.repetitions;
 
   return (
     <PageContainer data-qa="listening-player-page">
@@ -143,7 +129,7 @@ export function ListeningPlayerPage() {
               ? 'Word'
               : 'Declension'}{' '}
           · {currentIndex + 1}/{queue.length}
-          {totalReps > 1 ? ` · rep ${currentRepetition}/${totalReps}` : ''}
+          {totalRepetitions > 1 ? ` · rep ${currentRepetition}/${totalRepetitions}` : ''}
           {currentItem.isLearned ? ' · learned' : ''}
         </MetaChip>
         <Typography variant="h4" fontWeight={700} lang="pl">

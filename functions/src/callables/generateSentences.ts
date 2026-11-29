@@ -1,5 +1,5 @@
 import { onCall, HttpsError } from 'firebase-functions/https';
-import { CHAT_MODEL_PARAMS, createOpenAI } from '../shared/openai.js';
+import { CHAT_MODEL_PARAMS, createConfiguredOpenAI } from '../shared/openai.js';
 import { openaiApiKey } from '../shared/secrets.js';
 import { requestJsonCompletion } from '../shared/openaiJson.js';
 import { CEFRLevel, isCEFRLevel } from '../shared/cefr.js';
@@ -52,12 +52,7 @@ export const generateSentences = onCall<
     throw new HttpsError('invalid-argument', 'Tags must be an array.');
   }
 
-  const apiKey = openaiApiKey.value();
-  if (!apiKey) {
-    throw new HttpsError('failed-precondition', 'AI service is not configured.');
-  }
-
-  const openai = await createOpenAI(apiKey);
+  const openai = await createConfiguredOpenAI();
 
   const variationSeed = Math.random().toString(36).slice(2, 10);
   const userPrompt = [

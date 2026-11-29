@@ -9,7 +9,7 @@ import {
   Typography,
 } from '@mui/material';
 import { updateBook } from '../../../lib/reader';
-import { useSnackbar } from '../../../hooks/useSnackbar';
+import { useSnackbar } from '../../../contexts/SnackbarContext';
 import type { Book, BookColor } from '../../../types/reader';
 import { BOOK_COLORS } from '../../../types/reader';
 import { BookTitleAuthorFields } from './BookTitleAuthorFields';

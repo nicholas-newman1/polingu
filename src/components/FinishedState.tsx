@@ -16,8 +16,10 @@ import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
 import PlayArrowRoundedIcon from '@mui/icons-material/PlayArrowRounded';
 import { alpha } from '../lib/theme';
-import { useProgressStats } from '../hooks/useProgressStats';
+import { useProgressStats, type AllProgressStats } from '../hooks/useProgressStats';
 import type { SessionReviewStats } from '../lib/reviewSession/sessionQueue';
+import { DIRECTION_ROUTES, otherDirection } from '../lib/reviewSession/directions';
+import type { TranslationDirection } from '../types/common';
 import { CelebrationHero, SessionRecap } from './SessionRecap';
 
 const CardWrapper = styled(Box)({
@@ -166,8 +168,7 @@ function useEditableCount(value: number, setValue: (n: number) => void) {
   return { draft, onChange, onBlur };
 }
 
-type FeatureType = 'vocabulary' | 'sentences' | 'conjugation' | 'declension' | 'aspectPairs';
-type Direction = 'pl-to-en' | 'en-to-pl';
+export type FeatureType = 'vocabulary' | 'sentences' | 'conjugation' | 'declension' | 'aspectPairs';
 
 const FEATURES: Array<{ feature: FeatureType; label: string; path: string }> = [
   { feature: 'vocabulary', label: 'Vocabulary', path: '/vocabulary' },
@@ -177,15 +178,19 @@ const FEATURES: Array<{ feature: FeatureType; label: string; path: string }> = [
   { feature: 'aspectPairs', label: 'Aspect Pairs', path: '/aspect-pairs' },
 ];
 
-interface FinishedStateProps {
-  // Current feature context
-  currentFeature: FeatureType;
-  currentDirection?: Direction;
+/** Cards due in one direction, for the features studied in both. */
+const DUE_BY_DIRECTION: Partial<
+  Record<FeatureType, (stats: AllProgressStats, direction: TranslationDirection) => number>
+> = {
+  vocabulary: (stats, direction) => stats.vocabularyByDirection[direction].due,
+  sentences: (stats, direction) => stats.sentencesByDirection[direction].total.due,
+  conjugation: (stats, direction) => stats.conjugationByDirection[direction].due,
+};
 
-  // Other direction info (for features with directions)
-  otherDirectionDueCount?: number;
-  otherDirectionLabel?: string;
-  onSwitchDirection?: () => void;
+interface FinishedStateProps {
+  currentFeature: FeatureType;
+  /** The direction just studied, for features with two; the other one is offered next. */
+  direction?: TranslationDirection;
 
   // Session summary from cards just reviewed
   sessionStats?: SessionReviewStats;
@@ -201,9 +206,7 @@ interface FinishedStateProps {
 
 export function FinishedState({
   currentFeature,
-  otherDirectionDueCount,
-  otherDirectionLabel,
-  onSwitchDirection,
+  direction,
   sessionStats,
   practiceAheadCount,
   setPracticeAheadCount,
@@ -218,7 +221,10 @@ export function FinishedState({
   const navigate = useNavigate();
   const progressStats = useProgressStats();
 
-  const hasOtherDirection = otherDirectionDueCount !== undefined && otherDirectionDueCount > 0;
+  const currentPath = FEATURES.find((f) => f.feature === currentFeature)?.path;
+  const other = direction && otherDirection(direction);
+  const otherDirectionDueCount = other && DUE_BY_DIRECTION[currentFeature]?.(progressStats, other);
+  const hasOtherDirection = !!other && !!otherDirectionDueCount;
   const featuresWithDue = FEATURES.filter((f) => f.feature !== currentFeature)
     .map((f) => ({ ...f, dueCount: progressStats[f.feature].due }))
     .filter((f) => f.dueCount > 0)
@@ -246,16 +252,16 @@ export function FinishedState({
           <SessionRecap stats={sessionStats} />
 
           {/* Primary CTA: Switch direction */}
-          {hasOtherDirection && onSwitchDirection && (
+          {hasOtherDirection && (
             <DirectionButton
               fullWidth
               size="large"
               variant="contained"
               startIcon={<SwapHorizIcon />}
-              onClick={onSwitchDirection}
+              onClick={() => navigate(`${currentPath}/${DIRECTION_ROUTES[other].route}`)}
               sx={{ mb: 2 }}
             >
-              Switch to {otherDirectionLabel}
+              Switch to {DIRECTION_ROUTES[other].label}
               <CountBadge>{otherDirectionDueCount}</CountBadge>
             </DirectionButton>
           )}

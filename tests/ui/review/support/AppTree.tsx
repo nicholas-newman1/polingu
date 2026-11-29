@@ -23,6 +23,7 @@ import { DeclensionPage } from '../../../../src/pages/DeclensionPage';
 import { SentencesPage } from '../../../../src/pages/SentencesPage';
 import { VocabularyPage } from '../../../../src/pages/VocabularyPage';
 import { ConjugationPage } from '../../../../src/pages/ConjugationPage';
+import { ModeSelectorPage } from '../../../../src/pages/ModeSelectorPage';
 import { AspectPairsPage } from '../../../../src/pages/AspectPairsPage';
 import { ConsonantDrillerPage } from '../../../../src/pages/ConsonantDrillerPage';
 
@@ -82,17 +83,17 @@ export function AppTree({ path, extra }: { path: string; extra?: ReactNode }) {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/declension" element={<DeclensionPage />} />
           <Route path="/vocabulary">
-            <Route index element={<VocabularyPage />} />
+            <Route index element={<ModeSelectorPage deck="vocabulary" />} />
             <Route path="recognition" element={<VocabularyPage mode="pl-to-en" />} />
             <Route path="production" element={<VocabularyPage mode="en-to-pl" />} />
           </Route>
           <Route path="/sentences">
-            <Route index element={<SentencesPage />} />
+            <Route index element={<ModeSelectorPage deck="sentences" />} />
             <Route path="recognition" element={<SentencesPage mode="pl-to-en" />} />
             <Route path="production" element={<SentencesPage mode="en-to-pl" />} />
           </Route>
           <Route path="/conjugation">
-            <Route index element={<ConjugationPage />} />
+            <Route index element={<ModeSelectorPage deck="conjugation" />} />
             <Route path="recognition" element={<ConjugationPage mode="pl-to-en" />} />
             <Route path="production" element={<ConjugationPage mode="en-to-pl" />} />
           </Route>

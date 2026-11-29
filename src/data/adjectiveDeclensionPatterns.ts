@@ -1,11 +1,9 @@
 import type { DeclensionTable } from './declensionPatterns';
 
-const Y_GROUP_FOOTNOTE =
-  'Use this ending when the adjective ends in -y in masculine nominative';
+const Y_GROUP_FOOTNOTE = 'Use this ending when the adjective ends in -y in masculine nominative';
 const Y_KI_GI_GROUP_FOOTNOTE =
   'Use this ending when the adjective ends in -y, -ki, or -gi in masculine nominative';
-const I_GROUP_FOOTNOTE =
-  'Use this ending when the adjective ends in -i in masculine nominative';
+const I_GROUP_FOOTNOTE = 'Use this ending when the adjective ends in -i in masculine nominative';
 
 const MASC_SG_FOOTNOTES = {
   1: Y_GROUP_FOOTNOTE,

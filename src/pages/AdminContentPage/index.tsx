@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Box, Tabs, Tab } from '@mui/material';
 import { styled } from '../../lib/styled';
-import { useAuthContext } from '../../hooks/useAuthContext';
+import { useAuthContext } from '../../contexts/AuthContext';
 import {
   useVocabulary,
   useDeclension,
@@ -33,7 +33,7 @@ export function AdminContentPage() {
   const navigate = useNavigate();
 
   const { systemWords } = useVocabulary();
-  const { systemDeclensionCards } = useDeclension();
+  const { systemCards: systemDeclensionCards } = useDeclension();
   const { systemSentences } = useSentences();
   const { verbs } = useConjugation();
 

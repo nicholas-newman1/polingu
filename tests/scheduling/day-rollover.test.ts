@@ -19,6 +19,7 @@ import {
   loadReviewStore,
   saveReviewStore,
   vocabularyStorage,
+  emptyReviewStore,
 } from '../../src/lib/storage/reviewDeckStorage';
 import { getSessionCards, reviewDataFor } from '../../src/lib/reviewSession/scheduler';
 import { vocabularyDeck } from '../../src/lib/reviewSession/reviewDecks';
@@ -33,7 +34,7 @@ beforeEach(async () => {
 /** A store dated by the frozen clock: word 1 overdue, 2 learning, 3 studied for the first time. */
 function studiedStore(): VocabularyReviewDataStore {
   return {
-    ...vocabularyStorage['pl-to-en'].emptyStore(),
+    ...emptyReviewStore(),
     cards: {
       1: { wordId: 1, fsrsCard: graduated(-1) },
       2: { wordId: 2, fsrsCard: learning(10) },

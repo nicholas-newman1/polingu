@@ -1,13 +1,20 @@
-import type {
-  Aspect,
-  ConditionalFormKey,
-  ConjugationForm,
-  FutureFormKey,
-  ImperativeFormKey,
-  PastFormKey,
-  PresentFormKey,
-  Tense,
-  VerbClass,
+import {
+  ALL_ASPECTS,
+  ALL_VERB_CLASSES,
+  CONDITIONAL_FORM_KEYS,
+  FUTURE_FORM_KEYS,
+  IMPERATIVE_FORM_KEYS,
+  PAST_FORM_KEYS,
+  PRESENT_FORM_KEYS,
+  type Aspect,
+  type ConditionalFormKey,
+  type ConjugationForm,
+  type FutureFormKey,
+  type ImperativeFormKey,
+  type PastFormKey,
+  type PresentFormKey,
+  type Tense,
+  type VerbClass,
 } from '../src/types/conjugation.js';
 
 export type { Aspect, Tense, VerbClass };
@@ -39,44 +46,6 @@ export interface VerbIndex {
   verbClass: VerbClass;
 }
 
-const VALID_ASPECTS: Aspect[] = ['Imperfective', 'Perfective'];
-const VALID_VERB_CLASSES: VerbClass[] = ['-ać', '-ić', '-yć', '-eć', '-ować', 'Irregular'];
-const VALID_TENSES: Tense[] = ['present', 'past', 'future', 'imperative', 'conditional'];
-
-const PRESENT_FORM_KEYS: PresentFormKey[] = ['1sg', '2sg', '3sg', '1pl', '2pl', '3pl'];
-const PAST_FORM_KEYS: PastFormKey[] = [
-  '1sg_m',
-  '1sg_f',
-  '2sg_m',
-  '2sg_f',
-  '3sg_m',
-  '3sg_f',
-  '3sg_n',
-  '1pl_m',
-  '1pl_f',
-  '2pl_m',
-  '2pl_f',
-  '3pl_m',
-  '3pl_f',
-];
-const FUTURE_FORM_KEYS: FutureFormKey[] = ['1sg', '2sg', '3sg', '1pl', '2pl', '3pl'];
-const IMPERATIVE_FORM_KEYS: ImperativeFormKey[] = ['2sg', '1pl', '2pl'];
-const CONDITIONAL_FORM_KEYS: ConditionalFormKey[] = [
-  '1sg_m',
-  '1sg_f',
-  '2sg_m',
-  '2sg_f',
-  '3sg_m',
-  '3sg_f',
-  '3sg_n',
-  '1pl_m',
-  '1pl_f',
-  '2pl_m',
-  '2pl_f',
-  '3pl_m',
-  '3pl_f',
-];
-
 const IMPERSONAL_PRESENT_FORM_KEYS: PresentFormKey[] = ['3sg', '3pl'];
 const IMPERSONAL_PAST_FORM_KEYS: PastFormKey[] = ['3sg_m', '3sg_f', '3sg_n', '3pl_m', '3pl_f'];
 const IMPERSONAL_FUTURE_FORM_KEYS: FutureFormKey[] = ['3sg', '3pl'];
@@ -89,11 +58,11 @@ const IMPERSONAL_CONDITIONAL_FORM_KEYS: ConditionalFormKey[] = [
 ];
 
 function isValidAspect(value: string): value is Aspect {
-  return VALID_ASPECTS.includes(value as Aspect);
+  return ALL_ASPECTS.includes(value as Aspect);
 }
 
 function isValidVerbClass(value: string): value is VerbClass {
-  return VALID_VERB_CLASSES.includes(value as VerbClass);
+  return ALL_VERB_CLASSES.includes(value as VerbClass);
 }
 
 function validateConjugationForm(
@@ -155,11 +124,11 @@ const VERB_FIELD_RULES: [check: (v: Record<string, unknown>) => boolean, message
   [(v) => isNonEmptyString(v.infinitiveEn), 'missing or invalid "infinitiveEn"'],
   [
     (v) => !!v.aspect && isValidAspect(v.aspect as string),
-    `invalid "aspect" (must be one of: ${VALID_ASPECTS.join(', ')})`,
+    `invalid "aspect" (must be one of: ${ALL_ASPECTS.join(', ')})`,
   ],
   [
     (v) => !!v.verbClass && isValidVerbClass(v.verbClass as string),
-    `invalid "verbClass" (must be one of: ${VALID_VERB_CLASSES.join(', ')})`,
+    `invalid "verbClass" (must be one of: ${ALL_VERB_CLASSES.join(', ')})`,
   ],
   [(v) => typeof v.isIrregular === 'boolean', '"isIrregular" must be boolean'],
   [(v) => typeof v.isReflexive === 'boolean', '"isReflexive" must be boolean'],

@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useValueWhileOpen } from '../hooks/useValueWhileOpen';
 import { useForm, Controller, useWatch } from 'react-hook-form';
 import {
   DialogTitle,
@@ -13,10 +14,11 @@ import {
   Typography,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
-import { useReviewData } from '../hooks/useReviewData';
-import { useAuthContext } from '../hooks/useAuthContext';
+import { useSentences, useVocabulary } from '../hooks/useReviewData';
+import { useAuthContext } from '../contexts/AuthContext';
 import { type ModalSaveResult } from '../hooks/useOptimisticModalSave';
-import { useTranslatedEditModal } from '../hooks/useTranslatedEditModal';
+import { useEditModal } from '../hooks/useEditModal';
+import { usePolishEnglishFormAutoTranslate } from '../hooks/usePolishEnglishAutoTranslate';
 import { AudioRegenerator } from './AudioRegenerator';
 import { PolishEnglishFields } from './PolishEnglishFields';
 import { ModalDialog, ModalHeader, ModalContent } from './modalStyles';
@@ -37,8 +39,8 @@ interface EditSentenceModalProps {
   open: boolean;
   onClose: () => void;
   onSave: (data: Omit<Sentence, 'id'>) => ModalSaveResult;
+  /** The sentence to edit, or null to add a new one. */
   sentence: Sentence | null;
-  isCreating?: boolean;
   onAudioUpdated?: (audioUrl: string) => void;
   initialValues?: { polish?: string; english?: string };
 }
@@ -58,12 +60,13 @@ export function EditSentenceModal({
   onClose,
   onSave,
   sentence,
-  isCreating = false,
   onAudioUpdated,
   initialValues,
 }: EditSentenceModalProps) {
   const { isAdmin } = useAuthContext();
-  const { sentenceTags, vocabularyWords } = useReviewData();
+  const isCreating = !useValueWhileOpen(sentence, open);
+  const { tags: sentenceTags } = useSentences();
+  const { words: vocabularyWords } = useVocabulary();
   const allTags = [...sentenceTags.topics, ...sentenceTags.grammar, ...sentenceTags.style];
 
   const linkedVocabularyWord = useMemo(
@@ -72,7 +75,7 @@ export function EditSentenceModal({
   );
 
   const showLinkedVocabulary =
-    !isCreating && sentence?.source === 'vocab-example' && !!sentence.sourceVocabularyId;
+    sentence?.source === 'vocab-example' && !!sentence.sourceVocabularyId;
 
   const {
     control,
@@ -88,15 +91,18 @@ export function EditSentenceModal({
 
   const polishText = useWatch({ control, name: 'polish' });
 
-  const { translation, pendingAudioUrl, handleClose, handleAudioSaved, save } =
-    useTranslatedEditModal({
-      open,
-      onClose,
-      onSave,
-      onAudioUpdated,
-      form: { getValues, setValue },
-      resetForm: () => reset(getDefaultValues(null)),
-    });
+  const translation = usePolishEnglishFormAutoTranslate({ getValues, setValue });
+
+  const { handleClose, handleAudioSaved, save } = useEditModal({
+    open,
+    onClose,
+    onSave,
+    onAudioUpdated,
+    reset: () => {
+      reset(getDefaultValues(null));
+      translation.cancel();
+    },
+  });
 
   const onSubmit = (data: FormData) => {
     save({
@@ -137,13 +143,13 @@ export function EditSentenceModal({
           </Alert>
         )}
 
-        {isAdmin && sentence && !isCreating && (
+        {isAdmin && sentence && (
           <>
             <AudioRegenerator
               text={polishText}
               type={sentence.isCustom ? 'custom-sentence' : 'sentence'}
               id={sentence.id}
-              currentAudioUrl={pendingAudioUrl || sentence.audioUrl}
+              currentAudioUrl={sentence.audioUrl}
               onAudioSaved={handleAudioSaved}
               label="Sentence Audio"
             />

@@ -3,7 +3,7 @@ import { TextField } from '@mui/material';
 import { FieldEndAdornment } from './FieldEndAdornment';
 import type {
   PolishEnglishFieldNames,
-  SinglePolishEnglishAutoTranslate,
+  PolishEnglishFormAutoTranslate,
 } from '../hooks/usePolishEnglishAutoTranslate';
 
 const REQUIRED_TEXT_RULES = { required: true, validate: (v: string) => v.trim().length > 0 };
@@ -22,7 +22,7 @@ interface FieldConfig {
 
 interface PolishEnglishFieldsProps<T extends FieldValues> {
   control: Control<T>;
-  translation: SinglePolishEnglishAutoTranslate;
+  translation: PolishEnglishFormAutoTranslate;
   dataQaPrefix: string;
   autoFocus?: boolean;
   multiline?: boolean;

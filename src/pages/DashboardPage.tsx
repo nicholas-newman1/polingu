@@ -3,7 +3,7 @@ import { Box, ButtonBase, Typography, useMediaQuery, useTheme } from '@mui/mater
 import ChevronRight from '@mui/icons-material/ChevronRight';
 import { styled } from '../lib/styled';
 import { alpha } from '../lib/theme';
-import { useReviewData } from '../hooks/useReviewData';
+import { useReviewDataLoading } from '../hooks/useReviewData';
 import { useProgressStats } from '../hooks/useProgressStats';
 import { FeatureCard } from '../components/FeatureCard';
 import { ProgressStats } from '../components/ProgressStats';
@@ -16,7 +16,7 @@ import {
 } from '../constants/navigation';
 import { SiteLogo } from '../components/SiteLogo';
 import { useAppSettings } from '../contexts/AppSettingsContext';
-import { useAuthContext } from '../hooks/useAuthContext';
+import { useAuthContext } from '../contexts/AuthContext';
 
 const PageContainer = styled(Box)(({ theme }) => ({
   flex: 1,
@@ -126,7 +126,7 @@ export function DashboardPage() {
   const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const { loading } = useReviewData();
+  const loading = useReviewDataLoading();
   const progressStats = useProgressStats();
   const { settings } = useAppSettings();
   const { isAdmin } = useAuthContext();

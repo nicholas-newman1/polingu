@@ -4,10 +4,19 @@
  * what ReviewDataProvider loaded, and picks up a later load (a background sync)
  * without undoing anything changed in memory since that load began (localChanges.ts).
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from 'react';
 import type { CardReviewData, ReviewDataStore, SessionId } from '../../types/common';
 import {
   clearDeckProgress,
+  emptyReviewStore,
   mapParts,
   partsOf,
   saveDeckSettings,
@@ -15,13 +24,17 @@ import {
   type DeckPart,
   type ReviewDeckStorage,
 } from '../../lib/storage/reviewDeckStorage';
-import { showSaveError } from '../../lib/storage/errorHandler';
 import { startDayInEachStore } from '../../lib/reviewSession/sessionLists';
-import { useAuthContext } from '../../hooks/useAuthContext';
+import { useAuthContext } from '../AuthContext';
+import { useSaveError } from '../../hooks/useSaveError';
 import { useSyncProps } from '../../hooks/useSyncProps';
 import { keepCurrentWhere, type LocalChanges } from './localChanges';
 import { useToday } from './useToday';
 
+/**
+ * A deck's review progress, one store and one settings value per part: a direction
+ * for vocabulary, sentences and conjugation, or `all` for declension and aspect pairs.
+ */
 export interface DeckProgress<K extends DeckPart, Store, Settings> {
   /** Each part's store, with today's lists started afresh if it was saved on an earlier day. */
   stores: Record<K, Store>;
@@ -39,7 +52,7 @@ export function useDeckProgress<
   Id extends SessionId,
   Settings,
 >(
-  parts: Record<K, ReviewDeckStorage<R, Id, Settings>>,
+  parts: Record<K, ReviewDeckStorage<ReviewDataStore<R, Id>, Settings>>,
   loadedStores: Partial<Record<K, ReviewDataStore<R, Id>>> | undefined,
   loadedSettings: Record<K, Settings>,
   readAt: number | undefined,
@@ -48,7 +61,7 @@ export function useDeckProgress<
   type Store = ReviewDataStore<R, Id>;
   const keys = partsOf(parts);
   const storesFrom = (loaded: Partial<Record<K, Store>> | undefined) =>
-    mapParts(keys, (key) => loaded?.[key] ?? parts[key].emptyStore());
+    mapParts(keys, (key) => loaded?.[key] ?? emptyReviewStore<R, Id>());
 
   const [stores, setStores] = useState(() => storesFrom(loadedStores));
   const storesRef = useRef(stores);
@@ -73,11 +86,9 @@ export function useDeckProgress<
     );
   });
 
+  const showSaveError = useSaveError();
   const today = useToday();
-  const todaysStores = useMemo(
-    () => startDayInEachStore(stores, ['reviewedToday', 'newCardsToday'], today),
-    [stores, today]
-  );
+  const todaysStores = useMemo(() => startDayInEachStore(stores, today), [stores, today]);
 
   const replaceStore = useCallback(
     (part: K, store: Store) => {
@@ -99,7 +110,7 @@ export function useDeckProgress<
         showSaveError(e);
       }
     },
-    [parts, replaceStore]
+    [parts, replaceStore, showSaveError]
   );
 
   const updateSettings = useCallback(
@@ -112,7 +123,7 @@ export function useDeckProgress<
         showSaveError(e);
       }
     },
-    [parts, localChanges]
+    [parts, localChanges, showSaveError]
   );
 
   const clear = useCallback(
@@ -123,51 +134,20 @@ export function useDeckProgress<
         showSaveError(e);
         return;
       }
-      replaceStore(part, parts[part].emptyStore());
+      replaceStore(part, emptyReviewStore<R, Id>());
       if (parts[part].resetDeletesSettings) {
         // The reset deleted the settings too, so a reload would load the defaults.
         setSettings((prev) => ({ ...prev, [part]: parts[part].defaultSettings }));
         localChanges.note(`settings:${part}`);
       }
     },
-    [parts, replaceStore, localChanges]
+    [parts, replaceStore, localChanges, showSaveError]
   );
 
-  return { stores: todaysStores, settings, updateStore, updateSettings, clear };
-}
-
-/** useDeckProgress for a deck studied one way, whose only part is `all`. */
-export function useSinglePartProgress<R extends CardReviewData, Id extends SessionId, Settings>(
-  parts: Record<'all', ReviewDeckStorage<R, Id, Settings>>,
-  loadedStore: ReviewDataStore<R, Id> | undefined,
-  loadedSettings: Settings,
-  readAt: number | undefined,
-  localChanges: LocalChanges
-) {
-  const progress = useDeckProgress(
-    parts,
-    { all: loadedStore },
-    { all: loadedSettings },
-    readAt,
-    localChanges
+  return useMemo(
+    () => ({ stores: todaysStores, settings, updateStore, updateSettings, clear }),
+    [todaysStores, settings, updateStore, updateSettings, clear]
   );
-  const { updateStore, updateSettings, clear } = progress;
-  const updateOnlyStore = useCallback(
-    (store: ReviewDataStore<R, Id>) => updateStore('all', store),
-    [updateStore]
-  );
-  const updateOnlySettings = useCallback(
-    (settings: Settings) => updateSettings('all', settings),
-    [updateSettings]
-  );
-  const clearAll = useCallback(() => clear('all'), [clear]);
-  return {
-    store: progress.stores.all,
-    settings: progress.settings.all,
-    updateStore: updateOnlyStore,
-    updateSettings: updateOnlySettings,
-    clear: clearAll,
-  };
 }
 
 /**
@@ -180,14 +160,14 @@ export function useCustomItems<T>(
   subscribe: (onItems: (items: T[]) => void) => () => void,
   readAt: number | undefined,
   localChanges: LocalChanges
-): [T[], (items: T[]) => void] {
+): [T[], Dispatch<SetStateAction<T[]>>] {
   const [items, setItemsState] = useState(loaded);
   useSyncProps({ loaded }, () => {
     if (!localChanges.changedSince('customItems', readAt)) setItemsState(loaded);
   });
 
   const setItems = useCallback(
-    (next: T[]) => {
+    (next: SetStateAction<T[]>) => {
       setItemsState(next);
       localChanges.note('customItems');
     },

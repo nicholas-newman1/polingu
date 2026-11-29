@@ -1,17 +1,7 @@
-import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
-import { db } from '../firebase';
-import { undefinedToDeleteField } from './firestoreUtils';
 import type { Verb } from '../../types/conjugation';
+import { systemContent } from './systemContent';
 
-export async function updateVerb(
-  verbId: string,
-  updates: Partial<Omit<Verb, 'id'>>
-): Promise<void> {
-  const docRef = doc(db, 'verbs', verbId);
-  await updateDoc(docRef, undefinedToDeleteField(updates));
-}
+const verbs = systemContent<Verb, string>('verbs');
 
-export async function deleteVerb(verbId: string): Promise<void> {
-  const docRef = doc(db, 'verbs', verbId);
-  await deleteDoc(docRef);
-}
+export const updateVerb = verbs.update;
+export const deleteVerb = verbs.delete;

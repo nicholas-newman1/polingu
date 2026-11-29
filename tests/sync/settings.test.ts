@@ -1,12 +1,10 @@
 import { describe, expect, test, vi } from 'vitest';
-import loadAppSettings from '../../src/lib/storage/loadAppSettings';
-import saveAppSettings from '../../src/lib/storage/saveAppSettings';
-import loadUserFilters from '../../src/lib/storage/loadUserFilters';
-import saveUserFilters from '../../src/lib/storage/saveUserFilters';
-import { loadListeningSettings } from '../../src/lib/storage/loadListeningSettings';
-import saveListeningSettings from '../../src/lib/storage/saveListeningSettings';
-import { loadListeningHubSelections } from '../../src/lib/storage/loadListeningHubSelections';
-import saveListeningHubSelections from '../../src/lib/storage/saveListeningHubSelections';
+import {
+  appSettingsDoc,
+  listeningHubSelectionsDoc,
+  listeningSettingsDoc,
+  userFiltersDoc,
+} from '../../src/lib/storage/userDocs';
 import { DEFAULT_APP_SETTINGS } from '../../src/types/appSettings';
 import { DEFAULT_USER_FILTERS, type UserFilters } from '../../src/types/userFilters';
 import {
@@ -52,14 +50,14 @@ describe('settings saved by an older version of the app', () => {
     signIn(UID);
     seedDoc('appSettings', { autoPlayAudio: true });
 
-    expect(await loadAppSettings()).toEqual({ ...DEFAULT_APP_SETTINGS, autoPlayAudio: true });
+    expect(await appSettingsDoc.load()).toEqual({ ...DEFAULT_APP_SETTINGS, autoPlayAudio: true });
   });
 
   test('filters are filled in per feature, keeping what was saved', async () => {
     signIn(UID);
     seedDoc('userFilters', { declension: { cases: ['Genitive'] } });
 
-    expect(await loadUserFilters()).toEqual({
+    expect(await userFiltersDoc.load()).toEqual({
       conjugation: DEFAULT_USER_FILTERS.conjugation,
       declension: { ...DEFAULT_USER_FILTERS.declension, cases: ['Genitive'] },
     });
@@ -86,7 +84,7 @@ describe('listening settings are sanitised on load', () => {
       unknown: { gapBetweenCards: 8, repetitions: 9, gapBetweenRepetitions: 'long' },
     });
 
-    expect(await loadListeningSettings()).toEqual({
+    expect(await listeningSettingsDoc.load()).toEqual({
       playbackRate: DEFAULT_LISTENING_SETTINGS.playbackRate,
       ordering: DEFAULT_LISTENING_SETTINGS.ordering,
       learned: { ...DEFAULT_LISTENING_SETTINGS.learned, repetitions: 2 },
@@ -103,9 +101,9 @@ describe('listening settings are sanitised on load', () => {
       unknown: { gapBetweenCards: 8, repetitions: 1, gapBetweenRepetitions: 2 },
     };
 
-    await saveListeningSettings(custom);
+    await listeningSettingsDoc.save(custom);
 
-    expect(await loadListeningSettings()).toEqual(custom);
+    expect(await listeningSettingsDoc.load()).toEqual(custom);
     expect(remote.get(userPath(UID, 'data', 'listeningSettings'))).toEqual(custom);
   });
 
@@ -116,16 +114,16 @@ describe('listening settings are sanitised on load', () => {
       direction: 'en-to-pl',
       selectedLevels: ['B1', 'Z9'],
     });
-    expect(await loadListeningHubSelections()).toEqual({
+    expect(await listeningHubSelectionsDoc.load()).toEqual({
       feature: DEFAULT_LISTENING_HUB_SELECTIONS.feature,
       direction: 'en-to-pl',
       selectedLevels: ['B1'],
     });
 
-    await saveListeningHubSelections(
+    await listeningHubSelectionsDoc.save(
       stub<ListeningHubSelections>({ feature: 'vocabulary', selectedLevels: [] })
     );
-    expect(await loadListeningHubSelections()).toEqual({
+    expect(await listeningHubSelectionsDoc.load()).toEqual({
       ...DEFAULT_LISTENING_HUB_SELECTIONS,
       feature: 'vocabulary',
     });
@@ -168,8 +166,8 @@ describe('every settings doc round-trips through the server', () => {
       ...DEFAULT_USER_FILTERS,
       declension: { cases: ['Dative'], genders: ['Feminine'], number: 'Plural' },
     };
-    await saveAppSettings({ autoPlayAudio: true, hidePolishText: true, dashboardOrder: ['x'] });
-    await saveUserFilters(filters);
+    await appSettingsDoc.save({ autoPlayAudio: true, hidePolishText: true, dashboardOrder: ['x'] });
+    await userFiltersDoc.save(filters);
     await saveDeckSettings(declensionStorage.all, { newCardsPerDay: 4 });
     await saveDeckSettings(aspectPairsStorage.all, { newCardsPerDay: 6 });
 
@@ -179,12 +177,12 @@ describe('every settings doc round-trips through the server', () => {
     for (const [name, data] of Object.entries(server)) seedDoc(name, data);
     await userDb.userData.clear();
 
-    expect(await loadAppSettings()).toEqual({
+    expect(await appSettingsDoc.load()).toEqual({
       autoPlayAudio: true,
       hidePolishText: true,
       dashboardOrder: ['x'],
     });
-    expect(await loadUserFilters()).toEqual(filters);
+    expect(await userFiltersDoc.load()).toEqual(filters);
     expect(await loadDeckSettings(declensionStorage.all)).toEqual({ newCardsPerDay: 4 });
     expect(await loadDeckSettings(aspectPairsStorage.all)).toEqual({ newCardsPerDay: 6 });
   });
@@ -192,10 +190,10 @@ describe('every settings doc round-trips through the server', () => {
 
 describe('guest', () => {
   test('gets the defaults and saving is a no-op', async () => {
-    await saveAppSettings({ autoPlayAudio: true, hidePolishText: true });
+    await appSettingsDoc.save({ autoPlayAudio: true, hidePolishText: true });
     await saveDeckSettings(declensionStorage.all, { newCardsPerDay: 99 });
 
-    expect(await loadAppSettings()).toEqual(DEFAULT_APP_SETTINGS);
+    expect(await appSettingsDoc.load()).toEqual(DEFAULT_APP_SETTINGS);
     expect(await loadDeckSettings(declensionStorage.all)).toEqual({ newCardsPerDay: 10 });
     expect(remote.calls).toEqual([]);
   });

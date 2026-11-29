@@ -1,5 +1,5 @@
 import type { ReviewSubcollectionSync } from './createReviewSubcollectionStorage';
-import { getUserId } from './helpers';
+import { getCurrentUserId } from '../cachedAuth';
 import { ALL_REVIEW_CARD_STORAGES } from './reviewDeckStorage';
 
 /**
@@ -30,7 +30,7 @@ async function forEachStorage(
 }
 
 export async function refreshAllReviewCardsFromFirestore(): Promise<void> {
-  const userId = getUserId();
+  const userId = getCurrentUserId();
   if (!userId) return;
 
   const throttled =

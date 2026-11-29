@@ -99,8 +99,7 @@ export function AspectPairsFlashcard({
     (url: string, which: 'front' | 'back') => {
       stopAudio();
 
-      const playableUrl = resolvePlayableAudioUrl(url) ?? url;
-      const audio = new Audio(playableUrl);
+      const audio = new Audio(resolvePlayableAudioUrl(url));
       audioRef.current = audio;
       setPlayingAudio(which);
 

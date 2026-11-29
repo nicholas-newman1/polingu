@@ -42,7 +42,7 @@ export const VerbsTab = memo(function VerbsTab() {
   const { verbs, setVerbs } = useConjugation();
   const [editingVerb, setEditingVerb] = useState<Verb | null>(null);
   const { confirm, confirmDialog } = useConfirm();
-  const { deleteItem, patchItem } = useAdminItems<Verb, Partial<Omit<Verb, 'id'>>>({
+  const { deleteItem, patchItem, mirrorItem } = useAdminItems<Verb, Partial<Omit<Verb, 'id'>>>({
     items: verbs,
     setItems: setVerbs,
     update: (verb, patch) => updateVerb(verb.id, patch),
@@ -85,13 +85,7 @@ export const VerbsTab = memo(function VerbsTab() {
         onSave={(updates) => patchItem(editingVerb, updates)}
         onDelete={handleModalDelete}
         verb={editingVerb}
-        onAudioUpdated={(audioUrl) =>
-          patchItem(
-            editingVerb,
-            { infinitiveAudioUrl: audioUrl },
-            { error: 'Failed to update audio' }
-          )
-        }
+        onAudioUpdated={(audioUrl) => mirrorItem(editingVerb, { infinitiveAudioUrl: audioUrl })}
       />
       {confirmDialog}
     </>

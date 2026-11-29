@@ -1,10 +1,10 @@
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import { getUserId } from '../storage/helpers';
+import { getCurrentUserId } from '../cachedAuth';
 import type { AudioQueue } from '../../types/audio';
 
 function getQueueDocRef() {
-  const userId = getUserId();
+  const userId = getCurrentUserId();
   if (!userId) return null;
   return doc(db, 'users', userId, 'audioQueue', 'current');
 }

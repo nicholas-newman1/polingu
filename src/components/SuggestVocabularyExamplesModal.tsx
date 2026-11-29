@@ -1,35 +1,17 @@
-import { useCallback, useEffect, useRef, useState, type Ref } from 'react';
-import {
-  DialogTitle,
-  IconButton,
-  TextField,
-  Box,
-  Button,
-  Typography,
-  CircularProgress,
-  Skeleton,
-  Stack,
-  InputAdornment,
-} from '@mui/material';
+import { useCallback, useEffect } from 'react';
+import { useForm, useWatch } from 'react-hook-form';
+import { DialogTitle, IconButton, Box, Button, Typography, Skeleton, Stack } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import AddIcon from '@mui/icons-material/Add';
 import { styled } from '../lib/styled';
-import {
-  ModalDialog,
-  ModalHeader,
-  ModalContent,
-  ModalActions,
-  ExamplePairBox,
-  ExampleRowHeader,
-} from './modalStyles';
+import { ModalDialog, ModalHeader, ModalContent, ModalActions } from './modalStyles';
 import { toExampleSentences } from '../lib/generateExample';
-import { translate } from '../lib/translate';
-import { TRANSLATION_DEBOUNCE_MS } from '../constants/translation';
+import { useExampleRows, type ExampleRowsFormValues } from '../hooks/useExampleRows';
 import { useGeneratedExamples } from '../hooks/useGeneratedExamples';
 import { useOptimisticModalSave, type ModalSaveResult } from '../hooks/useOptimisticModalSave';
+import { ExampleRowsEditor } from './ExampleRowsEditor';
 import { GeneratedExampleOptions } from './GeneratedExampleOptions';
 import type { ExampleSentence, VocabularyWord } from '../types/vocabulary';
 
@@ -187,77 +169,7 @@ function SuggestionsBody({
   );
 }
 
-interface AcceptedExampleRowProps {
-  example: ExampleSentence;
-  index: number;
-  isTranslating: boolean;
-  polishRef?: Ref<HTMLInputElement>;
-  onPolishChange: (id: string, value: string) => void;
-  onEnglishChange: (id: string, value: string) => void;
-  onRemove: (id: string) => void;
-}
-
-function AcceptedExampleRow({
-  example,
-  index,
-  isTranslating,
-  polishRef,
-  onPolishChange,
-  onEnglishChange,
-  onRemove,
-}: AcceptedExampleRowProps) {
-  const id = example.id!;
-  return (
-    <ExamplePairBox data-qa="suggest-vocabulary-examples-accepted-row">
-      <ExampleRowHeader>
-        <Typography variant="caption" color="text.disabled">
-          Example {index + 1}
-        </Typography>
-        <IconButton
-          size="small"
-          onClick={() => onRemove(id)}
-          aria-label="remove example"
-          sx={{ color: 'text.disabled' }}
-          data-qa="suggest-vocabulary-examples-remove-accepted"
-        >
-          <DeleteOutlineIcon fontSize="small" />
-        </IconButton>
-      </ExampleRowHeader>
-      <TextField
-        value={example.polish}
-        onChange={(e) => onPolishChange(id, e.target.value)}
-        inputRef={polishRef}
-        label="Polish"
-        size="small"
-        fullWidth
-        slotProps={{
-          htmlInput: {
-            'data-qa': 'suggest-vocabulary-examples-accepted-polish',
-          },
-        }}
-      />
-      <TextField
-        value={example.english}
-        onChange={(e) => onEnglishChange(id, e.target.value)}
-        label="English"
-        size="small"
-        fullWidth
-        slotProps={{
-          input: {
-            endAdornment: isTranslating ? (
-              <InputAdornment position="end">
-                <CircularProgress size={16} />
-              </InputAdornment>
-            ) : null,
-          },
-          htmlInput: {
-            'data-qa': 'suggest-vocabulary-examples-accepted-english',
-          },
-        }}
-      />
-    </ExamplePairBox>
-  );
-}
+const NO_EXAMPLES: ExampleRowsFormValues = { examples: [] };
 
 interface SuggestVocabularyExamplesModalProps {
   open: boolean;
@@ -277,36 +189,13 @@ export function SuggestVocabularyExamplesModal({
     limit: SUGGESTION_CAP,
   });
   const { generate, clear: clearSuggestions, reset: resetSuggestions } = suggestions;
-  const [acceptedExamples, setAcceptedExamples] = useState<ExampleSentence[]>([]);
-  const [translatingIds, setTranslatingIds] = useState<Set<string>>(new Set());
 
-  const newRowPolishRef = useRef<HTMLInputElement>(null);
-  const translationTimeouts = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
-  // Replaced on each Polish edit and invalidated by manual English edits or removal.
-  const translationTokens = useRef<Map<string, symbol>>(new Map());
-
-  useEffect(() => {
-    const timeouts = translationTimeouts.current;
-    const tokens = translationTokens.current;
-    return () => {
-      timeouts.forEach((timeout) => clearTimeout(timeout));
-      timeouts.clear();
-      tokens.clear();
-    };
-  }, []);
-
-  const cancelRowTranslation = useCallback((id: string) => {
-    const timeout = translationTimeouts.current.get(id);
-    if (timeout) clearTimeout(timeout);
-    translationTimeouts.current.delete(id);
-    translationTokens.current.delete(id);
-    setTranslatingIds((prev) => {
-      if (!prev.has(id)) return prev;
-      const next = new Set(prev);
-      next.delete(id);
-      return next;
-    });
-  }, []);
+  const { control, getValues, setValue, reset } = useForm<ExampleRowsFormValues>({
+    defaultValues: NO_EXAMPLES,
+  });
+  const acceptedRows = useExampleRows({ control, getValues, setValue });
+  const { cancelAll: cancelTranslations } = acceptedRows.translation;
+  const acceptedExamples = useWatch({ control, name: 'examples' });
 
   const fetchSuggestions = useCallback(() => {
     if (!word) return;
@@ -319,134 +208,48 @@ export function SuggestVocabularyExamplesModal({
   }, [word, generate]);
 
   useEffect(() => {
-    translationTimeouts.current.forEach((timeout) => clearTimeout(timeout));
-    translationTimeouts.current.clear();
-    translationTokens.current.clear();
-    setTranslatingIds(new Set());
+    cancelTranslations();
     if (open && word) {
-      setAcceptedExamples([]);
+      reset(NO_EXAMPLES);
       void fetchSuggestions();
     }
-  }, [open, word, fetchSuggestions]);
+  }, [open, word, fetchSuggestions, cancelTranslations, reset]);
 
   const handleAcceptSelected = () => {
     const selected = toExampleSentences(suggestions.selectedItems);
     if (selected.length === 0) return;
-    setAcceptedExamples((prev) => [...prev, ...selected]);
+    acceptedRows.append(selected);
     clearSuggestions();
   };
 
-  const translatePolishForRow = useCallback(
-    async (id: string, polishText: string, token: symbol) => {
-      const trimmed = polishText.trim();
-      const isCurrent = () => translationTokens.current.get(id) === token;
-      if (!trimmed || !isCurrent()) return;
-
-      setTranslatingIds((prev) => new Set(prev).add(id));
-      try {
-        const result = await translate(trimmed, 'EN');
-        if (isCurrent()) {
-          setAcceptedExamples((prev) =>
-            prev.map((ex) =>
-              ex.id === id && ex.polish.trim() === trimmed
-                ? { ...ex, english: result.translatedText }
-                : ex
-            )
-          );
-        }
-      } catch {
-        // Silently fail - user can manually enter translation
-      } finally {
-        if (isCurrent()) {
-          setTranslatingIds((prev) => {
-            const next = new Set(prev);
-            next.delete(id);
-            return next;
-          });
-        }
-      }
-    },
-    []
-  );
-
-  const handleAcceptedPolishChange = useCallback(
-    (id: string, value: string) => {
-      cancelRowTranslation(id);
-      setAcceptedExamples((prev) =>
-        prev.map((ex) => (ex.id === id ? { ...ex, polish: value } : ex))
-      );
-
-      if (!value.trim()) return;
-      const token = Symbol();
-      translationTokens.current.set(id, token);
-
-      const timeout = setTimeout(() => {
-        void translatePolishForRow(id, value, token);
-        translationTimeouts.current.delete(id);
-      }, TRANSLATION_DEBOUNCE_MS);
-
-      translationTimeouts.current.set(id, timeout);
-    },
-    [cancelRowTranslation, translatePolishForRow]
-  );
-
-  const handleAcceptedEnglishChange = useCallback(
-    (id: string, value: string) => {
-      cancelRowTranslation(id);
-      setAcceptedExamples((prev) =>
-        prev.map((ex) => (ex.id === id ? { ...ex, english: value } : ex))
-      );
-    },
-    [cancelRowTranslation]
-  );
-
-  const handleAddManually = useCallback(() => {
-    const newId = crypto.randomUUID();
-    setAcceptedExamples((prev) => [...prev, { id: newId, polish: '', english: '' }]);
-    setTimeout(() => {
-      newRowPolishRef.current?.focus();
-    }, 0);
-  }, []);
-
-  const handleRemoveAccepted = useCallback(
-    (id: string) => {
-      cancelRowTranslation(id);
-      setAcceptedExamples((prev) => prev.filter((ex) => ex.id !== id));
-    },
-    [cancelRowTranslation]
-  );
-
   const handleClose = useCallback(() => {
     resetSuggestions();
-    setAcceptedExamples([]);
-    setTranslatingIds(new Set());
-    translationTimeouts.current.forEach((timeout) => clearTimeout(timeout));
-    translationTimeouts.current.clear();
-    translationTokens.current.clear();
+    reset(NO_EXAMPLES);
+    cancelTranslations();
     onClose();
-  }, [onClose, resetSuggestions]);
+  }, [onClose, resetSuggestions, reset, cancelTranslations]);
 
   const save = useOptimisticModalSave({ onSave, onClose: handleClose });
 
-  const handleSave = useCallback(() => {
-    const valid = acceptedExamples.filter((ex) => ex.polish.trim() && ex.english.trim());
-    if (valid.length === 0) {
+  const validExamples = acceptedExamples.filter((ex) => ex.polish.trim() && ex.english.trim());
+
+  const handleSave = () => {
+    if (validExamples.length === 0) {
       handleClose();
       return;
     }
     save(
-      valid.map((ex) => ({
+      validExamples.map((ex) => ({
         id: ex.id,
         polish: ex.polish.trim(),
         english: ex.english.trim(),
       }))
     );
-  }, [acceptedExamples, save, handleClose]);
+  };
 
   if (!word) return null;
 
-  const acceptedCount = acceptedExamples.length;
-  const hasAcceptedToSave = acceptedExamples.some((ex) => ex.polish.trim() && ex.english.trim());
+  const acceptedCount = acceptedRows.fields.length;
 
   return (
     <ModalDialog
@@ -489,7 +292,7 @@ export function SuggestVocabularyExamplesModal({
             hasAccepted={acceptedCount > 0}
             onFetch={fetchSuggestions}
             onAcceptSelected={handleAcceptSelected}
-            onAddManually={handleAddManually}
+            onAddManually={acceptedRows.addEmptyRow}
           />
         </Box>
 
@@ -499,18 +302,10 @@ export function SuggestVocabularyExamplesModal({
               Accepted ({acceptedCount})
             </SectionLabel>
             <Stack spacing={1.5}>
-              {acceptedExamples.map((ex, index) => (
-                <AcceptedExampleRow
-                  key={ex.id}
-                  example={ex}
-                  index={index}
-                  isTranslating={translatingIds.has(ex.id!)}
-                  polishRef={index === acceptedExamples.length - 1 ? newRowPolishRef : undefined}
-                  onPolishChange={handleAcceptedPolishChange}
-                  onEnglishChange={handleAcceptedEnglishChange}
-                  onRemove={handleRemoveAccepted}
-                />
-              ))}
+              <ExampleRowsEditor
+                rows={acceptedRows}
+                dataQaPrefix="suggest-vocabulary-examples-accepted"
+              />
             </Stack>
           </Box>
         )}
@@ -527,7 +322,7 @@ export function SuggestVocabularyExamplesModal({
         <Button
           onClick={handleSave}
           variant="contained"
-          disabled={!hasAcceptedToSave}
+          disabled={validExamples.length === 0}
           data-qa="suggest-vocabulary-examples-save"
         >
           Save

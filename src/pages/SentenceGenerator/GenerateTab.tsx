@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, memo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import {
   TextField,
   Box,
@@ -14,23 +14,24 @@ import AddIcon from '@mui/icons-material/Add';
 import type { CEFRLevel, Sentence, TagCategory } from '../../types/sentences';
 import { ALL_LEVELS } from '../../types/sentences';
 import { generateSentences, type GeneratedSentence } from '../../lib/generateSentences';
-import { createSentences, getNextSentenceIds } from '../../lib/storage/systemSentences';
+import { assignNewSentenceIds, createSentences } from '../../lib/storage/systemSentences';
 import toggleInArray from '../../lib/utils/toggleInArray';
 import { Section, ChipGroup, SentenceCard } from './shared';
 import { TagCategoryPicker } from './TagCategoryPicker';
 import { computeCoverageStats } from './utils';
 import { useSelectableList } from '../../hooks/useSelectableList';
-import type { GenerateTabProps } from './types';
+import { useSentences } from '../../hooks/useReviewData';
+import { useSnackbar } from '../../contexts/SnackbarContext';
 
-export const GenerateTab = memo(function GenerateTab({
-  sentences,
-  setSentences,
-  sentenceTags,
-  addSentenceTag,
-  showSnackbar,
-  initialLevel = 'B1',
-  initialTag,
-}: GenerateTabProps) {
+interface GenerateTabProps {
+  /** Preselected level and tag, e.g. from a curriculum suggestion. */
+  initialLevel?: CEFRLevel;
+  initialTag?: string;
+}
+
+export function GenerateTab({ initialLevel = 'B1', initialTag }: GenerateTabProps) {
+  const { sentences, setSentences, tags: sentenceTags, addTag: addSentenceTag } = useSentences();
+  const { showSnackbar } = useSnackbar();
   const [selectedLevel, setSelectedLevel] = useState<CEFRLevel>(initialLevel);
   const [selectedTags, setSelectedTags] = useState<string[]>(initialTag ? [initialTag] : []);
   const [countInput, setCountInput] = useState('5');
@@ -110,16 +111,7 @@ export const GenerateTab = memo(function GenerateTab({
 
     setSaving(true);
     try {
-      const levels = [...new Set(toSave.map((s) => s.level))];
-      const nextIds = await getNextSentenceIds(levels);
-
-      const counters = { ...nextIds };
-      const sentencesToCreate: Sentence[] = toSave.map((s) => {
-        const id = `${s.level.toLowerCase()}_${String(counters[s.level]).padStart(3, '0')}`;
-        counters[s.level]++;
-        return { id, ...s };
-      });
-
+      const sentencesToCreate: Sentence[] = await assignNewSentenceIds(toSave);
       await createSentences(sentencesToCreate);
       setSentences([...sentences, ...sentencesToCreate]);
       showSnackbar(`Saved ${sentencesToCreate.length} sentences`, 'success');
@@ -271,4 +263,4 @@ export const GenerateTab = memo(function GenerateTab({
       )}
     </Stack>
   );
-});
+}

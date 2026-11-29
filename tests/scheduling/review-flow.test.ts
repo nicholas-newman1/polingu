@@ -33,7 +33,7 @@ import {
   getSessionCards,
 } from '../../src/lib/reviewSession/scheduler';
 import { vocabularyDeck } from '../../src/lib/reviewSession/reviewDecks';
-import { vocabularyStorage } from '../../src/lib/storage/reviewDeckStorage';
+import { emptyReviewStore } from '../../src/lib/storage/reviewDeckStorage';
 
 beforeEach(() => freezeTime());
 
@@ -44,7 +44,7 @@ const words = stubs<VocabularyWord>([1, 2, 3, 4, 5].map((id) => ({ id })));
 
 function freshStore(): VocabularyReviewDataStore {
   return {
-    ...vocabularyStorage['pl-to-en'].emptyStore(),
+    ...emptyReviewStore(),
     cards: { 1: { wordId: 1, fsrsCard: graduated(-1) } },
   };
 }
@@ -132,7 +132,7 @@ test('the next day brings back unfinished learning cards and a fresh new-card al
 
   // A new local day: the loader replaces the counters but keeps the cards.
   freezeTime(new Date(NOW.getTime() + DAY));
-  const tomorrow = { ...vocabularyStorage['pl-to-en'].emptyStore(), cards: learner.store.cards };
+  const tomorrow = { ...emptyReviewStore(), cards: learner.store.cards };
   const session = getSessionCards(vocabularyDeck, words, tomorrow, settings);
 
   // Words 2 and 3 were passed once and sit on a learning step.
@@ -157,7 +157,7 @@ test('extra new cards after the allowance is used up are recorded as introduced'
 
 test('each round of review early moves on to words not yet reviewed today', () => {
   const learner = new Learner({
-    ...vocabularyStorage['pl-to-en'].emptyStore(),
+    ...emptyReviewStore(),
     cards: Object.fromEntries(
       [1, 2, 3, 4].map((id) => [id, { wordId: id, fsrsCard: graduated(id) }])
     ),
@@ -196,17 +196,13 @@ function renderVocabularyReview(initial: VocabularyReviewDataStore) {
   const { result } = renderHook(() => {
     const [store, setStore] = useState(initial);
     const session = useReviewSession({
-      cardKey: 'word',
-      getId: (word: VocabularyWord) => word.id,
+      deck: vocabularyDeck,
+      items: words,
+      store,
+      settings,
       getAudioUrls: () => [],
       ready: true,
-      getSessionCards: () => getSessionCards(vocabularyDeck, words, store, settings),
-      getPracticeAheadCards: (count, current) =>
-        getPracticeAheadCards(vocabularyDeck, words, current, count),
-      getExtraNewCards: (count, current) => getExtraNewCards(vocabularyDeck, words, current, count),
-      reviewStore: store,
-      recordReview: recordCardReview,
-      saveReviewStore: async (next) => setStore(next),
+      save: async (next) => setStore(next),
     });
     return { session, store };
   });
@@ -236,7 +232,7 @@ test('a passed card changed to Again is saved as relearning and retried in the l
   expect(screen.session().totalRemaining).toBe(3);
 
   // Flush the buffered save by rebuilding, then look at what was stored.
-  act(() => screen.session().rebuildSession());
+  act(() => screen.session().restartAfterRender());
   await screen.settle();
   expect(screen.store().cards[1].fsrsCard.state).toBe(State.Relearning);
   expect(screen.store().cards[1].fsrsCard.lapses).toBe(1);
@@ -245,7 +241,7 @@ test('a passed card changed to Again is saved as relearning and retried in the l
 test('a passed card changed to Again is still in the session after it is rebuilt', async () => {
   const screen = await passThenChangeToAgain();
 
-  act(() => screen.session().rebuildSession());
+  act(() => screen.session().restartAfterRender());
   await screen.settle();
 
   expect(screen.currentId()).toBe(1);

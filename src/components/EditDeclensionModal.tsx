@@ -4,29 +4,18 @@ import CloseIcon from '@mui/icons-material/Close';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { ModalDialog, ModalHeader, ModalContent } from './modalStyles';
 import { ModalFooter } from './ModalFooter';
+import { useValueWhileOpen } from '../hooks/useValueWhileOpen';
 import { FormSelectField, FormTextField } from './FormFields';
 import { type ModalSaveResult } from '../hooks/useOptimisticModalSave';
-import { useAuthContext } from '../hooks/useAuthContext';
-import { useTranslatedEditModal } from '../hooks/useTranslatedEditModal';
+import { useAuthContext } from '../contexts/AuthContext';
+import { useEditModal } from '../hooks/useEditModal';
+import { usePolishEnglishFormAutoTranslate } from '../hooks/usePolishEnglishAutoTranslate';
 import { useConfirm } from '../hooks/useConfirm';
 import { containsWholePhrase } from '../lib/utils/containsWholePhrase';
+import { CASES, GENDERS, NUMBERS } from '../constants';
 import { AudioRegenerator } from './AudioRegenerator';
 import { PolishEnglishFields } from './PolishEnglishFields';
 import type { DeclensionCard, Case, Gender, Number } from '../types';
-
-const CASES: Case[] = [
-  'Nominative',
-  'Genitive',
-  'Dative',
-  'Accusative',
-  'Instrumental',
-  'Locative',
-  'Vocative',
-];
-
-const GENDERS: Gender[] = ['Masculine', 'Feminine', 'Neuter', 'Pronoun'];
-
-const NUMBERS: Number[] = ['Singular', 'Plural'];
 
 const TRANSLATION_FIELD_NAMES = { polish: 'back', english: 'english' };
 
@@ -47,8 +36,8 @@ interface EditDeclensionModalProps {
   onClose: () => void;
   onSave: (data: Omit<DeclensionCard, 'id' | 'isCustom'>) => ModalSaveResult;
   onDelete?: () => void;
+  /** The card to edit, or null to create a new one. */
   card: DeclensionCard | null;
-  isCreating?: boolean;
   onAudioUpdated?: (audioUrl: string) => void;
 }
 
@@ -69,10 +58,10 @@ export function EditDeclensionModal({
   onSave,
   onDelete,
   card,
-  isCreating = false,
   onAudioUpdated,
 }: EditDeclensionModalProps) {
   const { isAdmin } = useAuthContext();
+  const isCreating = !useValueWhileOpen(card, open);
 
   const {
     control,
@@ -90,21 +79,26 @@ export function EditDeclensionModal({
   const declinedText = useWatch({ control, name: 'declined' });
   const { confirm, confirmDialog } = useConfirm();
 
-  const { translation, pendingAudioUrl, handleClose, handleAudioSaved, save } =
-    useTranslatedEditModal({
-      open,
-      onClose,
-      onSave,
-      onAudioUpdated,
-      form: { getValues, setValue },
-      resetForm: () => reset(getDefaultValues(null)),
-      fieldNames: TRANSLATION_FIELD_NAMES,
-    });
+  const translation = usePolishEnglishFormAutoTranslate(
+    { getValues, setValue },
+    { fieldNames: TRANSLATION_FIELD_NAMES }
+  );
+
+  const { handleClose, handleAudioSaved, save } = useEditModal({
+    open,
+    onClose,
+    onSave,
+    onAudioUpdated,
+    reset: () => {
+      reset(getDefaultValues(null));
+      translation.cancel();
+    },
+  });
   // Built-in cards always carry a translation; custom cards may leave it out.
-  const englishRequired = !isCreating && !!card && !card.isCustom;
+  const englishRequired = !!card && !card.isCustom;
   // Checked only on the learner's own cards, so an admin is never blocked from editing built-in ones.
   const declinedNotInBack =
-    (isCreating || !card || !!card.isCustom) &&
+    (!card || !!card.isCustom) &&
     !!declinedText.trim() &&
     !!backText.trim() &&
     !containsWholePhrase(backText, declinedText);
@@ -149,13 +143,13 @@ export function EditDeclensionModal({
         </IconButton>
       </ModalHeader>
       <ModalContent>
-        {isAdmin && card && !isCreating && (
+        {isAdmin && card && (
           <>
             <AudioRegenerator
               text={backText}
               type={card.isCustom ? 'custom-declension' : 'declension'}
               id={String(card.id)}
-              currentAudioUrl={pendingAudioUrl || card.audioUrl}
+              currentAudioUrl={card.audioUrl}
               onAudioSaved={handleAudioSaved}
               label="Card Audio (Back)"
             />

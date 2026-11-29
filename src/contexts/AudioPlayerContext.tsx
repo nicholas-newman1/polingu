@@ -5,6 +5,7 @@ import {
   useRef,
   useCallback,
   useEffect,
+  useMemo,
   type ReactNode,
 } from 'react';
 import { subscribeToAudioItem, subscribeToSystemAudioItem } from '../lib/audio';
@@ -16,7 +17,7 @@ import { useAudioUrlResolver } from './audioPlayer/useAudioUrlResolver';
 import { promotePreloaded, usePreloadTrack, type PreloadedTrack } from './audioPlayer/preloadSlots';
 import { syncPositionState, useMediaSession } from './audioPlayer/useMediaSession';
 import { usePersistPlaybackTime } from './audioPlayer/usePersistPlaybackTime';
-import { usePlaybackEvents } from './audioPlayer/usePlaybackEvents';
+import { usePlaybackEvents, type PlaybackHandles } from './audioPlayer/usePlaybackEvents';
 
 type AnyAudioItem = AudioItem | SystemAudioItem;
 
@@ -33,19 +34,16 @@ function subscribeToAnyAudioItem(
 interface AudioPlayerState {
   activeAudioId: string | null;
   audioItem: AnyAudioItem | null;
-  audioUrl: string | null;
   isPlaying: boolean;
   currentTime: number;
   duration: number;
   activeSegmentIndex: number;
-  activeWordIndex: number;
   playbackRate: number;
   loading: boolean;
   error: string | null;
 }
 
 interface AudioPlayerActions {
-  loadTrack: (audioId: string) => void;
   play: () => void;
   pause: () => void;
   togglePlay: () => void;
@@ -64,14 +62,26 @@ interface AudioLibraryState {
   libraryLoading: boolean;
 }
 
+type QueueControls = Pick<
+  QueueManager,
+  | 'userQueue'
+  | 'autoQueue'
+  | 'hasNext'
+  | 'hasPrevious'
+  | 'addToQueue'
+  | 'insertNext'
+  | 'removeFromQueue'
+  | 'reorderQueue'
+  | 'skipToQueueItem'
+>;
+
 type AudioPlayerContextType = AudioPlayerState &
   AudioPlayerActions &
   AudioLibraryState &
-  QueueManager;
+  QueueControls;
 
 const AudioPlayerContext = createContext<AudioPlayerContextType | null>(null);
 
-// eslint-disable-next-line react-refresh/only-export-components
 export function useAudioPlayerContext() {
   const ctx = useContext(AudioPlayerContext);
   if (!ctx) throw new Error('useAudioPlayerContext must be used within AudioPlayerProvider');
@@ -91,9 +101,13 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   const rafRef = useRef<number>(0);
   const transcriptRef = useRef<TranscriptSegment[]>([]);
   const unsubItemRef = useRef<(() => void) | null>(null);
+  // The playback listeners call the latest nextTrack without being reattached when it changes.
   const playNextRef = useRef<() => void>(null);
   const autoPlayRef = useRef(true);
   const restoredRef = useRef(false);
+  const restoreTimeRef = useRef<number>(0);
+  // Read by the playback listeners after each load(), which resets the element's rate.
+  const playbackRateRef = useRef(1);
 
   useEffect(() => {
     audioRef.current = audioElARef.current;
@@ -104,31 +118,41 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   const [activeAudioId, setActiveAudioId] = useState<string | null>(null);
   const [audioItem, setAudioItem] = useState<AnyAudioItem | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  // The URL resolver checks it after awaiting, so it can't use the value from when it was called.
   const audioUrlRef = useRef<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [activeSegmentIndex, setActiveSegmentIndex] = useState(-1);
-  const [activeWordIndex, setActiveWordIndex] = useState(-1);
   const [playbackRate, setPlaybackRateState] = useState(1);
-  const playbackRateRef = useRef(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { items, systemItems, systemItemsRef, libraryLoading } = useAudioLibrary();
+  const { items, systemItems, libraryLoading } = useAudioLibrary();
 
   useEffect(() => {
     audioUrlRef.current = audioUrl;
   }, [audioUrl]);
 
-  const queueManager = useQueueManager();
-  const { initializeQueue, advanceQueue, rewindQueue, skipToQueueItem, persistTime, flushTime } =
-    queueManager;
-  const restoreTimeRef = useRef<number>(0);
-  const activeAudioIdRef = useRef<string | null>(null);
-  useEffect(() => {
-    activeAudioIdRef.current = activeAudioId;
-  }, [activeAudioId]);
+  const {
+    currentTrackId,
+    initialSavedTime,
+    userQueue,
+    autoQueue,
+    previousTrackId,
+    hasNext,
+    hasPrevious,
+    initializeQueue,
+    addToQueue,
+    insertNext,
+    removeFromQueue,
+    reorderQueue,
+    advanceQueue,
+    rewindQueue,
+    skipToQueueItem,
+    persistTime,
+    flushTime,
+  } = useQueueManager();
 
   /**
    * Stops the outgoing track when switching. The queue already names the new track, so the stop
@@ -141,97 +165,81 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     setAudioUrl(null);
   }, []);
 
-  const resetPlayerState = useCallback(() => {
-    cancelAnimationFrame(rafRef.current);
-    stopOutgoingTrack();
-    setIsPlaying(autoPlayRef.current);
-    setCurrentTime(0);
-    setDuration(0);
-    setActiveSegmentIndex(-1);
-    setActiveWordIndex(-1);
-    setError(null);
-    transcriptRef.current = [];
-  }, [stopOutgoingTrack]);
-
   const resolveAudioUrl = useAudioUrlResolver(audioUrlRef);
 
   const loadTrackInternal = useCallback(
     (audioId: string, force = false, autoPlay = true) => {
-      if (audioId === activeAudioIdRef.current && !force) return;
+      if (audioId === activeAudioId && !force) return;
       autoPlayRef.current = autoPlay;
       unsubItemRef.current?.();
 
       const cachedItem: AnyAudioItem | undefined =
-        items.find((i) => i.id === audioId) ?? systemItemsRef.current.find((i) => i.id === audioId);
-      const isSystemTrack = systemItemsRef.current.some((i) => i.id === audioId);
+        items.find((i) => i.id === audioId) ?? systemItems.find((i) => i.id === audioId);
+      const isSystemTrack = systemItems.some((i) => i.id === audioId);
+      // A track the library already lists as ready starts at once; any other waits for its document.
+      const readyItem =
+        cachedItem?.status === 'ready' && cachedItem.storagePath ? cachedItem : null;
 
-      if (cachedItem?.status === 'ready' && cachedItem.storagePath) {
-        const outgoing =
-          activeAudioIdRef.current && audioUrlRef.current
-            ? { id: activeAudioIdRef.current, url: audioUrlRef.current }
-            : null;
-        const preloadedUrl = promotePreloaded(
+      const outgoing =
+        activeAudioId && audioUrlRef.current
+          ? { id: activeAudioId, url: audioUrlRef.current }
+          : null;
+      const preloadedUrl =
+        readyItem &&
+        promotePreloaded(
           { audioRef, preloadRef, prevPreloadRef, preloadedTrackRef, prevPreloadedTrackRef },
           audioId,
           outgoing
         );
-        if (preloadedUrl) skipLoadRef.current = true;
 
-        setActiveAudioId(audioId);
-        setAudioItem(cachedItem);
-        transcriptRef.current = cachedItem.transcript ?? [];
-        cancelAnimationFrame(rafRef.current);
-        setCurrentTime(0);
-        setDuration(0);
-        setActiveSegmentIndex(-1);
-        setActiveWordIndex(-1);
-        setError(null);
-
-        if (preloadedUrl) {
-          setAudioUrl(preloadedUrl);
-          setLoading(false);
-        } else {
-          // Now, rather than once the new URL resolves (if it does).
-          stopOutgoingTrack();
-          setLoading(true);
-          resolveAudioUrl(audioId, cachedItem.storagePath)
-            .then((url) => {
-              setAudioUrl(url);
-              setLoading(false);
-            })
-            .catch(() => {
-              setError('Failed to load audio file.');
-              setLoading(false);
-            });
-        }
-
-        unsubItemRef.current = subscribeToAnyAudioItem(audioId, isSystemTrack, (item) => {
-          if (item) {
-            setAudioItem(item);
-            if (item.transcript) transcriptRef.current = item.transcript;
+      const loadUrl = (storagePath: string) => {
+        resolveAudioUrl(audioId, storagePath).then(
+          (url) => {
+            setAudioUrl(url);
+            setLoading(false);
+          },
+          () => {
+            setError('Failed to load audio file.');
+            setLoading(false);
           }
-        });
-        return;
+        );
+      };
+
+      cancelAnimationFrame(rafRef.current);
+      setActiveAudioId(audioId);
+      setCurrentTime(0);
+      setDuration(0);
+      setActiveSegmentIndex(-1);
+      setError(null);
+      transcriptRef.current = readyItem?.transcript ?? [];
+
+      if (preloadedUrl) {
+        skipLoadRef.current = true;
+        setAudioUrl(preloadedUrl);
+        setLoading(false);
+      } else {
+        // Now, rather than once the new URL resolves (if it does).
+        stopOutgoingTrack();
+        setLoading(true);
       }
 
-      resetPlayerState();
-      setActiveAudioId(audioId);
-      setLoading(true);
+      if (readyItem) {
+        setAudioItem(readyItem);
+        if (!preloadedUrl) loadUrl(readyItem.storagePath);
+      } else {
+        setIsPlaying(autoPlay);
+      }
 
-      unsubItemRef.current = subscribeToAnyAudioItem(audioId, isSystemTrack, async (item) => {
-        setAudioItem(item);
-        if (item?.transcript) {
-          transcriptRef.current = item.transcript;
+      unsubItemRef.current = subscribeToAnyAudioItem(audioId, isSystemTrack, (item) => {
+        if (item?.transcript) transcriptRef.current = item.transcript;
+        if (readyItem) {
+          if (item) setAudioItem(item);
+          return;
         }
 
+        setAudioItem(item);
         if (item?.status === 'ready' && item.storagePath) {
-          try {
-            const url = await resolveAudioUrl(item.id, item.storagePath);
-            setAudioUrl(url);
-          } catch {
-            setError('Failed to load audio file.');
-          }
-          setLoading(false);
+          loadUrl(item.storagePath);
         } else if (item?.status === 'error') {
           setError(item.error || 'Processing failed.');
           setLoading(false);
@@ -241,33 +249,25 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
         }
       });
     },
-    [resetPlayerState, stopOutgoingTrack, items, systemItemsRef, resolveAudioUrl]
-  );
-
-  const loadTrack = useCallback(
-    (audioId: string) => {
-      loadTrackInternal(audioId);
-    },
-    [loadTrackInternal]
+    [activeAudioId, items, systemItems, stopOutgoingTrack, resolveAudioUrl]
   );
 
   useEffect(() => {
-    if (restoredRef.current || libraryLoading || !queueManager.currentTrackId) return;
-    if (activeAudioIdRef.current) return;
-    const trackId = queueManager.currentTrackId;
+    if (restoredRef.current || libraryLoading || !currentTrackId || activeAudioId) return;
     const item =
-      items.find((i) => i.id === trackId && i.status === 'ready') ??
-      systemItems.find((i) => i.id === trackId && i.status === 'ready');
+      items.find((i) => i.id === currentTrackId && i.status === 'ready') ??
+      systemItems.find((i) => i.id === currentTrackId && i.status === 'ready');
     if (!item) return;
     restoredRef.current = true;
-    restoreTimeRef.current = queueManager.initialSavedTime;
-    queueMicrotask(() => loadTrackInternal(trackId, false, false));
+    restoreTimeRef.current = initialSavedTime;
+    queueMicrotask(() => loadTrackInternal(currentTrackId, false, false));
   }, [
     libraryLoading,
     items,
     systemItems,
-    queueManager.currentTrackId,
-    queueManager.initialSavedTime,
+    currentTrackId,
+    initialSavedTime,
+    activeAudioId,
     loadTrackInternal,
   ]);
 
@@ -320,7 +320,6 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const { userQueue, autoQueue, previousTrackId } = queueManager;
   const nextQueueTrackId = userQueue[0] ?? autoQueue[0] ?? null;
 
   usePreloadTrack({
@@ -340,24 +339,26 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     resolveAudioUrl,
   });
 
-  usePlaybackEvents({
-    audioRef,
-    audioUrl,
-    skipLoadRef,
-    playbackRateRef,
-    transcriptRef,
-    rafRef,
-    restoreTimeRef,
-    autoPlayRef,
-    playNextRef,
-    persistTime,
-    flushTime,
-    setIsPlaying,
-    setDuration,
-    setCurrentTime,
-    setActiveSegmentIndex,
-    setActiveWordIndex,
-  });
+  const playbackHandles = useMemo<PlaybackHandles>(
+    () => ({
+      audioRef,
+      skipLoadRef,
+      playbackRateRef,
+      transcriptRef,
+      rafRef,
+      restoreTimeRef,
+      autoPlayRef,
+      playNextRef,
+      persistTime,
+      flushTime,
+      setIsPlaying,
+      setDuration,
+      setCurrentTime,
+      setActiveSegmentIndex,
+    }),
+    [persistTime, flushTime]
+  );
+  usePlaybackEvents(audioUrl, playbackHandles);
 
   usePersistPlaybackTime(audioRef, activeAudioId, isPlaying, persistTime, flushTime);
 
@@ -417,19 +418,16 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   const value: AudioPlayerContextType = {
     activeAudioId,
     audioItem,
-    audioUrl,
     isPlaying,
     currentTime,
     duration,
     activeSegmentIndex,
-    activeWordIndex,
     playbackRate,
     loading,
     error,
     items,
     systemItems,
     libraryLoading,
-    loadTrack,
     play,
     pause,
     togglePlay,
@@ -439,7 +437,14 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     nextTrack,
     previousTrack,
     playFromLibrary,
-    ...queueManager,
+    userQueue,
+    autoQueue,
+    hasNext,
+    hasPrevious,
+    addToQueue,
+    insertNext,
+    removeFromQueue,
+    reorderQueue,
     skipToQueueItem: skipToQueueItemAndPlay,
   };
 

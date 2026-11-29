@@ -1,7 +1,7 @@
 /**
  * Minimal stand-ins for the app's context providers. They supply the real context
  * objects with fixed values, so hooks under test run without AuthProvider's
- * Firebase listener or SnackbarProvider's global error wiring.
+ * Firebase listener.
  */
 import type { ReactNode } from 'react';
 import { vi } from 'vitest';

@@ -11,10 +11,18 @@ import {
   fakeTranslateServer,
   functionsError,
   minuteLimitError,
-  RESET_TIME,
+  resetTimeIn,
   type FakeTranslateServer,
 } from './support/translateServer';
-import { nextTick, pressOutside, renderInApp, settle, stubClipboard, tap } from './support/app';
+import {
+  limitDialog,
+  nextTick,
+  pressOutside,
+  renderInApp,
+  settle,
+  stubClipboard,
+  tap,
+} from './support/app';
 
 vi.mock('firebase/functions', () => import('./support/fakeFunctions'));
 
@@ -188,16 +196,15 @@ describe('translation errors in the word tooltip', () => {
     expect(showSnackbar).toHaveBeenCalledWith('Translation failed. Please try again.', 'error');
   });
 
-  test('reaching the daily limit closes the tooltip and reports when the limit resets', async () => {
-    server.failWith(dailyLimitError());
-    const onDailyLimitReached = vi.fn();
-    const { showSnackbar } = renderSentence({ onDailyLimitReached });
+  test('reaching the daily limit closes the tooltip and says when the limit resets', async () => {
+    server.failWith(dailyLimitError(resetTimeIn(150)));
+    const { showSnackbar } = renderSentence();
 
     tap(word('Kot'));
     await settle();
 
     expect(tooltips()).toHaveLength(0);
-    expect(onDailyLimitReached).toHaveBeenCalledWith(RESET_TIME);
+    expect(limitDialog()).toHaveTextContent('Your limit will reset in 2 hours 30 minutes');
     expect(showSnackbar).not.toHaveBeenCalled();
   });
 

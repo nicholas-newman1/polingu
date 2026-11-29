@@ -10,10 +10,10 @@ import { setupBrowser } from './support/browser';
 import {
   goTo,
   renderApp,
-  saveErrors,
   seedLibrary,
   settle,
   setupApp,
+  snackbar,
   systemTrack,
   systemTrackUrl,
   track,
@@ -223,7 +223,7 @@ describe('editing a line', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
     await settle();
 
-    expect(saveErrors).toHaveBeenCalledWith('Failed to save. Please try again.');
+    expect(snackbar).toHaveBeenCalledWith('Failed to save. Please try again.', 'error');
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     expect(within(dialog).getByLabelText('Line text')).toHaveValue('Pa pa');
     expect(within(dialog).getByRole('button', { name: 'Save' })).toBeEnabled();

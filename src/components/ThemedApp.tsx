@@ -2,7 +2,7 @@ import { useMemo, type ReactNode } from 'react';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { createAppTheme } from '../lib/theme';
-import { useColorMode } from '../hooks/useColorMode';
+import { useColorMode } from '../contexts/ColorModeContext';
 
 interface ThemedAppProps {
   children: ReactNode;

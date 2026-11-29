@@ -1,7 +1,7 @@
 import { File as NodeFile } from 'node:buffer';
 import { describe, expect, test, vi } from 'vitest';
 import { getCachedAudioBlob, uploadAudio } from '../../src/lib/audio';
-import type { AudioUploadProgress } from '../../src/types/audio';
+import type { UploadProgress } from '../../src/lib/media/storageFiles';
 import { remote } from './support/fakeFirestore';
 import { bucket, StorageError } from './support/fakeStorage';
 import {
@@ -22,7 +22,7 @@ const UID = 'learner-a';
 const PENDING_PATH = new RegExp(`^audio/users/${UID}/pending/([0-9a-f-]{36})/(.+)$`);
 
 function startUpload(file: File = fileOfSize('Lekcja 1.mp3', 'audio/mpeg', 1000)) {
-  const progress: AudioUploadProgress[] = [];
+  const progress: UploadProgress[] = [];
   let settled = false;
   const result = uploadAudio(file, (p) => progress.push(p));
   result.then(
@@ -57,14 +57,14 @@ describe('uploading an audio file', () => {
 
   test('reports the upload percentage as bytes are sent', () => {
     signIn(UID);
-    const { upload, progress, audioId } = startUpload(fileOfSize('a.mp3', 'audio/mpeg', 1000));
+    const { upload, progress } = startUpload(fileOfSize('a.mp3', 'audio/mpeg', 1000));
 
     upload.progress(250);
     upload.progress(1000);
 
     expect(progress).toEqual([
-      { status: 'uploading', uploadPercent: 25, audioId },
-      { status: 'uploading', uploadPercent: 100, audioId },
+      { status: 'uploading', uploadPercent: 25 },
+      { status: 'uploading', uploadPercent: 100 },
     ]);
   });
 
@@ -78,7 +78,7 @@ describe('uploading an audio file', () => {
     remote.seed(itemPath, { id: audioId, status: 'ready', createdAt: 1 });
 
     await expect(result).resolves.toBe(audioId);
-    expect(progress.at(-1)).toEqual({ status: 'ready', audioId });
+    expect(progress.at(-1)).toEqual({ status: 'ready' });
     expect(remote.listenerCount).toBe(0);
   });
 
@@ -104,19 +104,19 @@ describe('uploading an audio file', () => {
     remote.seed(itemPath, { id: audioId, status: 'error', error: 'No speech found.' });
 
     await expect(result).rejects.toThrow('No speech found.');
-    expect(progress.at(-1)).toEqual({ status: 'error', error: 'No speech found.', audioId });
+    expect(progress.at(-1)).toEqual({ status: 'error', error: 'No speech found.' });
     expect(remote.listenerCount).toBe(0);
   });
 
   test('a failed upload is reported and rejects with the storage error, without waiting for processing', async () => {
     signIn(UID);
-    const { upload, result, audioId, progress } = startUpload();
+    const { upload, result, progress } = startUpload();
     const error = new StorageError('storage/quota-exceeded', 'Quota exceeded.');
 
     upload.fail(error);
 
     await expect(result).rejects.toBe(error);
-    expect(progress).toEqual([{ status: 'error', error: 'Quota exceeded.', audioId }]);
+    expect(progress).toEqual([{ status: 'error', error: 'Quota exceeded.' }]);
     expect(remote.listenerCount).toBe(0);
   });
 
@@ -134,6 +134,21 @@ describe('uploading an audio file', () => {
     vi.advanceTimersByTime(1);
     await expect(result).rejects.toThrow('Processing timed out. Please try again.');
     expect(remote.listenerCount).toBe(0);
+  });
+
+  test.each([
+    ['ready', {}],
+    ['error', { error: 'No speech found.' }],
+  ] as const)('stops the ten-minute timeout once processing ends (%s)', async (status, extra) => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    signIn(UID);
+    const { upload, result, audioId, itemPath } = startUpload();
+    upload.finish();
+
+    remote.seed(itemPath, { id: audioId, status, createdAt: 1, ...extra });
+    await result.catch(() => {});
+
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   test('keeps a local copy of the uploaded file so it plays without downloading', async () => {

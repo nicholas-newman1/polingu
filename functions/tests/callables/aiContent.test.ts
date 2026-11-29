@@ -289,18 +289,15 @@ describe('processSentence', () => {
     expect(deeplBodies).toHaveLength(0);
   });
 
-  test.each(['DEEPL_API_KEY', 'OPENAI_API_KEY'])(
-    'fails with failed-precondition when %s is missing',
-    async (key) => {
-      vi.stubEnv(key, '');
-      const error = await rejection(ask({ text: 'Mam kota.', sourceLang: 'PL' }));
-      expect(error).toMatchObject({
-        code: 'failed-precondition',
-        message: 'Services not configured.',
-      });
-      expect(deeplBodies).toHaveLength(0);
-    }
-  );
+  test.each([
+    ['DEEPL_API_KEY', 'Translation service is not configured.'],
+    ['OPENAI_API_KEY', 'AI service is not configured.'],
+  ])('fails with failed-precondition when %s is missing', async (key, message) => {
+    vi.stubEnv(key, '');
+    const error = await rejection(ask({ text: 'Mam kota.', sourceLang: 'PL' }));
+    expect(error).toMatchObject({ code: 'failed-precondition', message });
+    expect(deeplBodies).toHaveLength(0);
+  });
 
   test('a Polish sentence is translated to English and levelled', async () => {
     openai.replyWith('A1');
@@ -335,7 +332,10 @@ describe('processSentence', () => {
   test('a DeepL error becomes an internal error', async () => {
     deeplReturns({ message: 'Quota exceeded' }, 456);
     const error = await rejection(ask({ text: 'Mam kota.', sourceLang: 'PL' }));
-    expect(error).toMatchObject({ code: 'internal', message: 'Translation failed.' });
+    expect(error).toMatchObject({
+      code: 'internal',
+      message: 'Translation failed. Please try again.',
+    });
     expect(openai.chatRequests).toHaveLength(0);
   });
 

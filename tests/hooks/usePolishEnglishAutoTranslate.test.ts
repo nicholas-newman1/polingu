@@ -5,12 +5,12 @@ import {
   usePolishEnglishFormAutoTranslate,
 } from '../../src/hooks/usePolishEnglishAutoTranslate';
 import { translate, type TranslationResult } from '../../src/lib/translate';
+import { TRANSLATION_DEBOUNCE_MS as DEBOUNCE_MS } from '../../src/constants/translation';
 import { deferred } from './support/deferred';
 
 // translate() calls a Cloud Function.
 vi.mock('../../src/lib/translate', () => ({ translate: vi.fn() }));
 
-const DEBOUNCE_MS = 500;
 const result = (translatedText: string): TranslationResult => ({
   translatedText,
   charsUsedToday: 0,
@@ -55,7 +55,6 @@ function renderPair({ vocabulary }: { vocabulary?: boolean } = {}) {
       getEnglish: (key) => row(key).english,
       onPolishTranslated: (key, polish) => void (row(key).polish = polish),
       onEnglishTranslated: (key, english) => void (row(key).english = english),
-      debounceMs: DEBOUNCE_MS,
     })
   );
   const pair = () => hook.result.current;

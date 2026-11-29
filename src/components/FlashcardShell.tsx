@@ -16,8 +16,8 @@ import {
   type CardCompletionOutcome,
 } from '../hooks/useCardCompletion';
 
-/** Session-control props every review flashcard forwards to `FlashcardShell`. */
-export interface ReviewFlashcardProps {
+/** The session controls ReviewStage gives a review flashcard, which forwards them to `FlashcardShell`. */
+export interface ReviewControls {
   practiceMode?: boolean;
   isViewingHistory?: boolean;
   canGoBack?: boolean;
@@ -29,6 +29,9 @@ export interface ReviewFlashcardProps {
   onNext?: () => void;
   onGoBack?: () => void;
   onContinue?: () => void;
+}
+
+export interface ReviewFlashcardProps extends ReviewControls {
   onEdit?: () => void;
 }
 

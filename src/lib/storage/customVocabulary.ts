@@ -1,10 +1,11 @@
 import { createCustomCollectionStorage } from './createCustomCollectionStorage';
 import type { CustomVocabularyWord } from '../../types/vocabulary';
-import { normalizeCustomVocabularyWord } from '../utils/normalizeCustomVocabularyFields';
+import { normalizeCustomVocabularyFields } from '../utils/normalizeCustomVocabularyFields';
 
-const storage = createCustomCollectionStorage<CustomVocabularyWord>('customVocabulary');
+export const customVocabularyStorage = createCustomCollectionStorage<CustomVocabularyWord>(
+  'customVocabulary',
+  normalizeCustomVocabularyFields
+);
 
-export const loadCustomVocabulary = storage.load;
-export const saveCustomVocabulary = (items: CustomVocabularyWord[]) =>
-  storage.save(items.map(normalizeCustomVocabularyWord));
-export const subscribeCustomVocabulary = storage.subscribe;
+export const loadCustomVocabulary = customVocabularyStorage.load;
+export const subscribeCustomVocabulary = customVocabularyStorage.subscribe;

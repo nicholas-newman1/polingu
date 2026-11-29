@@ -3,7 +3,6 @@ import type { CardCompletionOutcome } from '../hooks/useCardCompletion';
 let sharedAudioContext: AudioContext | null = null;
 
 function getAudioContext(): AudioContext | null {
-  if (typeof window === 'undefined') return null;
   const AudioCtx =
     window.AudioContext ??
     (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { registerSW } from 'virtual:pwa-register';
-import { useSnackbar } from '../hooks/useSnackbar';
+import { useSnackbar } from '../contexts/SnackbarContext';
 
 export function PwaUpdatePrompt() {
   const { showSnackbar } = useSnackbar();

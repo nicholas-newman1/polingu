@@ -12,10 +12,10 @@ import {
   goTo,
   listening,
   renderApp,
-  saveErrors,
   seedLibrary,
   settle,
   setupApp,
+  snackbar,
   track,
   trackUrl,
   UID,
@@ -473,7 +473,7 @@ describe('playing the queue', () => {
     chooseSetting('Learned cards', 'Gap between cards', '4s');
     await settle();
 
-    expect(saveErrors).toHaveBeenCalledWith('Failed to save. Please try again.');
+    expect(snackbar).toHaveBeenCalledWith('Failed to save. Please try again.', 'error');
     expect(listening().settings.learned.gapBetweenCards).toBe(4);
   });
 

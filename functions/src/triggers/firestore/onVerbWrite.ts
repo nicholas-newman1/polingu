@@ -3,6 +3,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { getFunctions } from 'firebase-admin/functions';
 import { db } from '../../shared/firebase.js';
 import { CardAudioStatus } from '../../shared/cardAudio.js';
+import { conjugationSubPath } from '../../shared/audioTypes.js';
 import { GENERATE_VERB_AUDIO_QUEUE } from '../../shared/queueNames.js';
 import type { GenerateVerbAudioTaskData, VerbAudioJob } from '../../tasks/generateVerbAudio.js';
 
@@ -52,7 +53,7 @@ function collectVerbAudioJobs(
         fieldPath: `conjugations.${tense}.${formKey}.audioUrl`,
         text: afterPl,
         audioType: 'conjugation',
-        subPath: `${docId}_${tense}_${formKey}`,
+        subPath: conjugationSubPath(docId, tense, formKey),
       });
     }
   }
